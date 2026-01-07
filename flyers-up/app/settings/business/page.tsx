@@ -1,0 +1,601 @@
+'use client';
+
+/**
+ * My Business Page (Pro Only)
+ * Comprehensive business management page with multiple sections:
+ * - Edit Business Profile
+ * - Set your Schedule
+ * - Manage Service (Add or update service types and Pricing)
+ * - Track income and tips
+ * - Customer Reviews
+ */
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
+import { getMyServicePro, updateServicePro, getServiceCategories, getProEarnings, getProJobs, type ServiceCategory, type Booking } from '@/lib/api';
+import { useProEarningsRealtime } from '@/hooks';
+import { formatMoney } from '@/lib/utils/money';
+
+type TabType = 'profile' | 'schedule' | 'services' | 'income' | 'reviews';
+
+export default function BusinessSettingsPage() {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<TabType>('profile');
+  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<'customer' | 'pro' | null>(null);
+  const [categories, setCategories] = useState<ServiceCategory[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  
+  const [displayName, setDisplayName] = useState('');
+  const [bio, setBio] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [startingPrice, setStartingPrice] = useState('');
+  const [serviceRadius, setServiceRadius] = useState('');
+  const [businessHours, setBusinessHours] = useState('');
+  const [availabilityTime, setAvailabilityTime] = useState('');
+
+  // Service management
+  const [serviceTypes, setServiceTypes] = useState<Array<{ name: string; price: string; id?: string }>>([]);
+  const [newServiceName, setNewServiceName] = useState('');
+  const [newServicePrice, setNewServicePrice] = useState('');
+
+  // Earnings
+  const { earnings, loading: earningsLoading } = useProEarningsRealtime(userId);
+
+  useEffect(() => {
+    checkAuthAndLoad();
+  }, []);
+
+  async function checkAuthAndLoad() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/signin');
+        return;
+      }
+
+      setUserId(user.id);
+
+      // Check user role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile || profile.role !== 'pro') {
+        setUserRole('customer');
+        setLoadingData(false);
+        return;
+      }
+
+      setUserRole('pro');
+
+      // Load categories
+      const cats = await getServiceCategories();
+      setCategories(cats);
+
+      // Load business data
+      const proData = await getMyServicePro(user.id);
+      if (proData) {
+        setDisplayName(proData.displayName);
+        setBio(proData.bio || '');
+        setCategoryId(proData.categoryId);
+        setStartingPrice(proData.startingPrice.toString());
+        setServiceRadius(proData.serviceRadius?.toString() || '');
+        setBusinessHours(proData.businessHours || '');
+        
+        // Load extended data from localStorage
+        const extendedDataStr = localStorage.getItem('proProfile_extended');
+        const extendedData = extendedDataStr ? JSON.parse(extendedDataStr) : {};
+        setAvailabilityTime(extendedData.availabilityTime || '');
+        
+        // Load service types from localStorage
+        const servicesStr = localStorage.getItem('proServiceTypes');
+        if (servicesStr) {
+          setServiceTypes(JSON.parse(servicesStr));
+        } else {
+          // Default service type
+          setServiceTypes([{ name: proData.categoryName || 'General Service', price: proData.startingPrice.toString() }]);
+        }
+      }
+
+      // Load bookings for reviews
+      const jobs = await getProJobs(user.id);
+      setBookings(jobs);
+    } catch (err) {
+      console.error('Error loading business data:', err);
+    } finally {
+      setLoadingData(false);
+    }
+  }
+
+  async function handleSaveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    if (!userId) return;
+
+    setLoading(true);
+    setSuccess(null);
+    setError(null);
+
+    try {
+      const result = await updateServicePro(userId, {
+        display_name: displayName,
+        bio: bio || undefined,
+        category_id: categoryId || undefined,
+        starting_price: startingPrice ? parseFloat(startingPrice) : undefined,
+        service_radius: serviceRadius ? parseInt(serviceRadius) : undefined,
+        business_hours: businessHours || undefined,
+      });
+
+      // Save extended data
+      const extendedDataStr = localStorage.getItem('proProfile_extended');
+      const extendedData = extendedDataStr ? JSON.parse(extendedDataStr) : {};
+      extendedData.availabilityTime = availabilityTime;
+      localStorage.setItem('proProfile_extended', JSON.stringify(extendedData));
+
+      if (result.success) {
+        setSuccess('Business profile updated successfully');
+      } else {
+        setError(result.error || 'Failed to update business profile');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleAddService() {
+    if (!newServiceName || !newServicePrice) {
+      setError('Please enter both service name and price');
+      return;
+    }
+
+    const newService = {
+      name: newServiceName,
+      price: newServicePrice,
+      id: Date.now().toString(),
+    };
+
+    const updated = [...serviceTypes, newService];
+    setServiceTypes(updated);
+    localStorage.setItem('proServiceTypes', JSON.stringify(updated));
+    setNewServiceName('');
+    setNewServicePrice('');
+    setSuccess('Service added successfully');
+  }
+
+  function handleRemoveService(id: string) {
+    const updated = serviceTypes.filter(s => s.id !== id);
+    setServiceTypes(updated);
+    localStorage.setItem('proServiceTypes', JSON.stringify(updated));
+    setSuccess('Service removed successfully');
+  }
+
+  function handleUpdateService(id: string, name: string, price: string) {
+    const updated = serviceTypes.map(s => 
+      s.id === id ? { ...s, name, price } : s
+    );
+    setServiceTypes(updated);
+    localStorage.setItem('proServiceTypes', JSON.stringify(updated));
+    setSuccess('Service updated successfully');
+  }
+
+  if (loadingData) {
+    return (
+      <div className="space-y-6">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  if (userRole !== 'pro') {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">My Business</h1>
+          <p className="text-gray-600">Manage your business profile and service details</p>
+        </div>
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-700">
+          This section is only available for service professionals. Please sign up as a pro to access business settings.
+        </div>
+      </div>
+    );
+  }
+
+  const completedBookings = bookings.filter(b => b.status === 'completed');
+  const reviews = completedBookings.map(b => ({
+    id: b.id,
+    customerName: b.customerName,
+    date: b.date,
+    rating: 5, // Placeholder - would come from reviews table
+    comment: `Great service!`, // Placeholder
+  }));
+
+  const tabs = [
+    { id: 'profile' as TabType, label: 'Edit Profile', icon: '👤' },
+    { id: 'schedule' as TabType, label: 'Schedule', icon: '📅' },
+    { id: 'services' as TabType, label: 'Services', icon: '🔧' },
+    { id: 'income' as TabType, label: 'Income & Tips', icon: '💰' },
+    { id: 'reviews' as TabType, label: 'Reviews', icon: '⭐' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">My Business</h1>
+        <p className="text-gray-600">Manage your business profile and service details</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-2 border-b border-gray-200">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <span>{tab.icon}</span>
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Success/Error Messages */}
+      {success && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700">
+          {success}
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          {error}
+        </div>
+      )}
+
+      {/* Tab Content */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        {/* Edit Business Profile Tab */}
+        {activeTab === 'profile' && (
+          <form onSubmit={handleSaveProfile} className="space-y-4">
+            <div>
+              <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">
+                Business Name *
+              </label>
+              <input
+                type="text"
+                id="displayName"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                placeholder="Your business or display name"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
+                About / Bio
+              </label>
+              <textarea
+                id="bio"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                placeholder="Tell customers about your services and experience"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+                Service Category *
+              </label>
+              <select
+                id="category"
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              >
+                <option value="">Select a category</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="startingPrice" className="block text-sm font-medium text-gray-700 mb-1">
+                Starting Price ($) *
+              </label>
+              <input
+                type="number"
+                id="startingPrice"
+                value={startingPrice}
+                onChange={(e) => setStartingPrice(e.target.value)}
+                required
+                min="0"
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="serviceRadius" className="block text-sm font-medium text-gray-700 mb-1">
+                Service Radius (miles)
+              </label>
+              <input
+                type="number"
+                id="serviceRadius"
+                value={serviceRadius}
+                onChange={(e) => setServiceRadius(e.target.value)}
+                min="0"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                placeholder="e.g., 25"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </form>
+        )}
+
+        {/* Set your Schedule Tab */}
+        {activeTab === 'schedule' && (
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="businessHours" className="block text-sm font-medium text-gray-700 mb-1">
+                Business Hours
+              </label>
+              <textarea
+                id="businessHours"
+                value={businessHours}
+                onChange={(e) => setBusinessHours(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                placeholder="e.g., Mon-Fri: 9am-5pm, Sat: 10am-2pm"
+              />
+              <p className="text-sm text-gray-500 mt-1">Specify your regular business hours</p>
+            </div>
+
+            <div>
+              <label htmlFor="availabilityTime" className="block text-sm font-medium text-gray-700 mb-1">
+                Availability Time
+              </label>
+              <input
+                type="text"
+                id="availabilityTime"
+                value={availabilityTime}
+                onChange={(e) => setAvailabilityTime(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                placeholder="e.g., Available 24/7, Weekends only, etc."
+              />
+              <p className="text-sm text-gray-500 mt-1">Describe when you're typically available</p>
+            </div>
+
+            <button
+              onClick={async () => {
+                setLoading(true);
+                const extendedDataStr = localStorage.getItem('proProfile_extended');
+                const extendedData = extendedDataStr ? JSON.parse(extendedDataStr) : {};
+                extendedData.availabilityTime = availabilityTime;
+                localStorage.setItem('proProfile_extended', JSON.stringify(extendedData));
+                
+                if (userId) {
+                  await updateServicePro(userId, {
+                    business_hours: businessHours || undefined,
+                  });
+                }
+                setLoading(false);
+                setSuccess('Schedule updated successfully');
+              }}
+              disabled={loading}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+            >
+              {loading ? 'Saving...' : 'Save Schedule'}
+            </button>
+          </div>
+        )}
+
+        {/* Manage Service Tab */}
+        {activeTab === 'services' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Services</h3>
+              
+              {serviceTypes.length > 0 ? (
+                <div className="space-y-3 mb-6">
+                  {serviceTypes.map((service) => (
+                    <div key={service.id} className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{service.name}</p>
+                        <p className="text-sm text-gray-600">${service.price}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const newName = prompt('Service name:', service.name);
+                          const newPrice = prompt('Price ($):', service.price);
+                          if (newName && newPrice && service.id) {
+                            handleUpdateService(service.id, newName, newPrice);
+                          }
+                        }}
+                        className="px-3 py-1 text-sm text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => service.id && handleRemoveService(service.id)}
+                        className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 mb-6">No services added yet.</p>
+              )}
+
+              <div className="border-t border-gray-200 pt-6">
+                <h4 className="font-medium text-gray-900 mb-4">Add New Service</h4>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <input
+                    type="text"
+                    value={newServiceName}
+                    onChange={(e) => setNewServiceName(e.target.value)}
+                    placeholder="Service name"
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                  <input
+                    type="number"
+                    value={newServicePrice}
+                    onChange={(e) => setNewServicePrice(e.target.value)}
+                    placeholder="Price ($)"
+                    min="0"
+                    step="0.01"
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                <button
+                  onClick={handleAddService}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                >
+                  Add Service
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Track Income and Tips Tab */}
+        {activeTab === 'income' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Income Overview</h3>
+              
+              {earningsLoading ? (
+                <p className="text-gray-500">Loading earnings...</p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <div className="p-4 bg-emerald-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Total Earnings</p>
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {formatMoney(Math.round(earnings?.totalEarnings || 0))}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">This Month</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {formatMoney(Math.round(earnings?.thisMonth || 0))}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Jobs Completed</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {earnings?.completedJobs || 0}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-amber-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Pending</p>
+                    <p className="text-2xl font-bold text-amber-600">
+                      {formatMoney(Math.round(earnings?.pendingPayments || 0))}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="border-t border-gray-200 pt-6">
+                <h4 className="font-medium text-gray-900 mb-4">Recent Earnings</h4>
+                {completedBookings.length > 0 ? (
+                  <div className="space-y-2">
+                    {completedBookings.slice(0, 10).map((booking) => (
+                      <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">{booking.customerName}</p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(booking.date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <p className="font-semibold text-emerald-600">
+                          {booking.price ? formatMoney(Math.round(booking.price * 100)) : '$0.00'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500">No completed jobs yet.</p>
+                )}
+              </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                <h4 className="font-medium text-gray-900 mb-4">Tips</h4>
+                <p className="text-gray-500">Tips tracking coming soon. Tips will be displayed here once customers add them to completed bookings.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Customer Reviews Tab */}
+        {activeTab === 'reviews' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Reviews</h3>
+              
+              {reviews.length > 0 ? (
+                <div className="space-y-4">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="p-4 border border-gray-200 rounded-lg">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <p className="font-medium text-gray-900">{review.customerName}</p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(review.date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <span key={i} className={i < review.rating ? 'text-yellow-400' : 'text-gray-300'}>
+                              ⭐
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-gray-700">{review.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="text-5xl mb-4">⭐</div>
+                  <p className="text-gray-500">No reviews yet.</p>
+                  <p className="text-sm text-gray-400 mt-2">Reviews will appear here once customers rate your completed jobs.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
