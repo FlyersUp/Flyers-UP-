@@ -305,12 +305,14 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Apply trigger to notification_settings
+DROP TRIGGER IF EXISTS update_user_notification_settings_updated_at ON public.user_notification_settings;
 CREATE TRIGGER update_user_notification_settings_updated_at
   BEFORE UPDATE ON public.user_notification_settings
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
 -- Apply trigger to payout_accounts
+DROP TRIGGER IF EXISTS update_pro_payout_accounts_updated_at ON public.pro_payout_accounts;
 CREATE TRIGGER update_pro_payout_accounts_updated_at
   BEFORE UPDATE ON public.pro_payout_accounts
   FOR EACH ROW
