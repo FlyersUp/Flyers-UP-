@@ -27,7 +27,7 @@ export default function BookingPage() {
       // Check if user is logged in via Supabase
       const user = await getCurrentUser();
       if (!user) {
-        router.push('/auth?role=customer');
+        router.push(`/auth?role=customer&next=${encodeURIComponent(`/book/${proId}`)}`);
         return;
       }
 

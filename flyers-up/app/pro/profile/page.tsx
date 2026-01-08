@@ -8,6 +8,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import PageLayout from '@/components/PageLayout';
 import { getCurrentUser, getMyServicePro, updateServicePro, getServiceCategories, type ServiceCategory } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
@@ -32,6 +33,7 @@ interface ProProfileData {
 
 export default function ProProfilePage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export default function ProProfilePage() {
 
       const user = await getCurrentUser();
       if (!user || user.role !== 'pro') {
-        router.push('/signin?role=pro');
+        router.push(`/signin?role=pro&next=${encodeURIComponent(pathname || '/pro/profile')}`);
         return;
       }
 

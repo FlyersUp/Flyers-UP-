@@ -12,10 +12,17 @@ function AuthRedirect() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const role = searchParams.get('role');
+  const next = searchParams.get('next');
   
   useEffect(() => {
     // Redirect to signin page with role param if present
-    const url = role ? `/signin?role=${role}` : '/signin';
+    const url = (() => {
+      const base = role ? `/signin?role=${encodeURIComponent(role)}` : '/signin';
+      if (next && next.startsWith('/')) {
+        return `${base}&next=${encodeURIComponent(next)}`;
+      }
+      return base;
+    })();
     router.replace(url);
   }, [role, router]);
 

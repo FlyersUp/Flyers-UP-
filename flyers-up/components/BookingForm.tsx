@@ -49,7 +49,7 @@ export default function BookingForm({ pro }: BookingFormProps) {
       // Get current user from Supabase
       const user = await getCurrentUser();
       if (!user) {
-        router.push('/auth?role=customer');
+        router.push(`/auth?role=customer&next=${encodeURIComponent(`/book/${pro.id}`)}`);
         return;
       }
 

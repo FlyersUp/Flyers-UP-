@@ -23,6 +23,7 @@ function SignInForm() {
 
   const roleParam = searchParams.get('role') as UserRole | null;
   const modeParam = searchParams.get('mode');
+  const nextParam = searchParams.get('next');
 
   const role: UserRole = roleParam === 'pro' ? 'pro' : 'customer';
   const [isSignUp, setIsSignUp] = useState(modeParam === 'signup');
@@ -44,10 +45,25 @@ function SignInForm() {
     const redirectIfAuthed = async () => {
       const user = await getCurrentUser();
       if (!user) return;
-      router.push(user.role === 'pro' ? '/dashboard/pro' : '/dashboard/customer');
+
+      const defaultDest = user.role === 'pro' ? '/pro' : '/customer';
+      const nextDest =
+        nextParam && nextParam.startsWith('/') ? decodeURIComponent(nextParam) : null;
+
+      // Prevent role-mismatch “bounce”: if user is customer, don't send them to /pro routes.
+      const dest =
+        nextDest &&
+        !(
+          (nextDest.startsWith('/pro') && user.role !== 'pro') ||
+          (nextDest.startsWith('/customer') && user.role !== 'customer')
+        )
+          ? nextDest
+          : defaultDest;
+
+      router.push(dest);
     };
     void redirectIfAuthed();
-  }, [router]);
+  }, [router, nextParam]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +74,20 @@ function SignInForm() {
       const result = isSignUp ? await signUp(role, email, password) : await signIn(email, password);
 
       if (result.success && result.user) {
-        router.push(result.user.role === 'pro' ? '/dashboard/pro' : '/dashboard/customer');
+        const defaultDest = result.user.role === 'pro' ? '/pro' : '/customer';
+        const nextDest =
+          nextParam && nextParam.startsWith('/') ? decodeURIComponent(nextParam) : null;
+
+        const dest =
+          nextDest &&
+          !(
+            (nextDest.startsWith('/pro') && result.user.role !== 'pro') ||
+            (nextDest.startsWith('/customer') && result.user.role !== 'customer')
+          )
+            ? nextDest
+            : defaultDest;
+
+        router.push(dest);
       } else {
         setError(result.error || 'Unable to continue. Please try again.');
       }

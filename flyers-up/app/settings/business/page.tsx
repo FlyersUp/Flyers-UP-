@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { getMyServicePro, updateServicePro, getServiceCategories, getProEarnings, getProJobs, type ServiceCategory, type Booking } from '@/lib/api';
 import { useProEarningsRealtime } from '@/hooks';
@@ -21,6 +21,7 @@ type TabType = 'profile' | 'schedule' | 'services' | 'income' | 'reviews';
 
 export default function BusinessSettingsPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
@@ -56,7 +57,7 @@ export default function BusinessSettingsPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        router.push('/signin');
+        router.push(`/signin?next=${encodeURIComponent(pathname || '/settings/business')}`);
         return;
       }
 
