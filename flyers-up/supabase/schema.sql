@@ -139,17 +139,20 @@ ALTER TABLE public.pro_payout_accounts ENABLE ROW LEVEL SECURITY;
 
 -- PROFILES POLICIES
 -- Users can read their own profile
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile"
   ON public.profiles FOR SELECT
   USING (auth.uid() = id);
 
 -- Users can update their own profile
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE
   USING (auth.uid() = id);
 
 -- Allow insert for authenticated users (for signup flow)
 -- Note: We use service role key in the API to create profiles after signup
+DROP POLICY IF EXISTS "Service role can insert profiles" ON public.profiles;
 CREATE POLICY "Service role can insert profiles"
   ON public.profiles FOR INSERT
   WITH CHECK (true);
@@ -157,6 +160,7 @@ CREATE POLICY "Service role can insert profiles"
 
 -- SERVICE CATEGORIES POLICIES
 -- Anyone can read categories (public data)
+DROP POLICY IF EXISTS "Anyone can view service categories" ON public.service_categories;
 CREATE POLICY "Anyone can view service categories"
   ON public.service_categories FOR SELECT
   TO authenticated, anon
@@ -165,17 +169,20 @@ CREATE POLICY "Anyone can view service categories"
 
 -- SERVICE PROS POLICIES
 -- Anyone can view service pros (for browsing)
+DROP POLICY IF EXISTS "Anyone can view service pros" ON public.service_pros;
 CREATE POLICY "Anyone can view service pros"
   ON public.service_pros FOR SELECT
   TO authenticated, anon
   USING (true);
 
 -- Pros can insert their own pro profile
+DROP POLICY IF EXISTS "Users can insert own pro profile" ON public.service_pros;
 CREATE POLICY "Users can insert own pro profile"
   ON public.service_pros FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- Pros can update their own pro profile
+DROP POLICY IF EXISTS "Pros can update own profile" ON public.service_pros;
 CREATE POLICY "Pros can update own profile"
   ON public.service_pros FOR UPDATE
   USING (auth.uid() = user_id);
@@ -183,11 +190,13 @@ CREATE POLICY "Pros can update own profile"
 
 -- BOOKINGS POLICIES
 -- Customers can view their own bookings
+DROP POLICY IF EXISTS "Customers can view own bookings" ON public.bookings;
 CREATE POLICY "Customers can view own bookings"
   ON public.bookings FOR SELECT
   USING (auth.uid() = customer_id);
 
 -- Pros can view bookings for their services
+DROP POLICY IF EXISTS "Pros can view their bookings" ON public.bookings;
 CREATE POLICY "Pros can view their bookings"
   ON public.bookings FOR SELECT
   USING (
@@ -197,11 +206,13 @@ CREATE POLICY "Pros can view their bookings"
   );
 
 -- Customers can create bookings
+DROP POLICY IF EXISTS "Customers can create bookings" ON public.bookings;
 CREATE POLICY "Customers can create bookings"
   ON public.bookings FOR INSERT
   WITH CHECK (auth.uid() = customer_id);
 
 -- Pros can update booking status (accept/decline/complete/cancel)
+DROP POLICY IF EXISTS "Pros can update booking status" ON public.bookings;
 CREATE POLICY "Pros can update booking status"
   ON public.bookings FOR UPDATE
   USING (
@@ -220,6 +231,7 @@ CREATE POLICY "Pros can update booking status"
 
 -- PRO EARNINGS POLICIES
 -- Pros can view their own earnings
+DROP POLICY IF EXISTS "Pros can view own earnings" ON public.pro_earnings;
 CREATE POLICY "Pros can view own earnings"
   ON public.pro_earnings FOR SELECT
   USING (
@@ -229,6 +241,7 @@ CREATE POLICY "Pros can view own earnings"
   );
 
 -- Pros can insert their own earnings (when marking jobs complete)
+DROP POLICY IF EXISTS "Pros can insert own earnings" ON public.pro_earnings;
 CREATE POLICY "Pros can insert own earnings"
   ON public.pro_earnings FOR INSERT
   WITH CHECK (
@@ -239,16 +252,19 @@ CREATE POLICY "Pros can insert own earnings"
 
 -- NOTIFICATION SETTINGS POLICIES
 -- Users can view their own notification settings
+DROP POLICY IF EXISTS "Users can view own notification settings" ON public.user_notification_settings;
 CREATE POLICY "Users can view own notification settings"
   ON public.user_notification_settings FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Users can insert their own notification settings
+DROP POLICY IF EXISTS "Users can insert own notification settings" ON public.user_notification_settings;
 CREATE POLICY "Users can insert own notification settings"
   ON public.user_notification_settings FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- Users can update their own notification settings
+DROP POLICY IF EXISTS "Users can update own notification settings" ON public.user_notification_settings;
 CREATE POLICY "Users can update own notification settings"
   ON public.user_notification_settings FOR UPDATE
   USING (auth.uid() = user_id)
@@ -256,16 +272,19 @@ CREATE POLICY "Users can update own notification settings"
 
 -- PAYOUT ACCOUNTS POLICIES
 -- Pros can view their own payout account
+DROP POLICY IF EXISTS "Pros can view own payout account" ON public.pro_payout_accounts;
 CREATE POLICY "Pros can view own payout account"
   ON public.pro_payout_accounts FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Pros can insert their own payout account
+DROP POLICY IF EXISTS "Pros can insert own payout account" ON public.pro_payout_accounts;
 CREATE POLICY "Pros can insert own payout account"
   ON public.pro_payout_accounts FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- Pros can update their own payout account
+DROP POLICY IF EXISTS "Pros can update own payout account" ON public.pro_payout_accounts;
 CREATE POLICY "Pros can update own payout account"
   ON public.pro_payout_accounts FOR UPDATE
   USING (auth.uid() = user_id)
