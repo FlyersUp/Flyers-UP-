@@ -22,10 +22,6 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 // Uncomment when you have generated types from your actual Supabase schema:
 // import type { Database } from '@/types/database';
 
-// Get environment variables (may be undefined during build)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
 // Singleton instance
 let supabaseInstance: SupabaseClient | null = null;
 
@@ -36,6 +32,10 @@ let supabaseInstance: SupabaseClient | null = null;
  * Throws an error if environment variables are not set (at runtime, not build time).
  */
 export function createSupabaseClient(): SupabaseClient {
+  // Get environment variables (may be undefined during build)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
   // Check for env vars at runtime
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(
@@ -47,32 +47,34 @@ export function createSupabaseClient(): SupabaseClient {
   return createClient(supabaseUrl, supabaseAnonKey);
 }
 
-/**
- * Get the Supabase client singleton.
- * Creates a new instance if one doesn't exist.
- * 
- * NOTE: During SSR/build, this will throw if env vars are not set.
- * This is intentional - the app won't work without Supabase configured.
- */
-export const supabase = (() => {
-  // Return a proxy that lazily initializes the client
-  // This prevents errors during build/SSR when env vars might not be available
-  if (typeof window === 'undefined') {
-    // Server-side: return a placeholder that throws on use
-    // Real server-side code should use supabaseServer.ts instead
-    return new Proxy({} as SupabaseClient, {
-      get: () => {
-        throw new Error(
-          'Cannot use browser Supabase client on the server. ' +
-          'Use createServerSupabaseClient() from lib/supabaseServer.ts instead.'
-        );
-      },
-    });
-  }
-
-  // Client-side: create real client
+function getBrowserSupabaseClient(): SupabaseClient {
   if (!supabaseInstance) {
     supabaseInstance = createSupabaseClient();
   }
   return supabaseInstance;
-})();
+}
+
+/**
+ * Get the Supabase client singleton.
+ * Creates a new instance if one doesn't exist.
+ * 
+ * NOTE: We intentionally avoid creating the client at import-time.
+ * In production, missing env vars would otherwise crash the whole page (client-side exception)
+ * before our API functions can handle the error gracefully.
+ */
+export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    if (typeof window === 'undefined') {
+      throw new Error(
+        'Cannot use browser Supabase client on the server. ' +
+        'Use createServerSupabaseClient() from lib/supabaseServer.ts instead.'
+      );
+    }
+
+    const client = getBrowserSupabaseClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const value = (client as any)[prop];
+    if (typeof value === 'function') return value.bind(client);
+    return value;
+  },
+});

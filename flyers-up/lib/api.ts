@@ -16,6 +16,10 @@
 import { supabase } from './supabaseClient';
 import type { UserRole, BookingStatus } from '@/types/database';
 
+const SUPABASE_CONFIGURED = Boolean(
+  process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
 // ============================================
 // TYPES (matching the old mockApi interface)
 // ============================================
@@ -157,6 +161,14 @@ export async function signUp(
   email: string,
   password: string
 ): Promise<AuthResponse> {
+  if (!SUPABASE_CONFIGURED) {
+    return {
+      success: false,
+      error:
+        'Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel Environment Variables, then redeploy.',
+    };
+  }
+
   try {
     // 1. Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -246,6 +258,14 @@ export async function signIn(
   email: string,
   password: string
 ): Promise<AuthResponse> {
+  if (!SUPABASE_CONFIGURED) {
+    return {
+      success: false,
+      error:
+        'Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel Environment Variables, then redeploy.',
+    };
+  }
+
   try {
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
@@ -308,6 +328,7 @@ export async function signIn(
  * Sign out the current user.
  */
 export async function signOut(): Promise<void> {
+  if (!SUPABASE_CONFIGURED) return;
   await supabase.auth.signOut();
 }
 
@@ -316,6 +337,7 @@ export async function signOut(): Promise<void> {
  * Returns null if not authenticated.
  */
 export async function getCurrentUser(): Promise<UserWithProfile | null> {
+  if (!SUPABASE_CONFIGURED) return null;
   try {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
@@ -353,6 +375,9 @@ export async function getCurrentUser(): Promise<UserWithProfile | null> {
 export function onAuthStateChange(
   callback: (user: UserWithProfile | null) => void
 ) {
+  if (!SUPABASE_CONFIGURED) {
+    return { data: { subscription: { unsubscribe() {} } } };
+  }
   return supabase.auth.onAuthStateChange(async (event, session) => {
     if (session?.user) {
       const user = await getCurrentUser();
