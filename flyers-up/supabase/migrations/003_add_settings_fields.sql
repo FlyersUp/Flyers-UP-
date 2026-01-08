@@ -66,16 +66,19 @@ ALTER TABLE public.pro_payout_accounts ENABLE ROW LEVEL SECURITY;
 
 -- NOTIFICATION SETTINGS POLICIES
 -- Users can view their own notification settings
+DROP POLICY IF EXISTS "Users can view own notification settings" ON public.user_notification_settings;
 CREATE POLICY "Users can view own notification settings"
   ON public.user_notification_settings FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Users can insert their own notification settings
+DROP POLICY IF EXISTS "Users can insert own notification settings" ON public.user_notification_settings;
 CREATE POLICY "Users can insert own notification settings"
   ON public.user_notification_settings FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- Users can update their own notification settings
+DROP POLICY IF EXISTS "Users can update own notification settings" ON public.user_notification_settings;
 CREATE POLICY "Users can update own notification settings"
   ON public.user_notification_settings FOR UPDATE
   USING (auth.uid() = user_id)
@@ -83,16 +86,19 @@ CREATE POLICY "Users can update own notification settings"
 
 -- PAYOUT ACCOUNTS POLICIES
 -- Pros can view their own payout account
+DROP POLICY IF EXISTS "Pros can view own payout account" ON public.pro_payout_accounts;
 CREATE POLICY "Pros can view own payout account"
   ON public.pro_payout_accounts FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Pros can insert their own payout account
+DROP POLICY IF EXISTS "Pros can insert own payout account" ON public.pro_payout_accounts;
 CREATE POLICY "Pros can insert own payout account"
   ON public.pro_payout_accounts FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- Pros can update their own payout account
+DROP POLICY IF EXISTS "Pros can update own payout account" ON public.pro_payout_accounts;
 CREATE POLICY "Pros can update own payout account"
   ON public.pro_payout_accounts FOR UPDATE
   USING (auth.uid() = user_id)
@@ -112,12 +118,14 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Apply trigger to notification_settings
+DROP TRIGGER IF EXISTS update_user_notification_settings_updated_at ON public.user_notification_settings;
 CREATE TRIGGER update_user_notification_settings_updated_at
   BEFORE UPDATE ON public.user_notification_settings
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
 -- Apply trigger to payout_accounts
+DROP TRIGGER IF EXISTS update_pro_payout_accounts_updated_at ON public.pro_payout_accounts;
 CREATE TRIGGER update_pro_payout_accounts_updated_at
   BEFORE UPDATE ON public.pro_payout_accounts
   FOR EACH ROW

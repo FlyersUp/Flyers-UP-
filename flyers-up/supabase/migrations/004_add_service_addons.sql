@@ -55,6 +55,7 @@ CREATE INDEX IF NOT EXISTS idx_booking_addons_booking
 -- ============================================
 
 -- Trigger to update updated_at timestamp
+DROP TRIGGER IF EXISTS update_service_addons_updated_at ON public.service_addons;
 CREATE TRIGGER update_service_addons_updated_at
   BEFORE UPDATE ON public.service_addons
   FOR EACH ROW
@@ -91,6 +92,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS check_max_active_addons ON public.service_addons;
 CREATE TRIGGER check_max_active_addons
   BEFORE INSERT OR UPDATE ON public.service_addons
   FOR EACH ROW
@@ -110,12 +112,14 @@ ALTER TABLE public.booking_addons ENABLE ROW LEVEL SECURITY;
 -- SERVICE_ADDONS POLICIES
 
 -- SELECT: Anyone authenticated can read active add-ons (for discovery/checkout)
+DROP POLICY IF EXISTS "Anyone can view active add-ons" ON public.service_addons;
 CREATE POLICY "Anyone can view active add-ons"
   ON public.service_addons FOR SELECT
   TO authenticated
   USING (is_active = true);
 
 -- Pros can also view their own inactive add-ons (for management)
+DROP POLICY IF EXISTS "Pros can view own add-ons" ON public.service_addons;
 CREATE POLICY "Pros can view own add-ons"
   ON public.service_addons FOR SELECT
   TO authenticated
@@ -126,6 +130,7 @@ CREATE POLICY "Pros can view own add-ons"
   );
 
 -- INSERT/UPDATE/DELETE: Only the pro who owns the add-on
+DROP POLICY IF EXISTS "Pros can manage own add-ons" ON public.service_addons;
 CREATE POLICY "Pros can manage own add-ons"
   ON public.service_addons FOR ALL
   TO authenticated
@@ -143,6 +148,7 @@ CREATE POLICY "Pros can manage own add-ons"
 -- BOOKING_ADDONS POLICIES
 
 -- SELECT: Only the booking's customer and the booking's pro can read
+DROP POLICY IF EXISTS "Booking parties can view booking add-ons" ON public.booking_addons;
 CREATE POLICY "Booking parties can view booking add-ons"
   ON public.booking_addons FOR SELECT
   TO authenticated
@@ -157,6 +163,7 @@ CREATE POLICY "Booking parties can view booking add-ons"
   );
 
 -- INSERT: Only the booking's customer can insert at booking creation time
+DROP POLICY IF EXISTS "Customers can create booking add-ons" ON public.booking_addons;
 CREATE POLICY "Customers can create booking add-ons"
   ON public.booking_addons FOR INSERT
   TO authenticated
