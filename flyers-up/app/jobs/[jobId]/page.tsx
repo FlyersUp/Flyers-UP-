@@ -5,7 +5,7 @@
  * Shows job information, status, map, and actions
  */
 
-import { use } from 'react';
+import { use, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { StatusBadge } from '@/components/ui/Badge';
@@ -13,6 +13,7 @@ import { RatingCompact } from '@/components/ui/RatingStars';
 import TrustShieldBanner from '@/components/ui/TrustShieldBanner';
 import MapPlaceholder from '@/components/MapPlaceholder';
 import { getJobById, getConversationId, type Job } from '@/lib/mockData';
+import { createScopeReview, getBookingById, getCurrentUser, getLatestScopeReview, type BookingDetails, type ScopeReview } from '@/lib/api';
 
 interface PageProps {
   params: Promise<{ jobId: string }>;
@@ -20,9 +21,263 @@ interface PageProps {
 
 export default function JobDetailsPage({ params }: PageProps) {
   const { jobId } = use(params);
+  const [booking, setBooking] = useState<BookingDetails | null>(null);
+  const [bookingLoaded, setBookingLoaded] = useState(false);
   const job = getJobById(jobId);
 
+  // Scope review UI state
+  const [userLoaded, setUserLoaded] = useState(false);
+  const [canUseScopeReview, setCanUseScopeReview] = useState(false);
+  const [latestScopeReview, setLatestScopeReview] = useState<ScopeReview | null>(null);
+  const [showScopeModal, setShowScopeModal] = useState(false);
+  const [scopeReason, setScopeReason] = useState('');
+  const [scopeSubmitting, setScopeSubmitting] = useState(false);
+  const [scopeMessage, setScopeMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadBooking() {
+      const b = await getBookingById(jobId);
+      if (!mounted) return;
+      setBooking(b);
+      setBookingLoaded(true);
+    }
+    void loadBooking();
+    return () => {
+      mounted = false;
+    };
+  }, [jobId]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadScopeReview() {
+      // Only enable scope review on real Supabase bookings.
+      if (!booking) {
+        setLatestScopeReview(null);
+        setCanUseScopeReview(false);
+        setUserLoaded(true);
+        return;
+      }
+
+      const user = await getCurrentUser();
+      if (!mounted) return;
+      setUserLoaded(true);
+      setCanUseScopeReview(Boolean(user));
+
+      const latest = await getLatestScopeReview(booking.id);
+      if (!mounted) return;
+      setLatestScopeReview(latest);
+    }
+
+    void loadScopeReview();
+    return () => {
+      mounted = false;
+    };
+  }, [booking]);
+
+  const formattedBookingDate = useMemo(() => {
+    if (!booking) return null;
+    return new Date(booking.serviceDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }, [booking]);
+
   if (!job) {
+    // If there is no mock job and no booking, show Not Found.
+    if (!bookingLoaded || booking) {
+      // bookingLoaded false: still loading booking (avoid flicker)
+    }
+    if (!bookingLoaded) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-gray-500">Loading...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (booking) {
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
+            <div className="max-w-2xl mx-auto px-4 py-4">
+              <div className="flex items-center justify-between">
+                <Link href="/" className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+                  <span>←</span>
+                  <span className="font-medium">Back</span>
+                </Link>
+                <h1 className="font-semibold text-gray-900">Job Details</h1>
+                <div className="w-10" />
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-2xl mx-auto px-4 py-6">
+            <section className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Booking</h2>
+                <StatusBadge status={booking.status as any} />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-xl mt-0.5">📍</span>
+                  <div>
+                    <p className="text-sm text-gray-500">Address</p>
+                    <p className="text-gray-900">{booking.address}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <span className="text-xl mt-0.5">📅</span>
+                  <div>
+                    <p className="text-sm text-gray-500">Date & Time</p>
+                    <p className="text-gray-900">{formattedBookingDate}</p>
+                    <p className="text-gray-700 font-medium">{booking.serviceTime}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <span className="text-xl mt-0.5">👤</span>
+                  <div>
+                    <p className="text-sm text-gray-500">Pro</p>
+                    <p className="text-gray-900">{booking.proName || 'Service Pro'}</p>
+                  </div>
+                </div>
+
+                {booking.notes && (
+                  <div className="flex items-start gap-3">
+                    <span className="text-xl mt-0.5">📝</span>
+                    <div>
+                      <p className="text-sm text-gray-500">Notes</p>
+                      <p className="text-gray-700">{booking.notes}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Scope review (generic, platform-wide) */}
+            <section className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900">Scope Review</h3>
+                  <p className="text-sm text-gray-500">
+                    If the scope changed, request a review / re-quote.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowScopeModal(true)}
+                  disabled={!userLoaded || !canUseScopeReview}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    userLoaded && canUseScopeReview
+                      ? 'bg-teal-600 hover:bg-teal-700 text-white'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  Request scope review
+                </button>
+              </div>
+
+              {scopeMessage && (
+                <div className="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 text-sm">
+                  {scopeMessage}
+                </div>
+              )}
+
+              {latestScopeReview ? (
+                <div className="mt-4 p-4 rounded-xl bg-gray-50 border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900">Latest request</p>
+                    <p className="text-sm text-gray-600">
+                      Status: <span className="font-semibold">{latestScopeReview.status}</span>
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-700 mt-2">{latestScopeReview.reason}</p>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 mt-4">No scope review requests yet.</p>
+              )}
+            </section>
+          </main>
+
+          {/* Modal */}
+          {showScopeModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+              <div className="bg-white w-full max-w-lg rounded-2xl border border-gray-100 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-semibold text-gray-900">Request scope review</h4>
+                  <button
+                    onClick={() => {
+                      setShowScopeModal(false);
+                      setScopeReason('');
+                      setScopeMessage(null);
+                    }}
+                    className="text-gray-500 hover:text-gray-700"
+                    aria-label="Close"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Explain what changed from the original scope…
+                </label>
+                <textarea
+                  value={scopeReason}
+                  onChange={(e) => setScopeReason(e.target.value)}
+                  rows={5}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+                  placeholder="e.g., additional rooms, heavier debris than expected, access issues, etc."
+                />
+
+                <div className="mt-4 flex gap-3 justify-end">
+                  <button
+                    onClick={() => {
+                      setShowScopeModal(false);
+                      setScopeReason('');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium"
+                    disabled={scopeSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!booking) return;
+                      setScopeSubmitting(true);
+                      setScopeMessage(null);
+                      const res = await createScopeReview(booking.id, scopeReason);
+                      if (res.success) {
+                        setScopeMessage('Scope review requested.');
+                        const latest = await getLatestScopeReview(booking.id);
+                        setLatestScopeReview(latest);
+                        setShowScopeModal(false);
+                        setScopeReason('');
+                      } else {
+                        setScopeMessage(res.error || 'Failed to request scope review.');
+                      }
+                      setScopeSubmitting(false);
+                    }}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                      scopeSubmitting ? 'bg-teal-600/70 text-white' : 'bg-teal-600 hover:bg-teal-700 text-white'
+                    }`}
+                    disabled={scopeSubmitting || !scopeReason.trim()}
+                  >
+                    {scopeSubmitting ? 'Submitting…' : 'Submit'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

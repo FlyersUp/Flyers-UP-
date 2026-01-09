@@ -56,6 +56,30 @@ export interface ServicePro {
   available: boolean;
 }
 
+export interface ScopeReview {
+  id: string;
+  bookingId: string;
+  requestedBy: string;
+  reason: string;
+  status: 'open' | 'resolved' | 'rejected';
+  createdAt: string;
+}
+
+export interface BookingDetails {
+  id: string;
+  customerId: string;
+  proId: string;
+  serviceDate: string;
+  serviceTime: string;
+  address: string;
+  notes: string | null;
+  status: BookingStatus;
+  price: number | null;
+  createdAt: string;
+  proName?: string;
+  proUserId?: string;
+}
+
 // Status history entry for tracking booking lifecycle
 export interface StatusHistoryEntry {
   status: string;
@@ -393,15 +417,36 @@ export function onAuthStateChange(
 // ============================================
 
 /**
- * Get all service categories.
+ * Get service categories.
+ *
+ * Default behavior is PUBLIC categories only (is_public = true) when the column exists.
+ * This keeps dormant lanes (e.g. hoarding) hidden from normal browsing.
  */
-export async function getServiceCategories(): Promise<ServiceCategory[]> {
-  const { data, error } = await supabase
-    .from('service_categories')
-    .select('*')
-    .order('name');
+export async function getServiceCategories(options?: { includeHidden?: boolean }): Promise<ServiceCategory[]> {
+  const includeHidden = Boolean(options?.includeHidden);
+
+  // Prefer filtering by is_public (added via migration). If the column doesn't exist yet,
+  // fall back to the old query so the app doesn't hard-fail.
+  const baseQuery = supabase.from('service_categories').select('*').order('name');
+  const { data, error } = includeHidden ? await baseQuery : await baseQuery.eq('is_public', true);
 
   if (error) {
+    // If the is_public column isn't present yet, retry without the filter.
+    if (!includeHidden && /is_public/i.test(error.message)) {
+      const retry = await supabase.from('service_categories').select('*').order('name');
+      if (retry.error) {
+        console.error('Error fetching categories (retry):', retry.error);
+        return [];
+      }
+      return retry.data.map((cat) => ({
+        id: cat.id,
+        name: cat.name,
+        slug: cat.slug,
+        description: cat.description || '',
+        icon: cat.icon || '📦',
+      }));
+    }
+
     console.error('Error fetching categories:', error);
     return [];
   }
@@ -413,6 +458,40 @@ export async function getServiceCategories(): Promise<ServiceCategory[]> {
     description: cat.description || '',
     icon: cat.icon || '📦',
   }));
+}
+
+/**
+ * Fetch a single category by slug.
+ * Use includeHidden=true for gated lanes (e.g. /book?category=hoarding).
+ */
+export async function getCategoryBySlug(
+  slug: string,
+  options?: { includeHidden?: boolean }
+): Promise<ServiceCategory | null> {
+  const includeHidden = Boolean(options?.includeHidden);
+  const baseQuery = supabase.from('service_categories').select('*').eq('slug', slug).limit(1);
+  const { data, error } = includeHidden ? await baseQuery : await baseQuery.eq('is_public', true);
+
+  if (error) {
+    if (!includeHidden && /is_public/i.test(error.message)) {
+      const retry = await supabase.from('service_categories').select('*').eq('slug', slug).limit(1);
+      if (retry.error) {
+        console.error('Error fetching category by slug (retry):', retry.error);
+        return null;
+      }
+      const row = retry.data?.[0];
+      return row
+        ? { id: row.id, name: row.name, slug: row.slug, description: row.description || '', icon: row.icon || '📦' }
+        : null;
+    }
+    console.error('Error fetching category by slug:', error);
+    return null;
+  }
+
+  const row = data?.[0];
+  return row
+    ? { id: row.id, name: row.name, slug: row.slug, description: row.description || '', icon: row.icon || '📦' }
+    : null;
 }
 
 // ============================================
@@ -493,6 +572,47 @@ export async function getProById(proId: string): Promise<ServicePro | null> {
 }
 
 /**
+ * Hoarding lane (dormant): list only pros who opted in.
+ * This should only be used when category=hoarding is explicitly requested.
+ */
+export async function getHoardingPros(): Promise<ServicePro[]> {
+  const { data, error } = await supabase
+    .from('service_pros')
+    .select(
+      `
+      *,
+      service_categories (
+        slug,
+        name
+      )
+    `
+    )
+    .eq('accepts_hoarding_jobs', true)
+    .eq('available', true)
+    .order('rating', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching hoarding pros:', error);
+    return [];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return data.map((pro: any) => ({
+    id: pro.id,
+    userId: pro.user_id,
+    name: pro.display_name,
+    bio: pro.bio || '',
+    categorySlug: pro.service_categories?.slug || 'general',
+    categoryName: pro.service_categories?.name || 'General',
+    rating: pro.rating,
+    reviewCount: pro.review_count,
+    startingPrice: pro.starting_price,
+    location: pro.location || 'Not specified',
+    available: pro.available,
+  }));
+}
+
+/**
  * Get service pro by user ID (for pro dashboard).
  */
 export async function getProByUserId(userId: string): Promise<ServicePro | null> {
@@ -531,6 +651,50 @@ export async function getProByUserId(userId: string): Promise<ServicePro | null>
 // ============================================
 // BOOKINGS
 // ============================================
+
+/**
+ * Get a single booking (job) by ID.
+ * RLS ensures only booking participants can read it.
+ */
+export async function getBookingById(bookingId: string): Promise<BookingDetails | null> {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select(
+        `
+        *,
+        service_pros (
+          id,
+          display_name,
+          user_id
+        )
+      `
+      )
+      .eq('id', bookingId)
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      customerId: data.customer_id,
+      proId: data.pro_id,
+      serviceDate: data.service_date,
+      serviceTime: data.service_time,
+      address: data.address,
+      notes: data.notes || null,
+      status: data.status as BookingStatus,
+      price: data.price ?? null,
+      createdAt: data.created_at,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      proName: (data.service_pros as any)?.display_name,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      proUserId: (data.service_pros as any)?.user_id,
+    };
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Get all bookings for a customer.
@@ -1187,6 +1351,50 @@ export async function updateProfile(params: UpdateProfileParams): Promise<{ succ
     console.error('Unexpected error updating profile:', err);
     return { success: false, error: 'An unexpected error occurred' };
   }
+}
+
+// ============================================
+// SCOPE REVIEWS
+// ============================================
+
+export async function createScopeReview(
+  bookingId: string,
+  reason: string
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: 'You must be signed in.' };
+  if (!reason.trim()) return { success: false, error: 'Please enter a reason.' };
+
+  const { error } = await supabase.from('scope_reviews').insert({
+    booking_id: bookingId,
+    requested_by: user.id,
+    reason: reason.trim(),
+  });
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function getLatestScopeReview(bookingId: string): Promise<ScopeReview | null> {
+  const { data, error } = await supabase
+    .from('scope_reviews')
+    .select('*')
+    .eq('booking_id', bookingId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (error) return null;
+  const row = data?.[0];
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    bookingId: row.booking_id,
+    requestedBy: row.requested_by,
+    reason: row.reason,
+    status: row.status,
+    createdAt: row.created_at,
+  };
 }
 
 /**
