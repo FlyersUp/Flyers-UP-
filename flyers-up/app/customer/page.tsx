@@ -1,17 +1,38 @@
 'use client';
 
+import { useEffect } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Label } from '@/components/ui/Label';
 import { ServiceProCard } from '@/components/ui/ServiceProCard';
 import { Button } from '@/components/ui/Button';
 import { mockServicePros, mockCategories } from '@/lib/mockData';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
+import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 
 /**
  * Customer Home - Screen 1
  * Header with greeting, categories, featured pros
  */
 export default function CustomerHome() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const guard = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.replace('/auth?next=%2Fcustomer');
+        return;
+      }
+      const profile = await getOrCreateProfile(user.id, user.email ?? null);
+      if (!profile) return;
+      const dest = routeAfterAuth(profile, '/customer');
+      if (dest !== '/customer') router.replace(dest);
+    };
+    void guard();
+  }, [router]);
+
   return (
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">

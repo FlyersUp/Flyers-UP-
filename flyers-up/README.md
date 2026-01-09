@@ -63,3 +63,24 @@ where key = 'FEATURE_ITIN_ONBOARDING';
   - Stripe Connect account references
   - payout hold controls (days/boolean)
 
+## Auth + onboarding (magic link + Google)
+
+### Supabase redirect URLs
+
+To support **email magic links** and **Google OAuth**, add these URLs in Supabase:
+
+- `http://localhost:3000/auth/callback`
+- `https://www.flyersup.app/auth/callback`
+
+Supabase Dashboard → **Authentication → URL Configuration**:
+- **Site URL**: your primary domain (e.g. `https://www.flyersup.app`)
+- **Redirect URLs**: include the callback URLs above (plus any preview domains you use)
+
+### App routes
+
+- `/auth`: entry screen (email + Google)
+- `/auth/callback`: handles magic link/OAuth return
+- `/onboarding/role`: required role selection when `profiles.role` is missing
+- `/onboarding/customer`: minimal customer profile
+- `/onboarding/pro`: minimal pro profile + category + service area zip
+

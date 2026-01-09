@@ -1,17 +1,38 @@
 'use client';
 
+import { useEffect } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { mockJobs } from '@/lib/mockData';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
+import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 
 /**
  * Pro Dashboard - Screen 13
  * KPI cards, today's jobs
  */
 export default function ProDashboard() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const guard = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.replace('/auth?next=%2Fpro');
+        return;
+      }
+      const profile = await getOrCreateProfile(user.id, user.email ?? null);
+      if (!profile) return;
+      const dest = routeAfterAuth(profile, '/pro');
+      if (dest !== '/pro') router.replace(dest);
+    };
+    void guard();
+  }, [router]);
+
   const todayJobs = mockJobs.filter(j => j.date === '2024-01-15');
 
   return (
