@@ -8,7 +8,7 @@
  */
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Layout from '@/components/Layout';
 import ProCard from '@/components/ProCard';
@@ -19,7 +19,7 @@ import {
   type ServicePro,
 } from '@/lib/api';
 
-export default function BookGatePage() {
+function BookGateContent() {
   const searchParams = useSearchParams();
   const category = searchParams.get('category');
 
@@ -128,6 +128,24 @@ export default function BookGatePage() {
         )}
       </div>
     </Layout>
+  );
+}
+
+export default function BookGatePage() {
+  return (
+    <Suspense
+      fallback={
+        <Layout title="Book a Service" showBackButton>
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center justify-center py-12">
+              <p className="text-gray-500">Loading...</p>
+            </div>
+          </div>
+        </Layout>
+      }
+    >
+      <BookGateContent />
+    </Suspense>
   );
 }
 
