@@ -2,7 +2,8 @@
 
 import { ReactNode } from 'react';
 import { Rail } from '@/components/ui/Rail';
-import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import BottomNav from '@/components/BottomNav';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -12,11 +13,12 @@ interface AppLayoutProps {
 
 function LayoutContent({ children, showRail = true }: { children: ReactNode; showRail: boolean }) {
   return (
-    <div className="min-h-screen bg-[#FEFBF8] flex">
+    <div className="min-h-screen bg-[#FEFBF8] flex pb-20">
       {showRail && <Rail className="h-screen" showLabel />}
       <div className="flex-1">
         {children}
       </div>
+      <BottomNav />
     </div>
   );
 }
