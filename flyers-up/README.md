@@ -34,3 +34,32 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## ITIN onboarding feature flag (staging)
+
+This repo includes **ITIN tax-identity scaffolding** for Service Providers. It is **OFF by default** and **does not store any raw SSN/ITIN values**.
+
+### Enable ITIN option (staging-only)
+
+1) **Set environment variable** (Vercel → Project → Settings → Environment Variables):
+- `FEATURE_ITIN_ONBOARDING=true`
+
+2) **Enable the DB flag** (Supabase SQL editor):
+
+```sql
+update public.feature_flags
+set enabled = true
+where key = 'FEATURE_ITIN_ONBOARDING';
+```
+
+3) **Run migrations** (Supabase):
+- Apply `flyers-up/supabase/migrations/007_tax_payouts_scaffolding.sql`
+
+### Notes
+- ITIN option is shown only when **both** env and DB flag are enabled.
+- The app stores only:
+  - tax ID **type** (SSN/ITIN/OTHER)
+  - tax forms **status**
+  - Stripe Connect account references
+  - payout hold controls (days/boolean)
+
