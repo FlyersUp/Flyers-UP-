@@ -41,7 +41,7 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
         {/* Pro List */}
         <div className="space-y-4">
           {pros.map((pro) => (
-            <Link key={pro.id} href={`/customer/pros/${pro.id}`}>
+            <Link key={pro.id} href={`/pro/${pro.id}`}>
               <ServiceProCard
                 name={pro.name}
                 rating={pro.rating}
@@ -56,6 +56,7 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
     </AppLayout>
   );
 }
+
 
 
 

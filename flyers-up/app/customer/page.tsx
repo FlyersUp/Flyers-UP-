@@ -61,7 +61,7 @@ export default function CustomerHome() {
           <Label className="mb-4 block">FEATURED PROS</Label>
           <div className="space-y-4">
             {mockServicePros.map((pro) => (
-              <Link key={pro.id} href={`/customer/pros/${pro.id}`}>
+              <Link key={pro.id} href={`/pro/${pro.id}`}>
                 <ServiceProCard
                   name={pro.name}
                   rating={pro.rating}
