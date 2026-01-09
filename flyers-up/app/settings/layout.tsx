@@ -5,8 +5,14 @@
  * Auth gating is handled within pages/components, not by fabricating users/tokens here.
  */
 
+import Layout from '@/components/Layout';
+
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <Layout title="Settings" showBackButton>
+      {children}
+    </Layout>
+  );
 }
 
 
