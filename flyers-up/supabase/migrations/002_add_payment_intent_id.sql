@@ -13,3 +13,4 @@ COMMENT ON COLUMN public.bookings.payment_intent_id IS 'Stripe Payment Intent ID
 
 
 
+
