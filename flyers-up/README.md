@@ -72,6 +72,13 @@ To support **email magic links** and **Google OAuth**, add these URLs in Supabas
 - `http://localhost:3000/auth/callback`
 - `https://www.flyersup.app/auth/callback`
 
+For **Vercel preview deployments**, Supabase supports wildcard allow-list patterns. Add:
+
+- `https://*-<your-vercel-team-or-account-slug>.vercel.app/**`
+
+Where `<your-vercel-team-or-account-slug>` is the suffix in your preview URLs (example preview URL:
+`https://flyers-up-git-main-your-slug.vercel.app` → slug is `your-slug`).
+
 Supabase Dashboard → **Authentication → URL Configuration**:
 - **Site URL**: your primary domain (e.g. `https://www.flyersup.app`)
 - **Redirect URLs**: include the callback URLs above (plus any preview domains you use)
