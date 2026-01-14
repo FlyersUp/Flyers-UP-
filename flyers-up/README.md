@@ -83,6 +83,14 @@ Supabase Dashboard → **Authentication → URL Configuration**:
 - **Site URL**: your primary domain (e.g. `https://www.flyersup.app`)
 - **Redirect URLs**: include the callback URLs above (plus any preview domains you use)
 
+### Required: Email + Google providers enabled/configured
+
+If magic-link sign-in fails with **"Error sending magic link email"**, check Supabase Dashboard → **Authentication → Providers → Email**:
+- If you configured a custom SMTP provider, make sure **SMTP Host** is a real SMTP hostname (for example `smtp.gmail.com`), not an email address.
+- Also ensure Sender name/email, port, username/password are set correctly for your email provider.
+
+If Google sign-in fails, check Supabase Dashboard → **Authentication → Providers → Google** and ensure the provider is enabled and configured.
+
 ### App routes
 
 - `/auth`: entry screen (email + Google)
