@@ -21,7 +21,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ key
       key,
       enabled,
     },
-    { status: 200 }
+    {
+      status: 200,
+      headers: {
+        // Safe short caching to reduce DB load at scale.
+        // Flags still fail closed and can tolerate brief propagation delay.
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+      },
+    }
   );
 }
 

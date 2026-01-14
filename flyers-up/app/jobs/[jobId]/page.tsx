@@ -120,7 +120,7 @@ export default function JobDetailsPage({ params }: PageProps) {
             <section className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-900">Booking</h2>
-                <StatusBadge status={booking.status as any} />
+                <StatusBadge status={booking.status} />
               </div>
 
               <div className="space-y-4">

@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import Link from 'next/link';
 
 /**
  * Verified Credentials Upload - Screen 19
@@ -49,11 +50,11 @@ export default function Credentials() {
           <Button variant="secondary" className="w-full">
             ADD DOCUMENT →
           </Button>
-          <a href="/pro/verified-badge">
+          <Link href="/pro/verified-badge" className="block">
             <Button variant="primary" className="w-full">
               EXPORT VERIFIED BADGE →
             </Button>
-          </a>
+          </Link>
         </div>
       </div>
     </AppLayout>

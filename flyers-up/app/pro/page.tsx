@@ -54,7 +54,7 @@ export default function ProDashboard() {
           <Card>
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900 mb-1">3</div>
-              <div className="text-sm text-gray-600">Today's Jobs</div>
+                <div className="text-sm text-gray-600">Today&apos;s Jobs</div>
             </div>
           </Card>
           <Card>
@@ -103,7 +103,7 @@ export default function ProDashboard() {
 
         {/* Today's Jobs */}
         <div className="mb-6">
-          <Label className="mb-4 block">TODAY'S JOBS</Label>
+          <Label className="mb-4 block">TODAY&apos;S JOBS</Label>
           <div className="space-y-4">
             {todayJobs.map((job) => (
               <Link key={job.id} href={`/pro/jobs/${job.id}`}>

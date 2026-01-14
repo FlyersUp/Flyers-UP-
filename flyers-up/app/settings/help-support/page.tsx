@@ -80,7 +80,7 @@ export default function HelpSupportPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Contact Support</h2>
         <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
           <p className="text-sm text-gray-600 mb-4">
-            Need help? Our support team is here to assist you. Send us an email and we'll get back to you as soon as possible.
+            Need help? Our support team is here to assist you. Send us an email and we&apos;ll get back to you as soon as possible.
           </p>
           <a
             href="mailto:hello.flyersup@gmail.com?subject=Support Request"

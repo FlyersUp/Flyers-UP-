@@ -57,7 +57,7 @@ export async function updateAddonAction(
       return { success: false, error: 'Unauthorized' };
     }
 
-    const updateData: any = {};
+    const updateData: { title?: string; priceCents?: number; isActive?: boolean } = {};
     if (updates.title !== undefined) updateData.title = updates.title;
     if (updates.priceDollars !== undefined) {
       updateData.priceCents = dollarsToCents(updates.priceDollars);

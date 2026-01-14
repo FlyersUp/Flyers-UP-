@@ -502,6 +502,11 @@ export async function getCategoryBySlug(
  * Get service pros by category slug.
  */
 export async function getProsByCategory(categorySlug: string): Promise<ServicePro[]> {
+  // Default limit prevents unbounded reads as the marketplace scales.
+  // Add pagination UI when expanding beyond this.
+  const limit = 24;
+  const offset = 0;
+
   const { data, error } = await supabase
     .from('service_pros')
     .select(`
@@ -513,7 +518,8 @@ export async function getProsByCategory(categorySlug: string): Promise<ServicePr
     `)
     .eq('service_categories.slug', categorySlug)
     .eq('available', true)
-    .order('rating', { ascending: false });
+    .order('rating', { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error) {
     console.error('Error fetching pros by category:', error);
@@ -576,6 +582,9 @@ export async function getProById(proId: string): Promise<ServicePro | null> {
  * This should only be used when category=hoarding is explicitly requested.
  */
 export async function getHoardingPros(): Promise<ServicePro[]> {
+  const limit = 24;
+  const offset = 0;
+
   const { data, error } = await supabase
     .from('service_pros')
     .select(
@@ -589,7 +598,8 @@ export async function getHoardingPros(): Promise<ServicePro[]> {
     )
     .eq('accepts_hoarding_jobs', true)
     .eq('available', true)
-    .order('rating', { ascending: false });
+    .order('rating', { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error) {
     console.error('Error fetching hoarding pros:', error);
@@ -700,6 +710,10 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
  * Get all bookings for a customer.
  */
 export async function getCustomerBookings(customerId: string): Promise<Booking[]> {
+  // Default limit prevents the realtime hook from re-fetching an ever-growing list.
+  const limit = 50;
+  const offset = 0;
+
   // Check if Supabase is configured
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -755,7 +769,8 @@ export async function getCustomerBookings(customerId: string): Promise<Booking[]
         )
       `)
       .eq('customer_id', customerId)
-      .order('service_date', { ascending: false });
+      .order('service_date', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       // Only log error if Supabase is configured (not expected errors)
@@ -800,6 +815,9 @@ export async function getCustomerBookings(customerId: string): Promise<Booking[]
  * Get all jobs (bookings) for a service pro.
  */
 export async function getProJobs(proUserId: string): Promise<Booking[]> {
+  const limit = 50;
+  const offset = 0;
+
   // Check if Supabase is configured
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -842,7 +860,8 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
         )
       `)
       .eq('pro_id', proData.id)
-      .order('service_date', { ascending: true });
+      .order('service_date', { ascending: true })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       // Only log error if it has meaningful content
@@ -886,69 +905,31 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
  * Get earnings summary for a service pro.
  */
 export async function getProEarnings(proUserId: string): Promise<EarningsSummary> {
-  // Get the pro's service_pros.id
-  const { data: proData, error: proError } = await supabase
-    .from('service_pros')
-    .select('id')
-    .eq('user_id', proUserId)
-    .single();
+  // Prefer RPC aggregation to avoid pulling all rows client-side as data grows.
+  // The RPC ignores the provided proUserId and always uses auth.uid() server-side.
+  // We keep the parameter for API compatibility with existing callers.
+  try {
+    const { data, error } = await supabase.rpc('get_my_pro_earnings_summary');
+    if (error || !data || !Array.isArray(data) || data.length === 0) {
+      return { totalEarnings: 0, thisMonth: 0, completedJobs: 0, pendingPayments: 0 };
+    }
 
-  if (proError || !proData) {
-    return {
-      totalEarnings: 0,
-      thisMonth: 0,
-      completedJobs: 0,
-      pendingPayments: 0,
+    const row = data[0] as {
+      total_earnings: number | string | null;
+      this_month: number | string | null;
+      completed_jobs: number | null;
+      pending_payments: number | string | null;
     };
+
+    return {
+      totalEarnings: Number(row.total_earnings ?? 0),
+      thisMonth: Number(row.this_month ?? 0),
+      completedJobs: Number(row.completed_jobs ?? 0),
+      pendingPayments: Number(row.pending_payments ?? 0),
+    };
+  } catch {
+    return { totalEarnings: 0, thisMonth: 0, completedJobs: 0, pendingPayments: 0 };
   }
-
-  // Get all completed bookings with price
-  const { data: completedBookings } = await supabase
-    .from('bookings')
-    .select('price')
-    .eq('pro_id', proData.id)
-    .eq('status', 'completed')
-    .not('price', 'is', null);
-
-  // Get pending/accepted bookings with price
-  const { data: pendingBookings } = await supabase
-    .from('bookings')
-    .select('price')
-    .eq('pro_id', proData.id)
-    .in('status', ['requested', 'accepted'])
-    .not('price', 'is', null);
-
-  const totalEarnings = (completedBookings || []).reduce(
-    (sum, b) => sum + (b.price || 0),
-    0
-  );
-  const pendingPayments = (pendingBookings || []).reduce(
-    (sum, b) => sum + (b.price || 0),
-    0
-  );
-
-  // Get this month's earnings from pro_earnings table
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-
-  const { data: monthlyEarnings } = await supabase
-    .from('pro_earnings')
-    .select('amount')
-    .eq('pro_id', proData.id)
-    .gte('created_at', startOfMonth.toISOString());
-
-  const thisMonth = (monthlyEarnings || []).reduce(
-    (sum, e) => sum + e.amount,
-    0
-  );
-
-  return {
-    totalEarnings,
-    thisMonth: thisMonth || totalEarnings, // Fall back to total if no earnings records
-    completedJobs: (completedBookings || []).length,
-    pendingPayments,
-  };
 }
 
 /**
@@ -1497,7 +1478,7 @@ export async function getMyServicePro(userId: string): Promise<ServiceProProfile
       displayName: data.display_name,
       bio: data.bio,
       categoryId: data.category_id,
-      categoryName: (data.service_categories as any)?.name || 'Unknown',
+      categoryName: (data.service_categories as { name?: string } | null)?.name || 'Unknown',
       startingPrice: data.starting_price,
       serviceRadius: data.service_radius,
       businessHours: data.business_hours,
@@ -1541,7 +1522,15 @@ export async function updateServicePro(
       return { success: false, error: 'Service pro profile not found' };
     }
 
-    const updateData: any = {};
+    const updateData: Partial<{
+      display_name: string;
+      bio: string;
+      category_id: string;
+      starting_price: number;
+      service_radius: number;
+      business_hours: string;
+      location: string;
+    }> = {};
     if (params.display_name !== undefined) updateData.display_name = params.display_name;
     if (params.bio !== undefined) updateData.bio = params.bio;
     if (params.category_id !== undefined) updateData.category_id = params.category_id;
@@ -1944,7 +1933,7 @@ export async function updateAddon(
   }
 ): Promise<{ success: boolean; addon?: ServiceAddon; error?: string }> {
   try {
-    const updateData: any = {};
+    const updateData: Partial<{ title: string; price_cents: number; is_active: boolean }> = {};
     if (updates.title !== undefined) updateData.title = updates.title;
     if (updates.priceCents !== undefined) updateData.price_cents = updates.priceCents;
     if (updates.isActive !== undefined) updateData.is_active = updates.isActive;

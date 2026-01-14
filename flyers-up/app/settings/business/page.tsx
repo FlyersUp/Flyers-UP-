@@ -392,7 +392,7 @@ export default function BusinessSettingsPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 placeholder="e.g., Available 24/7, Weekends only, etc."
               />
-              <p className="text-sm text-gray-500 mt-1">Describe when you're typically available</p>
+              <p className="text-sm text-gray-500 mt-1">Describe when you&apos;re typically available</p>
             </div>
 
             <button

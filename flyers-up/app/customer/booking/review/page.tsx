@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { mockServicePros } from '@/lib/mockData';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useState, useEffect } from 'react';
-import { getProById, getActiveAddonsForPro, type ServiceAddon } from '@/lib/api';
+import { getProById, getActiveAddonsForPro, type ServiceAddon, type ServicePro } from '@/lib/api';
 import { formatMoney, centsToDollars } from '@/lib/utils/money';
 
 /**
@@ -24,7 +24,8 @@ function BookingReviewContent() {
   const time = searchParams.get('time');
   const [address, setAddress] = useState('123 Main St, Apt 4B'); // Default or from localStorage
   
-  const [pro, setPro] = useState<any>(null);
+  type ProForReview = ServicePro | (typeof mockServicePros)[number];
+  const [pro, setPro] = useState<ProForReview | null>(null);
   const [addons, setAddons] = useState<ServiceAddon[]>([]);
   const [selectedAddonIds, setSelectedAddonIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
