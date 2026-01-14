@@ -6,6 +6,24 @@ import Logo from '@/components/Logo';
 import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 
+function readAuthErrorFromHash(): string | null {
+  // Supabase may return auth errors in the URL fragment (hash),
+  // e.g. #error=access_denied&error_code=otp_expired&error_description=...
+  if (typeof window === 'undefined') return null;
+  const raw = window.location.hash?.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+  if (!raw) return null;
+  const params = new URLSearchParams(raw);
+  const errorCode = params.get('error_code');
+  const errorDescription = params.get('error_description');
+  if (!errorCode && !errorDescription) return null;
+
+  // Keep copy short + reassuring.
+  if (errorCode === 'otp_expired') {
+    return 'That link has expired. Please request a new one.';
+  }
+  return errorDescription ? decodeURIComponent(errorDescription) : 'Sign-in failed. Please try again.';
+}
+
 function CallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -16,6 +34,13 @@ function CallbackInner() {
   useEffect(() => {
     const run = async () => {
       try {
+        // Handle common Supabase auth errors returned in the URL fragment.
+        const hashErr = readAuthErrorFromHash();
+        if (hashErr) {
+          setError(hashErr);
+          return;
+        }
+
         // Handle PKCE code exchange (OAuth + magic links).
         const code = searchParams.get('code');
         if (code) {
@@ -25,6 +50,10 @@ function CallbackInner() {
             return;
           }
         }
+
+        // For implicit flows, supabase-js may populate the session from the URL automatically.
+        // We still ask for the user after a short microtask to ensure parsing has run.
+        await Promise.resolve();
 
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (userError) {
