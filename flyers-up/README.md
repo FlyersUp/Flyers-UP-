@@ -89,6 +89,15 @@ If magic-link sign-in fails with **"Error sending magic link email"**, check Sup
 - If you configured a custom SMTP provider, make sure **SMTP Host** is a real SMTP hostname (for example `smtp.gmail.com`), not an email address.
 - Also ensure Sender name/email, port, username/password are set correctly for your email provider.
 
+### Recommended: Email OTP (6-digit codes) instead of magic links
+
+Magic links can be marked as **expired/invalid** if they are opened by email security scanners (link “prefetching”) before the user clicks them.
+To avoid this, switch Supabase to **Email OTP** (6-digit codes) and use the in-app code entry on `/auth`.
+
+Supabase Dashboard → **Authentication → Providers → Email**:
+- Enable **Email OTP** (keep Magic Link off if you want to enforce codes only)
+- In the **Email OTP** template, include the `{{ .Token }}` variable so users receive a code
+
 If Google sign-in fails, check Supabase Dashboard → **Authentication → Providers → Google** and ensure the provider is enabled and configured.
 
 ### App routes
