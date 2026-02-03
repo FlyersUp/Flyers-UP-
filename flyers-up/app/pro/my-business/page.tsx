@@ -24,7 +24,7 @@ export default function MyBusiness() {
     <AppLayout mode="pro">
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+          <h1 className="text-2xl font-semibold text-text mb-2">
             My Business
           </h1>
           <Label>MY BUSINESS</Label>
@@ -38,11 +38,11 @@ export default function MyBusiness() {
               onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
             />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-sm font-medium text-text mb-1.5">
                 Description
               </label>
               <textarea
-                className="w-full px-4 py-3 rounded-xl border-2 border-[#FFD3A1] border-t-2 focus:outline-none focus:ring-2 focus:ring-offset-0"
+                className="w-full px-4 py-3 rounded-xl border-2 border-accent border-t-2 focus:outline-none focus:ring-2 focus:ring-offset-0"
                 rows={4}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}

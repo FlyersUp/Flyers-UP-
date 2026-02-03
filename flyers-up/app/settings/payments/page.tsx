@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getPayoutMethod, updatePayoutMethod } from '@/lib/api';
+import { TrustRow } from '@/components/ui/TrustRow';
 
 const PAYOUT_METHODS = [
   { value: 'bank_account', label: 'Bank Account' },
@@ -158,7 +159,7 @@ export default function PaymentSettingsPage() {
   if (loadingData) {
     return (
       <div className="space-y-6">
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-muted/70">Loading...</div>
       </div>
     );
   }
@@ -166,18 +167,21 @@ export default function PaymentSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Settings</h1>
-        <p className="text-gray-600">Manage payment methods and payout settings</p>
+        <h1 className="text-2xl font-bold text-text mb-2">Payment Settings</h1>
+        <p className="text-muted">Manage payment methods and payout settings</p>
+        <div className="mt-3">
+          <TrustRow />
+        </div>
       </div>
 
       {success && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700">
+        <div className="p-4 bg-success/15 border border-success/30 rounded-lg text-text">
           {success}
         </div>
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+        <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">
           {error}
         </div>
       )}
@@ -185,37 +189,37 @@ export default function PaymentSettingsPage() {
       {userRole === 'pro' ? (
         <>
           {/* Tax & Payouts */}
-          <div className="p-6 bg-white border border-gray-200 rounded-lg">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Tax &amp; Payouts</h2>
-            <p className="text-sm text-gray-600 mb-4">
+          <div className="p-6 bg-surface border border-border rounded-lg">
+            <h2 className="text-lg font-semibold text-text mb-2">Tax &amp; Payouts</h2>
+            <p className="text-sm text-muted mb-4">
               Select the tax identification number you use for U.S. tax reporting.
             </p>
 
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+              <span className="text-xs font-medium px-2 py-1 rounded-full bg-surface2 text-muted border border-border">
                 {taxLoading ? 'Loading…' : taxStatus}
               </span>
               {payoutsOnHold && (
-                <span className="text-xs font-medium px-2 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">
+                <span className="text-xs font-medium px-2 py-1 rounded-full bg-danger/10 text-text border border-danger/30">
                   Payouts on hold
                 </span>
               )}
               {payoutsHoldDays > 0 && (
-                <span className="text-xs font-medium px-2 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                <span className="text-xs font-medium px-2 py-1 rounded-full bg-warning/15 text-text border border-warning/30">
                   Payout delay: {payoutsHoldDays} day{payoutsHoldDays === 1 ? '' : 's'}
                 </span>
               )}
             </div>
 
             <form onSubmit={handleSaveTaxIdType} className="space-y-3">
-              <label htmlFor="taxIdType" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="taxIdType" className="block text-sm font-medium text-muted">
                 Tax identification type
               </label>
               <select
                 id="taxIdType"
                 value={taxIdType}
                 onChange={(e) => setTaxIdType(e.target.value as TaxIdType)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 disabled={taxLoading || taxSaving}
               >
                 <option value="">Select…</option>
@@ -225,26 +229,26 @@ export default function PaymentSettingsPage() {
               </select>
 
               {!itinOptionEnabled && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted/70">
                   Additional tax ID types may be enabled later as we expand payout compliance support.
                 </p>
               )}
 
               {taxIdType === 'OTHER' && (
-                <p className="text-sm text-gray-600">
-                  Please contact support to continue: <a className="text-emerald-700 hover:underline" href="mailto:support@flyersup.app">support@flyersup.app</a>
+                <p className="text-sm text-muted">
+                  Please contact support to continue: <a className="text-text hover:underline" href="mailto:support@flyersup.app">support@flyersup.app</a>
                 </p>
               )}
 
               <button
                 type="submit"
                 disabled={taxLoading || taxSaving || !taxIdType}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {taxSaving ? 'Saving…' : 'Save Tax Setting'}
               </button>
 
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted/70">
                 We do not store your tax ID number in Flyers Up. We store the tax ID <em>type</em>, verification status,
                 and payout account references only.
               </p>
@@ -254,18 +258,18 @@ export default function PaymentSettingsPage() {
           {/* Pro Payout Settings */}
           <form onSubmit={handleSavePayout} className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Payout Method</h2>
+              <h2 className="text-lg font-semibold text-text mb-4">Payout Method</h2>
               
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="payoutMethod" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="payoutMethod" className="block text-sm font-medium text-muted mb-1">
                     Payment Method
                   </label>
                   <select
                     id="payoutMethod"
                     value={payoutMethod}
                     onChange={(e) => setPayoutMethod(e.target.value as 'bank_account' | 'paypal' | 'cashapp')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                   >
                     {PAYOUT_METHODS.map((method) => (
                       <option key={method.value} value={method.value}>
@@ -276,7 +280,7 @@ export default function PaymentSettingsPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="accountLast4" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="accountLast4" className="block text-sm font-medium text-muted mb-1">
                     Account Identifier (Last 4)
                   </label>
                   <input
@@ -285,10 +289,10 @@ export default function PaymentSettingsPage() {
                     value={accountLast4}
                     onChange={(e) => setAccountLast4(e.target.value)}
                     maxLength={10}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                     placeholder="Last 4 digits or characters"
                   />
-                  <p className="mt-1 text-sm text-gray-500">
+                  <p className="mt-1 text-sm text-muted/70">
                     Enter the last 4 digits of your account number or account identifier
                   </p>
                 </div>
@@ -298,7 +302,7 @@ export default function PaymentSettingsPage() {
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Saving...' : 'Save Payout Method'}
             </button>
@@ -308,20 +312,20 @@ export default function PaymentSettingsPage() {
         <>
           {/* Customer Payment Methods */}
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Saved Payment Methods</h2>
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-              <p className="text-sm text-gray-600 mb-4">
+            <h2 className="text-lg font-semibold text-text mb-4">Saved Payment Methods</h2>
+            <div className="p-4 bg-surface2 border border-border rounded-lg">
+              <p className="text-sm text-muted mb-4">
                 Manage your saved payment methods for faster checkout.
               </p>
               <div className="space-y-3">
-                <div className="p-3 bg-white border border-gray-200 rounded-lg">
-                  <p className="text-sm text-gray-500">No saved payment methods</p>
+                <div className="p-3 bg-surface border border-border rounded-lg">
+                  <p className="text-sm text-muted/70">No saved payment methods</p>
                 </div>
               </div>
               <button
                 type="button"
                 disabled
-                className="mt-4 px-4 py-2 bg-gray-100 text-gray-600 rounded-lg cursor-not-allowed"
+                className="mt-4 px-4 py-2 bg-surface border border-border text-muted rounded-lg cursor-not-allowed"
               >
                 Add Payment Method (Coming Soon)
               </button>

@@ -1,8 +1,7 @@
 'use client';
 
 import { Card } from './Card';
-import { Badge } from './Badge';
-import { Rail } from './Rail';
+import { OfficialBadge } from './OfficialBadge';
 
 interface ServiceProCardProps {
   name: string;
@@ -12,6 +11,7 @@ interface ServiceProCardProps {
   photo?: string;
   badges?: string[];
   onClick?: () => void;
+  accentLeft?: boolean;
 }
 
 /**
@@ -25,12 +25,17 @@ export function ServiceProCard({
   photo,
   badges = [],
   onClick,
+  accentLeft = false,
 }: ServiceProCardProps) {
   return (
-    <Card withRail onClick={onClick} className="mb-4">
+    <Card
+      withRail={false}
+      onClick={onClick}
+      className={['mb-4', accentLeft ? 'border-l-[3px] border-l-accent' : ''].join(' ')}
+    >
       <div className="flex gap-4">
         {/* Avatar */}
-        <div className="w-16 h-16 rounded-xl bg-gray-200 flex-shrink-0 overflow-hidden">
+        <div className="w-16 h-16 rounded-xl bg-surface2 flex-shrink-0 overflow-hidden">
           {photo ? (
             <img src={photo} alt={name} className="w-full h-full object-cover" />
           ) : (
@@ -42,29 +47,29 @@ export function ServiceProCard({
         
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-900 mb-1">{name}</h3>
+          <h3 className="font-semibold text-text mb-1">{name}</h3>
           
           {/* Rating */}
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-yellow-500">★</span>
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-warning">★</span>
+            <span className="text-sm font-medium text-text">
               {rating.toFixed(1)}
             </span>
-            <span className="text-sm text-gray-500">({reviewCount})</span>
+            <span className="text-sm text-muted/70">({reviewCount})</span>
           </div>
           
           {/* Badges */}
           {badges.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-2">
+            <div className="flex flex-wrap gap-2 mb-2">
               {badges.map((badge, i) => (
-                <Badge key={i} variant="verified">{badge}</Badge>
+                <OfficialBadge key={i}>{badge}</OfficialBadge>
               ))}
             </div>
           )}
           
           {/* Price */}
-          <div className="text-sm text-gray-600">
-            From <span className="font-semibold text-gray-900">${startingPrice}</span>
+          <div className="text-sm text-muted">
+            From <span className="font-semibold text-text">${startingPrice}</span>
           </div>
         </div>
       </div>

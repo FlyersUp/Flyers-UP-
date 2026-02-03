@@ -37,14 +37,14 @@ export default function PageLayout({
   };
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b from-emerald-50 via-white to-emerald-50 pb-20 ${className}`}>
+    <div className={`min-h-screen bg-bg text-text pb-20 ${className}`}>
       {/* Back Button Header */}
       {showBackButton && (
-        <header className="bg-white/80 backdrop-blur-sm border-b border-emerald-100 sticky top-0 z-40">
-          <div className="max-w-7xl mx-auto px-4 py-3">
+        <header className="bg-[var(--surface-solid)] border-b border-[var(--surface-border)] sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-[var(--page-pad-x)] py-3">
             <button
               onClick={handleBack}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium"
+              className="flex items-center gap-2 text-muted hover:text-text transition-colors text-sm font-medium"
             >
               <span>{backButtonText}</span>
             </button>
@@ -53,7 +53,7 @@ export default function PageLayout({
       )}
 
       {/* Page Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-[var(--page-pad-x)] py-[var(--page-pad-y)]">
         {children}
       </main>
 

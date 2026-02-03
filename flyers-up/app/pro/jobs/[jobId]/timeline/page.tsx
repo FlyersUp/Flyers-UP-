@@ -24,7 +24,7 @@ export default function JobTimeline({ params }: { params: Promise<{ jobId: strin
   return (
     <AppLayout mode="pro">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-6">
+        <h1 className="text-2xl font-semibold text-text mb-6">
           Job Timeline
         </h1>
 

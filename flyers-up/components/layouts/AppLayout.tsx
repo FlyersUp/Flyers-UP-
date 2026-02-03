@@ -13,7 +13,7 @@ interface AppLayoutProps {
 
 function LayoutContent({ children, showRail = true }: { children: ReactNode; showRail: boolean }) {
   return (
-    <div className="min-h-screen bg-[#FEFBF8] flex pb-20">
+    <div className="min-h-screen bg-bg text-text flex pb-20">
       {showRail && <Rail className="h-screen" showLabel />}
       <div className="flex-1">
         {children}

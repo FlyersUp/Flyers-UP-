@@ -15,16 +15,16 @@ interface CardProps {
  * Card component with optional left rail + stripe
  */
 export function Card({ children, withRail = false, className = '', onClick }: CardProps) {
-  const baseStyles = 'bg-white rounded-xl shadow-sm border border-gray-200';
-  const interactiveStyles = onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : '';
+  const baseStyles = 'surface-card';
+  const interactiveStyles = onClick ? 'cursor-pointer hover:shadow-card transition-shadow' : '';
 
   return (
     <div 
       className={`${baseStyles} ${interactiveStyles} ${className} flex`}
       onClick={onClick}
     >
-      {withRail && <Rail className="rounded-l-xl" />}
-      <div className="flex-1 p-6">
+      {withRail && <Rail className="rounded-l-[18px]" />}
+      <div className="flex-1 p-[var(--card-pad)]">
         {children}
       </div>
     </div>

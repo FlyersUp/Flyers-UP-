@@ -94,14 +94,14 @@ export default function BookingForm({ pro }: BookingFormProps) {
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Error message */}
       {error && (
-        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm">
+        <div className="bg-danger/10 text-text px-4 py-3 rounded-lg text-sm">
           {error}
         </div>
       )}
 
       {/* Date field */}
       <div>
-        <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="date" className="block text-sm font-medium text-text mb-1">
           Date *
         </label>
         <input
@@ -112,13 +112,13 @@ export default function BookingForm({ pro }: BookingFormProps) {
           onChange={handleChange}
           min={minDate}
           required
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors text-gray-900"
+          className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent outline-none transition-colors text-text"
         />
       </div>
 
       {/* Time field */}
       <div>
-        <label htmlFor="time" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="time" className="block text-sm font-medium text-text mb-1">
           Preferred Time *
         </label>
         <input
@@ -128,13 +128,13 @@ export default function BookingForm({ pro }: BookingFormProps) {
           value={formData.time}
           onChange={handleChange}
           required
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors text-gray-900"
+          className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent outline-none transition-colors text-text"
         />
       </div>
 
       {/* Address field */}
       <div>
-        <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="address" className="block text-sm font-medium text-text mb-1">
           Service Address *
         </label>
         <input
@@ -145,13 +145,13 @@ export default function BookingForm({ pro }: BookingFormProps) {
           onChange={handleChange}
           placeholder="Enter your full address"
           required
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors text-gray-900 placeholder:text-gray-400"
+          className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent outline-none transition-colors text-text placeholder:text-muted/60"
         />
       </div>
 
       {/* Notes field */}
       <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="notes" className="block text-sm font-medium text-text mb-1">
           Additional Notes
         </label>
         <textarea
@@ -161,7 +161,7 @@ export default function BookingForm({ pro }: BookingFormProps) {
           onChange={handleChange}
           placeholder="Any special instructions or details about the job..."
           rows={4}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors resize-none text-gray-900 placeholder:text-gray-400"
+          className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent outline-none transition-colors resize-none text-text placeholder:text-muted/60"
         />
       </div>
 
@@ -169,13 +169,13 @@ export default function BookingForm({ pro }: BookingFormProps) {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-3 rounded-lg font-medium transition-colors"
+        className="w-full bg-accent hover:opacity-95 disabled:opacity-50 text-accentContrast py-3 rounded-lg font-medium transition-opacity"
       >
         {isSubmitting ? 'Submitting...' : 'Request Booking'}
       </button>
 
       {/* Info text */}
-      <p className="text-xs text-gray-500 text-center">
+      <p className="text-xs text-muted/70 text-center">
         By submitting, you agree to the service terms. The pro will confirm your booking shortly.
       </p>
     </form>

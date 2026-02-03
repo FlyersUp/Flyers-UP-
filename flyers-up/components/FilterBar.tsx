@@ -35,7 +35,7 @@ export default function FilterBar({
     <div className={`space-y-4 ${className}`}>
       {/* Search input */}
       <div className="relative">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted/60">
           🔍
         </span>
         <input
@@ -45,9 +45,9 @@ export default function FilterBar({
           onChange={handleSearch}
           className="
             w-full pl-11 pr-4 py-3 
-            bg-white border border-gray-200 rounded-xl
-            text-gray-900 placeholder-gray-500
-            focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent
+            bg-surface border border-border rounded-xl
+            text-text placeholder:text-muted/70
+            focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-transparent
             transition-all
           "
         />
@@ -63,8 +63,8 @@ export default function FilterBar({
               flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full
               text-sm font-medium transition-all
               ${selectedCategory === category.slug
-                ? 'bg-teal-600 text-white shadow-md'
-                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                ? 'bg-accent text-accentContrast shadow-md'
+                : 'bg-surface border border-border text-text hover:bg-surface2 hover:border-border'
               }
             `}
           >

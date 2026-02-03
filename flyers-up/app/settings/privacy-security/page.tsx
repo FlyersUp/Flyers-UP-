@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { changePassword, deactivateAccount } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
+import { TrustRow } from '@/components/ui/TrustRow';
 
 export default function PrivacySecurityPage() {
   const [loading, setLoading] = useState(false);
@@ -83,30 +84,33 @@ export default function PrivacySecurityPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Privacy & Security</h1>
-        <p className="text-gray-600">Manage your account security and privacy settings</p>
+        <h1 className="text-2xl font-bold text-text mb-2">Privacy & Security</h1>
+        <p className="text-muted">Manage your account security and privacy settings</p>
+        <div className="mt-3">
+          <TrustRow />
+        </div>
       </div>
 
       {success && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700">
+        <div className="p-4 bg-success/15 border border-success/30 rounded-lg text-text">
           {success}
         </div>
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+        <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">
           {error}
         </div>
       )}
 
       {/* Change Password */}
-      <form onSubmit={handleChangePassword} className="space-y-4 border-b border-gray-200 pb-6">
+      <form onSubmit={handleChangePassword} className="space-y-4 border-b border-border pb-6">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h2>
+          <h2 className="text-lg font-semibold text-text mb-4">Change Password</h2>
           
           <div className="space-y-4">
             <div>
-              <label htmlFor="oldPassword" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="oldPassword" className="block text-sm font-medium text-muted mb-1">
                 Current Password
               </label>
               <input
@@ -115,13 +119,13 @@ export default function PrivacySecurityPage() {
                 value={oldPassword}
                 onChange={(e) => setOldPassword(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 placeholder="Enter current password"
               />
             </div>
 
             <div>
-              <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="newPassword" className="block text-sm font-medium text-muted mb-1">
                 New Password
               </label>
               <input
@@ -131,13 +135,13 @@ export default function PrivacySecurityPage() {
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 placeholder="Enter new password (min. 6 characters)"
               />
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-muted mb-1">
                 Confirm New Password
               </label>
               <input
@@ -147,7 +151,7 @@ export default function PrivacySecurityPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 placeholder="Confirm new password"
               />
             </div>
@@ -157,23 +161,23 @@ export default function PrivacySecurityPage() {
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? 'Changing...' : 'Change Password'}
         </button>
       </form>
 
       {/* 2FA (Coming Soon) */}
-      <div className="border-b border-gray-200 pb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Two-Factor Authentication</h2>
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <p className="text-sm text-gray-600 mb-2">
+      <div className="border-b border-border pb-6">
+        <h2 className="text-lg font-semibold text-text mb-4">Two-Factor Authentication</h2>
+        <div className="p-4 bg-surface2 border border-border rounded-lg">
+          <p className="text-sm text-muted mb-2">
             Two-factor authentication adds an extra layer of security to your account.
           </p>
           <button
             type="button"
             disabled
-            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg cursor-not-allowed"
+            className="px-4 py-2 bg-surface border border-border text-muted rounded-lg cursor-not-allowed"
           >
             Coming Soon
           </button>
@@ -181,16 +185,16 @@ export default function PrivacySecurityPage() {
       </div>
 
       {/* View Data Used */}
-      <div className="border-b border-gray-200 pb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Data</h2>
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <p className="text-sm text-gray-600 mb-2">
+      <div className="border-b border-border pb-6">
+        <h2 className="text-lg font-semibold text-text mb-4">Your Data</h2>
+        <div className="p-4 bg-surface2 border border-border rounded-lg">
+          <p className="text-sm text-muted mb-2">
             View and download your account data (coming soon).
           </p>
           <button
             type="button"
             disabled
-            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg cursor-not-allowed"
+            className="px-4 py-2 bg-surface border border-border text-muted rounded-lg cursor-not-allowed"
           >
             View Data
           </button>
@@ -199,9 +203,9 @@ export default function PrivacySecurityPage() {
 
       {/* Deactivate Account */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 text-red-600">Danger Zone</h2>
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-gray-700 mb-4">
+        <h2 className="text-lg font-semibold text-danger mb-4">Danger Zone</h2>
+        <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg">
+          <p className="text-sm text-text mb-4">
             Deactivating your account will disable your profile and prevent you from accessing the platform.
             You can reactivate your account by signing in again within 30 days.
           </p>
@@ -210,13 +214,13 @@ export default function PrivacySecurityPage() {
             <button
               type="button"
               onClick={() => setShowDeactivateConfirm(true)}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              className="px-4 py-2 bg-red-600 text-accentContrast rounded-lg hover:bg-red-700 transition-colors"
             >
               Deactivate Account
             </button>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm font-medium text-red-700">
+              <p className="text-sm font-medium text-text">
                 Are you sure you want to deactivate your account?
               </p>
               <div className="flex gap-3">
@@ -224,7 +228,7 @@ export default function PrivacySecurityPage() {
                   type="button"
                   onClick={handleDeactivateAccount}
                   disabled={loading}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 bg-red-600 text-accentContrast rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {loading ? 'Processing...' : 'Yes, Deactivate'}
                 </button>
@@ -232,7 +236,7 @@ export default function PrivacySecurityPage() {
                   type="button"
                   onClick={() => setShowDeactivateConfirm(false)}
                   disabled={loading}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  className="px-4 py-2 bg-surface border border-border text-muted rounded-lg hover:bg-surface2 transition-colors"
                 >
                   Cancel
                 </button>

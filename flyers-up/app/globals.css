@@ -6,42 +6,178 @@
    ============================================ */
 
 :root {
-  /* Core colors - Virgil Abloh 3% Rule */
-  --background: #FEFBF8;
-  --foreground: #2A2A2A;
-  
-  /* Customer Mode - Pastel Green */
-  --customer-primary: #A8E6CF;
-  --customer-primary-dark: #7FD4B0;
-  
-  /* Service Pro Mode - Pastel Orange */
-  --pro-primary: #FFD3A1;
-  --pro-primary-dark: #FFB870;
-  
-  /* Shared neutrals */
-  --charcoal: #2A2A2A;
-  --off-white: #FEFBF8;
-  --soft-gray: #EAEAEA;
-  
-  /* Optional accent */
-  --flyers-blue: #00B4D8;
-  
+  /* ============================================
+     FLYERS UP THEME TOKENS (HSL triplets)
+     - No hard-coded colors in components
+     - Tailwind consumes these via: hsl(var(--token) / <alpha-value>)
+     ============================================ */
+
+  /* Core (light) */
+  /* bg-app: #FAF9F6 */
+  --bg: 45 29% 97%;
+  --surface: 0 0% 100%;
+  /* nav bg (light): #F2F4F3 */
+  --surface-2: 150 8% 95%;
+  /* Border token still used for misc UI; hairline borders below are used for cards/tiles */
+  --border: 42 23% 86%;
+  --text: 0 0% 8%;
+  --text-muted: 0 0% 37%;
+
+  /* Accent defaults (neutral core + role sets --accent) */
+  /* customer accent: #6EE7B7 */
+  --accent: 156 72% 67%;
+  --accent-contrast: 0 0% 8%;
+
+  /* Brand role accents (used when both roles appear on one screen, e.g. marketing hero) */
+  --accent-customer: 156 72% 67%;
+  --accent-pro: 31 97% 72%;
+
+  /* Optional but recommended */
+  --ring: var(--accent);
+  --success: 158 55% 78%;
+  --warning: 30 100% 72%;
+  --info: 211 40% 72%;
+  --danger: 3 59% 70%;
+
   /* Rail & Stripe */
   --rail-width: 4px;
   --stripe-width: 1px;
+
+  /* Hairline borders + depth (exact spec) */
+  /* slightly stronger gray highlight for borders/dividers */
+  --hairline: rgba(0,0,0,0.06);
+  /* Card separation seam (hairline shadow) */
+  --shadow-card: 0 1px 0 rgba(0,0,0,0.06),
+                 0 2px 6px rgba(0,0,0,0.04);
+  /* Hover uses the same offsets; only opacity increases slightly */
+  --shadow-card-hover: 0 1px 0 rgba(0,0,0,0.08),
+                       0 2px 6px rgba(0,0,0,0.06);
+  /* Near-invisible card border (optional) */
+  --card-border: 1px solid rgba(0,0,0,0.06);
+
+  /* Bottom nav surface (exact spec) */
+  --nav-bg: #F2F4F3;
+  /* Opaque surfaces for nav/menu (avoid any transparency ambiguity) */
+  --nav-solid: var(--nav-bg);
+  --surface-solid: #FFFFFF;
+  --surface-border: rgba(0,0,0,0.06);
+
+  /* ============================================
+     WEIGHTING TOKENS (single system, two emphases)
+     - Customer: Warm Neutrality–weighted
+     - Pro: Civic Infrastructure–weighted
+     ============================================ */
+  --page-pad-x: 16px;
+  --page-pad-y: 24px;
+  --stack-gap: 16px;
+  --card-pad: 20px;
+  --panel-pad-x: 20px;
+  --panel-pad-y: 20px;
+
+  /* OfficialBadge (exact spec) */
+  --badge-bg: rgba(0,0,0,0.03);
+  --badge-border: rgba(0,0,0,0.08);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-montserrat);
-  --font-label: var(--font-oswald);
+/* Role-based accents (light) */
+.theme-customer {
+  /* customer accent: #6EE7B7 */
+  --accent: 156 72% 67%;
+  --accent-contrast: 0 0% 8%;
+  --ring: var(--accent);
+
+  /* Warm Neutrality–weighted (more breathing room) */
+  --page-pad-y: 24px;
+  --stack-gap: 18px;
+  --card-pad: 20px;
+  --surface-border: rgba(0,0,0,0.06);
+}
+.theme-pro {
+  /* pro accent: #FDBA74 */
+  --accent: 31 97% 72%;
+  --accent-contrast: 0 0% 8%;
+  --ring: var(--accent);
+
+  /* Civic Infrastructure–weighted (slightly denser + firmer separators) */
+  --page-pad-y: 20px;
+  --stack-gap: 14px;
+  --card-pad: 18px;
+  --surface-border: rgba(0,0,0,0.08);
+}
+
+/* Dark mode: warm-charcoal surfaces + off-white ink + subtle borders */
+.dark {
+  /* Core (dark) - exact spec */
+  /* bg-app: #0F1110 */
+  --bg: 150 6% 6%;
+  /* card bg: #141716 */
+  --surface: 160 7% 8%;
+  /* secondary card bg: #1A1E1C */
+  --surface-2: 150 7% 11%;
+  --border: 42 4% 18%;
+  --text: 44 35% 94%;
+  --text-muted: 42 12% 68%;
+
+  /* Hairline borders + depth (exact spec) */
+  /* slightly stronger gray highlight for borders/dividers */
+  --hairline: rgba(255,255,255,0.08);
+  /* Card separation seam (hairline shadow) */
+  --shadow-card: 0 1px 0 rgba(255,255,255,0.04),
+                 0 10px 24px rgba(0,0,0,0.35);
+  --shadow-card-hover: 0 1px 0 rgba(255,255,255,0.06),
+                       0 10px 24px rgba(0,0,0,0.45);
+  --card-border: 1px solid rgba(255,255,255,0.08);
+
+  /* Bottom nav surface (exact spec) */
+  --nav-bg: #141716;
+  /* Opaque surfaces for nav/menu (avoid any transparency ambiguity) */
+  --nav-solid: var(--nav-bg);
+  --surface-solid: #141716;
+  --surface-border: rgba(255,255,255,0.06);
+
+  /* Weighting tokens carry across dark mode */
+  --page-pad-x: 16px;
+  --page-pad-y: 24px;
+  --stack-gap: 16px;
+  --card-pad: 20px;
+  --panel-pad-x: 20px;
+  --panel-pad-y: 20px;
+
+  /* OfficialBadge (exact spec) */
+  --badge-bg: rgba(255,255,255,0.06);
+  --badge-border: rgba(255,255,255,0.10);
+
+  /* Brand role accents (dark): slightly brighter for contrast */
+  --accent-customer: 156 72% 72%;
+  --accent-pro: 31 97% 78%;
+}
+
+/* Role-based accents (dark): slightly brighter than light-mode accent for contrast */
+.dark.theme-customer {
+  /* bump slightly in dark for contrast (customer) */
+  --accent: 156 72% 72%;
+
+  /* Warm Neutrality–weighted */
+  --page-pad-y: 24px;
+  --stack-gap: 18px;
+  --card-pad: 20px;
+  --surface-border: rgba(255,255,255,0.06);
+}
+.dark.theme-pro {
+  /* bump slightly in dark for contrast (pro) */
+  --accent: 31 97% 78%;
+
+  /* Civic Infrastructure–weighted */
+  --page-pad-y: 20px;
+  --stack-gap: 14px;
+  --card-pad: 18px;
+  --surface-border: rgba(255,255,255,0.08);
 }
 
 /* Typography - Montserrat (Primary) + Oswald (Labels) */
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: hsl(var(--bg));
+  color: hsl(var(--text));
   font-family: var(--font-montserrat), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -50,6 +186,21 @@ body {
 /* ============================================
    UTILITY CLASSES
    ============================================ */
+
+/* Card surface: subtle seam, no heavy outlines */
+.surface-card {
+  background: hsl(var(--surface));
+  border-radius: 18px;
+  border: var(--card-border);
+  box-shadow: var(--shadow-card);
+}
+
+/* A slightly denser surface for list items inside cards */
+.surface-item {
+  background: hsl(var(--surface-2));
+  border-radius: 12px;
+  border: 1px solid hsl(var(--border) / 0.08);
+}
 
 /* Hide scrollbar but keep functionality */
 .scrollbar-hide {
@@ -63,7 +214,7 @@ body {
 /* Custom scrollbar for content areas */
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: var(--gray-300) transparent;
+  scrollbar-color: hsl(var(--border)) transparent;
 }
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px;
@@ -73,11 +224,11 @@ body {
   background: transparent;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: var(--gray-300);
+  background-color: hsl(var(--border));
   border-radius: 3px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background-color: var(--gray-400);
+  background-color: hsl(var(--border) / 0.8);
 }
 
 /* Smooth transitions for interactive elements */
@@ -90,20 +241,20 @@ body {
   outline: none;
 }
 .focus-ring:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
 
 /* Glass effect for overlays */
 .glass {
-  background: rgba(255, 255, 255, 0.9);
+  background: hsl(var(--surface) / 0.9);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(var(--accent) / 0.75) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -172,8 +323,8 @@ body {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card-hover);
 }
 
 /* Button press effect */

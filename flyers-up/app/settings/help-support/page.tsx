@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { TrustRow } from '@/components/ui/TrustRow';
 
 interface FAQItem {
   question: string;
@@ -45,28 +46,31 @@ export default function HelpSupportPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Help & Support</h1>
-        <p className="text-gray-600">Find answers to common questions and get support</p>
+        <h1 className="text-2xl font-bold text-text mb-2">Help & Support</h1>
+        <p className="text-muted">Find answers to common questions and get support</p>
+        <div className="mt-3">
+          <TrustRow />
+        </div>
       </div>
 
       {/* FAQ Section */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Frequently Asked Questions</h2>
+        <h2 className="text-lg font-semibold text-text mb-4">Frequently Asked Questions</h2>
         <div className="space-y-3">
           {FAQ_ITEMS.map((item, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg">
+            <div key={index} className="border border-border rounded-lg bg-surface">
               <button
                 type="button"
                 onClick={() => toggleFAQ(index)}
-                className="w-full px-4 py-3 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
+                className="w-full px-4 py-3 text-left flex items-center justify-between hover:bg-surface2 transition-colors"
               >
-                <span className="font-medium text-gray-900">{item.question}</span>
-                <span className="text-gray-400">
+                <span className="font-medium text-text">{item.question}</span>
+                <span className="text-muted/70">
                   {expandedFAQ === index ? '−' : '+'}
                 </span>
               </button>
               {expandedFAQ === index && (
-                <div className="px-4 pb-3 pt-0 text-sm text-gray-600 border-t border-gray-100">
+                <div className="px-4 pb-3 pt-0 text-sm text-muted border-t border-border">
                   {item.answer}
                 </div>
               )}
@@ -76,15 +80,15 @@ export default function HelpSupportPage() {
       </div>
 
       {/* Contact Support */}
-      <div className="border-t border-gray-200 pt-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Contact Support</h2>
-        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-          <p className="text-sm text-gray-600 mb-4">
+      <div className="border-t border-border pt-6">
+        <h2 className="text-lg font-semibold text-text mb-4">Contact Support</h2>
+        <div className="p-4 bg-surface2 border border-border rounded-lg">
+          <p className="text-sm text-muted mb-4">
             Need help? Our support team is here to assist you. Send us an email and we&apos;ll get back to you as soon as possible.
           </p>
           <a
             href="mailto:hello.flyersup@gmail.com?subject=Support Request"
-            className="inline-block px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+            className="inline-block px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent transition-colors"
           >
             Contact Support
           </a>
@@ -92,31 +96,31 @@ export default function HelpSupportPage() {
       </div>
 
       {/* Terms & Policies */}
-      <div className="border-t border-gray-200 pt-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Terms & Policies</h2>
-        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-          <p className="text-sm text-gray-600 mb-4">
+      <div className="border-t border-border pt-6">
+        <h2 className="text-lg font-semibold text-text mb-4">Terms & Policies</h2>
+        <div className="p-4 bg-surface2 border border-border rounded-lg">
+          <p className="text-sm text-muted mb-4">
             Review our terms of service, privacy policy, and community guidelines.
           </p>
           <div className="space-y-2">
             <button
               type="button"
               disabled
-              className="block w-full text-left px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 cursor-not-allowed"
+              className="block w-full text-left px-4 py-2 bg-surface border border-border rounded-lg text-sm text-muted cursor-not-allowed"
             >
               Terms of Service (Coming Soon)
             </button>
             <button
               type="button"
               disabled
-              className="block w-full text-left px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 cursor-not-allowed"
+              className="block w-full text-left px-4 py-2 bg-surface border border-border rounded-lg text-sm text-muted cursor-not-allowed"
             >
               Privacy Policy (Coming Soon)
             </button>
             <button
               type="button"
               disabled
-              className="block w-full text-left px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 cursor-not-allowed"
+              className="block w-full text-left px-4 py-2 bg-surface border border-border rounded-lg text-sm text-muted cursor-not-allowed"
             >
               Community Guidelines (Coming Soon)
             </button>

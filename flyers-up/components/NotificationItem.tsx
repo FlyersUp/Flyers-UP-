@@ -12,21 +12,21 @@ interface NotificationItemProps {
 }
 
 const typeConfig: Record<string, { icon: string; accentColor: string; bgColor: string }> = {
-  booking: { icon: '📅', accentColor: 'border-l-blue-500', bgColor: 'bg-blue-50' },
-  payment: { icon: '💳', accentColor: 'border-l-green-500', bgColor: 'bg-green-50' },
-  status: { icon: '🚗', accentColor: 'border-l-orange-500', bgColor: 'bg-orange-50' },
-  promo: { icon: '🎉', accentColor: 'border-l-purple-500', bgColor: 'bg-purple-50' },
-  review: { icon: '⭐', accentColor: 'border-l-amber-500', bgColor: 'bg-amber-50' },
-  system: { icon: '⚙️', accentColor: 'border-l-gray-500', bgColor: 'bg-gray-50' },
-  message: { icon: '💬', accentColor: 'border-l-teal-500', bgColor: 'bg-teal-50' },
+  booking: { icon: '📅', accentColor: 'border-l-accent', bgColor: 'bg-accent/10' },
+  payment: { icon: '💳', accentColor: 'border-l-success', bgColor: 'bg-success/15' },
+  status: { icon: '🚗', accentColor: 'border-l-warning', bgColor: 'bg-warning/15' },
+  promo: { icon: '🎉', accentColor: 'border-l-accent', bgColor: 'bg-surface2' },
+  review: { icon: '⭐', accentColor: 'border-l-warning', bgColor: 'bg-warning/15' },
+  system: { icon: '⚙️', accentColor: 'border-l-border', bgColor: 'bg-surface2' },
+  message: { icon: '💬', accentColor: 'border-l-accent', bgColor: 'bg-surface2' },
 };
 
 export default function NotificationItem({ notification, className = '' }: NotificationItemProps) {
   // Get config with fallback for unknown types
   const config = typeConfig[notification.type] || {
     icon: '🔔',
-    accentColor: 'border-l-gray-500',
-    bgColor: 'bg-gray-50',
+    accentColor: 'border-l-border',
+    bgColor: 'bg-surface2',
   };
   
   // Use time from notification if available, otherwise format timestamp
@@ -51,16 +51,15 @@ export default function NotificationItem({ notification, className = '' }: Notif
   const content = (
     <div 
       className={`
-        relative p-4 bg-white rounded-xl border-l-4 shadow-sm
-        transition-all hover:shadow-md
+        relative p-5 surface-card border-l-[3px]
+        card-hover
         ${config.accentColor}
-        ${!notification.read ? 'ring-1 ring-teal-100' : ''}
         ${className}
       `}
     >
       {/* Unread indicator */}
       {!notification.read && (
-        <span className="absolute top-4 right-4 w-2 h-2 bg-teal-500 rounded-full" />
+        <span className="absolute top-4 right-4 w-2 h-2 bg-accent rounded-full" />
       )}
 
       <div className="flex items-start gap-3">
@@ -72,12 +71,12 @@ export default function NotificationItem({ notification, className = '' }: Notif
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <h4 className={`font-medium ${notification.read ? 'text-gray-700' : 'text-gray-900'}`}>
+            <h4 className={`font-medium ${notification.read ? 'text-text' : 'text-text'}`}>
               {notification.title}
             </h4>
-            <span className="text-xs text-gray-500 flex-shrink-0">{timeLabel}</span>
+            <span className="text-xs text-muted/70 flex-shrink-0">{timeLabel}</span>
           </div>
-          <p className={`text-sm mt-0.5 ${notification.read ? 'text-gray-500' : 'text-gray-600'}`}>
+          <p className={`text-sm mt-0.5 ${notification.read ? 'text-muted/70' : 'text-muted'}`}>
             {'message' in notification ? notification.message : 'description' in notification ? notification.description : ''}
           </p>
         </div>

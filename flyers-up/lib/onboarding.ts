@@ -38,7 +38,11 @@ export async function getProfile(userId: string): Promise<ProfileRow | null> {
     .eq('id', userId)
     .maybeSingle();
 
-  if (error) return null;
+  if (error) {
+    // Useful in diagnosing auth/RLS/schema issues during onboarding.
+    console.error('getProfile error:', error);
+    return null;
+  }
   return (data as ProfileRow) || null;
 }
 
@@ -58,7 +62,10 @@ export async function getOrCreateProfile(userId: string, email: string | null): 
     .select('id, email, role, first_name, phone, zip_code, onboarding_step')
     .single();
 
-  if (error) return null;
+  if (error) {
+    console.error('getOrCreateProfile insert error:', error);
+    return null;
+  }
   return data as ProfileRow;
 }
 

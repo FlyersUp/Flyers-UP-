@@ -3,39 +3,69 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/Button';
+import { StatusBadge } from '@/components/ui/Badge';
+import { getBookingById, type BookingDetails } from '@/lib/api';
 
 function BookingSuccessContent() {
   const searchParams = useSearchParams();
   const bookingId = searchParams.get('bookingId');
+  const [booking, setBooking] = useState<BookingDetails | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      if (!bookingId) return;
+      const b = await getBookingById(bookingId);
+      if (!mounted) return;
+      setBooking(b);
+    }
+    void load();
+    return () => {
+      mounted = false;
+    };
+  }, [bookingId]);
 
   return (
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-10">
-        <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center">
+        <div className="bg-surface border border-border rounded-2xl p-8 text-center">
           <div className="text-5xl mb-4">✅</div>
-          <h1 className="text-2xl font-semibold text-gray-900 mb-2">Booking Confirmed</h1>
-          <p className="text-gray-600 mb-6">
-            Your booking was created successfully.
+          <h1 className="text-2xl font-semibold text-text mb-2">Request Sent</h1>
+          <p className="text-muted mb-6">
+            Your request is now with the pro. You’ll be notified when they accept or decline.
           </p>
+
+          {booking ? (
+            <div className="mb-5 flex items-center justify-center">
+              <StatusBadge status={booking.status} />
+            </div>
+          ) : null}
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             {bookingId ? (
-              <Link href={`/jobs/${bookingId}`}>
-                <Button>View Job Details</Button>
+              <Link href={`/customer/chat/${bookingId}`}>
+                <Button>Message Pro</Button>
               </Link>
             ) : (
-              <Button disabled>View Job Details</Button>
+              <Button disabled>Message Pro</Button>
+            )}
+            {bookingId ? (
+              <Link href={`/jobs/${bookingId}`}>
+                <Button variant="secondary">View Request</Button>
+              </Link>
+            ) : (
+              <Button variant="secondary" disabled>View Request</Button>
             )}
             <Link href="/customer">
-              <Button variant="secondary">Back to Dashboard</Button>
+              <Button variant="ghost">Back to Dashboard</Button>
             </Link>
           </div>
 
           {!bookingId && (
-            <p className="text-xs text-gray-400 mt-4">
+            <p className="text-xs text-muted/60 mt-4">
               Missing bookingId in URL. (Expected <code>?</code>bookingId=...)
             </p>
           )}
@@ -51,7 +81,7 @@ export default function BookingSuccessPage() {
       fallback={
         <AppLayout mode="customer">
           <div className="max-w-4xl mx-auto px-4 py-10">
-            <p className="text-gray-500 text-center">Loading…</p>
+            <p className="text-muted/70 text-center">Loading…</p>
           </div>
         </AppLayout>
       }

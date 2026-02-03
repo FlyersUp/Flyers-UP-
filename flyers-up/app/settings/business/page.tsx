@@ -12,10 +12,12 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { getMyServicePro, updateServicePro, getServiceCategories, getProEarnings, getProJobs, type ServiceCategory, type Booking } from '@/lib/api';
 import { useProEarningsRealtime } from '@/hooks';
 import { formatMoney } from '@/lib/utils/money';
+import { TrustRow } from '@/components/ui/TrustRow';
 
 type TabType = 'profile' | 'schedule' | 'services' | 'income' | 'reviews';
 
@@ -57,7 +59,7 @@ export default function BusinessSettingsPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        router.push(`/signin?next=${encodeURIComponent(pathname || '/settings/business')}`);
+        router.push(`/signin?next=${encodeURIComponent(pathname || '/pro/settings/business')}`);
         return;
       }
 
@@ -192,7 +194,7 @@ export default function BusinessSettingsPage() {
   if (loadingData) {
     return (
       <div className="space-y-6">
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-muted/70">Loading...</div>
       </div>
     );
   }
@@ -201,10 +203,13 @@ export default function BusinessSettingsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">My Business</h1>
-          <p className="text-gray-600">Manage your business profile and service details</p>
+          <h1 className="text-2xl font-bold text-text mb-2">My Business</h1>
+          <p className="text-muted">Manage your business profile and service details</p>
+          <div className="mt-3">
+            <TrustRow />
+          </div>
         </div>
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-700">
+        <div className="p-4 bg-warning/15 border border-warning/30 rounded-lg text-accent">
           This section is only available for service professionals. Please sign up as a pro to access business settings.
         </div>
       </div>
@@ -231,20 +236,23 @@ export default function BusinessSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">My Business</h1>
-        <p className="text-gray-600">Manage your business profile and service details</p>
+        <h1 className="text-2xl font-bold text-text mb-2">My Business</h1>
+        <p className="text-muted">Manage your business profile and service details</p>
+        <div className="mt-3">
+          <TrustRow />
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2 border-b border-gray-200">
+      <div className="flex gap-2 overflow-x-auto pb-2 border-b border-border">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
               activeTab === tab.id
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'bg-accent/15 text-text'
+                : 'text-muted hover:bg-surface2'
             }`}
           >
             <span>{tab.icon}</span>
@@ -255,24 +263,24 @@ export default function BusinessSettingsPage() {
 
       {/* Success/Error Messages */}
       {success && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700">
+        <div className="p-4 bg-success/15 border border-success/30 rounded-lg text-text">
           {success}
         </div>
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+        <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">
           {error}
         </div>
       )}
 
       {/* Tab Content */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="surface-card p-6 overflow-visible">
         {/* Edit Business Profile Tab */}
         {activeTab === 'profile' && (
           <form onSubmit={handleSaveProfile} className="space-y-4">
             <div>
-              <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="displayName" className="block text-sm font-medium text-muted mb-1">
                 Business Name *
               </label>
               <input
@@ -281,13 +289,13 @@ export default function BusinessSettingsPage() {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 placeholder="Your business or display name"
               />
             </div>
 
             <div>
-              <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="bio" className="block text-sm font-medium text-muted mb-1">
                 About / Bio
               </label>
               <textarea
@@ -295,13 +303,13 @@ export default function BusinessSettingsPage() {
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 placeholder="Tell customers about your services and experience"
               />
             </div>
 
             <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="category" className="block text-sm font-medium text-muted mb-1">
                 Service Category *
               </label>
               <select
@@ -309,7 +317,7 @@ export default function BusinessSettingsPage() {
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
               >
                 <option value="">Select a category</option>
                 {categories.map((cat) => (
@@ -321,7 +329,7 @@ export default function BusinessSettingsPage() {
             </div>
 
             <div>
-              <label htmlFor="startingPrice" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="startingPrice" className="block text-sm font-medium text-muted mb-1">
                 Starting Price ($) *
               </label>
               <input
@@ -332,13 +340,13 @@ export default function BusinessSettingsPage() {
                 required
                 min="0"
                 step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 placeholder="0.00"
               />
             </div>
 
             <div>
-              <label htmlFor="serviceRadius" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="serviceRadius" className="block text-sm font-medium text-muted mb-1">
                 Service Radius (miles)
               </label>
               <input
@@ -347,7 +355,7 @@ export default function BusinessSettingsPage() {
                 value={serviceRadius}
                 onChange={(e) => setServiceRadius(e.target.value)}
                 min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 placeholder="e.g., 25"
               />
             </div>
@@ -355,7 +363,7 @@ export default function BusinessSettingsPage() {
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Saving...' : 'Save Changes'}
             </button>
@@ -366,7 +374,7 @@ export default function BusinessSettingsPage() {
         {activeTab === 'schedule' && (
           <div className="space-y-4">
             <div>
-              <label htmlFor="businessHours" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="businessHours" className="block text-sm font-medium text-muted mb-1">
                 Business Hours
               </label>
               <textarea
@@ -374,14 +382,14 @@ export default function BusinessSettingsPage() {
                 value={businessHours}
                 onChange={(e) => setBusinessHours(e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 placeholder="e.g., Mon-Fri: 9am-5pm, Sat: 10am-2pm"
               />
-              <p className="text-sm text-gray-500 mt-1">Specify your regular business hours</p>
+              <p className="text-sm text-muted/70 mt-1">Specify your regular business hours</p>
             </div>
 
             <div>
-              <label htmlFor="availabilityTime" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="availabilityTime" className="block text-sm font-medium text-muted mb-1">
                 Availability Time
               </label>
               <input
@@ -389,10 +397,10 @@ export default function BusinessSettingsPage() {
                 id="availabilityTime"
                 value={availabilityTime}
                 onChange={(e) => setAvailabilityTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 placeholder="e.g., Available 24/7, Weekends only, etc."
               />
-              <p className="text-sm text-gray-500 mt-1">Describe when you&apos;re typically available</p>
+              <p className="text-sm text-muted/70 mt-1">Describe when you&apos;re typically available</p>
             </div>
 
             <button
@@ -412,7 +420,7 @@ export default function BusinessSettingsPage() {
                 setSuccess('Schedule updated successfully');
               }}
               disabled={loading}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent disabled:opacity-50 transition-colors"
             >
               {loading ? 'Saving...' : 'Save Schedule'}
             </button>
@@ -423,15 +431,31 @@ export default function BusinessSettingsPage() {
         {activeTab === 'services' && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Services</h3>
+              <div className="surface-card p-4 mb-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-text mb-1">Add-Ons</div>
+                    <div className="text-sm text-muted">
+                      Optional upsells customers can add at checkout.
+                    </div>
+                  </div>
+                  <Link
+                    href="/pro/addons"
+                    className="shrink-0 text-sm font-medium text-accent hover:underline"
+                  >
+                    Manage →
+                  </Link>
+                </div>
+              </div>
+              <h3 className="text-lg font-semibold text-text mb-4">Your Services</h3>
               
               {serviceTypes.length > 0 ? (
                 <div className="space-y-3 mb-6">
                   {serviceTypes.map((service) => (
-                    <div key={service.id} className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg">
+                    <div key={service.id} className="surface-card flex items-center gap-3 p-4">
                       <div className="flex-1">
-                        <p className="font-medium text-gray-900">{service.name}</p>
-                        <p className="text-sm text-gray-600">${service.price}</p>
+                        <p className="font-medium text-text">{service.name}</p>
+                        <p className="text-sm text-muted">${service.price}</p>
                       </div>
                       <button
                         onClick={() => {
@@ -441,13 +465,13 @@ export default function BusinessSettingsPage() {
                             handleUpdateService(service.id, newName, newPrice);
                           }
                         }}
-                        className="px-3 py-1 text-sm text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                        className="px-3 py-1 text-sm text-accent hover:bg-success/15 rounded-lg transition-colors"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => service.id && handleRemoveService(service.id)}
-                        className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="px-3 py-1 text-sm text-red-600 hover:bg-danger/10 rounded-lg transition-colors"
                       >
                         Remove
                       </button>
@@ -455,18 +479,18 @@ export default function BusinessSettingsPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 mb-6">No services added yet.</p>
+                <p className="text-muted/70 mb-6">No services added yet.</p>
               )}
 
-              <div className="border-t border-gray-200 pt-6">
-                <h4 className="font-medium text-gray-900 mb-4">Add New Service</h4>
+              <div className="border-t border-border pt-6">
+                <h4 className="font-medium text-text mb-4">Add New Service</h4>
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <input
                     type="text"
                     value={newServiceName}
                     onChange={(e) => setNewServiceName(e.target.value)}
                     placeholder="Service name"
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                   />
                   <input
                     type="number"
@@ -475,12 +499,12 @@ export default function BusinessSettingsPage() {
                     placeholder="Price ($)"
                     min="0"
                     step="0.01"
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                   />
                 </div>
                 <button
                   onClick={handleAddService}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                  className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent transition-colors"
                 >
                   Add Service
                 </button>
@@ -493,65 +517,65 @@ export default function BusinessSettingsPage() {
         {activeTab === 'income' && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Income Overview</h3>
+              <h3 className="text-lg font-semibold text-text mb-4">Income Overview</h3>
               
               {earningsLoading ? (
-                <p className="text-gray-500">Loading earnings...</p>
+                <p className="text-muted/70">Loading earnings...</p>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="p-4 bg-emerald-50 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">Total Earnings</p>
-                    <p className="text-2xl font-bold text-emerald-600">
+                  <div className="p-4 bg-success/15 rounded-lg">
+                    <p className="text-sm text-muted mb-1">Total Earnings</p>
+                    <p className="text-2xl font-bold text-accent">
                       {formatMoney(Math.round(earnings?.totalEarnings || 0))}
                     </p>
                   </div>
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">This Month</p>
-                    <p className="text-2xl font-bold text-blue-600">
+                  <div className="p-4 bg-info/10 rounded-lg border border-border">
+                    <p className="text-sm text-muted mb-1">This Month</p>
+                    <p className="text-2xl font-bold text-info">
                       {formatMoney(Math.round(earnings?.thisMonth || 0))}
                     </p>
                   </div>
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">Jobs Completed</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                  <div className="p-4 bg-surface2 border border-border rounded-lg">
+                    <p className="text-sm text-muted mb-1">Jobs Completed</p>
+                    <p className="text-2xl font-bold text-text">
                       {earnings?.completedJobs || 0}
                     </p>
                   </div>
-                  <div className="p-4 bg-amber-50 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">Pending</p>
-                    <p className="text-2xl font-bold text-amber-600">
+                  <div className="p-4 bg-warning/15 rounded-lg">
+                    <p className="text-sm text-muted mb-1">Pending</p>
+                    <p className="text-2xl font-bold text-accent">
                       {formatMoney(Math.round(earnings?.pendingPayments || 0))}
                     </p>
                   </div>
                 </div>
               )}
 
-              <div className="border-t border-gray-200 pt-6">
-                <h4 className="font-medium text-gray-900 mb-4">Recent Earnings</h4>
+              <div className="border-t border-border pt-6">
+                <h4 className="font-medium text-text mb-4">Recent Earnings</h4>
                 {completedBookings.length > 0 ? (
                   <div className="space-y-2">
                     {completedBookings.slice(0, 10).map((booking) => (
-                      <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={booking.id} className="surface-card flex items-center justify-between p-3">
                         <div>
-                          <p className="font-medium text-gray-900">{booking.customerName}</p>
-                          <p className="text-sm text-gray-500">
+                          <p className="font-medium text-text">{booking.customerName}</p>
+                          <p className="text-sm text-muted/70">
                             {new Date(booking.date).toLocaleDateString()}
                           </p>
                         </div>
-                        <p className="font-semibold text-emerald-600">
+                        <p className="font-semibold text-accent">
                           {booking.price ? formatMoney(Math.round(booking.price * 100)) : '$0.00'}
                         </p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500">No completed jobs yet.</p>
+                  <p className="text-muted/70">No completed jobs yet.</p>
                 )}
               </div>
 
-              <div className="border-t border-gray-200 pt-6">
-                <h4 className="font-medium text-gray-900 mb-4">Tips</h4>
-                <p className="text-gray-500">Tips tracking coming soon. Tips will be displayed here once customers add them to completed bookings.</p>
+              <div className="border-t border-border pt-6">
+                <h4 className="font-medium text-text mb-4">Tips</h4>
+                <p className="text-muted/70">Tips tracking coming soon. Tips will be displayed here once customers add them to completed bookings.</p>
               </div>
             </div>
           </div>
@@ -561,36 +585,36 @@ export default function BusinessSettingsPage() {
         {activeTab === 'reviews' && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Reviews</h3>
+              <h3 className="text-lg font-semibold text-text mb-4">Customer Reviews</h3>
               
               {reviews.length > 0 ? (
                 <div className="space-y-4">
                   {reviews.map((review) => (
-                    <div key={review.id} className="p-4 border border-gray-200 rounded-lg">
+                    <div key={review.id} className="surface-card p-4">
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <p className="font-medium text-gray-900">{review.customerName}</p>
-                          <p className="text-sm text-gray-500">
+                          <p className="font-medium text-text">{review.customerName}</p>
+                          <p className="text-sm text-muted/70">
                             {new Date(review.date).toLocaleDateString()}
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
                           {[...Array(5)].map((_, i) => (
-                            <span key={i} className={i < review.rating ? 'text-yellow-400' : 'text-gray-300'}>
+                            <span key={i} className={i < review.rating ? 'text-warning' : 'text-muted/40'}>
                               ⭐
                             </span>
                           ))}
                         </div>
                       </div>
-                      <p className="text-gray-700">{review.comment}</p>
+                      <p className="text-text">{review.comment}</p>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-12">
                   <div className="text-5xl mb-4">⭐</div>
-                  <p className="text-gray-500">No reviews yet.</p>
-                  <p className="text-sm text-gray-400 mt-2">Reviews will appear here once customers rate your completed jobs.</p>
+                  <p className="text-muted/70">No reviews yet.</p>
+                  <p className="text-sm text-muted/70 mt-2">Reviews will appear here once customers rate your completed jobs.</p>
                 </div>
               )}
             </div>

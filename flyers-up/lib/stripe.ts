@@ -10,9 +10,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 export const stripe = process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2025-12-15.clover',
-    })
+  ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null;
 
 /**
@@ -37,7 +35,12 @@ export async function createPaymentIntent(
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: 'usd',
-      metadata,
+      // Use snake_case keys so webhook handlers and Stripe dashboard are consistent.
+      metadata: {
+        booking_id: metadata.bookingId,
+        customer_id: metadata.customerId,
+        pro_id: metadata.proId,
+      },
       automatic_payment_methods: {
         enabled: true,
       },

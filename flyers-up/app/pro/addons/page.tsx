@@ -5,11 +5,11 @@ import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import PageLayout from '@/components/PageLayout';
 import { useState, useEffect } from 'react';
 import { getCurrentUser, getProByUserId, getProAddons, type ServiceAddon } from '@/lib/api';
 import { createAddon, updateAddon, deleteAddon } from '@/lib/api';
 import { formatMoney, centsToDollars, dollarsToCents } from '@/lib/utils/money';
+import Link from 'next/link';
 
 /**
  * Pro Add-Ons Management Page
@@ -166,39 +166,41 @@ export default function ProAddonsPage() {
 
   if (loading) {
     return (
-      <PageLayout showBackButton backButtonHref="/dashboard/pro">
-        <div className="text-center py-12">
-          <p className="text-gray-500">Loading add-ons...</p>
+      <AppLayout mode="pro">
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          <div className="text-center py-12">
+            <p className="text-muted/70">Loading add-ons...</p>
+          </div>
         </div>
-      </PageLayout>
+      </AppLayout>
     );
   }
 
   return (
-    <PageLayout showBackButton backButtonHref="/dashboard/pro">
+    <AppLayout mode="pro">
+      <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-            Add-Ons
-          </h1>
+          <Link href="/pro" className="text-sm text-muted hover:text-text">
+            ← Back to Dashboard
+          </Link>
+          <h1 className="text-2xl font-semibold text-text mt-3 mb-2">Add-Ons</h1>
           <Label>MANAGE ADD-ONS</Label>
           {serviceCategory && (
-            <p className="text-sm text-gray-600 mt-2">
+            <p className="text-sm text-muted mt-2">
               Service Category: <span className="font-medium">{serviceCategory}</span>
             </p>
           )}
-          <p className="text-sm text-gray-600 mt-1">
-            Active add-ons: {activeCount} / 4
-          </p>
+          <p className="text-sm text-muted mt-1">Active add-ons: {activeCount} / 4</p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <div className="mb-4 p-3 bg-danger/10 border border-danger/30 rounded-lg text-text text-sm">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+          <div className="mb-4 p-3 bg-success/15 border border-success/30 rounded-lg text-text text-sm">
             {success}
           </div>
         )}
@@ -207,7 +209,7 @@ export default function ProAddonsPage() {
         {isCreating && (
           <Card withRail className="mb-6">
             <div className="space-y-4">
-              <h3 className="font-semibold text-gray-900">Create New Add-On</h3>
+              <h3 className="font-semibold text-text">Create New Add-On</h3>
               <Input
                 label="Title"
                 placeholder="e.g., Deep Cleaning, Window Washing"
@@ -235,7 +237,7 @@ export default function ProAddonsPage() {
         <div className="space-y-4">
           {addons.length === 0 ? (
             <Card>
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-muted/70">
                 <p className="mb-4">No add-ons yet.</p>
                 {!isCreating && (
                   <Button onClick={() => setIsCreating(true)}>Create Your First Add-On</Button>
@@ -247,7 +249,7 @@ export default function ProAddonsPage() {
               <Card key={addon.id} withRail>
                 {editingId === addon.id ? (
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-gray-900">Edit Add-On</h3>
+                    <h3 className="font-semibold text-text">Edit Add-On</h3>
                     <Input
                       label="Title"
                       value={formData.title}
@@ -276,7 +278,7 @@ export default function ProAddonsPage() {
                         }}
                         className="w-4 h-4"
                       />
-                      <label htmlFor={`active-${addon.id}`} className="text-sm text-gray-700">
+                      <label htmlFor={`active-${addon.id}`} className="text-sm text-text">
                         Active
                       </label>
                     </div>
@@ -299,16 +301,16 @@ export default function ProAddonsPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-gray-900">{addon.title}</h3>
+                        <h3 className="font-semibold text-text">{addon.title}</h3>
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           addon.isActive
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-600'
+                            ? 'bg-success/15 text-text'
+                            : 'bg-surface2 text-muted'
                         }`}>
                           {addon.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </div>
-                      <p className="text-lg font-semibold text-gray-900">
+                      <p className="text-lg font-semibold text-text">
                         {formatMoney(addon.priceCents)}
                       </p>
                     </div>
@@ -323,7 +325,7 @@ export default function ProAddonsPage() {
                       <Button
                         variant="ghost"
                         onClick={() => handleDelete(addon.id)}
-                        className="text-sm text-red-600 hover:text-red-700"
+                        className="text-sm text-red-600 hover:text-text"
                       >
                         Delete
                       </Button>
@@ -347,13 +349,14 @@ export default function ProAddonsPage() {
                 : 'Create New Add-On'}
             </Button>
             {maxActiveReached && (
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="text-sm text-muted mt-2">
                 Deactivate an existing add-on to create a new one.
               </p>
             )}
           </div>
         )}
-    </PageLayout>
+      </div>
+    </AppLayout>
   );
 }
 

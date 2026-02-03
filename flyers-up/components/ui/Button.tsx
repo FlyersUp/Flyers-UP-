@@ -1,7 +1,6 @@
 'use client';
 
 import { ReactNode, ButtonHTMLAttributes } from 'react';
-import { useTheme } from '@/contexts/ThemeContext';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost';
@@ -20,26 +19,18 @@ export function Button({
   className = '',
   ...props 
 }: ButtonProps) {
-  const { primaryColor, primaryColorDark } = useTheme();
-
   const baseStyles = 'px-6 py-3 rounded-xl font-semibold transition-all focus-ring btn-press flex items-center justify-center gap-2';
   
   const variants = {
-    primary: `text-white shadow-sm hover:shadow-md`,
-    secondary: `border-2 bg-white hover:bg-gray-50`,
-    ghost: `bg-transparent hover:bg-gray-100`,
+    primary: `bg-accent text-accentContrast shadow-sm hover:shadow-md`,
+    // Keep secondary calm + neutral; accent is for indicators, not full outlines.
+    secondary: `border border-[var(--surface-border)] bg-surface text-text hover:bg-surface2`,
+    ghost: `bg-transparent text-text hover:bg-surface2`,
   };
-
-  const style = variant === 'primary' 
-    ? { backgroundColor: primaryColor } as React.CSSProperties
-    : variant === 'secondary'
-    ? { borderColor: primaryColor, color: primaryColor } as React.CSSProperties
-    : { color: primaryColor } as React.CSSProperties;
 
   return (
     <button
       className={`${baseStyles} ${variants[variant]} ${className}`}
-      style={style}
       {...props}
     >
       {children}

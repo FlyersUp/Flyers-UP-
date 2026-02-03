@@ -6,7 +6,9 @@ import { ServiceProCard } from '@/components/ui/ServiceProCard';
 import { Input } from '@/components/ui/Input';
 import { mockServicePros, mockCategories } from '@/lib/mockData';
 import Link from 'next/link';
-import { use } from 'react';
+import { use, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { getCurrentUser } from '@/lib/api';
 
 /**
  * Service Pro List - Screen 3
@@ -14,6 +16,31 @@ import { use } from 'react';
  */
 export default function CategoryProList({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      const user = await getCurrentUser();
+      if (!user) {
+        router.replace(`/signin?next=/customer/categories/${encodeURIComponent(id)}`);
+        return;
+      }
+      setReady(true);
+    };
+    void check();
+  }, [id, router]);
+
+  if (!ready) {
+    return (
+      <AppLayout mode="customer">
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          <p className="text-sm text-muted/70">Loading…</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
   const category = mockCategories.find(c => c.id === id);
   const pros = mockServicePros.filter(p => p.category === category?.name || true);
 
@@ -21,10 +48,10 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="mb-6">
-          <Link href="/customer/categories" className="text-sm text-gray-600 mb-2 inline-block">
+          <Link href="/customer/categories" className="text-sm text-muted mb-2 inline-block">
             ← Back to Categories
           </Link>
-          <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+          <h1 className="text-2xl font-semibold text-text mb-2">
             {category?.name || 'Service Pros'}
           </h1>
         </div>
@@ -41,7 +68,7 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
         {/* Pro List */}
         <div className="space-y-4">
           {pros.map((pro) => (
-            <Link key={pro.id} href={`/pro/${pro.id}`}>
+            <Link key={pro.id} href={`/customer/pros/${pro.id}`}>
               <ServiceProCard
                 name={pro.name}
                 rating={pro.rating}

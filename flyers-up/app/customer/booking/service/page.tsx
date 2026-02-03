@@ -30,7 +30,7 @@ function BookingServiceContent() {
   return (
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-6">
+        <h1 className="text-2xl font-semibold text-text mb-6">
           Select Service
         </h1>
 
@@ -40,14 +40,14 @@ function BookingServiceContent() {
               key={service.id}
               withRail
               onClick={() => setSelectedService(service.id)}
-              className={selectedService === service.id ? 'border-[#A8E6CF] border-2' : ''}
+              className={selectedService === service.id ? 'border-accent border-2' : ''}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">{service.name}</h3>
-                  <p className="text-sm text-gray-600">{service.duration}</p>
+                  <h3 className="font-semibold text-text mb-1">{service.name}</h3>
+                  <p className="text-sm text-muted">{service.duration}</p>
                 </div>
-                <div className="text-xl font-bold text-gray-900">${service.price}</div>
+                <div className="text-xl font-bold text-text">${service.price}</div>
               </div>
             </Card>
           ))}
@@ -55,11 +55,11 @@ function BookingServiceContent() {
 
         {/* Summary pill */}
         {selected && (
-          <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4">
+          <div className="fixed bottom-16 left-0 right-0 bg-surface border-t border-border p-4">
             <div className="max-w-4xl mx-auto flex items-center justify-between">
               <div>
-                <div className="text-sm text-gray-600">{pro?.name}</div>
-                <div className="font-semibold text-gray-900">
+                <div className="text-sm text-muted">{pro?.name}</div>
+                <div className="font-semibold text-text">
                   {selected.name} • ${selected.price}
                 </div>
               </div>
@@ -83,7 +83,7 @@ export default function BookingService() {
       <AppLayout mode="customer">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="text-center py-12">
-            <p className="text-gray-500">Loading...</p>
+            <p className="text-muted/70">Loading...</p>
           </div>
         </div>
       </AppLayout>

@@ -169,6 +169,7 @@ export interface UserWithProfile {
   email: string;
   role: UserRole;
   fullName: string | null;
+  avatarUrl?: string | null;
 }
 
 // ============================================
@@ -214,49 +215,28 @@ export async function signUp(
       return { success: false, error: 'Failed to create user' };
     }
 
-    // 2. Create profile row
-    // Note: In production, you might want to use a database trigger
-    // or the service role key to create the profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
+    // 2. Create profile row (best-effort).
+    // IMPORTANT: Supabase email-confirm flows often return `session: null` here,
+    // meaning there is no authenticated context to satisfy RLS insert policies.
+    // In that case, we skip profile creation and rely on first-login/onboarding
+    // (`getCurrentUser` / `getOrCreateProfile`) to create the row.
+    if (authData.session) {
+      const { error: profileError } = await supabase.from('profiles').insert({
         id: authData.user.id,
+        email: authData.user.email ?? email,
         role,
-        full_name: email.split('@')[0], // Use email prefix as initial name
+        full_name: email.split('@')[0],
+        onboarding_step: role === 'pro' ? 'pro_profile' : 'customer_profile',
       });
 
-    if (profileError) {
-      console.error('Profile creation error:', profileError);
-      // User created but profile failed - this is a partial failure
-      // The profile might need to be created on first login
-    }
-
-    // 3. If pro, get the first category and create a service_pros row
-    if (role === 'pro') {
-      const { data: categories } = await supabase
-        .from('service_categories')
-        .select('id')
-        .limit(1)
-        .single();
-
-      if (categories) {
-        const { error: proError } = await supabase
-          .from('service_pros')
-          .insert({
-            user_id: authData.user.id,
-            display_name: email.split('@')[0],
-            bio: 'New service professional - update your profile!',
-            category_id: categories.id,
-            starting_price: 0,
-            rating: 0,
-            review_count: 0,
-            location: 'Not set',
-            available: false,
-          });
-
-        if (proError) {
-          console.error('Pro profile creation error:', proError);
-        }
+      if (profileError) {
+        console.warn('Profile creation warning (signup):', {
+          message: (profileError as any)?.message,
+          details: (profileError as any)?.details,
+          hint: (profileError as any)?.hint,
+          code: (profileError as any)?.code,
+          status: (profileError as any)?.status,
+        });
       }
     }
 
@@ -371,13 +351,53 @@ export async function getCurrentUser(): Promise<UserWithProfile | null> {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role, full_name')
+      .select('role, full_name, avatar_url')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (profileError || !profile) {
-      // User exists but no profile - might happen during signup flow
+    if (profileError) {
+      console.error('getCurrentUser profile fetch error:', profileError);
       return null;
+    }
+
+    // User exists but no profile row yet (common right after OTP auth, or if a previous
+    // signup partially succeeded). Attempt to create the minimal row and retry.
+    if (!profile) {
+      const roleFromMetadata = (user.user_metadata?.role as UserRole | undefined) ?? null;
+      const fullNameFromMetadata = (user.user_metadata?.full_name as string | undefined) ?? null;
+
+      const { error: insertError } = await supabase.from('profiles').insert({
+        id: user.id,
+        email: user.email ?? null,
+        role: roleFromMetadata,
+        full_name: fullNameFromMetadata ?? (user.email ? user.email.split('@')[0] : null),
+        onboarding_step: roleFromMetadata ? (roleFromMetadata === 'pro' ? 'pro_profile' : 'customer_profile') : 'role',
+      });
+
+      if (insertError) {
+        console.error('getCurrentUser profile insert error:', insertError);
+        return null;
+      }
+
+      const retry = await supabase
+        .from('profiles')
+        .select('role, full_name, avatar_url')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (retry.error) {
+        console.error('getCurrentUser profile retry fetch error:', retry.error);
+        return null;
+      }
+      if (!retry.data) return null;
+
+      return {
+        id: user.id,
+        email: user.email!,
+        role: retry.data.role as UserRole,
+        fullName: retry.data.full_name,
+        avatarUrl: retry.data.avatar_url ?? null,
+      };
     }
 
     return {
@@ -385,6 +405,7 @@ export async function getCurrentUser(): Promise<UserWithProfile | null> {
       email: user.email!,
       role: profile.role as UserRole,
       fullName: profile.full_name,
+      avatarUrl: profile.avatar_url ?? null,
     };
   } catch (err) {
     console.error('getCurrentUser error:', err);
@@ -1305,6 +1326,7 @@ async function createEarningsForBooking(
 export interface UpdateProfileParams {
   full_name?: string;
   phone?: string;
+  avatar_url?: string;
 }
 
 export async function updateProfile(params: UpdateProfileParams): Promise<{ success: boolean; error?: string }> {
@@ -1319,6 +1341,7 @@ export async function updateProfile(params: UpdateProfileParams): Promise<{ succ
       .update({
         full_name: params.full_name,
         phone: params.phone,
+        avatar_url: params.avatar_url,
       })
       .eq('id', user.id);
 
@@ -1330,6 +1353,357 @@ export async function updateProfile(params: UpdateProfileParams): Promise<{ succ
     return { success: true };
   } catch (err) {
     console.error('Unexpected error updating profile:', err);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+// ============================================
+// NEW SETTINGS ENTITIES (Addresses + Preferences)
+// ============================================
+
+export type UserAddress = {
+  id: string;
+  userId: string;
+  label: string;
+  line1: string;
+  line2: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  entryNotes: string | null;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function listUserAddresses(userId: string): Promise<UserAddress[]> {
+  const { data, error } = await supabase
+    .from('user_addresses')
+    .select('*')
+    .eq('user_id', userId)
+    .order('is_default', { ascending: false })
+    .order('updated_at', { ascending: false });
+  if (error) {
+    console.error('Error fetching addresses:', error);
+    return [];
+  }
+  return (data || []).map((row) => ({
+    id: row.id,
+    userId: row.user_id,
+    label: row.label,
+    line1: row.line1,
+    line2: row.line2 ?? null,
+    city: row.city ?? null,
+    state: row.state ?? null,
+    postalCode: row.postal_code ?? null,
+    entryNotes: row.entry_notes ?? null,
+    isDefault: Boolean(row.is_default),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export async function upsertUserAddress(
+  userId: string,
+  address: Partial<UserAddress> & { line1: string; label?: string }
+): Promise<{ success: boolean; error?: string; id?: string }> {
+  try {
+    const payload: any = {
+      user_id: userId,
+      label: address.label ?? 'home',
+      line1: address.line1,
+      line2: address.line2 ?? null,
+      city: address.city ?? null,
+      state: address.state ?? null,
+      postal_code: address.postalCode ?? null,
+      entry_notes: address.entryNotes ?? null,
+      is_default: Boolean(address.isDefault),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (address.id) payload.id = address.id;
+
+    const { data, error } = await supabase
+      .from('user_addresses')
+      .upsert(payload, { onConflict: 'id' })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error upserting address:', error);
+      return { success: false, error: error.message };
+    }
+
+    // If this address is default, clear others.
+    if (payload.is_default && data?.id) {
+      await supabase
+        .from('user_addresses')
+        .update({ is_default: false, updated_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .neq('id', data.id);
+    }
+
+    return { success: true, id: data?.id };
+  } catch (err) {
+    console.error('Unexpected error upserting address:', err);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+export async function deleteUserAddress(userId: string, addressId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('user_addresses')
+      .delete()
+      .eq('user_id', userId)
+      .eq('id', addressId);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error deleting address:', err);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+export type UserBookingPreferences = {
+  preferredServiceSlugs: string[];
+  favoriteProIds: string[];
+  priceMin: number | null;
+  priceMax: number | null;
+  timeWindowStart: string | null;
+  timeWindowEnd: string | null;
+  rebookLastPro: boolean;
+};
+
+export async function getUserBookingPreferences(userId: string): Promise<UserBookingPreferences> {
+  const { data, error } = await supabase.from('user_booking_preferences').select('*').eq('user_id', userId).single();
+  if (error) {
+    // If missing row, return defaults
+    return {
+      preferredServiceSlugs: [],
+      favoriteProIds: [],
+      priceMin: null,
+      priceMax: null,
+      timeWindowStart: null,
+      timeWindowEnd: null,
+      rebookLastPro: false,
+    };
+  }
+  return {
+    preferredServiceSlugs: data.preferred_service_slugs || [],
+    favoriteProIds: (data.favorite_pro_ids || []).map((x: any) => String(x)),
+    priceMin: data.price_min ?? null,
+    priceMax: data.price_max ?? null,
+    timeWindowStart: data.time_window_start ?? null,
+    timeWindowEnd: data.time_window_end ?? null,
+    rebookLastPro: Boolean(data.rebook_last_pro),
+  };
+}
+
+export async function updateUserBookingPreferences(
+  userId: string,
+  prefs: Partial<UserBookingPreferences>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const payload: any = {
+      user_id: userId,
+      preferred_service_slugs: prefs.preferredServiceSlugs,
+      favorite_pro_ids: prefs.favoriteProIds,
+      price_min: prefs.priceMin,
+      price_max: prefs.priceMax,
+      time_window_start: prefs.timeWindowStart,
+      time_window_end: prefs.timeWindowEnd,
+      rebook_last_pro: prefs.rebookLastPro,
+      updated_at: new Date().toISOString(),
+    };
+    // Remove undefined so partial updates don't null fields
+    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+
+    const { error } = await supabase.from('user_booking_preferences').upsert(payload, { onConflict: 'user_id' });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error updating booking prefs:', err);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+export type UserSafetyPreferences = {
+  noContactService: boolean;
+  petPresent: boolean;
+  genderPreference: 'no_preference' | 'male' | 'female' | 'other';
+};
+
+export async function getUserSafetyPreferences(userId: string): Promise<UserSafetyPreferences> {
+  const { data, error } = await supabase.from('user_safety_preferences').select('*').eq('user_id', userId).single();
+  if (error) {
+    return { noContactService: false, petPresent: false, genderPreference: 'no_preference' };
+  }
+  return {
+    noContactService: Boolean(data.no_contact_service),
+    petPresent: Boolean(data.pet_present),
+    genderPreference: (data.gender_preference || 'no_preference') as any,
+  };
+}
+
+export async function updateUserSafetyPreferences(
+  userId: string,
+  prefs: Partial<UserSafetyPreferences>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const payload: any = {
+      user_id: userId,
+      no_contact_service: prefs.noContactService,
+      pet_present: prefs.petPresent,
+      gender_preference: prefs.genderPreference,
+      updated_at: new Date().toISOString(),
+    };
+    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+    const { error } = await supabase.from('user_safety_preferences').upsert(payload, { onConflict: 'user_id' });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error updating safety prefs:', err);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+export type UserAppPreferences = {
+  darkMode: boolean;
+  distanceUnits: 'miles' | 'km';
+  defaultMapView: 'map' | 'list';
+  locationEnabled: boolean;
+};
+
+export async function getUserAppPreferences(userId: string): Promise<UserAppPreferences> {
+  const { data, error } = await supabase.from('user_app_preferences').select('*').eq('user_id', userId).single();
+  if (error) {
+    return { darkMode: false, distanceUnits: 'miles', defaultMapView: 'map', locationEnabled: true };
+  }
+  return {
+    darkMode: Boolean(data.dark_mode),
+    distanceUnits: (data.distance_units || 'miles') as any,
+    defaultMapView: (data.default_map_view || 'map') as any,
+    locationEnabled: Boolean(data.location_enabled),
+  };
+}
+
+export async function updateUserAppPreferences(
+  userId: string,
+  prefs: Partial<UserAppPreferences>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const payload: any = {
+      user_id: userId,
+      dark_mode: prefs.darkMode,
+      distance_units: prefs.distanceUnits,
+      default_map_view: prefs.defaultMapView,
+      location_enabled: prefs.locationEnabled,
+      updated_at: new Date().toISOString(),
+    };
+    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+    const { error } = await supabase.from('user_app_preferences').upsert(payload, { onConflict: 'user_id' });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error updating app prefs:', err);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+export async function getUserShieldPlusEnabled(userId: string): Promise<boolean> {
+  const { data, error } = await supabase.from('user_shield_preferences').select('*').eq('user_id', userId).single();
+  if (error) return true;
+  return Boolean(data.shield_plus_enabled);
+}
+
+export async function setUserShieldPlusEnabled(
+  userId: string,
+  enabled: boolean
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('user_shield_preferences')
+      .upsert({ user_id: userId, shield_plus_enabled: enabled, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error updating shield prefs:', err);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+export type ProShieldSettings = { shieldPlusEnabled: boolean; holdbackPercent: number };
+
+export async function getProShieldSettings(userId: string): Promise<ProShieldSettings> {
+  const { data, error } = await supabase.from('pro_shield_settings').select('*').eq('pro_user_id', userId).single();
+  if (error) return { shieldPlusEnabled: true, holdbackPercent: 0 };
+  return {
+    shieldPlusEnabled: Boolean(data.shield_plus_enabled),
+    holdbackPercent: Number(data.holdback_percent || 0),
+  };
+}
+
+export async function updateProShieldSettings(
+  userId: string,
+  settings: Partial<ProShieldSettings>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const payload: any = {
+      pro_user_id: userId,
+      shield_plus_enabled: settings.shieldPlusEnabled,
+      holdback_percent: settings.holdbackPercent,
+      updated_at: new Date().toISOString(),
+    };
+    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+    const { error } = await supabase.from('pro_shield_settings').upsert(payload, { onConflict: 'pro_user_id' });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error updating pro shield settings:', err);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+export type ProPricingSettings = {
+  hourlyPricing: boolean;
+  minimumJobPrice: number | null;
+  travelFeeEnabled: boolean;
+  aiPriceSuggestions: boolean;
+};
+
+export async function getProPricingSettings(userId: string): Promise<ProPricingSettings> {
+  const { data, error } = await supabase.from('pro_pricing_settings').select('*').eq('pro_user_id', userId).single();
+  if (error) {
+    return { hourlyPricing: false, minimumJobPrice: null, travelFeeEnabled: false, aiPriceSuggestions: false };
+  }
+  return {
+    hourlyPricing: Boolean(data.hourly_pricing),
+    minimumJobPrice: data.minimum_job_price ?? null,
+    travelFeeEnabled: Boolean(data.travel_fee_enabled),
+    aiPriceSuggestions: Boolean(data.ai_price_suggestions),
+  };
+}
+
+export async function updateProPricingSettings(
+  userId: string,
+  settings: Partial<ProPricingSettings>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const payload: any = {
+      pro_user_id: userId,
+      hourly_pricing: settings.hourlyPricing,
+      minimum_job_price: settings.minimumJobPrice,
+      travel_fee_enabled: settings.travelFeeEnabled,
+      ai_price_suggestions: settings.aiPriceSuggestions,
+      updated_at: new Date().toISOString(),
+    };
+    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+    const { error } = await supabase.from('pro_pricing_settings').upsert(payload, { onConflict: 'pro_user_id' });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error updating pro pricing settings:', err);
     return { success: false, error: 'An unexpected error occurred' };
   }
 }
@@ -1504,6 +1878,13 @@ export interface UpdateServiceProParams {
   verifiedCredentials?: string[];
   servicesOffered?: string[];
   availabilityTime?: string;
+  logo_url?: string;
+  years_experience?: number;
+  before_after_photos?: unknown[];
+  service_descriptions?: string;
+  service_area_zip?: string;
+  services_offered?: string[];
+  certifications?: unknown[];
 }
 
 export async function updateServicePro(
@@ -1530,6 +1911,13 @@ export async function updateServicePro(
       service_radius: number;
       business_hours: string;
       location: string;
+      logo_url: string;
+      years_experience: number;
+      before_after_photos: unknown;
+      service_descriptions: string;
+      service_area_zip: string;
+      services_offered: string[];
+      certifications: unknown;
     }> = {};
     if (params.display_name !== undefined) updateData.display_name = params.display_name;
     if (params.bio !== undefined) updateData.bio = params.bio;
@@ -1538,6 +1926,13 @@ export async function updateServicePro(
     if (params.service_radius !== undefined) updateData.service_radius = params.service_radius;
     if (params.business_hours !== undefined) updateData.business_hours = params.business_hours;
     if (params.location !== undefined) updateData.location = params.location;
+    if (params.logo_url !== undefined) updateData.logo_url = params.logo_url;
+    if (params.years_experience !== undefined) updateData.years_experience = params.years_experience;
+    if (params.before_after_photos !== undefined) updateData.before_after_photos = params.before_after_photos;
+    if (params.service_descriptions !== undefined) updateData.service_descriptions = params.service_descriptions;
+    if (params.service_area_zip !== undefined) updateData.service_area_zip = params.service_area_zip;
+    if (params.services_offered !== undefined) updateData.services_offered = params.services_offered;
+    if (params.certifications !== undefined) updateData.certifications = params.certifications;
 
     const { error } = await supabase
       .from('service_pros')
@@ -1565,6 +1960,14 @@ export interface NotificationSettings {
   messages: boolean;
   marketing_emails: boolean;
 }
+
+export type NotificationDelivery = { email: boolean; push: boolean };
+export type NotificationAlerts = Record<string, boolean>;
+
+export type NotificationSettingsV2 = NotificationSettings & {
+  delivery: NotificationDelivery;
+  alerts: NotificationAlerts;
+};
 
 export async function getNotificationSettings(userId: string): Promise<NotificationSettings | null> {
   try {
@@ -1597,6 +2000,48 @@ export async function getNotificationSettings(userId: string): Promise<Notificat
   } catch (err) {
     console.error('Unexpected error fetching notification settings:', err);
     return null;
+  }
+}
+
+export async function getNotificationSettingsV2(userId: string): Promise<NotificationSettingsV2> {
+  const fallback: NotificationSettingsV2 = {
+    new_booking: true,
+    job_status_updates: true,
+    messages: true,
+    marketing_emails: false,
+    delivery: { email: true, push: true },
+    alerts: {},
+  };
+
+  try {
+    const { data, error } = await supabase
+      .from('user_notification_settings')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      // Missing row => defaults
+      return fallback;
+    }
+
+    const delivery = (data.delivery || {}) as any;
+    const alerts = (data.alerts || {}) as any;
+
+    return {
+      new_booking: Boolean(data.new_booking),
+      job_status_updates: Boolean(data.job_status_updates),
+      messages: Boolean(data.messages),
+      marketing_emails: Boolean(data.marketing_emails),
+      delivery: {
+        email: delivery.email !== undefined ? Boolean(delivery.email) : true,
+        push: delivery.push !== undefined ? Boolean(delivery.push) : true,
+      },
+      alerts: typeof alerts === 'object' && alerts ? alerts : {},
+    };
+  } catch (err) {
+    console.error('Unexpected error fetching notification settings v2:', err);
+    return fallback;
   }
 }
 
@@ -1644,6 +2089,57 @@ export async function updateNotificationSettings(
     return { success: true };
   } catch (err) {
     console.error('Unexpected error updating notification settings:', err);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+export async function updateNotificationSettingsV2(
+  userId: string,
+  input: {
+    delivery?: Partial<NotificationDelivery>;
+    alerts?: NotificationAlerts;
+    legacy?: Partial<NotificationSettings>;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Read existing so we can merge delivery without clobbering keys.
+    const existing = await getNotificationSettingsV2(userId);
+    const mergedDelivery: NotificationDelivery = {
+      email: input.delivery?.email ?? existing.delivery.email,
+      push: input.delivery?.push ?? existing.delivery.push,
+    };
+    const mergedAlerts: NotificationAlerts = input.alerts ? { ...existing.alerts, ...input.alerts } : existing.alerts;
+
+    const update: any = {
+      ...(input.legacy || {}),
+      delivery: mergedDelivery,
+      alerts: mergedAlerts,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: row, error: selectErr } = await supabase
+      .from('user_notification_settings')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (selectErr || !row) {
+      const { error } = await supabase.from('user_notification_settings').insert({
+        user_id: userId,
+        ...existing,
+        ...(input.legacy || {}),
+        delivery: mergedDelivery,
+        alerts: mergedAlerts,
+      });
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    }
+
+    const { error } = await supabase.from('user_notification_settings').update(update).eq('user_id', userId);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error updating notification settings v2:', err);
     return { success: false, error: 'An unexpected error occurred' };
   }
 }
@@ -1754,6 +2250,199 @@ export async function updateLanguage(userId: string, language: string): Promise<
     return { success: true };
   } catch (err) {
     console.error('Unexpected error updating language:', err);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+// ============================================
+// PRO: PAYOUT PREFERENCES
+// ============================================
+
+export type ProPayoutPreferences = {
+  payoutSchedule: 'instant' | 'weekly';
+  showFeeBreakdown: boolean;
+  showEscrowHoldback: boolean;
+};
+
+export async function getProPayoutPreferences(userId: string): Promise<ProPayoutPreferences> {
+  // Default shape
+  const fallback: ProPayoutPreferences = {
+    payoutSchedule: 'weekly',
+    showFeeBreakdown: true,
+    showEscrowHoldback: true,
+  };
+
+  try {
+    const { data, error } = await supabase
+      .from('pro_payout_preferences')
+      .select('*')
+      .eq('pro_user_id', userId)
+      .single();
+
+    if (error || !data) return fallback;
+    return {
+      payoutSchedule: (data.payout_schedule as 'instant' | 'weekly') || 'weekly',
+      showFeeBreakdown: Boolean(data.show_fee_breakdown),
+      showEscrowHoldback: Boolean(data.show_escrow_holdback),
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+export async function updateProPayoutPreferences(
+  userId: string,
+  prefs: Partial<ProPayoutPreferences>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const payload: Record<string, unknown> = { pro_user_id: userId };
+    if (prefs.payoutSchedule !== undefined) payload.payout_schedule = prefs.payoutSchedule;
+    if (prefs.showFeeBreakdown !== undefined) payload.show_fee_breakdown = prefs.showFeeBreakdown;
+    if (prefs.showEscrowHoldback !== undefined) payload.show_escrow_holdback = prefs.showEscrowHoldback;
+
+    const { error } = await supabase.from('pro_payout_preferences').upsert(payload, { onConflict: 'pro_user_id' });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error updating pro payout preferences:', err);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+// ============================================
+// PRO: SAFETY & COMPLIANCE SETTINGS
+// ============================================
+
+export type ProSafetyComplianceSettings = {
+  guidelinesAcknowledged: boolean;
+  insuranceDocumentUrl: string;
+};
+
+export async function getProSafetyComplianceSettings(userId: string): Promise<ProSafetyComplianceSettings> {
+  const fallback: ProSafetyComplianceSettings = { guidelinesAcknowledged: false, insuranceDocumentUrl: '' };
+  try {
+    const { data, error } = await supabase
+      .from('pro_safety_compliance_settings')
+      .select('*')
+      .eq('pro_user_id', userId)
+      .single();
+    if (error || !data) return fallback;
+    return {
+      guidelinesAcknowledged: Boolean(data.guidelines_acknowledged),
+      insuranceDocumentUrl: data.insurance_document_url || '',
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+export async function updateProSafetyComplianceSettings(
+  userId: string,
+  settings: Partial<ProSafetyComplianceSettings>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const payload: Record<string, unknown> = { pro_user_id: userId };
+    if (settings.guidelinesAcknowledged !== undefined) payload.guidelines_acknowledged = settings.guidelinesAcknowledged;
+    if (settings.insuranceDocumentUrl !== undefined) payload.insurance_document_url = settings.insuranceDocumentUrl;
+
+    const { error } = await supabase
+      .from('pro_safety_compliance_settings')
+      .upsert(payload, { onConflict: 'pro_user_id' });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error updating safety compliance settings:', err);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+// ============================================
+// CUSTOMER: PAYMENT METHODS (DISPLAY-ONLY)
+// ============================================
+
+export type UserPaymentMethod = {
+  id: string;
+  type: 'card' | 'apple_pay' | 'google_pay';
+  label: string;
+  brand: string;
+  last4: string;
+  isDefault: boolean;
+};
+
+export async function listUserPaymentMethods(userId: string): Promise<UserPaymentMethod[]> {
+  try {
+    const { data, error } = await supabase
+      .from('user_payment_methods')
+      .select('*')
+      .eq('user_id', userId)
+      .order('is_default', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (error || !data) return [];
+
+    return (data as any[]).map((r) => ({
+      id: r.id,
+      type: r.type,
+      label: r.label || '',
+      brand: r.brand || '',
+      last4: r.last4 || '',
+      isDefault: Boolean(r.is_default),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function upsertUserPaymentMethod(
+  userId: string,
+  method: Omit<UserPaymentMethod, 'id' | 'isDefault'> & { id?: string; isDefault?: boolean }
+): Promise<{ success: boolean; error?: string; id?: string }> {
+  try {
+    const payload: Record<string, unknown> = {
+      user_id: userId,
+      type: method.type,
+      label: method.label || null,
+      brand: method.brand || null,
+      last4: method.last4 || null,
+      is_default: Boolean(method.isDefault),
+    };
+    if (method.id) payload.id = method.id;
+
+    const { data, error } = await supabase.from('user_payment_methods').upsert(payload).select('id').single();
+    if (error) return { success: false, error: error.message };
+    return { success: true, id: data?.id };
+  } catch (err) {
+    console.error('Unexpected error upserting user payment method:', err);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+export async function deleteUserPaymentMethod(
+  userId: string,
+  id: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.from('user_payment_methods').delete().eq('user_id', userId).eq('id', id);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error deleting user payment method:', err);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+export async function setDefaultUserPaymentMethod(
+  userId: string,
+  id: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Unset existing default
+    await supabase.from('user_payment_methods').update({ is_default: false }).eq('user_id', userId);
+    // Set new default
+    const { error } = await supabase.from('user_payment_methods').update({ is_default: true }).eq('user_id', userId).eq('id', id);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error setting default payment method:', err);
     return { success: false, error: 'An unexpected error occurred' };
   }
 }

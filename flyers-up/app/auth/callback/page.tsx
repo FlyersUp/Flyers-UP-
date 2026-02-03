@@ -6,6 +6,8 @@ import Logo from '@/components/Logo';
 import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 
+const TERMS_VERSION = '2026-01-27';
+
 function readAuthErrorFromHash(): string | null {
   // Supabase may return auth errors in the URL fragment (hash),
   // e.g. #error=access_denied&error_code=otp_expired&error_description=...
@@ -71,6 +73,21 @@ function CallbackInner() {
           return;
         }
 
+        // Best-effort legal acceptance logging (ignores failures).
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          await fetch('/api/legal/acceptance', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}),
+            },
+            body: JSON.stringify({ termsVersion: TERMS_VERSION }),
+          });
+        } catch {
+          // ignore
+        }
+
         router.replace(routeAfterAuth(profile, nextParam));
       } catch (err) {
         console.error(err);
@@ -83,7 +100,7 @@ function CallbackInner() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#fbfbf7] flex flex-col">
+    <div className="min-h-screen bg-bg text-text flex flex-col">
       <header className="px-4 py-5">
         <div className="max-w-md mx-auto">
           <Logo size="md" linkToHome />
@@ -92,19 +109,19 @@ function CallbackInner() {
 
       <main className="flex-1 px-4 pb-10 flex items-center justify-center">
         <div className="w-full max-w-md">
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-6 text-center">
+          <div className="rounded-2xl border border-border bg-surface shadow-sm p-6 text-center">
             {!error ? (
               <>
-                <div className="w-10 h-10 border-4 border-emerald-700 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                <div className="text-gray-900 font-medium">Finishing up…</div>
-                <div className="text-sm text-gray-600 mt-1">One moment.</div>
+                <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <div className="text-text font-medium">Finishing up…</div>
+                <div className="text-sm text-muted mt-1">One moment.</div>
               </>
             ) : (
               <>
-                <div className="text-gray-900 font-semibold">We couldn’t sign you in</div>
-                <div className="text-sm text-gray-600 mt-2">{error}</div>
+                <div className="text-text font-semibold">We couldn’t sign you in</div>
+                <div className="text-sm text-muted mt-2">{error}</div>
                 <button
-                  className="mt-5 w-full rounded-xl bg-emerald-700 text-white px-4 py-3.5 text-base font-medium hover:bg-emerald-800"
+                  className="mt-5 w-full rounded-xl bg-accent px-4 py-3.5 text-base font-medium text-accentContrast hover:opacity-95 transition-opacity"
                   onClick={() => router.replace('/auth')}
                 >
                   Try again
@@ -122,8 +139,8 @@ export default function AuthCallbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#fbfbf7] flex items-center justify-center">
-          <div className="text-sm text-gray-600">Loading…</div>
+        <div className="min-h-screen bg-bg flex items-center justify-center">
+          <div className="text-sm text-muted">Loading…</div>
         </div>
       }
     >

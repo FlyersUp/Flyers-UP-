@@ -8,13 +8,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { updateLanguage } from '@/lib/api';
-
-const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'fr', name: 'French' },
-  { code: 'ja', name: 'Japanese' },
-];
+import { TrustRow } from '@/components/ui/TrustRow';
+import { TOP_LANGUAGES } from '@/lib/languages';
 
 export default function LanguageSettingsPage() {
   const [loading, setLoading] = useState(false);
@@ -73,34 +68,37 @@ export default function LanguageSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Language Settings</h1>
-        <p className="text-gray-600">Choose your preferred language</p>
+        <h1 className="text-2xl font-bold text-text mb-2">Language Settings</h1>
+        <p className="text-muted">Choose your preferred language</p>
+        <div className="mt-3">
+          <TrustRow />
+        </div>
       </div>
 
       {success && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700">
+        <div className="p-4 bg-success/15 border border-success/30 rounded-lg text-text">
           {success}
         </div>
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+        <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">
           {error}
         </div>
       )}
 
       <form onSubmit={handleSaveLanguage} className="space-y-4">
         <div>
-          <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="language" className="block text-sm font-medium text-muted mb-2">
             Preferred Language
           </label>
           <select
             id="language"
             value={selectedLanguage}
             onChange={(e) => setSelectedLanguage(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
           >
-            {LANGUAGES.map((lang) => (
+            {TOP_LANGUAGES.map((lang) => (
               <option key={lang.code} value={lang.code}>
                 {lang.name}
               </option>
@@ -111,14 +109,14 @@ export default function LanguageSettingsPage() {
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
         >
           {loading ? 'Saving...' : 'Save Language'}
         </button>
       </form>
 
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <p className="text-sm text-gray-600">
+      <div className="mt-6 p-4 bg-surface2 border border-border rounded-lg">
+        <p className="text-sm text-muted">
           <strong>Note:</strong> Full translation support is coming soon. Currently, this setting is saved for future use.
         </p>
       </div>

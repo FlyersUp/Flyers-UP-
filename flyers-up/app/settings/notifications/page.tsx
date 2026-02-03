@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getNotificationSettings, updateNotificationSettings } from '@/lib/api';
 import type { NotificationSettings } from '@/lib/api';
+import { TrustRow } from '@/components/ui/TrustRow';
 
 export default function NotificationSettingsPage() {
   const [loading, setLoading] = useState(false);
@@ -78,7 +79,7 @@ export default function NotificationSettingsPage() {
   if (loadingData) {
     return (
       <div className="space-y-6">
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-muted/70">Loading...</div>
       </div>
     );
   }
@@ -86,28 +87,31 @@ export default function NotificationSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Notification Settings</h1>
-        <p className="text-gray-600">Control how and when you receive notifications</p>
+        <h1 className="text-2xl font-bold text-text mb-2">Notification Settings</h1>
+        <p className="text-muted">Control how and when you receive notifications</p>
+        <div className="mt-3">
+          <TrustRow />
+        </div>
       </div>
 
       {success && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700">
+        <div className="p-4 bg-success/15 border border-success/30 rounded-lg text-text">
           {success}
         </div>
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+        <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">
           {error}
         </div>
       )}
 
       <form onSubmit={handleSave} className="space-y-4">
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+          <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-surface">
             <div>
-              <h3 className="font-medium text-gray-900">New Booking Notifications</h3>
-              <p className="text-sm text-gray-600">Get notified when you receive a new booking request</p>
+              <h3 className="font-medium text-text">New Booking Notifications</h3>
+              <p className="text-sm text-muted">Get notified when you receive a new booking request</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -116,14 +120,14 @@ export default function NotificationSettingsPage() {
                 onChange={() => handleToggle('new_booking')}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+              <div className="w-11 h-6 bg-surface2 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
             </label>
           </div>
 
-          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+          <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-surface">
             <div>
-              <h3 className="font-medium text-gray-900">Job Status Updates</h3>
-              <p className="text-sm text-gray-600">Receive updates when booking status changes</p>
+              <h3 className="font-medium text-text">Job Status Updates</h3>
+              <p className="text-sm text-muted">Receive updates when booking status changes</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -132,14 +136,14 @@ export default function NotificationSettingsPage() {
                 onChange={() => handleToggle('job_status_updates')}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+              <div className="w-11 h-6 bg-surface2 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
             </label>
           </div>
 
-          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+          <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-surface">
             <div>
-              <h3 className="font-medium text-gray-900">Messages</h3>
-              <p className="text-sm text-gray-600">Get notified when you receive new messages</p>
+              <h3 className="font-medium text-text">Messages</h3>
+              <p className="text-sm text-muted">Get notified when you receive new messages</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -148,14 +152,14 @@ export default function NotificationSettingsPage() {
                 onChange={() => handleToggle('messages')}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+              <div className="w-11 h-6 bg-surface2 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
             </label>
           </div>
 
-          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+          <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-surface">
             <div>
-              <h3 className="font-medium text-gray-900">Marketing Emails</h3>
-              <p className="text-sm text-gray-600">Receive promotional emails and updates</p>
+              <h3 className="font-medium text-text">Marketing Emails</h3>
+              <p className="text-sm text-muted">Receive promotional emails and updates</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -164,7 +168,7 @@ export default function NotificationSettingsPage() {
                 onChange={() => handleToggle('marketing_emails')}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+              <div className="w-11 h-6 bg-surface2 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
             </label>
           </div>
         </div>
@@ -172,7 +176,7 @@ export default function NotificationSettingsPage() {
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
         >
           {loading ? 'Saving...' : 'Save Changes'}
         </button>

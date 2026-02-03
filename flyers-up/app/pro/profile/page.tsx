@@ -201,19 +201,19 @@ export default function ProProfilePage() {
   };
 
   const availableCredentials = [
-    'Background Checked',
-    'Licensed',
-    'Insured',
-    'Bonded',
-    'Certified',
-    'BBB Accredited',
+    'Identity verified (when available)',
+    'License uploaded (if applicable)',
+    'Insurance uploaded (if applicable)',
+    'Bonded (self-reported)',
+    'Certified (self-reported)',
+    'BBB accredited (self-reported)',
   ];
 
   if (loading) {
     return (
       <PageLayout showBackButton backButtonHref="/dashboard/pro">
         <div className="text-center py-12">
-          <p className="text-gray-500">Loading profile...</p>
+          <p className="text-muted/70">Loading profile...</p>
         </div>
       </PageLayout>
     );
@@ -227,13 +227,13 @@ export default function ProProfilePage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
-            <p className="text-gray-600">Manage your professional profile</p>
+            <h1 className="text-2xl font-bold text-text">My Profile</h1>
+            <p className="text-muted">Manage your professional profile</p>
           </div>
           {!isEditing && (
             <button
               onClick={() => setIsEditing(true)}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors"
+              className="px-4 py-2 bg-accent hover:bg-accent text-accentContrast rounded-lg font-medium transition-colors"
             >
               Edit Profile
             </button>
@@ -242,12 +242,12 @@ export default function ProProfilePage() {
 
         {/* Success/Error Messages */}
         {success && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+          <div className="mb-4 p-3 bg-success/15 border border-success/30 rounded-lg text-text text-sm">
             {success}
           </div>
         )}
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <div className="mb-4 p-3 bg-danger/10 border border-danger/30 rounded-lg text-text text-sm">
             {error}
           </div>
         )}
@@ -255,70 +255,70 @@ export default function ProProfilePage() {
         {/* Profile Content */}
         <div className="space-y-6">
           {/* Stats Section */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Statistics</h2>
+          <div className="bg-surface rounded-xl border border-border p-6">
+            <h2 className="text-lg font-semibold text-text mb-4">Statistics</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <p className="text-sm text-gray-500">Jobs Completed</p>
-                <p className="text-2xl font-bold text-gray-900">{formData.jobsCompleted}</p>
+                <p className="text-sm text-muted/70">Jobs Completed</p>
+                <p className="text-2xl font-bold text-text">{formData.jobsCompleted}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Average Rating</p>
-                <p className="text-2xl font-bold text-emerald-600">⭐ {formData.averageRating.toFixed(1)}</p>
+                <p className="text-sm text-muted/70">Average Rating</p>
+                <p className="text-2xl font-bold text-accent">⭐ {formData.averageRating.toFixed(1)}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Years Experience</p>
+                <p className="text-sm text-muted/70">Years Experience</p>
                 {isEditing ? (
                   <input
                     type="number"
                     value={formData.yearsExperience}
                     onChange={(e) => setFormData({ ...formData, yearsExperience: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-2xl font-bold"
+                    className="w-full px-3 py-2 border border-border rounded-lg text-2xl font-bold"
                     min="0"
                   />
                 ) : (
-                  <p className="text-2xl font-bold text-gray-900">{formData.yearsExperience || '0'}</p>
+                  <p className="text-2xl font-bold text-text">{formData.yearsExperience || '0'}</p>
                 )}
               </div>
               <div>
-                <p className="text-sm text-gray-500">Dark Mode</p>
+                <p className="text-sm text-muted/70">Dark Mode</p>
                 {isEditing ? (
                   <label className="flex items-center gap-2 mt-2">
                     <input
                       type="checkbox"
                       checked={formData.darkMode}
                       onChange={(e) => setFormData({ ...formData, darkMode: e.target.checked })}
-                      className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      className="w-5 h-5 rounded border-border text-accent focus:ring-accent/40"
                     />
-                    <span className="text-sm text-gray-700">Enable</span>
+                    <span className="text-sm text-text">Enable</span>
                   </label>
                 ) : (
-                  <p className="text-2xl font-bold text-gray-900">{formData.darkMode ? '🌙 On' : '☀️ Off'}</p>
+                  <p className="text-2xl font-bold text-text">{formData.darkMode ? '🌙 On' : '☀️ Off'}</p>
                 )}
               </div>
             </div>
           </div>
 
           {/* Basic Information */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
+          <div className="bg-surface rounded-xl border border-border p-6">
+            <h2 className="text-lg font-semibold text-text mb-4">Basic Information</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+                <label className="block text-sm font-medium text-text mb-1">Display Name</label>
                 {isEditing ? (
                   <input
                     type="text"
                     value={formData.displayName}
                     onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent"
                   />
                 ) : (
-                  <p className="text-gray-900">{formData.displayName || 'Not set'}</p>
+                  <p className="text-text">{formData.displayName || 'Not set'}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Service Category</label>
+                <label className="block text-sm font-medium text-text mb-1">Service Category</label>
                 {isEditing ? (
                   <select
                     value={formData.categoryId}
@@ -330,7 +330,7 @@ export default function ProProfilePage() {
                         categorySlug: selected?.slug || '',
                       });
                     }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent"
                   >
                     <option value="">Select a category</option>
                     {categories.map(cat => (
@@ -338,58 +338,58 @@ export default function ProProfilePage() {
                     ))}
                   </select>
                 ) : (
-                  <p className="text-gray-900">{formData.categorySlug || 'Not set'}</p>
+                  <p className="text-text">{formData.categorySlug || 'Not set'}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Starting Price ($)</label>
+                <label className="block text-sm font-medium text-text mb-1">Starting Price ($)</label>
                 {isEditing ? (
                   <input
                     type="number"
                     value={formData.startingPrice}
                     onChange={(e) => setFormData({ ...formData, startingPrice: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent"
                     min="0"
                     step="0.01"
                   />
                 ) : (
-                  <p className="text-gray-900">${formData.startingPrice || '0'}</p>
+                  <p className="text-text">${formData.startingPrice || '0'}</p>
                 )}
               </div>
             </div>
           </div>
 
           {/* Bio */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-surface rounded-xl border border-border p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Bio</h2>
-              <span className="text-sm text-gray-500">{bioWordCount} / 500 words</span>
+              <h2 className="text-lg font-semibold text-text">Bio</h2>
+              <span className="text-sm text-muted/70">{bioWordCount} / 500 words</span>
             </div>
             {isEditing ? (
               <textarea
                 value={formData.bio}
                 onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 min-h-[150px]"
+                className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent min-h-[150px]"
                 placeholder="Tell customers about your experience and services..."
                 maxLength={3000}
               />
             ) : (
-              <p className="text-gray-700 whitespace-pre-wrap">{formData.bio || 'No bio added yet.'}</p>
+              <p className="text-text whitespace-pre-wrap">{formData.bio || 'No bio added yet.'}</p>
             )}
           </div>
 
           {/* Verified Credentials */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Verified Credentials</h2>
+          <div className="bg-surface rounded-xl border border-border p-6">
+            <h2 className="text-lg font-semibold text-text mb-4">Verified Credentials</h2>
             <div className="flex flex-wrap gap-3">
               {availableCredentials.map(cred => (
                 <label
                   key={cred}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${
                     formData.verifiedCredentials.includes(cred)
-                      ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                      : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                      ? 'bg-success/15 border-accent/40 text-text'
+                      : 'bg-surface2 border-border text-text hover:bg-surface2'
                   } ${!isEditing ? 'cursor-default' : ''}`}
                 >
                   {isEditing && (
@@ -397,11 +397,11 @@ export default function ProProfilePage() {
                       type="checkbox"
                       checked={formData.verifiedCredentials.includes(cred)}
                       onChange={() => toggleCredential(cred)}
-                      className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      className="w-4 h-4 rounded border-border text-accent focus:ring-accent/40"
                     />
                   )}
                   {!isEditing && formData.verifiedCredentials.includes(cred) && (
-                    <span className="text-emerald-600">✓</span>
+                    <span className="text-accent">✓</span>
                   )}
                   <span>{cred}</span>
                 </label>
@@ -410,16 +410,16 @@ export default function ProProfilePage() {
           </div>
 
           {/* Services Offered */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Services Offered</h2>
+          <div className="bg-surface rounded-xl border border-border p-6">
+            <h2 className="text-lg font-semibold text-text mb-4">Services Offered</h2>
             <div className="flex flex-wrap gap-3">
               {categories.map(cat => (
                 <label
                   key={cat.id}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${
                     formData.servicesOffered.includes(cat.slug)
-                      ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                      : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                      ? 'bg-success/15 border-accent/40 text-text'
+                      : 'bg-surface2 border-border text-text hover:bg-surface2'
                   } ${!isEditing ? 'cursor-default' : ''}`}
                 >
                   {isEditing && (
@@ -427,11 +427,11 @@ export default function ProProfilePage() {
                       type="checkbox"
                       checked={formData.servicesOffered.includes(cat.slug)}
                       onChange={() => toggleService(cat.slug)}
-                      className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      className="w-4 h-4 rounded border-border text-accent focus:ring-accent/40"
                     />
                   )}
                   {!isEditing && formData.servicesOffered.includes(cat.slug) && (
-                    <span className="text-emerald-600">✓</span>
+                    <span className="text-accent">✓</span>
                   )}
                   <span>{cat.icon} {cat.name}</span>
                 </label>
@@ -440,71 +440,71 @@ export default function ProProfilePage() {
           </div>
 
           {/* Service Area */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Service Area</h2>
+          <div className="bg-surface rounded-xl border border-border p-6">
+            <h2 className="text-lg font-semibold text-text mb-4">Service Area</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <label className="block text-sm font-medium text-text mb-1">Location</label>
                 {isEditing ? (
                   <input
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent"
                     placeholder="City, State"
                   />
                 ) : (
-                  <p className="text-gray-900">{formData.location || 'Not set'}</p>
+                  <p className="text-text">{formData.location || 'Not set'}</p>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Service Radius (miles)</label>
+                <label className="block text-sm font-medium text-text mb-1">Service Radius (miles)</label>
                 {isEditing ? (
                   <input
                     type="number"
                     value={formData.serviceRadius}
                     onChange={(e) => setFormData({ ...formData, serviceRadius: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent"
                     min="0"
                     placeholder="e.g., 25"
                   />
                 ) : (
-                  <p className="text-gray-900">{formData.serviceRadius ? `${formData.serviceRadius} miles` : 'Not set'}</p>
+                  <p className="text-text">{formData.serviceRadius ? `${formData.serviceRadius} miles` : 'Not set'}</p>
                 )}
               </div>
             </div>
           </div>
 
           {/* Availability Time */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Availability</h2>
+          <div className="bg-surface rounded-xl border border-border p-6">
+            <h2 className="text-lg font-semibold text-text mb-4">Availability</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Business Hours</label>
+                <label className="block text-sm font-medium text-text mb-1">Business Hours</label>
                 {isEditing ? (
                   <input
                     type="text"
                     value={formData.businessHours}
                     onChange={(e) => setFormData({ ...formData, businessHours: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent"
                     placeholder="e.g., Mon-Fri: 9am-5pm, Sat: 10am-2pm"
                   />
                 ) : (
-                  <p className="text-gray-900">{formData.businessHours || 'Not set'}</p>
+                  <p className="text-text">{formData.businessHours || 'Not set'}</p>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Availability Time</label>
+                <label className="block text-sm font-medium text-text mb-1">Availability Time</label>
                 {isEditing ? (
                   <input
                     type="text"
                     value={formData.availabilityTime}
                     onChange={(e) => setFormData({ ...formData, availabilityTime: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent"
                     placeholder="e.g., Available 24/7, Weekends only, etc."
                   />
                 ) : (
-                  <p className="text-gray-900">{formData.availabilityTime || 'Not set'}</p>
+                  <p className="text-text">{formData.availabilityTime || 'Not set'}</p>
                 )}
               </div>
             </div>
@@ -518,14 +518,14 @@ export default function ProProfilePage() {
                   setIsEditing(false);
                   loadProfile(); // Reset form
                 }}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                className="px-6 py-2 border border-border rounded-lg text-text hover:bg-surface2 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors disabled:bg-emerald-400"
+                className="px-6 py-2 bg-accent hover:bg-accent text-accentContrast rounded-lg font-medium transition-colors disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>

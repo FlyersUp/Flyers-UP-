@@ -18,7 +18,7 @@ export default function ProCardEnhanced({ pro, className = '' }: ProCardEnhanced
   return (
     <div 
       className={`
-        bg-white rounded-2xl border border-gray-100 overflow-hidden
+        bg-surface rounded-2xl border border-border overflow-hidden
         card-hover transition-smooth
         ${className}
       `}
@@ -29,7 +29,7 @@ export default function ProCardEnhanced({ pro, className = '' }: ProCardEnhanced
         <div className="flex items-start gap-4 mb-4">
           {/* Avatar */}
           <div className="relative flex-shrink-0">
-            <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-xl overflow-hidden bg-surface2 flex items-center justify-center">
               {pro.avatar && pro.avatar.trim() !== '' ? (
                 <Image
                   src={pro.avatar}
@@ -45,25 +45,25 @@ export default function ProCardEnhanced({ pro, className = '' }: ProCardEnhanced
             </div>
             {/* Online indicator */}
             {pro.available && (
-              <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full" />
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-accent border-2 border-surface rounded-full" />
             )}
           </div>
 
           {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-gray-900 truncate">{pro.name}</h3>
+              <h3 className="font-semibold text-text truncate">{pro.name}</h3>
               {pro.verified && <VerifiedBadge />}
             </div>
             
-            <p className="text-sm text-gray-500 mb-2">{pro.category} • {pro.location}</p>
+            <p className="text-sm text-muted/70 mb-2">{pro.category} • {pro.location}</p>
             
             <RatingCompact rating={pro.rating} reviewCount={pro.reviewCount} />
           </div>
         </div>
 
         {/* Bio */}
-        <p className="text-sm text-gray-600 line-clamp-2 mb-4">
+        <p className="text-sm text-muted line-clamp-2 mb-4">
           {pro.bio}
         </p>
 
@@ -82,22 +82,22 @@ export default function ProCardEnhanced({ pro, className = '' }: ProCardEnhanced
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+        <div className="flex items-center justify-between pt-4 border-t border-border">
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Starting at</p>
-            <p className="text-xl font-bold text-gray-900">${pro.startingPrice}</p>
+            <p className="text-xs text-muted/70 uppercase tracking-wide">Starting at</p>
+            <p className="text-xl font-bold text-text">${pro.startingPrice}</p>
           </div>
 
           <div className="flex gap-2">
             <Link
               href={`/pro/${pro.id}`}
-              className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-medium transition-colors"
+              className="px-4 py-2.5 bg-surface2 hover:bg-surface text-text rounded-xl text-sm font-medium transition-colors"
             >
               View Profile
             </Link>
             <Link
               href={`/booking/${pro.id}`}
-              className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-medium transition-colors btn-press"
+              className="px-4 py-2.5 bg-accent hover:opacity-95 text-accentContrast rounded-xl text-sm font-medium transition-opacity btn-press"
             >
               Book Now
             </Link>
@@ -106,9 +106,9 @@ export default function ProCardEnhanced({ pro, className = '' }: ProCardEnhanced
       </div>
 
       {/* Availability footer */}
-      <div className={`px-5 py-3 text-sm ${pro.available ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-500'}`}>
+      <div className={`px-5 py-3 text-sm ${pro.available ? 'bg-success/15 text-text' : 'bg-surface2 text-muted/70'}`}>
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${pro.available ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+          <span className={`w-2 h-2 rounded-full ${pro.available ? 'bg-accent' : 'bg-muted/60'}`} />
           {pro.available ? (
             <>Available • Responds in {pro.responseTime}</>
           ) : (

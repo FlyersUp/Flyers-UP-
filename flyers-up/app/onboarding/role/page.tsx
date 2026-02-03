@@ -83,14 +83,14 @@ function RoleInner() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#fbfbf7] flex items-center justify-center">
-        <div className="text-sm text-gray-600">Loading…</div>
+      <div className="min-h-screen bg-bg text-text flex items-center justify-center">
+        <div className="text-sm text-muted">Loading…</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#fbfbf7]">
+    <div className="min-h-screen bg-bg text-text">
       <header className="px-4 py-5">
         <div className="max-w-md mx-auto">
           <Logo size="md" linkToHome />
@@ -99,12 +99,12 @@ function RoleInner() {
 
       <main className="px-4 pb-10">
         <div className="max-w-md mx-auto">
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-6">
+          <div className="rounded-2xl border border-border bg-surface shadow-sm p-6">
             <h1 className="text-2xl font-semibold tracking-tight">How will you use Flyers Up?</h1>
-            <p className="text-gray-600 mt-2">Pick one — you can switch later.</p>
+            <p className="text-muted mt-2">Pick one — you can switch later.</p>
 
             {error && (
-              <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div className="mt-4 rounded-xl border border-red-100 bg-danger/10 px-4 py-3 text-sm text-text">
                 {error}
               </div>
             )}
@@ -115,15 +115,15 @@ function RoleInner() {
                 onClick={() => setSelected('customer')}
                 className={`w-full text-left rounded-2xl border px-4 py-4 transition-colors ${
                   selected === 'customer'
-                    ? 'border-emerald-600 bg-emerald-50'
-                    : 'border-gray-200 bg-white hover:bg-gray-50'
+                    ? 'border-[hsl(var(--accent-customer))] bg-[hsl(var(--accent-customer)/0.12)]'
+                    : 'border-border bg-surface hover:bg-surface2'
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className="text-2xl leading-none">🧹</div>
+                  <div className="text-2xl leading-none text-[hsl(var(--accent-customer))]">🧹</div>
                   <div>
-                    <div className="font-semibold text-gray-900">I’m looking for services</div>
-                    <div className="text-sm text-gray-600 mt-0.5">Book local pros, message, and manage jobs.</div>
+                    <div className="font-semibold text-text">I’m looking for services</div>
+                    <div className="text-sm text-muted mt-0.5">Book local pros, message, and manage jobs.</div>
                   </div>
                 </div>
               </button>
@@ -133,15 +133,15 @@ function RoleInner() {
                 onClick={() => setSelected('pro')}
                 className={`w-full text-left rounded-2xl border px-4 py-4 transition-colors ${
                   selected === 'pro'
-                    ? 'border-emerald-600 bg-emerald-50'
-                    : 'border-gray-200 bg-white hover:bg-gray-50'
+                    ? 'border-[hsl(var(--accent-pro))] bg-[hsl(var(--accent-pro)/0.10)]'
+                    : 'border-border bg-surface hover:bg-surface2'
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className="text-2xl leading-none">🪜</div>
+                  <div className="text-2xl leading-none text-[hsl(var(--accent-pro))]">🪜</div>
                   <div>
-                    <div className="font-semibold text-gray-900">I offer services</div>
-                    <div className="text-sm text-gray-600 mt-0.5">Create a simple profile and start taking bookings.</div>
+                    <div className="font-semibold text-text">I offer services</div>
+                    <div className="text-sm text-muted mt-0.5">Create a simple profile and start taking bookings.</div>
                   </div>
                 </div>
               </button>
@@ -151,7 +151,13 @@ function RoleInner() {
               type="button"
               disabled={!selected || saving}
               onClick={handleContinue}
-              className="mt-6 w-full rounded-xl bg-emerald-700 text-white px-4 py-3.5 text-base font-medium hover:bg-emerald-800 disabled:opacity-50"
+              className={`mt-6 w-full rounded-xl px-4 py-3.5 text-base font-medium transition-colors disabled:opacity-50 ${
+                selected === 'customer'
+                  ? 'bg-[hsl(var(--accent-customer))] text-text hover:opacity-95'
+                  : selected === 'pro'
+                    ? 'bg-[hsl(var(--accent-pro))] text-text hover:opacity-95'
+                    : 'bg-surface2 text-muted'
+              }`}
             >
               {saving ? 'Saving…' : 'Continue'}
             </button>
@@ -166,8 +172,8 @@ export default function RolePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#fbfbf7] flex items-center justify-center">
-          <div className="text-sm text-gray-600">Loading…</div>
+        <div className="min-h-screen bg-bg flex items-center justify-center">
+          <div className="text-sm text-muted">Loading…</div>
         </div>
       }
     >

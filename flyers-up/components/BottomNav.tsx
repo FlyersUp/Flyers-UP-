@@ -7,60 +7,84 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
+import { AppIcon } from '@/components/ui/AppIcon';
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const mode: 'customer' | 'pro' = pathname?.startsWith('/pro') ? 'pro' : 'customer';
+  const mode: 'customer' | 'pro' =
+    pathname?.startsWith('/pro') || pathname?.startsWith('/dashboard/pro')
+      ? 'pro'
+      : pathname?.startsWith('/customer') || pathname?.startsWith('/dashboard/customer')
+        ? 'customer'
+        : 'customer';
   const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/');
 
+  // Ensure role theme tokens apply even on pages not wrapped in ThemeProvider.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('theme-pro', mode === 'pro');
+    root.classList.toggle('theme-customer', mode === 'customer');
+  }, [mode]);
+
   const homeHref = mode === 'pro' ? '/pro' : '/customer';
-  const notificationsHref = mode === 'pro' ? '/pro/notifications' : '/notifications';
-  const messagesHref = '/messages';
-  const settingsHref = mode === 'pro' ? '/settings/business' : '/settings';
+  const notificationsHref = mode === 'pro' ? '/pro/notifications' : '/customer/notifications';
+  const messagesHref = mode === 'pro' ? '/pro/messages' : '/customer/messages';
+  const settingsHref = mode === 'pro' ? '/pro/settings' : '/customer/settings';
+  const activeLink = 'text-text';
+  const inactiveLink = 'text-muted/70 hover:text-text';
+  const activeIndicator =
+    "after:content-[''] after:absolute after:-bottom-0.5 after:left-1/2 after:h-0.5 after:w-6 after:-translate-x-1/2 after:rounded-full after:bg-accent";
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 bg-[var(--nav-solid)] border-t border-[var(--surface-border)] z-50 shadow-card safe-area-bottom opacity-100">
       <div className="max-w-7xl mx-auto px-2">
         <div className="flex items-center justify-around h-16">
           <Link
             href={homeHref}
-            className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-              isActive(homeHref) ? 'text-emerald-600' : 'text-gray-500 hover:text-gray-700'
+            className={`relative flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+              isActive(homeHref) ? `${activeLink} ${activeIndicator}` : inactiveLink
             }`}
           >
-            <span className="text-2xl mb-1">🏠</span>
+            <span className="mb-1">
+              <AppIcon name="home" size={22} className="" alt="Home" />
+            </span>
             <span className="text-xs font-medium">Home</span>
           </Link>
 
           <Link
             href={notificationsHref}
-            className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-              isActive(notificationsHref) ? 'text-emerald-600' : 'text-gray-500 hover:text-gray-700'
+            className={`relative flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+              isActive(notificationsHref) ? `${activeLink} ${activeIndicator}` : inactiveLink
             }`}
           >
-            <span className="text-2xl mb-1">🔔</span>
+            <span className="mb-1">
+              <AppIcon name="bell" size={22} className="" alt="Notifications" />
+            </span>
             <span className="text-xs font-medium">Notifications</span>
           </Link>
 
           <Link
             href={messagesHref}
-            className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-              isActive(messagesHref) ? 'text-emerald-600' : 'text-gray-500 hover:text-gray-700'
+            className={`relative flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+              isActive(messagesHref) ? `${activeLink} ${activeIndicator}` : inactiveLink
             }`}
           >
-            <span className="text-2xl mb-1">💬</span>
+            <span className="mb-1">
+              <AppIcon name="chat" size={22} className="" alt="Messages" />
+            </span>
             <span className="text-xs font-medium">Messages</span>
           </Link>
 
           <Link
             href={settingsHref}
-            className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-              isActive(settingsHref) || (settingsHref === '/settings' && isActive('/settings'))
-                ? 'text-emerald-600'
-                : 'text-gray-500 hover:text-gray-700'
+            className={`relative flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+              isActive(settingsHref) ? `${activeLink} ${activeIndicator}` : inactiveLink
             }`}
           >
-            <span className="text-2xl mb-1">⚙️</span>
+            <span className="mb-1">
+              <AppIcon name="settings" size={22} className="" alt="Settings" />
+            </span>
             <span className="text-xs font-medium">Settings</span>
           </Link>
         </div>

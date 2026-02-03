@@ -8,6 +8,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 import { useRouter } from 'next/navigation';
 
+const TERMS_VERSION = '2026-01-27';
+
 type Step = 'entry' | 'email';
 
 function AuthInner() {
@@ -31,16 +33,15 @@ function AuthInner() {
     return base;
   }, [nextParam]);
 
-  async function handleSendLink(e: React.FormEvent) {
+  async function handleSendCode(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setStatus('sending');
 
     try {
       // NOTE: This uses Supabase "signInWithOtp".
-      // Whether the email contains a magic link or a 6-digit code depends on your
-      // Supabase Email templates configuration (we recommend Email OTP codes to
-      // avoid link scanners burning magic links).
+      // Supabase sends a Magic Link by default unless your **Magic Link email template**
+      // includes `{{ .Token }}` (which shows the 6-digit code).
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email,
         options: {
@@ -91,6 +92,21 @@ function AuthInner() {
         return;
       }
 
+      // In some cases, verifyOtp returns a user but the session isn't fully
+      // established in the client yet. Explicitly set it so subsequent RLS-
+      // protected queries (like inserting/selecting from `profiles`) work.
+      if (data.session?.access_token && data.session?.refresh_token) {
+        const { error: setSessionError } = await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+        if (setSessionError) {
+          setStatus('error');
+          setError(setSessionError.message);
+          return;
+        }
+      }
+
       const user = data.user;
       if (!user) {
         setStatus('error');
@@ -103,6 +119,21 @@ function AuthInner() {
         setStatus('error');
         setError('Could not load your profile. Please try again.');
         return;
+      }
+
+      // Best-effort legal acceptance logging (ignores failures).
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        await fetch('/api/legal/acceptance', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({ termsVersion: TERMS_VERSION }),
+        });
+      } catch {
+        // ignore
       }
 
       router.replace(routeAfterAuth(profile, nextParam));
@@ -133,12 +164,12 @@ function AuthInner() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fbfbf7] text-gray-900">
+    <div className="min-h-screen bg-bg text-text">
       <div className="min-h-screen flex flex-col">
         <header className="px-4 py-5">
           <div className="max-w-md mx-auto flex items-center justify-between">
             <Logo size="md" linkToHome />
-            <Link href="/" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+            <Link href="/" className="text-sm text-muted hover:text-text transition-colors">
               Back
             </Link>
           </div>
@@ -146,17 +177,17 @@ function AuthInner() {
 
         <main className="flex-1 px-4 pb-10">
           <div className="max-w-md mx-auto">
-            <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="rounded-2xl border border-border bg-surface shadow-sm">
               <div className="p-6">
                 <h1 className="text-2xl font-semibold tracking-tight">
                   Local help. Real people. Simple bookings.
                 </h1>
-                <p className="text-gray-600 mt-2">
+                <p className="text-muted mt-2">
                   Get started in a minute. You can add details later.
                 </p>
 
                 {error && (
-                  <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <div className="mt-4 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-text">
                     {error}
                   </div>
                 )}
@@ -166,7 +197,7 @@ function AuthInner() {
                     <button
                       type="button"
                       onClick={() => setStep('email')}
-                      className="w-full rounded-xl bg-emerald-700 text-white px-4 py-3.5 text-base font-medium hover:bg-emerald-800 active:bg-emerald-900 transition-colors disabled:opacity-50"
+                      className="w-full rounded-xl bg-accent px-4 py-3.5 text-base font-medium text-accentContrast hover:opacity-95 transition-opacity disabled:opacity-50"
                       disabled={status === 'sending' || status === 'verifying'}
                     >
                       Continue with Email
@@ -175,15 +206,15 @@ function AuthInner() {
                     <button
                       type="button"
                       onClick={handleGoogle}
-                      className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-base font-medium hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
+                      className="w-full rounded-xl border border-border bg-surface px-4 py-3.5 text-base font-medium hover:bg-surface2 transition-colors disabled:opacity-50"
                       disabled={status === 'sending' || status === 'verifying'}
                     >
                       Continue with Google
                     </button>
 
-                    <div className="pt-2 text-sm text-gray-600">
+                    <div className="pt-2 text-sm text-muted">
                       Already have an account?{' '}
-                      <Link href={nextParam ? `/signin?next=${encodeURIComponent(nextParam)}` : '/signin'} className="text-emerald-700 hover:text-emerald-900 font-medium">
+                      <Link href={nextParam ? `/signin?next=${encodeURIComponent(nextParam)}` : '/signin'} className="text-text hover:opacity-80 font-medium">
                         Log in
                       </Link>
                     </div>
@@ -193,9 +224,9 @@ function AuthInner() {
                 {step === 'email' && (
                   <div className="mt-6">
                     {status !== 'sent' && status !== 'verifying' ? (
-                      <form onSubmit={handleSendLink} className="space-y-4">
+                      <form onSubmit={handleSendCode} className="space-y-4">
                         <div>
-                          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                          <label htmlFor="email" className="block text-sm font-medium text-muted mb-1">
                             Email
                           </label>
                           <input
@@ -205,16 +236,16 @@ function AuthInner() {
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="you@example.com"
                             required
-                            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
+                            className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
                           />
                         </div>
 
                         <button
                           type="submit"
                           disabled={status === 'sending'}
-                          className="w-full rounded-xl bg-emerald-700 text-white px-4 py-3.5 text-base font-medium hover:bg-emerald-800 active:bg-emerald-900 transition-colors disabled:opacity-50"
+                          className="w-full rounded-xl bg-accent px-4 py-3.5 text-base font-medium text-accentContrast hover:opacity-95 transition-opacity disabled:opacity-50"
                         >
-                          {status === 'sending' ? 'Sending…' : 'Send me a link'}
+                          {status === 'sending' ? 'Sending…' : 'Send me a code'}
                         </button>
 
                         <button
@@ -224,24 +255,24 @@ function AuthInner() {
                             setStatus('idle');
                             setError(null);
                           }}
-                          className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-base font-medium hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                          className="w-full rounded-xl border border-border bg-surface px-4 py-3.5 text-base font-medium hover:bg-surface2 transition-colors"
                         >
                           Back
                         </button>
                       </form>
                     ) : (
-                      <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-4">
-                        <div className="font-medium text-emerald-900">Check your email</div>
-                        <div className="text-sm text-emerald-800 mt-1">
+                      <div className="rounded-xl border border-border bg-surface2 px-4 py-4">
+                        <div className="font-medium text-text">Check your email</div>
+                        <div className="text-sm text-muted mt-1">
                           We sent a sign-in email to <span className="font-medium">{email}</span>.
                         </div>
-                        <div className="text-sm text-emerald-800 mt-1">
+                        <div className="text-sm text-muted mt-1">
                           If you received a 6-digit code, enter it below. If you received a link, you can tap it.
                         </div>
 
                         <form onSubmit={handleVerifyCode} className="mt-4 space-y-3">
                           <div>
-                            <label htmlFor="otp" className="block text-sm font-medium text-emerald-900 mb-1">
+                            <label htmlFor="otp" className="block text-sm font-medium text-muted mb-1">
                               6-digit code
                             </label>
                             <input
@@ -251,13 +282,13 @@ function AuthInner() {
                               value={otp}
                               onChange={(e) => setOtp(e.target.value)}
                               placeholder="123456"
-                              className="w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-base outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
+                              className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
                             />
                           </div>
                           <button
                             type="submit"
                             disabled={status === 'verifying'}
-                            className="w-full rounded-xl bg-emerald-700 px-4 py-3 text-base font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
+                            className="w-full rounded-xl bg-accent px-4 py-3 text-base font-medium text-accentContrast hover:opacity-95 transition-opacity disabled:opacity-50"
                           >
                             {status === 'verifying' ? 'Verifying…' : 'Verify and continue'}
                           </button>
@@ -271,14 +302,14 @@ function AuthInner() {
                               setError(null);
                               setOtp('');
                             }}
-                            className="rounded-xl bg-white border border-emerald-200 px-4 py-2.5 text-sm font-medium text-emerald-900 hover:bg-emerald-50"
+                            className="rounded-xl bg-surface border border-border px-4 py-2.5 text-sm font-medium text-text hover:bg-surface2"
                           >
                             Send again
                           </button>
                           <button
                             type="button"
                             onClick={() => setStep('entry')}
-                            className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-800"
+                            className="rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accentContrast hover:opacity-95 transition-opacity"
                           >
                             Done
                           </button>
@@ -290,7 +321,7 @@ function AuthInner() {
               </div>
             </div>
 
-            <div className="mt-6 text-xs text-gray-500 leading-relaxed">
+            <div className="mt-6 text-xs text-muted/70 leading-relaxed">
               By continuing, you agree to use Flyers Up respectfully and keep communication on-platform.
             </div>
           </div>
@@ -304,8 +335,8 @@ export default function AuthPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#fbfbf7] flex items-center justify-center">
-          <div className="text-sm text-gray-600">Loading…</div>
+        <div className="min-h-screen bg-bg flex items-center justify-center">
+          <div className="text-sm text-muted">Loading…</div>
         </div>
       }
     >

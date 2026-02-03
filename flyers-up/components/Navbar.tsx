@@ -18,13 +18,13 @@ export default function Navbar({ title = 'Flyers Up', showBackButton = false }: 
   const router = useRouter();
 
   return (
-    <nav className="bg-white border-b border-gray-100 px-4 py-3 shadow-sm">
+    <nav className="bg-[var(--surface-solid)] border-b border-[var(--surface-border)] px-[var(--page-pad-x)] py-3 shadow-card">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-4">
           {showBackButton && (
             <button
               onClick={() => router.back()}
-              className="text-gray-600 hover:text-gray-900 transition-colors"
+              className="text-muted hover:text-text transition-colors"
               aria-label="Go back"
             >
               ← Back
@@ -36,8 +36,8 @@ export default function Navbar({ title = 'Flyers Up', showBackButton = false }: 
           ) : (
             <div className="flex items-center gap-3">
               <Logo size="sm" />
-              <span className="text-gray-300">|</span>
-              <span className="font-semibold text-gray-900">{title}</span>
+              <span className="text-muted/60">|</span>
+              <span className="font-semibold text-text">{title}</span>
             </div>
           )}
         </div>
@@ -45,13 +45,13 @@ export default function Navbar({ title = 'Flyers Up', showBackButton = false }: 
         <div className="flex items-center gap-4">
           <Link
             href="/"
-            className="text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors"
+            className="text-sm text-muted hover:text-text font-medium transition-colors"
           >
             Home
           </Link>
           <Link
             href="/signin"
-            className="text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg transition-colors"
+            className="text-sm bg-accent hover:bg-accent text-accentContrast px-4 py-1.5 rounded-lg transition-colors"
           >
             Sign In
           </Link>

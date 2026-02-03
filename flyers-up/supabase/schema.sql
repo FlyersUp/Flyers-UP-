@@ -50,6 +50,11 @@ CREATE TABLE IF NOT EXISTS public.service_pros (
   available BOOLEAN NOT NULL DEFAULT true,
   service_radius INTEGER,
   business_hours TEXT,
+  -- Stripe Connect (optional)
+  stripe_account_id text,
+  stripe_details_submitted boolean NOT NULL DEFAULT false,
+  stripe_charges_enabled boolean NOT NULL DEFAULT false,
+  stripe_payouts_enabled boolean NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   
   -- Each user can only have one pro profile

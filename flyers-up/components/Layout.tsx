@@ -19,9 +19,9 @@ interface LayoutProps {
 
 export default function Layout({ children, title, showBackButton = false }: LayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-bg text-text pb-20">
       <Navbar title={title} showBackButton={showBackButton} />
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      <main className="max-w-6xl mx-auto px-[var(--page-pad-x)] py-[var(--page-pad-y)]">
         {children}
       </main>
       <BottomNav />

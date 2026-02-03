@@ -120,14 +120,14 @@ function ProInner() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#fbfbf7] flex items-center justify-center">
-        <div className="text-sm text-gray-600">Loading…</div>
+      <div className="min-h-screen bg-bg text-text flex items-center justify-center">
+        <div className="text-sm text-muted">Loading…</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#fbfbf7]">
+    <div className="min-h-screen bg-bg text-text">
       <header className="px-4 py-5">
         <div className="max-w-md mx-auto">
           <Logo size="md" linkToHome />
@@ -136,19 +136,19 @@ function ProInner() {
 
       <main className="px-4 pb-10">
         <div className="max-w-md mx-auto">
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-6">
+          <div className="rounded-2xl border border-border bg-surface shadow-sm p-6">
             <h1 className="text-2xl font-semibold tracking-tight">Set up your pro profile</h1>
-            <p className="text-gray-600 mt-2">You can add verification and payouts later. This takes under 60 seconds.</p>
+            <p className="text-muted mt-2">You can add verification and payouts later. This takes under 60 seconds.</p>
 
             {error && (
-              <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div className="mt-4 rounded-xl border border-red-100 bg-danger/10 px-4 py-3 text-sm text-text">
                 {error}
               </div>
             )}
 
             <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="firstName">
+                <label className="block text-sm font-medium text-muted mb-1" htmlFor="firstName">
                   First name
                 </label>
                 <input
@@ -156,13 +156,13 @@ function ProInner() {
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   required
-                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
+                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
                   placeholder="Sam"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="primaryCategory">
+                <label className="block text-sm font-medium text-muted mb-1" htmlFor="primaryCategory">
                   Primary category
                 </label>
                 <select
@@ -170,7 +170,7 @@ function ProInner() {
                   value={primaryCategoryId}
                   onChange={(e) => setPrimaryCategoryId(e.target.value)}
                   required
-                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
+                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 >
                   <option value="">Select…</option>
                   {categories.map((c) => (
@@ -182,14 +182,14 @@ function ProInner() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="secondaryCategory">
+                <label className="block text-sm font-medium text-muted mb-1" htmlFor="secondaryCategory">
                   Secondary category (optional)
                 </label>
                 <select
                   id="secondaryCategory"
                   value={secondaryCategoryId}
                   onChange={(e) => setSecondaryCategoryId(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
+                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 >
                   <option value="">None</option>
                   {categories
@@ -203,7 +203,7 @@ function ProInner() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="zip">
+                <label className="block text-sm font-medium text-muted mb-1" htmlFor="zip">
                   Service area zip
                 </label>
                 <input
@@ -211,7 +211,7 @@ function ProInner() {
                   value={serviceAreaZip}
                   onChange={(e) => setServiceAreaZip(e.target.value)}
                   required
-                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
+                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
                   placeholder="10001"
                   inputMode="numeric"
                 />
@@ -220,7 +220,7 @@ function ProInner() {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full rounded-xl bg-emerald-700 text-white px-4 py-3.5 text-base font-medium hover:bg-emerald-800 disabled:opacity-50"
+                className="w-full rounded-xl bg-accent px-4 py-3.5 text-base font-medium text-accentContrast hover:opacity-95 transition-opacity disabled:opacity-50"
               >
                 {saving ? 'Saving…' : 'Continue'}
               </button>
@@ -236,8 +236,8 @@ export default function ProOnboardingPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#fbfbf7] flex items-center justify-center">
-          <div className="text-sm text-gray-600">Loading…</div>
+        <div className="min-h-screen bg-bg flex items-center justify-center">
+          <div className="text-sm text-muted">Loading…</div>
         </div>
       }
     >

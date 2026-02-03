@@ -33,11 +33,11 @@ export default function ReviewItem({
   });
 
   return (
-    <div className={`p-4 border border-gray-100 rounded-xl bg-white ${className}`}>
+    <div className={`p-4 border border-border rounded-xl bg-surface ${className}`}>
       {/* Header */}
       <div className="flex items-start gap-3 mb-3">
         {/* Avatar */}
-        <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 flex items-center justify-center">
+        <div className="relative w-10 h-10 rounded-full overflow-hidden bg-surface2 flex-shrink-0 flex items-center justify-center">
           {userAvatar && userAvatar.trim() !== '' ? (
             <Image
               src={userAvatar}
@@ -54,20 +54,20 @@ export default function ReviewItem({
         {/* Name and rating */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <h4 className="font-medium text-gray-900 truncate">{userName}</h4>
-            <span className="text-sm text-gray-500 flex-shrink-0">{formattedDate}</span>
+            <h4 className="font-medium text-text truncate">{userName}</h4>
+            <span className="text-sm text-muted/70 flex-shrink-0">{formattedDate}</span>
           </div>
           <RatingStars rating={rating} size="sm" showNumber={false} />
         </div>
       </div>
       
       {/* Comment */}
-      <p className="text-gray-700 text-sm leading-relaxed">{comment}</p>
+      <p className="text-text text-sm leading-relaxed">{comment}</p>
       
       {/* Helpful count */}
       {helpful > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-50">
-          <button className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
+        <div className="mt-3 pt-3 border-t border-border">
+          <button className="text-sm text-muted/70 hover:text-text transition-colors">
             👍 Helpful ({helpful})
           </button>
         </div>

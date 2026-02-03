@@ -15,22 +15,22 @@ interface ServiceCategoryCardProps {
 export default function ServiceCategoryCard({ category }: ServiceCategoryCardProps) {
   return (
     <Link href={`/services/${category.slug}`}>
-      <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer">
+      <div className="bg-surface border border-hairline shadow-card rounded-[18px] p-6 hover:shadow-card transition-shadow cursor-pointer">
         {/* Icon */}
         <div className="text-4xl mb-3">{category.icon}</div>
         
         {/* Name */}
-        <h3 className="text-lg font-semibold text-gray-800 mb-2">
+        <h3 className="text-lg font-semibold text-text mb-2">
           {category.name}
         </h3>
         
         {/* Description */}
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted">
           {category.description}
         </p>
         
         {/* Arrow indicator */}
-        <div className="mt-4 text-blue-600 text-sm font-medium">
+        <div className="mt-4 text-accent text-sm font-medium">
           Browse Pros →
         </div>
       </div>

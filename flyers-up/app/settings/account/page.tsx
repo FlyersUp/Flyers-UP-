@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { updateProfile, changeEmail } from '@/lib/api';
+import { TrustRow } from '@/components/ui/TrustRow';
 
 export default function AccountSettingsPage() {
   const [loading, setLoading] = useState(false);
@@ -18,6 +19,7 @@ export default function AccountSettingsPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
 
   useEffect(() => {
     loadProfile();
@@ -33,13 +35,14 @@ export default function AccountSettingsPage() {
       // Load profile data
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name, phone')
+        .select('full_name, phone, avatar_url')
         .eq('id', user.id)
         .single();
 
       if (profile) {
         setFullName(profile.full_name || '');
         setPhone(profile.phone || '');
+        setAvatarUrl(profile.avatar_url || '');
       }
     } catch (err) {
       console.error('Error loading profile:', err);
@@ -56,6 +59,7 @@ export default function AccountSettingsPage() {
       const result = await updateProfile({
         full_name: fullName,
         phone: phone || undefined,
+        avatar_url: avatarUrl || undefined,
       });
 
       if (result.success) {
@@ -101,18 +105,21 @@ export default function AccountSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Account Settings</h1>
-        <p className="text-gray-600">Update your personal information</p>
+        <h1 className="text-2xl font-bold text-text mb-2">Account Settings</h1>
+        <p className="text-muted">Update your personal information</p>
+        <div className="mt-3">
+          <TrustRow />
+        </div>
       </div>
 
       {success && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700">
+        <div className="p-4 bg-success/15 border border-success/30 rounded-lg text-text">
           {success}
         </div>
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+        <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">
           {error}
         </div>
       )}
@@ -120,11 +127,11 @@ export default function AccountSettingsPage() {
       {/* Profile Information */}
       <form onSubmit={handleSaveProfile} className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Profile Information</h2>
+          <h2 className="text-lg font-semibold text-text mb-4">Profile Information</h2>
           
           <div className="space-y-4">
             <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="fullName" className="block text-sm font-medium text-muted mb-1">
                 Full Name
               </label>
               <input
@@ -132,13 +139,13 @@ export default function AccountSettingsPage() {
                 id="fullName"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 placeholder="Enter your full name"
               />
             </div>
 
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="phone" className="block text-sm font-medium text-muted mb-1">
                 Phone Number
               </label>
               <input
@@ -146,7 +153,7 @@ export default function AccountSettingsPage() {
                 id="phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 placeholder="(555) 123-4567"
               />
             </div>
@@ -156,20 +163,20 @@ export default function AccountSettingsPage() {
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? 'Saving...' : 'Save Changes'}
         </button>
       </form>
 
       {/* Email Change */}
-      <form onSubmit={handleChangeEmail} className="space-y-4 border-t border-gray-200 pt-6">
+      <form onSubmit={handleChangeEmail} className="space-y-4 border-t border-border pt-6">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Email Address</h2>
+          <h2 className="text-lg font-semibold text-text mb-4">Email Address</h2>
           
           <div className="space-y-4">
             <div>
-              <label htmlFor="currentEmail" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="currentEmail" className="block text-sm font-medium text-muted mb-1">
                 Current Email
               </label>
               <input
@@ -177,12 +184,12 @@ export default function AccountSettingsPage() {
                 id="currentEmail"
                 value={email}
                 disabled
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface2 text-muted/70"
               />
             </div>
 
             <div>
-              <label htmlFor="newEmail" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="newEmail" className="block text-sm font-medium text-muted mb-1">
                 New Email
               </label>
               <input
@@ -190,7 +197,7 @@ export default function AccountSettingsPage() {
                 id="newEmail"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 placeholder="Enter new email address"
               />
             </div>
@@ -200,28 +207,39 @@ export default function AccountSettingsPage() {
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? 'Sending...' : 'Change Email'}
         </button>
       </form>
 
-      {/* Profile Picture Placeholder */}
-      <div className="border-t border-gray-200 pt-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Profile Picture</h2>
+      {/* Profile Photo / Logo */}
+      <div className="border-t border-border pt-6">
+        <h2 className="text-lg font-semibold text-text mb-4">Profile Photo / Logo</h2>
         <div className="flex items-center gap-4">
-          <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">
-            <span className="text-2xl">👤</span>
+          <div className="w-20 h-20 rounded-full bg-surface2 border border-border flex items-center justify-center overflow-hidden">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-2xl text-muted/70">👤</span>
+            )}
           </div>
-          <div>
-            <p className="text-sm text-gray-600 mb-2">Upload a profile picture (coming soon)</p>
-            <button
-              type="button"
-              disabled
-              className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg cursor-not-allowed"
-            >
-              Upload Photo
-            </button>
+          <div className="flex-1">
+            <label htmlFor="avatarUrl" className="block text-sm font-medium text-muted mb-1">
+              Image URL
+            </label>
+            <input
+              type="url"
+              id="avatarUrl"
+              value={avatarUrl}
+              onChange={(e) => setAvatarUrl(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
+              placeholder="https://..."
+            />
+            <p className="text-xs text-muted/70 mt-1">
+              For now we support a URL. Next step is uploads to storage.
+            </p>
           </div>
         </div>
       </div>

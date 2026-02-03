@@ -92,9 +92,9 @@ export default function JobDetailsPage({ params }: PageProps) {
     }
     if (!bookingLoaded) {
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="min-h-screen bg-bg flex items-center justify-center">
           <div className="text-center">
-            <p className="text-gray-500">Loading...</p>
+            <p className="text-muted/70">Loading...</p>
           </div>
         </div>
       );
@@ -102,24 +102,24 @@ export default function JobDetailsPage({ params }: PageProps) {
 
     if (booking) {
       return (
-        <div className="min-h-screen bg-gray-50">
-          <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
+        <div className="min-h-screen bg-bg">
+          <header className="sticky top-0 z-50 bg-surface border-b border-hairline">
             <div className="max-w-2xl mx-auto px-4 py-4">
               <div className="flex items-center justify-between">
-                <Link href="/" className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+                <Link href="/" className="flex items-center gap-2 text-muted hover:text-text transition-colors">
                   <span>←</span>
                   <span className="font-medium">Back</span>
                 </Link>
-                <h1 className="font-semibold text-gray-900">Job Details</h1>
+                <h1 className="text-lg font-semibold text-text">Job Details</h1>
                 <div className="w-10" />
               </div>
             </div>
           </header>
 
           <main className="max-w-2xl mx-auto px-4 py-6">
-            <section className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+            <section className="bg-surface rounded-[18px] border border-hairline shadow-card p-6 mb-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Booking</h2>
+                <h2 className="text-xl font-bold text-text">Booking</h2>
                 <StatusBadge status={booking.status} />
               </div>
 
@@ -127,25 +127,25 @@ export default function JobDetailsPage({ params }: PageProps) {
                 <div className="flex items-start gap-3">
                   <span className="text-xl mt-0.5">📍</span>
                   <div>
-                    <p className="text-sm text-gray-500">Address</p>
-                    <p className="text-gray-900">{booking.address}</p>
+                    <p className="text-sm text-muted/70">Address</p>
+                    <p className="text-text">{booking.address}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
                   <span className="text-xl mt-0.5">📅</span>
                   <div>
-                    <p className="text-sm text-gray-500">Date & Time</p>
-                    <p className="text-gray-900">{formattedBookingDate}</p>
-                    <p className="text-gray-700 font-medium">{booking.serviceTime}</p>
+                    <p className="text-sm text-muted/70">Date & Time</p>
+                    <p className="text-text">{formattedBookingDate}</p>
+                    <p className="text-text font-medium">{booking.serviceTime}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
                   <span className="text-xl mt-0.5">👤</span>
                   <div>
-                    <p className="text-sm text-gray-500">Pro</p>
-                    <p className="text-gray-900">{booking.proName || 'Service Pro'}</p>
+                    <p className="text-sm text-muted/70">Pro</p>
+                    <p className="text-text">{booking.proName || 'Service Pro'}</p>
                   </div>
                 </div>
 
@@ -153,8 +153,8 @@ export default function JobDetailsPage({ params }: PageProps) {
                   <div className="flex items-start gap-3">
                     <span className="text-xl mt-0.5">📝</span>
                     <div>
-                      <p className="text-sm text-gray-500">Notes</p>
-                      <p className="text-gray-700">{booking.notes}</p>
+                      <p className="text-sm text-muted/70">Notes</p>
+                      <p className="text-text">{booking.notes}</p>
                     </div>
                   </div>
                 )}
@@ -162,11 +162,11 @@ export default function JobDetailsPage({ params }: PageProps) {
             </section>
 
             {/* Scope review (generic, platform-wide) */}
-            <section className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+            <section className="bg-surface rounded-[18px] border border-hairline shadow-card p-6 mb-6">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h3 className="font-semibold text-gray-900">Scope Review</h3>
-                  <p className="text-sm text-gray-500">
+                  <h3 className="font-semibold text-text">Scope Review</h3>
+                  <p className="text-sm text-muted/70">
                     If the scope changed, request a review / re-quote.
                   </p>
                 </div>
@@ -175,8 +175,8 @@ export default function JobDetailsPage({ params }: PageProps) {
                   disabled={!userLoaded || !canUseScopeReview}
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                     userLoaded && canUseScopeReview
-                      ? 'bg-teal-600 hover:bg-teal-700 text-white'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      ? 'bg-accent hover:opacity-95 text-accentContrast'
+                      : 'bg-surface2 text-muted/60 cursor-not-allowed'
                   }`}
                 >
                   Request scope review
@@ -184,23 +184,23 @@ export default function JobDetailsPage({ params }: PageProps) {
               </div>
 
               {scopeMessage && (
-                <div className="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 text-sm">
+                <div className="mt-4 p-3 rounded-xl bg-success/15 border border-hairline text-text text-sm">
                   {scopeMessage}
                 </div>
               )}
 
               {latestScopeReview ? (
-                <div className="mt-4 p-4 rounded-xl bg-gray-50 border border-gray-100">
+                <div className="mt-4 p-4 rounded-xl bg-surface2 border border-hairline">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-900">Latest request</p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm font-medium text-text">Latest request</p>
+                    <p className="text-sm text-muted">
                       Status: <span className="font-semibold">{latestScopeReview.status}</span>
                     </p>
                   </div>
-                  <p className="text-sm text-gray-700 mt-2">{latestScopeReview.reason}</p>
+                  <p className="text-sm text-text mt-2">{latestScopeReview.reason}</p>
                 </div>
               ) : (
-                <p className="text-sm text-gray-500 mt-4">No scope review requests yet.</p>
+                <p className="text-sm text-muted/70 mt-4">No scope review requests yet.</p>
               )}
             </section>
           </main>
@@ -208,30 +208,30 @@ export default function JobDetailsPage({ params }: PageProps) {
           {/* Modal */}
           {showScopeModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-              <div className="bg-white w-full max-w-lg rounded-2xl border border-gray-100 p-6">
+              <div className="bg-surface w-full max-w-lg rounded-[18px] border border-hairline shadow-card p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-lg font-semibold text-gray-900">Request scope review</h4>
+                  <h4 className="text-lg font-semibold text-text">Request scope review</h4>
                   <button
                     onClick={() => {
                       setShowScopeModal(false);
                       setScopeReason('');
                       setScopeMessage(null);
                     }}
-                    className="text-gray-500 hover:text-gray-700"
+                    className="text-muted/70 hover:text-text"
                     aria-label="Close"
                   >
                     ✕
                   </button>
                 </div>
 
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-text mb-2">
                   Explain what changed from the original scope…
                 </label>
                 <textarea
                   value={scopeReason}
                   onChange={(e) => setScopeReason(e.target.value)}
                   rows={5}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 bg-surface2 border border-hairline rounded-xl text-text placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-transparent resize-none"
                   placeholder="e.g., additional rooms, heavier debris than expected, access issues, etc."
                 />
 
@@ -241,7 +241,7 @@ export default function JobDetailsPage({ params }: PageProps) {
                       setShowScopeModal(false);
                       setScopeReason('');
                     }}
-                    className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium"
+                    className="px-4 py-2 rounded-xl bg-surface2 hover:bg-surface text-text text-sm font-medium"
                     disabled={scopeSubmitting}
                   >
                     Cancel
@@ -264,7 +264,7 @@ export default function JobDetailsPage({ params }: PageProps) {
                       setScopeSubmitting(false);
                     }}
                     className={`px-4 py-2 rounded-xl text-sm font-medium ${
-                      scopeSubmitting ? 'bg-teal-600/70 text-white' : 'bg-teal-600 hover:bg-teal-700 text-white'
+                      scopeSubmitting ? 'bg-accent/70 text-accentContrast' : 'bg-accent hover:opacity-95 text-accentContrast'
                     }`}
                     disabled={scopeSubmitting || !scopeReason.trim()}
                   >
@@ -279,14 +279,14 @@ export default function JobDetailsPage({ params }: PageProps) {
     }
 
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-bg flex items-center justify-center">
         <div className="text-center">
           <div className="text-5xl mb-4">📋</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Job Not Found</h1>
-          <p className="text-gray-500 mb-6">This job may have been removed or doesn&apos;t exist.</p>
+          <h1 className="text-2xl font-bold text-text mb-2">Job Not Found</h1>
+          <p className="text-muted/70 mb-6">This job may have been removed or doesn&apos;t exist.</p>
           <Link
             href="/"
-            className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors"
+            className="px-6 py-3 bg-accent hover:opacity-95 text-accentContrast rounded-xl font-medium transition-opacity"
           >
             Back to Home
           </Link>
@@ -311,17 +311,17 @@ export default function JobDetailsPage({ params }: PageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-bg">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
+      <header className="sticky top-0 z-50 bg-surface border-b border-hairline">
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+            <Link href="/" className="flex items-center gap-2 text-muted hover:text-text transition-colors">
               <span>←</span>
               <span className="font-medium">Back</span>
             </Link>
-            <h1 className="font-semibold text-gray-900">Job Details</h1>
-            <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+            <h1 className="text-lg font-semibold text-text">Job Details</h1>
+            <button className="p-2 text-muted/70 hover:text-text hover:bg-surface2 rounded-lg transition-colors">
               <span className="text-xl">⋮</span>
             </button>
           </div>
@@ -341,9 +341,9 @@ export default function JobDetailsPage({ params }: PageProps) {
         </section>
 
         {/* Job info */}
-        <section className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+        <section className="bg-surface rounded-[18px] border border-hairline shadow-card p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">{job.serviceType}</h2>
+            <h2 className="text-xl font-bold text-text">{job.serviceType}</h2>
             <StatusBadge status={job.status} />
           </div>
 
@@ -353,12 +353,12 @@ export default function JobDetailsPage({ params }: PageProps) {
             <div className="flex items-start gap-3">
               <span className="text-xl mt-0.5">📍</span>
               <div className="flex-1">
-                <p className="text-sm text-gray-500">Address</p>
-                <p className="text-gray-900">{job.address}</p>
+                <p className="text-sm text-muted/70">Address</p>
+                <p className="text-text">{job.address}</p>
               </div>
               <button 
                 onClick={copyAddress}
-                className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                className="p-2 text-muted/60 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
                 title="Copy address"
               >
                 📋
@@ -369,9 +369,9 @@ export default function JobDetailsPage({ params }: PageProps) {
             <div className="flex items-start gap-3">
               <span className="text-xl mt-0.5">📅</span>
               <div>
-                <p className="text-sm text-gray-500">Date & Time</p>
-                <p className="text-gray-900">{formattedDate}</p>
-                <p className="text-gray-700 font-medium">{job.time}</p>
+                <p className="text-sm text-muted/70">Date & Time</p>
+                <p className="text-text">{formattedDate}</p>
+                <p className="text-text font-medium">{job.time}</p>
               </div>
             </div>
 
@@ -379,8 +379,8 @@ export default function JobDetailsPage({ params }: PageProps) {
             <div className="flex items-start gap-3">
               <span className="text-xl mt-0.5">🏷️</span>
               <div>
-                <p className="text-sm text-gray-500">Category</p>
-                <p className="text-gray-900">{job.category}</p>
+                <p className="text-sm text-muted/70">Category</p>
+                <p className="text-text">{job.category}</p>
               </div>
             </div>
 
@@ -388,8 +388,8 @@ export default function JobDetailsPage({ params }: PageProps) {
             <div className="flex items-start gap-3">
               <span className="text-xl mt-0.5">💵</span>
               <div>
-                <p className="text-sm text-gray-500">Price</p>
-                <p className="text-2xl font-bold text-gray-900">${job.price}</p>
+                <p className="text-sm text-muted/70">Price</p>
+                <p className="text-2xl font-bold text-text">${job.price}</p>
               </div>
             </div>
 
@@ -398,8 +398,8 @@ export default function JobDetailsPage({ params }: PageProps) {
               <div className="flex items-start gap-3">
                 <span className="text-xl mt-0.5">📝</span>
                 <div>
-                  <p className="text-sm text-gray-500">Notes</p>
-                  <p className="text-gray-700">{job.notes}</p>
+                  <p className="text-sm text-muted/70">Notes</p>
+                  <p className="text-text">{job.notes}</p>
                 </div>
               </div>
             )}
@@ -407,11 +407,11 @@ export default function JobDetailsPage({ params }: PageProps) {
         </section>
 
         {/* Pro info */}
-        <section className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Your Pro</h3>
+        <section className="bg-surface rounded-[18px] border border-hairline shadow-card p-6 mb-6">
+          <h3 className="font-semibold text-text mb-4">Your Pro</h3>
           
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-xl overflow-hidden bg-surface2 flex items-center justify-center">
               {job.pro.avatar ? (
                 <Image
                   src={job.pro.avatar}
@@ -426,29 +426,29 @@ export default function JobDetailsPage({ params }: PageProps) {
               )}
             </div>
             <div className="flex-1">
-              <h4 className="font-semibold text-gray-900">{job.pro.name}</h4>
+              <h4 className="font-semibold text-text">{job.pro.name}</h4>
               <RatingCompact rating={job.pro.rating} />
             </div>
             <Link
-              href={`/pro/${job.pro.id}`}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-medium transition-colors"
+              href={`/customer/pros/${job.pro.id}`}
+              className="px-4 py-2 bg-surface2 hover:bg-surface text-text rounded-xl text-sm font-medium transition-colors"
             >
               View Profile
             </Link>
           </div>
 
           {/* Contact buttons */}
-          <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
+          <div className="flex gap-3 mt-4 pt-4 border-t border-hairline">
             <a
               href={`tel:${job.pro.phone}`}
-              className="flex-1 flex items-center justify-center gap-2 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 py-3 bg-accent hover:opacity-95 text-accentContrast rounded-xl font-medium transition-opacity"
             >
               <span>📞</span>
               Call Pro
             </a>
             <Link
-              href={`/messages/${getConversationId('customer-1', job.pro.id, jobId)}`}
-              className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
+              href={`/customer/messages/${getConversationId('customer-1', job.pro.id, jobId)}`}
+              className="flex-1 flex items-center justify-center gap-2 py-3 bg-surface2 hover:bg-surface text-text rounded-xl font-medium transition-colors"
             >
               <span>💬</span>
               Message
@@ -456,12 +456,12 @@ export default function JobDetailsPage({ params }: PageProps) {
           </div>
         </section>
 
-        {/* Trust shield */}
+        {/* Trust section */}
         <TrustShieldBanner variant="compact" className="mb-6" />
 
         {/* Status timeline */}
-        <section className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Status Timeline</h3>
+        <section className="bg-surface rounded-[18px] border border-hairline shadow-card p-6 mb-6">
+          <h3 className="font-semibold text-text mb-4">Status Timeline</h3>
           <StatusTimeline currentStatus={job.status} />
         </section>
 
@@ -469,13 +469,13 @@ export default function JobDetailsPage({ params }: PageProps) {
         <section className="space-y-3 mb-6">
           {job.status === 'scheduled' && (
             <>
-              <button className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-semibold transition-colors">
+              <button className="w-full py-4 bg-accent hover:opacity-95 text-accentContrast rounded-xl font-semibold transition-opacity">
                 Update Status
               </button>
-              <button className="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors">
+              <button className="w-full py-4 bg-surface2 hover:bg-surface text-text rounded-xl font-medium transition-colors">
                 Reschedule
               </button>
-              <button className="w-full py-4 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors">
+              <button className="w-full py-4 text-red-600 hover:bg-danger/10 rounded-xl font-medium transition-colors">
                 Cancel Job
               </button>
             </>
@@ -483,19 +483,19 @@ export default function JobDetailsPage({ params }: PageProps) {
           
           {job.status === 'on_my_way' && (
             <div className="text-center py-4">
-              <p className="text-gray-500">Your pro is on the way!</p>
-              <p className="text-sm text-gray-400 mt-1">You can contact them if needed.</p>
+              <p className="text-muted/70">Your pro is on the way!</p>
+              <p className="text-sm text-muted/60 mt-1">You can contact them if needed.</p>
             </div>
           )}
 
           {job.status === 'completed' && (
             <>
-              <button className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-semibold transition-colors">
+              <button className="w-full py-4 bg-accent hover:opacity-95 text-accentContrast rounded-xl font-semibold transition-opacity">
                 Leave a Review
               </button>
               <Link 
                 href={`/booking/${job.pro.id}`}
-                className="block w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium text-center transition-colors"
+                className="block w-full py-4 bg-surface2 hover:bg-surface text-text rounded-xl font-medium text-center transition-colors"
               >
                 Book Again
               </Link>
@@ -511,32 +511,32 @@ export default function JobDetailsPage({ params }: PageProps) {
 function JobStatusBanner({ status }: { status: Job['status'] }) {
   const config: Record<Job['status'], { bg: string; text: string; icon: string; message: string }> = {
     scheduled: {
-      bg: 'bg-blue-50 border-blue-100',
-      text: 'text-blue-700',
+      bg: 'bg-info/10 border-info/30',
+      text: 'text-info',
       icon: '📅',
       message: 'Your job is scheduled. We\'ll notify you when your pro is on the way.',
     },
     on_my_way: {
-      bg: 'bg-orange-50 border-orange-100',
-      text: 'text-orange-700',
+      bg: 'bg-warning/15 border-warning/30',
+      text: 'text-accent',
       icon: '🚗',
       message: 'Your pro is on the way! ETA approximately 15 minutes.',
     },
     in_progress: {
-      bg: 'bg-purple-50 border-purple-100',
-      text: 'text-purple-700',
+      bg: 'bg-surface2 border-hairline',
+      text: 'text-muted',
       icon: '⚡',
       message: 'Your job is in progress. Your pro is working on it now.',
     },
     completed: {
-      bg: 'bg-emerald-50 border-emerald-100',
-      text: 'text-emerald-700',
+      bg: 'bg-success/15 border-hairline',
+      text: 'text-text',
       icon: '✓',
       message: 'Job completed! Don\'t forget to leave a review.',
     },
     cancelled: {
-      bg: 'bg-gray-50 border-gray-200',
-      text: 'text-gray-600',
+      bg: 'bg-surface2 border-hairline',
+      text: 'text-muted',
       icon: '✕',
       message: 'This job has been cancelled.',
     },
@@ -568,7 +568,7 @@ function StatusTimeline({ currentStatus }: { currentStatus: Job['status'] }) {
 
   if (currentStatus === 'cancelled') {
     return (
-      <div className="text-center text-gray-500 py-4">
+      <div className="text-center text-muted/70 py-4">
         This job was cancelled.
       </div>
     );
@@ -586,27 +586,27 @@ function StatusTimeline({ currentStatus }: { currentStatus: Job['status'] }) {
             <div className={`
               w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
               ${isCompleted 
-                ? 'bg-teal-600 text-white' 
-                : 'bg-gray-100 text-gray-400'
+                ? 'bg-accent text-accentContrast' 
+                : 'bg-surface2 text-muted/60'
               }
-              ${isCurrent ? 'ring-4 ring-teal-100' : ''}
+              ${isCurrent ? 'ring-4 ring-accent/20' : ''}
             `}>
               <span>{status.icon}</span>
             </div>
 
             {/* Label */}
             <div className="flex-1">
-              <p className={`font-medium ${isCompleted ? 'text-gray-900' : 'text-gray-400'}`}>
+              <p className={`font-medium ${isCompleted ? 'text-text' : 'text-muted/60'}`}>
                 {status.label}
               </p>
               {isCurrent && (
-                <p className="text-sm text-teal-600">Current status</p>
+                <p className="text-sm text-accent">Current status</p>
               )}
             </div>
 
             {/* Checkmark for completed */}
             {isCompleted && !isCurrent && (
-              <span className="text-teal-600">✓</span>
+              <span className="text-accent">✓</span>
             )}
           </div>
         );

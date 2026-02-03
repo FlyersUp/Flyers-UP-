@@ -3,7 +3,7 @@
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
+import { OfficialBadge } from '@/components/ui/OfficialBadge';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 
@@ -20,25 +20,25 @@ export default function Credentials() {
 
   const getStatusBadge = (status: string) => {
     if (status === 'verified') {
-      return <Badge variant="highlight">VERIFIED</Badge>;
+      return <OfficialBadge>VERIFIED</OfficialBadge>;
     }
-    return <Badge variant="default">PENDING REVIEW</Badge>;
+    return <OfficialBadge>PENDING REVIEW</OfficialBadge>;
   };
 
   return (
     <AppLayout mode="pro">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight text-text mb-6">
           Credentials
         </h1>
 
         <div className="space-y-4 mb-6">
           {credentials.map((cred) => (
-            <Card withRail key={cred.id}>
+            <Card withRail={false} key={cred.id} className="border-l-[3px] border-l-accent">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-semibold text-gray-900 mb-1">{cred.name}</div>
-                  <div className="text-sm text-gray-600">Uploaded {cred.date}</div>
+                  <div className="font-semibold text-text mb-1">{cred.name}</div>
+                  <div className="text-sm text-muted">Uploaded {cred.date}</div>
                 </div>
                 {getStatusBadge(cred.status)}
               </div>

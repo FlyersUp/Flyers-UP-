@@ -27,7 +27,7 @@ function BookingScheduleContent() {
   return (
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-6">
+        <h1 className="text-2xl font-semibold text-text mb-6">
           Select Date & Time
         </h1>
 
@@ -50,8 +50,8 @@ function BookingScheduleContent() {
                   onClick={() => setSelectedTime(time)}
                   className={`px-4 py-3 rounded-xl border-2 transition-all ${
                     selectedTime === time
-                      ? 'border-[#A8E6CF] bg-[#A8E6CF]/10'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-accent bg-accent/10'
+                      : 'border-border hover:border-border'
                   }`}
                 >
                   {time}
@@ -61,7 +61,7 @@ function BookingScheduleContent() {
           </div>
         </div>
 
-        <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4">
+        <div className="fixed bottom-16 left-0 right-0 bg-surface border-t border-border p-4">
           <div className="max-w-4xl mx-auto">
             <Button
               className="w-full"
@@ -83,7 +83,7 @@ export default function BookingSchedule() {
       <AppLayout mode="customer">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="text-center py-12">
-            <p className="text-gray-500">Loading...</p>
+            <p className="text-muted/70">Loading...</p>
           </div>
         </div>
       </AppLayout>
