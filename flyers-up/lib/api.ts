@@ -20,6 +20,18 @@ const SUPABASE_CONFIGURED = Boolean(
   process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+function isLikelyNetworkError(err: unknown): boolean {
+  // Browser fetch failures often surface as TypeError("Failed to fetch").
+  if (!(err instanceof Error)) return false;
+  const msg = (err.message || '').toLowerCase();
+  return (
+    msg.includes('failed to fetch') ||
+    msg.includes('networkerror') ||
+    msg.includes('network error') ||
+    msg.includes('load failed')
+  );
+}
+
 // ============================================
 // TYPES (matching the old mockApi interface)
 // ============================================
@@ -250,6 +262,13 @@ export async function signUp(
     };
   } catch (err) {
     console.error('Signup error:', err);
+    if (isLikelyNetworkError(err)) {
+      return {
+        success: false,
+        error:
+          'Network error reaching Supabase. If you’re in Yemen (or on a restricted ISP), try a VPN or a different network.',
+      };
+    }
     return { success: false, error: 'An unexpected error occurred' };
   }
 }
@@ -278,52 +297,74 @@ export async function signIn(
 
     if (authError) {
       console.error('Auth signin error:', authError);
-      return { success: false, error: authError.message };
+      // Give a clearer hint when the account likely uses OTP/magic-link auth.
+      const msg = authError.message || 'Unable to sign in';
+      if (msg.toLowerCase().includes('invalid login credentials')) {
+        return {
+          success: false,
+          error:
+            'Incorrect email or password. If you usually sign in via email code, use “Continue with Email” on the /auth page instead.',
+        };
+      }
+      return { success: false, error: msg };
     }
 
     if (!authData.user) {
       return { success: false, error: 'Failed to sign in' };
     }
 
-    // Fetch the user's profile to get their role
+    // Fetch the user's profile to get their role.
+    // Use maybeSingle so "no row" doesn't become a hard error that blocks login.
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', authData.user.id)
-      .single();
+      .maybeSingle();
+
+    const metadataRoleRaw = authData.user.user_metadata?.role;
+    const metadataRole: 'customer' | 'pro' | null =
+      metadataRoleRaw === 'customer' || metadataRoleRaw === 'pro' ? metadataRoleRaw : null;
 
     if (profileError) {
+      // If RLS blocks profile reads, don't block sign-in; route will be handled by guards/onboarding.
       console.error('Profile fetch error:', profileError);
-      // If no profile exists, try to create one from user metadata
-      const metadataRole = authData.user.user_metadata?.role as UserRole | undefined;
-      if (metadataRole) {
+    }
+
+    // Best-effort ensure a profile row exists (role may be null to force role selection).
+    if (!profile) {
+      try {
         await supabase.from('profiles').insert({
           id: authData.user.id,
+          email: authData.user.email ?? null,
           role: metadataRole,
-          full_name: email.split('@')[0],
+          full_name: authData.user.email ? authData.user.email.split('@')[0] : null,
+          onboarding_step: metadataRole ? (metadataRole === 'pro' ? 'pro_profile' : 'customer_profile') : 'role',
         });
-        return {
-          success: true,
-          user: {
-            id: authData.user.id,
-            email: authData.user.email!,
-            role: metadataRole,
-          },
-        };
+      } catch (e) {
+        // ignore
       }
-      return { success: false, error: 'Profile not found' };
     }
+
+    // If role is missing, default to customer; downstream guards will route to /onboarding/role.
+    const resolvedRole = (profile?.role as UserRole | null) ?? (metadataRole as UserRole | null) ?? ('customer' as UserRole);
 
     return {
       success: true,
       user: {
         id: authData.user.id,
         email: authData.user.email!,
-        role: profile.role as UserRole,
+        role: resolvedRole,
       },
     };
   } catch (err) {
     console.error('Signin error:', err);
+    if (isLikelyNetworkError(err)) {
+      return {
+        success: false,
+        error:
+          'Network error reaching Supabase. If you’re in Yemen (or on a restricted ISP), try a VPN or a different network.',
+      };
+    }
     return { success: false, error: 'An unexpected error occurred' };
   }
 }

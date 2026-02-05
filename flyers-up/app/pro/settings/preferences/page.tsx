@@ -21,6 +21,14 @@ import { ProAccessNotice } from '@/components/ui/ProAccessNotice';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export default function ProPreferencesSettingsPage() {
+  return (
+    <AppLayout mode="pro">
+      <ProPreferencesSettingsInner />
+    </AppLayout>
+  );
+}
+
+function ProPreferencesSettingsInner() {
   const { setDarkMode } = useTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -119,101 +127,97 @@ export default function ProPreferencesSettingsPage() {
   }
 
   return (
-    <AppLayout mode="pro">
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        <div>
-          <Link href="/pro/settings" className="text-sm text-muted hover:text-text">
-            ← Back to Settings
-          </Link>
-          <div className="mt-3">
-            <PlacardHeader title="App Preferences" subtitle="Make the app feel right for you." tone="primary" />
-          </div>
-          <div className="mt-3">
-            <TrustRow />
-          </div>
+    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <div>
+        <Link href="/pro/settings" className="text-sm text-muted hover:text-text">
+          ← Back to Settings
+        </Link>
+        <div className="mt-3">
+          <PlacardHeader title="App Preferences" subtitle="Make the app feel right for you." tone="primary" />
         </div>
-
-        {error && <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">{error}</div>}
-        {success && (
-          <div className="p-4 bg-success/15 border border-success/30 rounded-lg text-text">{success}</div>
-        )}
-
-        <Card withRail>
-          <Label>QUALITY OF LIFE</Label>
-          {loading ? (
-            <p className="mt-4 text-sm text-muted/70">Loading…</p>
-          ) : !userId ? (
-            <ProAccessNotice nextHref="/pro/settings/preferences" signedIn={access !== 'signed_out'} />
-          ) : (
-            <div className="mt-4 space-y-3">
-              <ToggleRow
-                title="Dark mode"
-                description="Store your preference."
-                checked={prefs.darkMode}
-                onChange={(next) => {
-                  setPrefs((p) => ({ ...p, darkMode: next }));
-                  setDarkMode(next);
-                }}
-              />
-              <ToggleRow
-                title="Location enabled"
-                description="Allow location-based suggestions and map features."
-                checked={prefs.locationEnabled}
-                onChange={(next) => setPrefs((p) => ({ ...p, locationEnabled: next }))}
-              />
-
-              <div className="p-4 border border-border rounded-lg bg-surface">
-                <h3 className="font-medium text-text">Language</h3>
-                <p className="text-sm text-muted">Choose your default language.</p>
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className="mt-3 w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
-                >
-                  {TOP_LANGUAGES.map((lang) => (
-                    <option key={lang.code} value={lang.code}>
-                      {lang.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="p-4 border border-border rounded-lg bg-surface">
-                <h3 className="font-medium text-text">Distance units</h3>
-                <p className="text-sm text-muted">Choose miles or kilometers.</p>
-                <select
-                  value={prefs.distanceUnits}
-                  onChange={(e) => setPrefs((p) => ({ ...p, distanceUnits: e.target.value as any }))}
-                  className="mt-3 w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
-                >
-                  <option value="miles">Miles</option>
-                  <option value="km">Kilometers</option>
-                </select>
-              </div>
-
-              <div className="p-4 border border-border rounded-lg bg-surface">
-                <h3 className="font-medium text-text">Default map view</h3>
-                <p className="text-sm text-muted">Choose the default view when browsing.</p>
-                <select
-                  value={prefs.defaultMapView}
-                  onChange={(e) => setPrefs((p) => ({ ...p, defaultMapView: e.target.value as any }))}
-                  className="mt-3 w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
-                >
-                  <option value="map">Map</option>
-                  <option value="list">List</option>
-                </select>
-              </div>
-            </div>
-          )}
-        </Card>
-
-        <div className="flex justify-end">
-          <Button type="button" onClick={() => void save()} disabled={!userId || saving || loading} showArrow={false}>
-            {saving ? 'Saving…' : 'Save Changes'}
-          </Button>
+        <div className="mt-3">
+          <TrustRow />
         </div>
       </div>
-    </AppLayout>
+
+      {error && <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">{error}</div>}
+      {success && <div className="p-4 bg-success/15 border border-success/30 rounded-lg text-text">{success}</div>}
+
+      <Card withRail>
+        <Label>QUALITY OF LIFE</Label>
+        {loading ? (
+          <p className="mt-4 text-sm text-muted/70">Loading…</p>
+        ) : !userId ? (
+          <ProAccessNotice nextHref="/pro/settings/preferences" signedIn={access !== 'signed_out'} />
+        ) : (
+          <div className="mt-4 space-y-3">
+            <ToggleRow
+              title="Dark mode"
+              description="Store your preference."
+              checked={prefs.darkMode}
+              onChange={(next) => {
+                setPrefs((p) => ({ ...p, darkMode: next }));
+                setDarkMode(next);
+              }}
+            />
+            <ToggleRow
+              title="Location enabled"
+              description="Allow location-based suggestions and map features."
+              checked={prefs.locationEnabled}
+              onChange={(next) => setPrefs((p) => ({ ...p, locationEnabled: next }))}
+            />
+
+            <div className="p-4 border border-border rounded-lg bg-surface">
+              <h3 className="font-medium text-text">Language</h3>
+              <p className="text-sm text-muted">Choose your default language.</p>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="mt-3 w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
+              >
+                {TOP_LANGUAGES.map((lang) => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="p-4 border border-border rounded-lg bg-surface">
+              <h3 className="font-medium text-text">Distance units</h3>
+              <p className="text-sm text-muted">Choose miles or kilometers.</p>
+              <select
+                value={prefs.distanceUnits}
+                onChange={(e) => setPrefs((p) => ({ ...p, distanceUnits: e.target.value as any }))}
+                className="mt-3 w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
+              >
+                <option value="miles">Miles</option>
+                <option value="km">Kilometers</option>
+              </select>
+            </div>
+
+            <div className="p-4 border border-border rounded-lg bg-surface">
+              <h3 className="font-medium text-text">Default map view</h3>
+              <p className="text-sm text-muted">Choose the default view when browsing.</p>
+              <select
+                value={prefs.defaultMapView}
+                onChange={(e) => setPrefs((p) => ({ ...p, defaultMapView: e.target.value as any }))}
+                className="mt-3 w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
+              >
+                <option value="map">Map</option>
+                <option value="list">List</option>
+              </select>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <div className="flex justify-end">
+        <Button type="button" onClick={() => void save()} disabled={!userId || saving || loading} showArrow={false}>
+          {saving ? 'Saving…' : 'Save Changes'}
+        </Button>
+      </div>
+    </div>
   );
 }
 

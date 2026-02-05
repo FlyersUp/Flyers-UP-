@@ -1,44 +1,54 @@
-<svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
-  <!-- Flyers Up Logo - Green signpost with flyers -->
+<svg viewBox="0 0 220 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Flyers Up Logo - wordmark + signpost (single color, flat) -->
   <defs>
     <style>
-      .logo-text { font-family: system-ui, -apple-system, sans-serif; font-weight: 700; fill: #059669; }
-      .logo-icon { fill: none; stroke: #059669; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-      .logo-fill { fill: #059669; }
+      .c { fill: #058954; stroke: #058954; }
+      .t {
+        fill: #058954;
+        font-family: Oswald, system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .s { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     </style>
   </defs>
-  
-  <!-- Text: FLYERS -->
-  <text x="5" y="28" class="logo-text" font-size="22">FLYERS</text>
-  
-  <!-- Text: UP -->
-  <text x="5" y="52" class="logo-text" font-size="22">UP</text>
-  
-  <!-- Signpost pole -->
-  <rect x="145" y="25" width="4" height="35" class="logo-fill" rx="1"/>
-  
+
+  <!-- Wordmark (two lines, centered) -->
+  <g class="t" text-anchor="middle">
+    <text x="70" y="28" font-size="26">FLYERS</text>
+    <text x="70" y="54" font-size="26">UP</text>
+  </g>
+
+  <!-- Signpost icon to the right -->
+  <!-- Pole -->
+  <rect x="150" y="18" width="4" height="44" rx="1" class="c" />
+
+  <!-- Arrow up -->
+  <path d="M152 4 L152 16 M145 10 L152 4 L159 10" class="c s" stroke-width="2.75" />
+
+  <!-- Flyers (staggered) -->
+  <g class="c s">
+    <rect x="158" y="10" width="15" height="12" rx="2" />
+    <circle cx="161" cy="12" r="1.2" class="c" />
+    <line x1="161" y1="15.5" x2="170" y2="15.5" stroke-width="1.6" />
+    <line x1="161" y1="18.8" x2="167.5" y2="18.8" stroke-width="1.6" />
+
+    <rect x="160" y="26" width="15" height="12" rx="2" />
+    <circle cx="163" cy="28" r="1.2" class="c" />
+    <line x1="163" y1="31.5" x2="172" y2="31.5" stroke-width="1.6" />
+    <line x1="163" y1="34.8" x2="169.5" y2="34.8" stroke-width="1.6" />
+
+    <rect x="158" y="42" width="15" height="11" rx="2" />
+    <circle cx="161" cy="44" r="1.2" class="c" />
+    <line x1="161" y1="47.5" x2="170" y2="47.5" stroke-width="1.6" />
+  </g>
+
   <!-- Grass -->
-  <path d="M140 58 L145 52 L147 58 M147 58 L150 50 L153 58 M153 58 L157 54 L160 58" class="logo-icon" stroke-width="1.5"/>
-  
-  <!-- Arrow pointing up -->
-  <path d="M147 8 L147 20 M142 14 L147 8 L152 14" class="logo-icon" stroke-width="2.5"/>
-  
-  <!-- Top flyer/paper -->
-  <rect x="155" y="12" width="18" height="14" class="logo-icon" fill="white" rx="1"/>
-  <line x1="158" y1="17" x2="170" y2="17" class="logo-icon" stroke-width="1"/>
-  <line x1="158" y1="21" x2="167" y2="21" class="logo-icon" stroke-width="1"/>
-  <circle cx="159" cy="15" r="1" class="logo-fill"/>
-  
-  <!-- Middle flyer/paper -->
-  <rect x="158" y="28" width="18" height="14" class="logo-icon" fill="white" rx="1"/>
-  <line x1="161" y1="33" x2="173" y2="33" class="logo-icon" stroke-width="1"/>
-  <line x1="161" y1="37" x2="170" y2="37" class="logo-icon" stroke-width="1"/>
-  <circle cx="162" cy="31" r="1" class="logo-fill"/>
-  
-  <!-- Bottom flyer/paper -->
-  <rect x="155" y="44" width="18" height="12" class="logo-icon" fill="white" rx="1"/>
-  <line x1="158" y1="49" x2="170" y2="49" class="logo-icon" stroke-width="1"/>
-  <circle cx="159" cy="47" r="1" class="logo-fill"/>
+  <path
+    d="M142 62 L147 55 L150 62 M150 62 L153 53 L156 62 M156 62 L160 56 L164 62"
+    class="c s"
+    stroke-width="1.75"
+  />
 </svg>
 
 

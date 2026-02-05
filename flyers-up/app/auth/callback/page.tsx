@@ -57,6 +57,17 @@ function CallbackInner() {
         // We still ask for the user after a short microtask to ensure parsing has run.
         await Promise.resolve();
 
+        // Confirm a session exists before continuing (prevents silent bounce/loops).
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          setError(
+            'We couldn’t establish a session from that link. If your network blocks supabase.co links, use the email code flow at /auth instead.'
+          );
+          return;
+        }
+
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (userError) {
           setError(userError.message);

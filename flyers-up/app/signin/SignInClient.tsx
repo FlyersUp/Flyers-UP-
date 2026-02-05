@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Logo from '@/components/Logo';
-import { getCurrentUser, signIn, signUp } from '@/lib/api';
+import { signIn, signUp } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 
 type UserRole = 'customer' | 'pro';
@@ -27,51 +27,73 @@ export function SignInClient(props: {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Ensure the role accent applies even on auth routes (not wrapped in AppLayout).
-  // Layout effect reduces visible “flash” vs useEffect.
-  useLayoutEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle('theme-customer', role === 'customer');
-    root.classList.toggle('theme-pro', role === 'pro');
-  }, [role]);
+  const [pendingConfirm, setPendingConfirm] = useState(false);
+  const [supabaseReachability, setSupabaseReachability] = useState<'checking' | 'ok' | 'blocked'>('checking');
 
   useEffect(() => {
     setError(null);
+    setPendingConfirm(false);
   }, [isSignUp]);
 
   useEffect(() => {
-    const redirectIfAuthed = async () => {
-      const user = await getCurrentUser();
-      if (!user) return;
-
-      const defaultDest = user.role === 'pro' ? '/pro' : '/customer';
-      const nextDest = nextParam && nextParam.startsWith('/') ? decodeURIComponent(nextParam) : null;
-
-      // Prevent role-mismatch “bounce”
-      const dest =
-        nextDest &&
-        !(
-          (nextDest.startsWith('/pro') && user.role !== 'pro') ||
-          (nextDest.startsWith('/customer') && user.role !== 'customer')
-        )
-          ? nextDest
-          : defaultDest;
-
-      router.replace(dest);
+    let cancelled = false;
+    const check = async () => {
+      try {
+        // Check reachability through our reverse-proxy, not directly to *.supabase.co.
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (!anonKey) {
+          if (!cancelled) setSupabaseReachability('blocked');
+          return;
+        }
+        const res = await fetch('/api/supabase/auth/v1/health', {
+          method: 'GET',
+          headers: {
+            apikey: anonKey,
+            authorization: `Bearer ${anonKey}`,
+          },
+          cache: 'no-store',
+        });
+        if (!cancelled) setSupabaseReachability(res.ok ? 'ok' : 'blocked');
+      } catch {
+        if (!cancelled) setSupabaseReachability('blocked');
+      }
     };
-    void redirectIfAuthed();
-  }, [router, nextParam]);
+    void check();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setPendingConfirm(false);
 
     try {
       const result = isSignUp ? await signUp(role, email, password) : await signIn(email, password);
 
       if (result.success && result.user) {
+        // Make sure a session actually exists before navigating.
+        // For sign-up, Supabase often returns `session: null` when email confirmation is required.
+        // For sign-in, missing session usually means the browser blocked storage/cookies.
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (!session) {
+            if (isSignUp) {
+              setPendingConfirm(true);
+              return;
+            }
+
+            setError('You’re not fully signed in yet. Try turning off private browsing and allow site storage.');
+            return;
+          }
+        } catch {
+          // ignore
+        }
+
         // Best-effort legal acceptance logging (ignores failures).
         try {
           const {
@@ -87,17 +109,6 @@ export function SignInClient(props: {
           });
         } catch {
           // ignore
-        }
-
-        // If sign-up returned no session (email confirmation required), keep them on sign-in.
-        if (isSignUp) {
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
-          if (!session) {
-            router.replace(`/signin?role=${role}&mode=signup`);
-            return;
-          }
         }
 
         const defaultDest = result.user.role === 'pro' ? '/pro' : '/customer';
@@ -193,6 +204,38 @@ export function SignInClient(props: {
           {error && (
             <div className="mb-4 bg-danger/10 text-text px-4 py-3 rounded-lg text-sm border border-red-100">
               {error}
+              {error.toLowerCase().includes('incorrect email or password') && (
+                <div className="mt-2">
+                  <Link
+                    href={nextParam ? `/auth?next=${encodeURIComponent(nextParam)}` : '/auth'}
+                    className="underline underline-offset-4 hover:opacity-80"
+                  >
+                    Try “Continue with Email” (code) instead →
+                  </Link>
+                </div>
+              )}
+              {error.toLowerCase().includes('/auth sign-in') && (
+                <div className="mt-2">
+                  <Link
+                    href={nextParam ? `/auth?next=${encodeURIComponent(nextParam)}` : '/auth'}
+                    className="underline underline-offset-4 hover:opacity-80"
+                  >
+                    Continue with Email (code) or Google →
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+
+          {pendingConfirm && (
+            <div className="mb-4 bg-surface2 text-text px-4 py-3 rounded-lg text-sm border border-border">
+              Check your email to confirm your account, then come back and sign in. If confirmation links are blocked on
+              your network, use the email code flow instead.
+              <div className="mt-2">
+                <Link href="/auth" className="underline underline-offset-4 hover:opacity-80 font-medium">
+                  Continue with Email Code →
+                </Link>
+              </div>
             </div>
           )}
 
@@ -236,6 +279,27 @@ export function SignInClient(props: {
               {isLoading ? 'Please wait...' : 'Continue'}
             </button>
           </form>
+
+          {supabaseReachability !== 'checking' && supabaseReachability !== 'ok' && (
+            <div className="mt-4 rounded-lg border border-border bg-surface2 px-4 py-3 text-xs text-muted">
+              It looks like your network can’t reach Supabase right now. If you’re in Yemen (or on a restricted ISP),
+              try a VPN or a different network.
+            </div>
+          )}
+
+          <div className="mt-6 text-center">
+            <div className="text-xs text-muted/70">
+              Having trouble? Some accounts use email code or Google sign-in.
+            </div>
+            <div className="mt-2">
+              <Link
+                href={nextParam ? `/auth?next=${encodeURIComponent(nextParam)}` : '/auth'}
+                className="text-sm font-medium text-text underline underline-offset-4 decoration-border hover:decoration-text"
+              >
+                Use Email Code / Google Sign-in →
+              </Link>
+            </div>
+          </div>
         </div>
       </main>
     </div>

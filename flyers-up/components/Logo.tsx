@@ -3,7 +3,6 @@
  * Reusable logo with different size variants
  */
 
-import Image from 'next/image';
 import Link from 'next/link';
 
 interface LogoProps {
@@ -13,9 +12,11 @@ interface LogoProps {
 }
 
 const sizeConfig = {
-  sm: { width: 100, height: 30 },
-  md: { width: 140, height: 42 },
-  lg: { width: 200, height: 60 },
+  // Keep a stable box size to prevent auth-page flicker/CLS when fonts swap.
+  // (These match the previous Image dimensions to preserve layout.)
+  sm: { boxW: 100, boxH: 30, textClass: 'text-[14px]', iconClass: 'w-6 h-10', gapClass: 'gap-2' },
+  md: { boxW: 140, boxH: 42, textClass: 'text-[18px]', iconClass: 'w-7 h-12', gapClass: 'gap-3' },
+  lg: { boxW: 200, boxH: 60, textClass: 'text-[24px]', iconClass: 'w-9 h-14', gapClass: 'gap-3.5' },
 };
 
 export default function Logo({ 
@@ -23,17 +24,36 @@ export default function Logo({
   linkToHome = true,
   className = '' 
 }: LogoProps) {
-  const { width, height } = sizeConfig[size];
+  const { boxW, boxH, textClass, iconClass, gapClass } = sizeConfig[size];
   
   const logoElement = (
-    <Image
-      src="/logo.svg"
-      alt="Flyers Up"
-      width={width}
-      height={height}
-      className={className}
-      priority
-    />
+    <div
+      className={[
+        'inline-flex items-center justify-center',
+        gapClass,
+        'text-[#058954]',
+        'shrink-0',
+        className,
+      ].join(' ')}
+      style={{ width: boxW, height: boxH }}
+      aria-label="Flyers Up"
+    >
+      <div
+        className={[
+          'uppercase font-bold leading-[0.88] tracking-tight text-center',
+          'select-none',
+          textClass,
+        ].join(' ')}
+        style={{
+          fontFamily:
+            'var(--font-oswald), var(--font-montserrat), system-ui, -apple-system, Segoe UI, sans-serif',
+        }}
+      >
+        <div>FLYERS</div>
+        <div>UP</div>
+      </div>
+      <LogoIcon className={['flex-none', iconClass].join(' ')} />
+    </div>
   );
 
   if (linkToHome) {
@@ -51,39 +71,60 @@ export default function Logo({
 export function LogoIcon({ className = '' }: { className?: string }) {
   return (
     <svg 
-      viewBox="0 0 40 60" 
-      className={`w-8 h-12 ${className}`}
+      viewBox="0 0 44 64"
+      className={className}
       xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label="Flyers Up signpost"
     >
-      <defs>
-        <style>
-          {`.icon-stroke { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }`}
-          {`.icon-fill { fill: currentColor; }`}
-        </style>
-      </defs>
-      
       {/* Pole */}
-      <rect x="18" y="20" width="4" height="38" className="icon-fill" rx="1"/>
-      
-      {/* Grass */}
-      <path d="M12 56 L17 50 L20 56 M20 56 L23 48 L26 56 M26 56 L30 52 L34 56" className="icon-stroke" strokeWidth="1.5"/>
-      
+      <rect x="20" y="18" width="4" height="44" fill="currentColor" rx="1" />
+
       {/* Arrow up */}
-      <path d="M20 4 L20 16 M14 10 L20 4 L26 10" className="icon-stroke" strokeWidth="2.5"/>
-      
-      {/* Top flyer */}
-      <rect x="24" y="8" width="14" height="11" className="icon-stroke" fill="white" rx="1"/>
-      <line x1="26" y1="12" x2="36" y2="12" className="icon-stroke" strokeWidth="1"/>
-      <line x1="26" y1="15" x2="33" y2="15" className="icon-stroke" strokeWidth="1"/>
-      
-      {/* Middle flyer */}
-      <rect x="26" y="22" width="14" height="11" className="icon-stroke" fill="white" rx="1"/>
-      <line x1="28" y1="26" x2="38" y2="26" className="icon-stroke" strokeWidth="1"/>
-      <line x1="28" y1="29" x2="35" y2="29" className="icon-stroke" strokeWidth="1"/>
-      
-      {/* Bottom flyer */}
-      <rect x="24" y="36" width="14" height="10" className="icon-stroke" fill="white" rx="1"/>
-      <line x1="26" y1="40" x2="36" y2="40" className="icon-stroke" strokeWidth="1"/>
+      <path
+        d="M22 4 L22 16 M15 10 L22 4 L29 10"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* Flyers (staggered) */}
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {/* Top flyer */}
+        <rect x="27" y="10" width="15" height="12" rx="2" />
+        <circle cx="30" cy="12" r="1.2" fill="currentColor" stroke="none" />
+        <line x1="30" y1="15.5" x2="39" y2="15.5" strokeWidth="1.6" />
+        <line x1="30" y1="18.8" x2="36.5" y2="18.8" strokeWidth="1.6" />
+
+        {/* Middle flyer */}
+        <rect x="29" y="26" width="15" height="12" rx="2" />
+        <circle cx="32" cy="28" r="1.2" fill="currentColor" stroke="none" />
+        <line x1="32" y1="31.5" x2="41" y2="31.5" strokeWidth="1.6" />
+        <line x1="32" y1="34.8" x2="38.5" y2="34.8" strokeWidth="1.6" />
+
+        {/* Bottom flyer */}
+        <rect x="27" y="42" width="15" height="11" rx="2" />
+        <circle cx="30" cy="44" r="1.2" fill="currentColor" stroke="none" />
+        <line x1="30" y1="47.5" x2="39" y2="47.5" strokeWidth="1.6" />
+      </g>
+
+      {/* Grass */}
+      <path
+        d="M12 62 L17 55 L20 62 M20 62 L23 53 L26 62 M26 62 L30 56 L34 62"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

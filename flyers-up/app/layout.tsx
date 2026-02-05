@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Montserrat, Oswald } from "next/font/google";
 import "./globals.css";
 import { ErrorReporter } from "@/components/ErrorReporter";
+import { RootClassSync } from "@/components/RootClassSync";
+import { Suspense } from "react";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -41,18 +43,19 @@ export default function RootLayout({
     // Legacy key: flyersup:darkMode = '1' | '0'
     const pref = window.localStorage.getItem('flyersup:theme');
     const legacy = window.localStorage.getItem('flyersup:darkMode');
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
 
     let resolvedDark = false;
     if (pref === 'dark') resolvedDark = true;
     else if (pref === 'light') resolvedDark = false;
-    else if (pref === 'system') resolvedDark = Boolean(prefersDark);
+    // Option C: only enable dark mode when explicitly chosen by the user.
+    // Treat 'system' as light so OS preference doesn't force dark.
+    else if (pref === 'system') resolvedDark = false;
     else if (legacy === '1' || legacy === '0') resolvedDark = legacy === '1';
-    else resolvedDark = Boolean(prefersDark);
+    else resolvedDark = false;
 
     root.classList.toggle('dark', resolvedDark);
 
-    // Role accent: for auth routes derive from ?role=... before React hydrates.
+    // Role accent: set early to reduce accent flash.
     const path = window.location.pathname || '';
     if (path.startsWith('/signin') || path.startsWith('/signup')) {
       const sp = new URLSearchParams(window.location.search || '');
@@ -64,6 +67,12 @@ export default function RootLayout({
         root.classList.add('theme-customer');
         root.classList.remove('theme-pro');
       }
+    } else if (path.startsWith('/pro') || path.startsWith('/dashboard/pro')) {
+      root.classList.add('theme-pro');
+      root.classList.remove('theme-customer');
+    } else if (path.startsWith('/customer') || path.startsWith('/dashboard/customer')) {
+      root.classList.add('theme-customer');
+      root.classList.remove('theme-pro');
     }
   } catch {
     // ignore
@@ -76,6 +85,9 @@ export default function RootLayout({
         className={`${montserrat.variable} ${oswald.variable} antialiased`}
       >
         <ErrorReporter />
+        <Suspense fallback={null}>
+          <RootClassSync />
+        </Suspense>
         {children}
       </body>
     </html>

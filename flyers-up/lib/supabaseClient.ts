@@ -33,8 +33,14 @@ let supabaseInstance: SupabaseClient | null = null;
  */
 export function createSupabaseClient(): SupabaseClient {
   // Get environment variables (may be undefined during build)
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl =
+    // In the browser, route Supabase traffic through our own domain to bypass
+    // regional blocks on *.supabase.co.
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/api/supabase`
+      : process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const upstreamUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
   // Check for env vars at runtime
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -44,7 +50,21 @@ export function createSupabaseClient(): SupabaseClient {
     );
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey);
+  // When proxying, Supabase can't infer the project ref from our domain.
+  // Set `storageKey` explicitly so sessions/PKCE code verifiers remain stable.
+  // (This is critical for OTP/magic-link + OAuth flows.)
+  const projectRefMatch = upstreamUrl?.match(/^https:\/\/([a-z0-9-]+)\.supabase\.co/i);
+  const projectRef = projectRefMatch?.[1] ?? null;
+
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce',
+      ...(projectRef ? { storageKey: `sb-${projectRef}-auth-token` } : {}),
+    },
+  });
 }
 
 function getBrowserSupabaseClient(): SupabaseClient {

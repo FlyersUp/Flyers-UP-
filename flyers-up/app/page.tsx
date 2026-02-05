@@ -23,10 +23,10 @@ export default function HomePage() {
               Sign In
             </Link>
             <Link 
-              href="/signup" 
+              href="/signup?role=customer"
               className="px-4 py-2 text-sm font-medium bg-surface hover:bg-surface2 text-text rounded-lg transition-colors border border-border"
             >
-              Get Started
+              Request a Service (Free)
             </Link>
           </div>
         </div>
@@ -35,58 +35,103 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="py-20 px-4">
         <div className="max-w-6xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-surface2 text-text px-4 py-2 rounded-full text-sm font-medium mb-6 border border-border">
-            <span className="w-2 h-2 bg-[hsl(var(--accent-customer))] rounded-full animate-pulse"></span>
-            Now serving your local area
-          </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-text mb-6 leading-tight">
-            Find Trusted Local Pros<br />
-            <span className="text-[hsl(var(--accent-customer))]">For Any Home Service</span>
+            Hire local service pros without getting ripped off, ghosted, or disappointed.
           </h1>
           <p className="text-xl text-muted mb-8 max-w-2xl mx-auto">
-            Book background-checked professionals for cleaning, plumbing, lawn care, and more. 
-            Get instant quotes and real-time job tracking.
+            Verified profiles, clear expectations, and platform accountability—before they step into your home.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
               href="/signup?role=customer" 
               className="px-8 py-4 bg-[hsl(var(--accent-customer))] hover:opacity-95 text-text text-lg font-semibold rounded-xl shadow-card transition-all focus-ring"
             >
-              Book a Service
+              Request a Service (Free)
             </Link>
-            <Link 
-              href="/signup?role=pro" 
-              className="px-8 py-4 bg-transparent text-text text-lg font-semibold rounded-xl border-2 border-[hsl(var(--accent-pro))] transition-colors hover:bg-[hsl(var(--accent-pro)/0.10)] focus-ring"
+            <a
+              href="#pros"
+              className="px-2 py-4 text-text text-lg font-semibold underline underline-offset-4 decoration-border hover:decoration-text transition-colors"
             >
-              Join as a Pro
-            </Link>
+              I’m a Service Pro
+            </a>
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
+      {/* Risk Kill Zone */}
       <section className="py-12 bg-surface border-y border-border">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-text">
-            <div>
-              <div className="text-3xl sm:text-4xl font-bold mb-1 text-[hsl(var(--accent-customer))]">500+</div>
-              <div className="text-sm text-muted/70">Verified Pros</div>
-              <div className="mx-auto mt-2 h-[2px] w-10 bg-[hsl(var(--accent-customer)/0.35)] rounded-full" />
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-3 mb-3">
+              <span className="h-6 w-[3px] rounded-full bg-[hsl(var(--accent-customer)/0.65)]" aria-hidden />
+              <h2 className="text-3xl sm:text-4xl font-bold text-text">
+                Why Flyers Up feels safer than random referrals
+              </h2>
             </div>
-            <div>
-              <div className="text-3xl sm:text-4xl font-bold mb-1">4.9</div>
-              <div className="text-sm text-muted/70">Average Rating</div>
-              <div className="mx-auto mt-2 h-[2px] w-10 bg-[hsl(var(--border))] rounded-full" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              "See real profiles, work history, and reviews—not anonymous listings.",
+              "Know the job details and price expectations before you agree.",
+              "Accountability is built in—so disputes don’t become personal.",
+            ].map((text) => (
+              <div
+                key={text}
+                className="bg-surface rounded-xl p-6 border border-border shadow-card"
+              >
+                <p className="text-text font-semibold">{text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Before vs After */}
+      <section className="py-20 px-4 bg-surface2">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-3 mb-3">
+              <span className="h-6 w-[3px] rounded-full bg-[hsl(var(--accent-customer)/0.65)]" aria-hidden />
+              <h2 className="text-3xl sm:text-4xl font-bold text-text">The difference is accountability</h2>
             </div>
-            <div>
-              <div className="text-3xl sm:text-4xl font-bold mb-1">10K+</div>
-              <div className="text-sm text-muted/70">Jobs Completed</div>
-              <div className="mx-auto mt-2 h-[2px] w-10 bg-[hsl(var(--border))] rounded-full" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-surface rounded-2xl p-6 border border-border shadow-card">
+              <h3 className="text-xl font-semibold text-text mb-4">Before Flyers Up</h3>
+              <ul className="space-y-3 text-muted">
+                <li className="flex gap-3">
+                  <span className="text-muted/70">•</span>
+                  <span>Texting strangers and hoping they show up</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="text-muted/70">•</span>
+                  <span>No-shows and price surprises</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="text-muted/70">•</span>
+                  <span>Awkward disputes with no paper trail</span>
+                </li>
+              </ul>
             </div>
-            <div>
-              <div className="text-3xl sm:text-4xl font-bold mb-1">24/7</div>
-              <div className="text-sm text-muted/70">Support</div>
-              <div className="mx-auto mt-2 h-[2px] w-10 bg-[hsl(var(--border))] rounded-full" />
+
+            <div className="bg-surface rounded-2xl p-6 border border-border shadow-card">
+              <h3 className="text-xl font-semibold text-text mb-4">After Flyers Up</h3>
+              <ul className="space-y-3 text-muted">
+                <li className="flex gap-3">
+                  <span className="text-[hsl(var(--accent-customer))]">•</span>
+                  <span>Clear requests and documented expectations</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="text-[hsl(var(--accent-customer))]">•</span>
+                  <span>Messaging + scheduling in one place</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="text-[hsl(var(--accent-customer))]">•</span>
+                  <span>Platform accountability and a clean record</span>
+                </li>
+              </ul>
             </div>
           </div>
         </div>
@@ -98,117 +143,80 @@ export default function HomePage() {
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-3 mb-3">
               <span className="h-6 w-[3px] rounded-full bg-[hsl(var(--accent-customer)/0.65)]" aria-hidden />
-              <h2 className="text-3xl sm:text-4xl font-bold text-text">How Flyers Up Works</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold text-text">How it works</h2>
             </div>
             <p className="text-muted text-lg max-w-2xl mx-auto">
-              Getting help with your home services has never been easier
+              A fast flow built for clarity before anyone agrees to a job.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center p-6">
-              <div className="w-16 h-16 bg-[hsl(var(--accent-customer)/0.10)] rounded-2xl flex items-center justify-center mx-auto mb-4 border border-border">
-                <span className="text-3xl">🔍</span>
-              </div>
-              <h3 className="text-xl font-semibold text-text mb-2">1. Browse Pros</h3>
-              <p className="text-muted">
-                Search by service type, read reviews, and compare prices from verified professionals in your area.
-              </p>
-            </div>
-            <div className="text-center p-6">
-              <div className="w-16 h-16 bg-[hsl(var(--accent-customer)/0.10)] rounded-2xl flex items-center justify-center mx-auto mb-4 border border-border">
-                <span className="text-3xl">📅</span>
-              </div>
-              <h3 className="text-xl font-semibold text-text mb-2">2. Book Online</h3>
-              <p className="text-muted">
-                Select your preferred date and time, add service details, and get instant confirmation.
-              </p>
-            </div>
-            <div className="text-center p-6">
-              <div className="w-16 h-16 bg-[hsl(var(--accent-customer)/0.10)] rounded-2xl flex items-center justify-center mx-auto mb-4 border border-border">
-                <span className="text-3xl">✨</span>
-              </div>
-              <h3 className="text-xl font-semibold text-text mb-2">3. Get It Done</h3>
-              <p className="text-muted">
-                Coordinate details in Messages and complete the job. Payment can be handled later (request-only launch).
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Services Section */}
-      <section className="py-20 px-4 bg-surface2">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-3 mb-3">
-              <span className="h-6 w-[3px] rounded-full bg-[hsl(var(--accent-customer)/0.65)]" aria-hidden />
-              <h2 className="text-3xl sm:text-4xl font-bold text-text">Services We Offer</h2>
-            </div>
-            <p className="text-muted text-lg">
-              From routine maintenance to emergency repairs
-            </p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { icon: '🧹', name: 'Cleaning', desc: 'Home & Office' },
-              { icon: '🔧', name: 'Plumbing', desc: 'Repairs & Install' },
-              { icon: '🌿', name: 'Lawn Care', desc: 'Mowing & Design' },
-              { icon: '🔨', name: 'Handyman', desc: 'General Repairs' },
-              { icon: '⚡', name: 'Electrical', desc: 'Home & Business' },
-              { icon: '💈', name: 'Barber', desc: 'Mobile Service' },
-              { icon: '📦', name: 'Moving', desc: 'Local & Long' },
-              { icon: '🎨', name: 'Painting', desc: 'Interior & Ext' },
-            ].map((service) => (
-              <div 
-                key={service.name}
-                className="bg-surface rounded-xl p-6 text-center hover:shadow-lg transition-shadow border border-border"
-              >
-                <div className="text-4xl mb-3">{service.icon}</div>
-                <h3 className="font-semibold text-text">{service.name}</h3>
-                <p className="text-sm text-muted/70">{service.desc}</p>
+              { icon: '📝', title: '1. Request', desc: 'Describe the job and what “done” means.' },
+              { icon: '🤝', title: '2. Match', desc: 'Review pros based on fit and history.' },
+              { icon: '💬', title: '3. Message', desc: 'Confirm details in writing, in one place.' },
+              { icon: '📅', title: '4. Schedule', desc: 'Lock in timing and expectations.' },
+            ].map((step) => (
+              <div key={step.title} className="text-center p-6">
+                <div className="w-16 h-16 bg-[hsl(var(--accent-customer)/0.10)] rounded-2xl flex items-center justify-center mx-auto mb-4 border border-border">
+                  <span className="text-3xl">{step.icon}</span>
+                </div>
+                <h3 className="text-xl font-semibold text-text mb-2">{step.title}</h3>
+                <p className="text-muted">{step.desc}</p>
               </div>
             ))}
           </div>
+
+          <div className="mt-10 text-center">
+            <Link
+              href="/signup?role=customer"
+              className="inline-flex items-center justify-center px-8 py-4 bg-[hsl(var(--accent-customer))] hover:opacity-95 text-text text-lg font-semibold rounded-xl shadow-card transition-all focus-ring"
+            >
+              Request a Service (Free)
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* Trust Section */}
+      {/* Proof (no fabricated testimonials) */}
       <section className="py-20 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="rounded-3xl p-8 sm:p-12 text-center bg-[hsl(var(--accent-customer)/0.06)] border border-border shadow-card">
             <div className="inline-flex items-center gap-3 mb-4">
               <span className="h-6 w-[3px] rounded-full bg-[hsl(var(--accent-customer)/0.75)]" aria-hidden />
-              <h2 className="text-3xl sm:text-4xl font-bold text-text">Trust &amp; Verification</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold text-text">
+                Built for real-world service problems
+              </h2>
             </div>
             <p className="text-muted text-lg mb-8 max-w-2xl mx-auto">
-              Flyers Up shows profile details and, when available, verification indicators to help you choose who to book. These indicators aren’t a guarantee of performance or licensing.
+              No hype. Just the stuff that reduces no-shows, miscommunication, and “he said / she said”.
             </p>
             <div className="flex flex-wrap justify-center gap-6 text-sm text-text mb-8">
               <div className="flex items-center gap-2">
                 <span className="text-[hsl(var(--accent-customer))]">✓</span>
-                Verification visible
+                Designed to reduce no-shows and miscommunication
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[hsl(var(--accent-customer))]">✓</span>
-                Clear next steps
+                Optimized for clarity before anyone agrees to a job
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[hsl(var(--accent-customer))]">✓</span>
-                Support when needed
+                Focused on accountability, not hype
               </div>
             </div>
             <Link
               href="/trust-verification"
               className="inline-flex items-center justify-center rounded-xl px-6 py-3 bg-surface hover:bg-surface2 text-text font-semibold border border-border transition-colors"
             >
-              Read the explainer →
+              Read what “verification” means →
             </Link>
           </div>
         </div>
       </section>
 
       {/* For Pros Section */}
-      <section className="py-20 px-4 bg-surface2">
+      <section id="pros" className="py-20 px-4 bg-surface2">
         <div className="max-w-6xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
@@ -217,51 +225,52 @@ export default function HomePage() {
               </div>
               <div className="inline-flex items-center gap-3 mb-3">
                 <span className="h-6 w-[3px] rounded-full bg-[hsl(var(--accent-pro)/0.75)]" aria-hidden />
-                <h2 className="text-3xl sm:text-4xl font-bold text-text">Grow Your Business with Flyers Up</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold text-text">Are you a service professional?</h2>
               </div>
               <p className="text-muted text-lg mb-6">
-                Join thousands of pros who use Flyers Up to find new customers, 
-                manage bookings, and get paid faster.
+                Bring your skills—not a marketing budget. Get clearer requests and repeat customers.
               </p>
               <ul className="space-y-3 mb-8">
                 <li className="flex items-center gap-3 text-text">
                   <span className="w-6 h-6 bg-[hsl(var(--accent-pro)/0.12)] rounded-full flex items-center justify-center text-[hsl(var(--accent-pro))] text-sm border border-border">✓</span>
-                  Set your own rates and schedule
+                  Clearer requests and fewer time-wasters
                 </li>
                 <li className="flex items-center gap-3 text-text">
                   <span className="w-6 h-6 bg-[hsl(var(--accent-pro)/0.12)] rounded-full flex items-center justify-center text-[hsl(var(--accent-pro))] text-sm border border-border">✓</span>
-                  Get paid same-day or next-day
+                  Everything documented in one thread
                 </li>
                 <li className="flex items-center gap-3 text-text">
                   <span className="w-6 h-6 bg-[hsl(var(--accent-pro)/0.12)] rounded-full flex items-center justify-center text-[hsl(var(--accent-pro))] text-sm border border-border">✓</span>
-                  Built-in customer reviews & ratings
+                  A clean record of work, reviews, and disputes
                 </li>
                 <li className="flex items-center gap-3 text-text">
                   <span className="w-6 h-6 bg-[hsl(var(--accent-pro)/0.12)] rounded-full flex items-center justify-center text-[hsl(var(--accent-pro))] text-sm border border-border">✓</span>
-                  No monthly fees - only pay when you earn
+                  No hype—just a better workflow
                 </li>
               </ul>
             <Link 
               href="/signup?role=pro" 
               className="inline-flex px-6 py-3 bg-transparent hover:bg-[hsl(var(--accent-pro)/0.10)] text-text font-semibold rounded-xl transition-colors border-2 border-[hsl(var(--accent-pro))] focus-ring"
             >
-              Start Earning Today
+              Join as a Pro
             </Link>
             </div>
             <div className="rounded-3xl p-8 bg-surface border border-border shadow-card">
               <div className="text-center">
-                <div className="text-6xl font-bold mb-2 text-text">$1,200</div>
-                <div className="text-muted mb-3">Average weekly earnings</div>
-                <div className="mx-auto mb-6 h-[2px] w-14 bg-[hsl(var(--accent-pro)/0.45)] rounded-full" />
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="bg-surface2 rounded-xl p-4 border border-border">
-                    <div className="text-2xl font-bold text-text">95%</div>
-                    <div className="text-muted/70">Pro satisfaction</div>
-                  </div>
-                  <div className="bg-surface2 rounded-xl p-4 border border-border">
-                    <div className="text-2xl font-bold text-text">48h</div>
-                    <div className="text-muted/70">Avg. first booking</div>
-                  </div>
+                <div className="text-2xl font-bold mb-2 text-text">More clarity. Less chaos.</div>
+                <div className="text-muted mb-6">
+                  Flyers Up is built to reduce miscommunication and help great pros stand out with a clean record.
+                </div>
+                <div className="grid grid-cols-1 gap-3 text-sm text-left">
+                  {[
+                    'Requests are structured—so you know what you’re walking into.',
+                    'Messaging, expectations, and scheduling stay in one place.',
+                    'Disputes are handled through the platform—not personal drama.',
+                  ].map((t) => (
+                    <div key={t} className="bg-surface2 rounded-xl p-4 border border-border">
+                      {t}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -273,23 +282,17 @@ export default function HomePage() {
       <section className="py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-text mb-4">
-            Ready to Get Started?
+            Ready to request a service without the stress?
           </h2>
           <p className="text-muted text-lg mb-8">
-            Join thousands of happy customers and pros on Flyers Up
+            Clear expectations up front. A cleaner record after.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
               href="/signup?role=customer" 
               className="px-8 py-4 bg-accent hover:opacity-95 text-accentContrast text-lg font-semibold rounded-xl shadow-md transition-all"
             >
-              Book a Service
-            </Link>
-            <Link 
-              href="/signup?role=pro" 
-              className="px-8 py-4 bg-surface hover:bg-surface2 text-text text-lg font-semibold rounded-xl border-2 border-border transition-colors"
-            >
-              Become a Pro
+              Request a Service (Free)
             </Link>
           </div>
         </div>
@@ -302,7 +305,7 @@ export default function HomePage() {
             <div>
               <Logo size="sm" linkToHome={false} className="mb-4" />
               <p className="text-sm">
-                Book trusted local pros for any home service.
+                Hire local pros with clearer expectations.
               </p>
             </div>
             <div>

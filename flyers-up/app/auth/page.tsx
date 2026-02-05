@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Logo from '@/components/Logo';
@@ -23,6 +23,7 @@ function AuthInner() {
   const [otp, setOtp] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'verifying' | 'error'>('idle');
   const [error, setError] = useState<string | null>(errorParam ? decodeURIComponent(errorParam) : null);
+  const [supabaseReachability, setSupabaseReachability] = useState<'checking' | 'ok' | 'blocked'>('checking');
 
   const redirectTo = useMemo(() => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -32,6 +33,45 @@ function AuthInner() {
     }
     return base;
   }, [nextParam]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (!anonKey) {
+          if (!cancelled) setSupabaseReachability('blocked');
+          return;
+        }
+        const res = await fetch('/api/supabase/auth/v1/health', {
+          method: 'GET',
+          headers: {
+            apikey: anonKey,
+            authorization: `Bearer ${anonKey}`,
+          },
+          cache: 'no-store',
+        });
+        if (!cancelled) setSupabaseReachability(res.ok ? 'ok' : 'blocked');
+      } catch {
+        if (!cancelled) setSupabaseReachability('blocked');
+      }
+    };
+    void check();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function formatCatch(err: unknown): string {
+    if (err instanceof Error) {
+      const msg = err.message || 'Unknown error';
+      if (msg.toLowerCase().includes('failed to fetch')) {
+        return 'Network error reaching Supabase. Try a VPN or a different network.';
+      }
+      return msg;
+    }
+    return 'Something went wrong. Please try again.';
+  }
 
   async function handleSendCode(e: React.FormEvent) {
     e.preventDefault();
@@ -63,7 +103,7 @@ function AuthInner() {
       setStep('email');
     } catch (err) {
       setStatus('error');
-      setError('Something went wrong. Please try again.');
+      setError(formatCatch(err));
       console.error(err);
     }
   }
@@ -114,6 +154,18 @@ function AuthInner() {
         return;
       }
 
+      // Confirm session persisted before leaving this page (prevents silent bounce/loops).
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        setStatus('error');
+        setError(
+          'We verified your code, but couldn’t establish a session in this browser. Try disabling private browsing, allowing site storage, or try another browser/device.'
+        );
+        return;
+      }
+
       const profile = await getOrCreateProfile(user.id, user.email ?? null);
       if (!profile) {
         setStatus('error');
@@ -139,7 +191,7 @@ function AuthInner() {
       router.replace(routeAfterAuth(profile, nextParam));
     } catch (err) {
       setStatus('error');
-      setError('Something went wrong. Please try again.');
+      setError(formatCatch(err));
       console.error(err);
     }
   }
@@ -158,7 +210,7 @@ function AuthInner() {
       }
     } catch (err) {
       setStatus('error');
-      setError('Something went wrong. Please try again.');
+      setError(formatCatch(err));
       console.error(err);
     }
   }
@@ -189,6 +241,11 @@ function AuthInner() {
                 {error && (
                   <div className="mt-4 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-text">
                     {error}
+                  </div>
+                )}
+                {supabaseReachability !== 'checking' && supabaseReachability !== 'ok' && (
+                  <div className="mt-4 rounded-xl border border-border bg-surface2 px-4 py-3 text-xs text-muted">
+                    It looks like your network can’t reach Supabase right now. Try a VPN or a different network.
                   </div>
                 )}
 

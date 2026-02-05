@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Logo from '@/components/Logo';
-import { getCurrentUser, signUp } from '@/lib/api';
+import { signUp } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 
 type UserRole = 'customer' | 'pro';
@@ -21,21 +21,7 @@ export function SignUpClient(props: { initialRole: UserRole }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-
-  useLayoutEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle('theme-customer', role === 'customer');
-    root.classList.toggle('theme-pro', role === 'pro');
-  }, [role]);
-
-  useEffect(() => {
-    const redirectIfAuthed = async () => {
-      const user = await getCurrentUser();
-      if (!user) return;
-      router.replace(user.role === 'pro' ? '/pro' : '/customer');
-    };
-    void redirectIfAuthed();
-  }, [router]);
+  const [pendingConfirm, setPendingConfirm] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,15 +62,18 @@ export function SignUpClient(props: { initialRole: UserRole }) {
         }
 
         setSuccess(true);
-        setTimeout(() => {
-          void supabase.auth.getSession().then(({ data: { session } }) => {
-            if (!session) {
-              router.replace(`/signin?role=${role}&mode=signup`);
-              return;
-            }
-            router.replace(result.user!.role === 'pro' ? '/pro' : '/customer');
-          });
-        }, 800);
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        // If email confirmation is required, Supabase returns session=null.
+        // Don't bounce the user around—show a clear next step instead.
+        if (!session) {
+          setPendingConfirm(true);
+          return;
+        }
+
+        router.replace(result.user.role === 'pro' ? '/pro' : '/customer');
       } else {
         setError(result.error || 'Failed to create account. Please try again.');
       }
@@ -142,7 +131,19 @@ export function SignUpClient(props: { initialRole: UserRole }) {
 
           {success && (
             <div className="mb-4 bg-success/15 text-text px-4 py-3 rounded-lg text-sm border border-border">
-              Account created successfully! Redirecting...
+              Account created successfully!
+            </div>
+          )}
+
+          {pendingConfirm && (
+            <div className="mb-4 bg-surface2 text-text px-4 py-3 rounded-lg text-sm border border-border">
+              Check your email to confirm your account, then come back and sign in. If confirmation links are blocked on
+              your network, use the email code flow instead.
+              <div className="mt-2">
+                <Link href="/auth" className="underline underline-offset-4 hover:opacity-80 font-medium">
+                  Continue with Email Code →
+                </Link>
+              </div>
             </div>
           )}
 

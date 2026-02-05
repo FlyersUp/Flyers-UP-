@@ -40,7 +40,8 @@ export async function createServerSupabaseClient() {
   const cookieStore = await cookies();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    // Prefer server-only upstream URL to avoid accidental proxy loops.
+    (process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL)!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
@@ -85,7 +86,8 @@ export function createAdminSupabaseClient() {
   }
 
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    // Prefer server-only upstream URL to avoid accidental proxy loops.
+    (process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL)!,
     serviceRoleKey,
     {
       auth: {

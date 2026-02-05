@@ -27,9 +27,17 @@ export default function ProDashboard() {
 
   useEffect(() => {
     const guard = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userErr } = await supabase.auth.getUser();
+      if (userErr) {
+        router.replace(`/auth?next=%2Fpro&error=${encodeURIComponent('Could not read your session. Please try again.')}`);
+        return;
+      }
       if (!user) {
-        router.replace('/auth?next=%2Fpro');
+        router.replace(
+          `/auth?next=%2Fpro&error=${encodeURIComponent(
+            'You are not signed in (no session found). If you just signed in, try turning off private browsing and allow site storage.'
+          )}`
+        );
         return;
       }
       const profile = await getOrCreateProfile(user.id, user.email ?? null);

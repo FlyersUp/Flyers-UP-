@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 
 type ThemeMode = 'customer' | 'pro';
 type ThemePreference = 'light' | 'dark' | 'system';
@@ -42,7 +42,8 @@ export function ThemeProvider({
 
   // Initialize from storage before first paint (avoids flicker + satisfies strict lint rules).
   const [theme, setTheme] = useState<ThemePreference>(() => {
-    if (typeof window === 'undefined') return 'system';
+    // Default to light unless the user explicitly picked dark.
+    if (typeof window === 'undefined') return 'light';
     try {
       const rawTheme = window.localStorage.getItem(THEME_KEY);
       if (rawTheme === 'light' || rawTheme === 'dark' || rawTheme === 'system') return rawTheme;
@@ -54,46 +55,25 @@ export function ThemeProvider({
     } catch {
       // ignore
     }
-    return 'system';
+    return 'light';
   });
 
-  const [systemDark, setSystemDark] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    } catch {
-      return false;
-    }
-  });
+  // Option C: only enable dark mode when explicitly chosen by the user.
+  // `system` is treated as light (prevents OS preference from forcing dark).
+  const resolvedDark = theme === 'dark';
 
-  // Track OS preference for `system`.
-  useEffect(() => {
-    try {
-      const mq = window.matchMedia('(prefers-color-scheme: dark)');
-      const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches);
-      mq.addEventListener?.('change', onChange);
-      // Safari fallback
-      (mq as any).addListener?.(onChange);
-      return () => {
-        mq.removeEventListener?.('change', onChange);
-        (mq as any).removeListener?.(onChange);
-      };
-    } catch {
-      // ignore
-      return;
-    }
-  }, []);
-
-  const resolvedDark = theme === 'dark' ? true : theme === 'light' ? false : systemDark;
-
-  // Apply classes + persist.
-  useEffect(() => {
+  // Apply classes as early as possible (avoid one-frame flash).
+  useLayoutEffect(() => {
     const root = document.documentElement;
     root.classList.toggle('dark', resolvedDark);
     // Ensure the role theme class is always applied on the root element
     // so `--accent` resolves correctly everywhere.
     root.classList.toggle('theme-customer', mode === 'customer');
     root.classList.toggle('theme-pro', mode === 'pro');
+  }, [resolvedDark, mode]);
+
+  // Persist preference (can happen after paint).
+  useEffect(() => {
     try {
       window.localStorage.setItem(THEME_KEY, theme);
       // Legacy key: only write when explicit (avoid freezing a stale value when using `system`).
@@ -103,7 +83,7 @@ export function ThemeProvider({
     } catch {
       // ignore
     }
-  }, [resolvedDark, mode, theme]);
+  }, [theme]);
 
   const ctx = useMemo<ThemeContextType>(() => {
     return {
