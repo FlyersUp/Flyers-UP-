@@ -138,6 +138,12 @@ export default function ProProfilePage() {
         return;
       }
 
+      const displayName = formData.displayName.trim();
+      if (!displayName) {
+        setError('Display name is required.');
+        return;
+      }
+
       // Validate bio length (500 words max)
       const wordCount = formData.bio.trim().split(/\s+/).filter(Boolean).length;
       if (wordCount > 500) {
@@ -152,12 +158,19 @@ export default function ProProfilePage() {
         return;
       }
 
+      const startingPriceStr = formData.startingPrice.trim();
+      const startingPriceNum = startingPriceStr === '' ? null : Number(startingPriceStr);
+      if (startingPriceNum !== null && (Number.isNaN(startingPriceNum) || startingPriceNum < 0)) {
+        setError('Starting price must be a positive number.');
+        return;
+      }
+
       const result = await updateMyServiceProAction({
-        display_name: formData.displayName,
+        display_name: displayName,
         bio: formData.bio,
-        category_id: formData.categoryId,
-        starting_price: parseFloat(formData.startingPrice) || 0,
-        location: formData.location,
+        category_id: formData.categoryId || undefined,
+        starting_price: startingPriceNum ?? undefined,
+        location: formData.location.trim() || undefined,
         service_radius: formData.serviceRadius ? parseInt(formData.serviceRadius) : undefined,
         business_hours: stringifyBusinessHoursModel(businessHoursModel),
       });
@@ -165,6 +178,19 @@ export default function ProProfilePage() {
       if (!result.success) {
         setError(result.error || 'Failed to update profile.');
         return;
+      }
+
+      // Persist "extended" profile fields (UI-only for now).
+      // These fields are currently sourced from localStorage in `loadProfile()`.
+      try {
+        const extendedDataStr = localStorage.getItem('proProfile_extended');
+        const extendedData = extendedDataStr ? JSON.parse(extendedDataStr) : {};
+        extendedData.yearsExperience = Number(formData.yearsExperience || 0);
+        extendedData.verifiedCredentials = formData.verifiedCredentials;
+        extendedData.servicesOffered = formData.servicesOffered;
+        localStorage.setItem('proProfile_extended', JSON.stringify(extendedData));
+      } catch {
+        // Ignore localStorage failures (e.g. privacy mode).
       }
 
       // Save dark mode preference
