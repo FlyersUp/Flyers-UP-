@@ -1099,7 +1099,12 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
 // STATUS UPDATE TYPES
 // ============================================
 
-export type JobStatusAction = 'accepted' | 'declined' | 'completed' | 'cancelled';
+export type JobStatusAction =
+  | 'accepted'
+  | 'declined'
+  | 'awaiting_payment'
+  | 'completed'
+  | 'cancelled';
 
 export interface UpdateBookingStatusParams {
   bookingId: string;
@@ -1116,8 +1121,11 @@ export interface UpdateBookingStatusResult {
 // Valid status transitions
 const VALID_TRANSITIONS: Record<string, JobStatusAction[]> = {
   requested: ['accepted', 'declined'],
-  accepted: ['completed', 'cancelled'],
+  // Model C: pro marks work complete => awaiting_payment, then payment => completed.
+  // Keep 'completed' allowed for backwards compatibility (older flows).
+  accepted: ['awaiting_payment', 'completed', 'cancelled'],
   // Terminal states - no further transitions allowed
+  awaiting_payment: [],
   completed: [],
   cancelled: [],
   declined: [],

@@ -21,7 +21,13 @@ export type UserRole = 'customer' | 'pro' | 'admin';
 
 // Booking status matching the database CHECK constraint
 // 'declined' is treated as a type of cancellation (pro refused the request)
-export type BookingStatus = 'requested' | 'accepted' | 'completed' | 'cancelled' | 'declined';
+export type BookingStatus =
+  | 'requested'
+  | 'accepted'
+  | 'awaiting_payment'
+  | 'completed'
+  | 'cancelled'
+  | 'declined';
 
 export interface Database {
   public: {

@@ -13,6 +13,14 @@ import PageLayout from '@/components/PageLayout';
 import { getCurrentUser, getMyServicePro, getServiceCategories, type ServiceCategory } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { updateMyServiceProAction } from '@/app/actions/servicePro';
+import { WeeklySchedulePicker } from '@/components/ui/WeeklySchedulePicker';
+import {
+  defaultBusinessHoursModel,
+  parseBusinessHoursModel,
+  stringifyBusinessHoursModel,
+  summarizeBusinessHours,
+  validateWeeklyHours,
+} from '@/lib/utils/businessHours';
 
 interface ProProfileData {
   displayName: string;
@@ -22,11 +30,9 @@ interface ProProfileData {
   startingPrice: string;
   location: string;
   serviceRadius: string;
-  businessHours: string;
   yearsExperience: string;
   verifiedCredentials: string[];
   servicesOffered: string[];
-  availabilityTime: string;
   darkMode: boolean;
   jobsCompleted: number;
   averageRating: number;
@@ -50,15 +56,14 @@ export default function ProProfilePage() {
     startingPrice: '',
     location: '',
     serviceRadius: '',
-    businessHours: '',
     yearsExperience: '',
     verifiedCredentials: [],
     servicesOffered: [],
-    availabilityTime: '',
     darkMode: false,
     jobsCompleted: 0,
     averageRating: 0,
   });
+  const [businessHoursModel, setBusinessHoursModel] = useState(() => defaultBusinessHoursModel());
 
   useEffect(() => {
     loadProfile();
@@ -96,6 +101,7 @@ export default function ProProfilePage() {
       
       if (proData) {
         const category = categories.find(c => c.id === proData.categoryId);
+        setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
         setFormData({
           displayName: proData.displayName || '',
           bio: proData.bio || '',
@@ -104,11 +110,9 @@ export default function ProProfilePage() {
           startingPrice: proData.startingPrice?.toString() || '0',
           location: proFullData?.location || extendedData.location || '',
           serviceRadius: proData.serviceRadius?.toString() || '',
-          businessHours: proData.businessHours || '',
           yearsExperience: extendedData.yearsExperience?.toString() || '0',
           verifiedCredentials: extendedData.verifiedCredentials || [],
           servicesOffered: extendedData.servicesOffered || [category?.slug || ''],
-          availabilityTime: extendedData.availabilityTime || '',
           darkMode: localStorage.getItem('darkMode') === 'true',
           jobsCompleted: proFullData?.review_count || 0,
           averageRating: proFullData?.rating || 0,
@@ -142,6 +146,12 @@ export default function ProProfilePage() {
       }
 
       // Update service pro (only fields that exist in DB)
+      const scheduleErr = validateWeeklyHours(businessHoursModel.weekly);
+      if (scheduleErr) {
+        setError(scheduleErr);
+        return;
+      }
+
       const result = await updateMyServiceProAction({
         display_name: formData.displayName,
         bio: formData.bio,
@@ -149,7 +159,7 @@ export default function ProProfilePage() {
         starting_price: parseFloat(formData.startingPrice) || 0,
         location: formData.location,
         service_radius: formData.serviceRadius ? parseInt(formData.serviceRadius) : undefined,
-        business_hours: formData.businessHours,
+        business_hours: stringifyBusinessHoursModel(businessHoursModel),
       });
 
       if (!result.success) {
@@ -476,36 +486,18 @@ export default function ProProfilePage() {
             </div>
           </div>
 
-          {/* Availability Time */}
+          {/* Availability */}
           <div className="bg-surface rounded-xl border border-border p-6">
             <h2 className="text-lg font-semibold text-text mb-4">Availability</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-text mb-1">Business Hours</label>
                 {isEditing ? (
-                  <input
-                    type="text"
-                    value={formData.businessHours}
-                    onChange={(e) => setFormData({ ...formData, businessHours: e.target.value })}
-                    className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent"
-                    placeholder="e.g., Mon-Fri: 9am-5pm, Sat: 10am-2pm"
+                  <WeeklySchedulePicker
+                    value={businessHoursModel.weekly}
+                    onChange={(next) => setBusinessHoursModel((prev) => ({ ...prev, weekly: next }))}
                   />
                 ) : (
-                  <p className="text-text">{formData.businessHours || 'Not set'}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-text mb-1">Availability Time</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={formData.availabilityTime}
-                    onChange={(e) => setFormData({ ...formData, availabilityTime: e.target.value })}
-                    className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent"
-                    placeholder="e.g., Available 24/7, Weekends only, etc."
-                  />
-                ) : (
-                  <p className="text-text">{formData.availabilityTime || 'Not set'}</p>
+                  <p className="text-text">{summarizeBusinessHours(businessHoursModel)}</p>
                 )}
               </div>
             </div>

@@ -9,7 +9,7 @@ import { use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { StatusBadge } from '@/components/ui/Badge';
 import TrustShieldBanner from '@/components/ui/TrustShieldBanner';
-import { createScopeReview, getBookingById, getCurrentUser, getLatestScopeReview, type BookingDetails, type ScopeReview } from '@/lib/api';
+import { createScopeReview, getBookingById, getCurrentUser, getLatestScopeReview, type BookingDetails, type ScopeReview, type UserWithProfile } from '@/lib/api';
 
 interface PageProps {
   params: Promise<{ jobId: string }>;
@@ -23,6 +23,7 @@ export default function JobDetailsPage({ params }: PageProps) {
   // Scope review UI state
   const [userLoaded, setUserLoaded] = useState(false);
   const [canUseScopeReview, setCanUseScopeReview] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserWithProfile | null>(null);
   const [latestScopeReview, setLatestScopeReview] = useState<ScopeReview | null>(null);
   const [showScopeModal, setShowScopeModal] = useState(false);
   const [scopeReason, setScopeReason] = useState('');
@@ -57,6 +58,7 @@ export default function JobDetailsPage({ params }: PageProps) {
       const user = await getCurrentUser();
       if (!mounted) return;
       setUserLoaded(true);
+      setCurrentUser(user);
       setCanUseScopeReview(Boolean(user));
 
       const latest = await getLatestScopeReview(booking.id);
@@ -167,6 +169,25 @@ export default function JobDetailsPage({ params }: PageProps) {
             )}
           </div>
         </section>
+
+        {currentUser?.role === 'customer' && booking.status === 'awaiting_payment' ? (
+          <section className="bg-surface rounded-[18px] border border-hairline shadow-card p-6 mb-6 border-l-[3px] border-l-accent">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="font-semibold text-text">Payment due</h3>
+                <p className="text-sm text-muted/70 mt-1">
+                  Your pro marked the job complete. Please pay to close out the request.
+                </p>
+              </div>
+              <Link
+                href={`/customer/booking/pay?bookingId=${encodeURIComponent(booking.id)}`}
+                className="shrink-0 px-4 py-2 rounded-xl bg-accent text-accentContrast font-medium hover:opacity-95"
+              >
+                Pay now →
+              </Link>
+            </div>
+          </section>
+        ) : null}
 
         {/* Scope review (generic, platform-wide) */}
         <section className="bg-surface rounded-[18px] border border-hairline shadow-card p-6 mb-6">

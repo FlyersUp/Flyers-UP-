@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { use, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getBookingById, getCurrentUser, type BookingDetails } from '@/lib/api';
+import { getBookingById, getCurrentUser, updateBookingStatus, type BookingDetails } from '@/lib/api';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 
 /**
@@ -130,7 +130,30 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
           <Button className="w-full" onClick={() => router.push(`/pro/jobs/${jobId}/timeline`)} disabled={!booking}>
             START JOB →
           </Button>
-          <Button variant="secondary" className="w-full" disabled>
+          <Button
+            variant="secondary"
+            className="w-full"
+            disabled={!booking || booking.status !== 'accepted'}
+            onClick={async () => {
+              if (!booking) return;
+              const user = await getCurrentUser();
+              if (!user || user.role !== 'pro') {
+                router.replace(`/auth?next=${encodeURIComponent(`/pro/jobs/${jobId}`)}`);
+                return;
+              }
+              const res = await updateBookingStatus({
+                bookingId: booking.id,
+                newStatus: 'awaiting_payment',
+                proUserId: user.id,
+              });
+              if (typeof res !== 'boolean' && !res.success) {
+                // best-effort: keep it simple for now
+                return;
+              }
+              const updated = await getBookingById(booking.id);
+              setBooking(updated);
+            }}
+          >
             MARK AS COMPLETE →
           </Button>
         </div>

@@ -72,8 +72,10 @@ CREATE TABLE IF NOT EXISTS public.bookings (
   notes TEXT,
   -- Status flow: requested -> accepted/declined, accepted -> completed/cancelled
   -- 'declined' = pro refused the request (different from 'cancelled' which is after accepting)
-  status TEXT NOT NULL CHECK (status IN ('requested', 'accepted', 'completed', 'cancelled', 'declined')) DEFAULT 'requested',
+  status TEXT NOT NULL CHECK (status IN ('requested', 'accepted', 'awaiting_payment', 'completed', 'cancelled', 'declined')) DEFAULT 'requested',
   price NUMERIC,
+  -- Stripe PaymentIntent (optional; Model C uses this at payment time)
+  payment_intent_id TEXT,
   -- Status history: timeline of status changes for customer visibility
   -- Format: [{ "status": "requested", "at": "2025-11-25T09:00:00Z" }, ...]
   status_history JSONB DEFAULT '[]'::jsonb,

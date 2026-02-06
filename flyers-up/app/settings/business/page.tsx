@@ -19,6 +19,13 @@ import { updateMyServiceProAction } from '@/app/actions/servicePro';
 import { useProEarningsRealtime } from '@/hooks';
 import { formatMoney } from '@/lib/utils/money';
 import { TrustRow } from '@/components/ui/TrustRow';
+import { WeeklySchedulePicker } from '@/components/ui/WeeklySchedulePicker';
+import {
+  parseBusinessHoursModel,
+  stringifyBusinessHoursModel,
+  validateWeeklyHours,
+  defaultBusinessHoursModel,
+} from '@/lib/utils/businessHours';
 
 type TabType = 'profile' | 'schedule' | 'services' | 'income' | 'reviews';
 
@@ -41,8 +48,7 @@ export default function BusinessSettingsPage() {
   const [categoryId, setCategoryId] = useState('');
   const [startingPrice, setStartingPrice] = useState('');
   const [serviceRadius, setServiceRadius] = useState('');
-  const [businessHours, setBusinessHours] = useState('');
-  const [availabilityTime, setAvailabilityTime] = useState('');
+  const [businessHoursModel, setBusinessHoursModel] = useState(() => defaultBusinessHoursModel());
 
   // Service management
   const [serviceTypes, setServiceTypes] = useState<Array<{ name: string; price: string; id?: string }>>([]);
@@ -93,12 +99,7 @@ export default function BusinessSettingsPage() {
         setCategoryId(proData.categoryId);
         setStartingPrice(proData.startingPrice.toString());
         setServiceRadius(proData.serviceRadius?.toString() || '');
-        setBusinessHours(proData.businessHours || '');
-        
-        // Load extended data from localStorage
-        const extendedDataStr = localStorage.getItem('proProfile_extended');
-        const extendedData = extendedDataStr ? JSON.parse(extendedDataStr) : {};
-        setAvailabilityTime(extendedData.availabilityTime || '');
+        setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
         
         // Load service types from localStorage
         const servicesStr = localStorage.getItem('proServiceTypes');
@@ -135,14 +136,8 @@ export default function BusinessSettingsPage() {
         category_id: categoryId || undefined,
         starting_price: startingPrice ? parseFloat(startingPrice) : undefined,
         service_radius: serviceRadius ? parseInt(serviceRadius) : undefined,
-        business_hours: businessHours || undefined,
+        business_hours: stringifyBusinessHoursModel(businessHoursModel),
       });
-
-      // Save extended data
-      const extendedDataStr = localStorage.getItem('proProfile_extended');
-      const extendedData = extendedDataStr ? JSON.parse(extendedDataStr) : {};
-      extendedData.availabilityTime = availabilityTime;
-      localStorage.setItem('proProfile_extended', JSON.stringify(extendedData));
 
       if (result.success) {
         setSuccess('Business profile updated successfully');
@@ -375,46 +370,35 @@ export default function BusinessSettingsPage() {
         {activeTab === 'schedule' && (
           <div className="space-y-4">
             <div>
-              <label htmlFor="businessHours" className="block text-sm font-medium text-muted mb-1">
-                Business Hours
-              </label>
-              <textarea
-                id="businessHours"
-                value={businessHours}
-                onChange={(e) => setBusinessHours(e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
-                placeholder="e.g., Mon-Fri: 9am-5pm, Sat: 10am-2pm"
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="text-sm font-medium text-muted">Weekly availability</div>
+                {businessHoursModel.legacyText ? (
+                  <div className="text-xs text-muted/70" title={businessHoursModel.legacyText}>
+                    Previously saved as text (will convert on save)
+                  </div>
+                ) : null}
+              </div>
+              <WeeklySchedulePicker
+                value={businessHoursModel.weekly}
+                onChange={(next) => setBusinessHoursModel((prev) => ({ ...prev, weekly: next }))}
               />
-              <p className="text-sm text-muted/70 mt-1">Specify your regular business hours</p>
-            </div>
-
-            <div>
-              <label htmlFor="availabilityTime" className="block text-sm font-medium text-muted mb-1">
-                Availability Time
-              </label>
-              <input
-                type="text"
-                id="availabilityTime"
-                value={availabilityTime}
-                onChange={(e) => setAvailabilityTime(e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
-                placeholder="e.g., Available 24/7, Weekends only, etc."
-              />
-              <p className="text-sm text-muted/70 mt-1">Describe when you&apos;re typically available</p>
+              <p className="text-sm text-muted/70 mt-2">
+                Check the days you work, then pick start/end times.
+              </p>
             </div>
 
             <button
               onClick={async () => {
+                const scheduleErr = validateWeeklyHours(businessHoursModel.weekly);
+                if (scheduleErr) {
+                  setError(scheduleErr);
+                  return;
+                }
                 setLoading(true);
-                const extendedDataStr = localStorage.getItem('proProfile_extended');
-                const extendedData = extendedDataStr ? JSON.parse(extendedDataStr) : {};
-                extendedData.availabilityTime = availabilityTime;
-                localStorage.setItem('proProfile_extended', JSON.stringify(extendedData));
                 
                 if (userId) {
                   await updateMyServiceProAction({
-                    business_hours: businessHours || undefined,
+                    business_hours: stringifyBusinessHoursModel(businessHoursModel),
                   });
                 }
                 setLoading(false);

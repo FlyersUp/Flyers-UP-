@@ -73,17 +73,57 @@ export async function POST(req: NextRequest) {
         const bookingId = (paymentIntent.metadata as any)?.booking_id ?? (paymentIntent.metadata as any)?.bookingId;
 
         if (bookingId) {
-          // Update booking status or create earnings record
-          // For now, we'll just log it - you can add more logic here
           console.log('Payment succeeded for booking:', bookingId);
 
-          // TODO: Persist payment status (requires DB column + desired state machine).
-          // If you choose to persist, use the admin client (webhooks are server-to-server).
           try {
             const admin = createAdminSupabaseClient();
-            void admin; // intentionally unused until persistence logic is added
+
+            // Load booking + current status_history.
+            const { data: booking, error: bErr } = await admin
+              .from('bookings')
+              .select('id, status, status_history, pro_id, price')
+              .eq('id', bookingId)
+              .maybeSingle();
+
+            if (bErr || !booking) {
+              console.warn('Webhook: booking not found for payment', { bookingId, bErr });
+              break;
+            }
+
+            const history = Array.isArray(booking.status_history) ? booking.status_history : [];
+            const shouldFinalize = booking.status === 'awaiting_payment';
+            const alreadyCompleted = history.some((e: any) => e?.status === 'completed');
+            const nextHistory =
+              shouldFinalize && !alreadyCompleted
+                ? [...history, { status: 'completed', at: new Date().toISOString() }]
+                : history;
+
+            // Persist PaymentIntent ID; only finalize status for the expected state.
+            await admin
+              .from('bookings')
+              .update({
+                payment_intent_id: paymentIntent.id,
+                ...(shouldFinalize ? { status: 'completed', status_history: nextHistory } : {}),
+              })
+              .eq('id', bookingId);
+
+            // Create earnings record (idempotent).
+            const { data: existing } = await admin
+              .from('pro_earnings')
+              .select('id')
+              .eq('booking_id', bookingId)
+              .maybeSingle();
+
+            if (shouldFinalize && !existing) {
+              const amount = Number(booking.price ?? 0);
+              await admin.from('pro_earnings').insert({
+                pro_id: booking.pro_id,
+                booking_id: bookingId,
+                amount: amount > 0 ? amount : 0,
+              });
+            }
           } catch (e) {
-            console.warn('SUPABASE_SERVICE_ROLE_KEY not set; skipping webhook persistence.', e);
+            console.warn('Webhook persistence failed', e);
           }
         }
         break;

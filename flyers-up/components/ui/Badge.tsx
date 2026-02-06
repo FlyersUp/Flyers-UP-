@@ -97,6 +97,7 @@ export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
     scheduled: { bg: 'bg-badgeFill', text: 'text-muted', border: 'border-badgeBorder' },
     active: { bg: 'bg-success/15', text: 'text-text', border: 'border-badgeBorder' },
     in_progress: { bg: 'bg-warning/15', text: 'text-text', border: 'border-badgeBorder' },
+    awaiting_payment: { bg: 'bg-warning/15', text: 'text-text', border: 'border-badgeBorder' },
     completed: { bg: 'bg-success/15', text: 'text-text', border: 'border-badgeBorder' },
     cancelled: { bg: 'bg-danger/10', text: 'text-text', border: 'border-badgeBorder' },
     declined: { bg: 'bg-danger/10', text: 'text-text', border: 'border-badgeBorder' },
