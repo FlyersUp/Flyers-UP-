@@ -101,13 +101,17 @@ export default function BusinessSettingsPage() {
         setServiceRadius(proData.serviceRadius?.toString() || '');
         setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
         
-        // Load service types from localStorage
-        const servicesStr = localStorage.getItem('proServiceTypes');
-        if (servicesStr) {
-          setServiceTypes(JSON.parse(servicesStr));
+        // Load service types from Supabase; fall back to localStorage for older sessions.
+        if (proData.serviceTypes && proData.serviceTypes.length > 0) {
+          setServiceTypes(proData.serviceTypes);
         } else {
-          // Default service type
-          setServiceTypes([{ name: proData.categoryName || 'General Service', price: proData.startingPrice.toString() }]);
+          const servicesStr = localStorage.getItem('proServiceTypes');
+          if (servicesStr) {
+            setServiceTypes(JSON.parse(servicesStr));
+          } else {
+            // Default service type
+            setServiceTypes([{ name: proData.categoryName || 'General Service', price: proData.startingPrice.toString() }]);
+          }
         }
       }
 
@@ -151,6 +155,16 @@ export default function BusinessSettingsPage() {
     }
   }
 
+  async function persistServiceTypes(next: Array<{ name: string; price: string; id?: string }>) {
+    // Best-effort: keep a local fallback while we migrate older data.
+    try {
+      localStorage.setItem('proServiceTypes', JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+    await updateMyServiceProAction({ service_types: next as unknown[] });
+  }
+
   function handleAddService() {
     if (!newServiceName || !newServicePrice) {
       setError('Please enter both service name and price');
@@ -165,7 +179,7 @@ export default function BusinessSettingsPage() {
 
     const updated = [...serviceTypes, newService];
     setServiceTypes(updated);
-    localStorage.setItem('proServiceTypes', JSON.stringify(updated));
+    void persistServiceTypes(updated);
     setNewServiceName('');
     setNewServicePrice('');
     setSuccess('Service added successfully');
@@ -174,7 +188,7 @@ export default function BusinessSettingsPage() {
   function handleRemoveService(id: string) {
     const updated = serviceTypes.filter(s => s.id !== id);
     setServiceTypes(updated);
-    localStorage.setItem('proServiceTypes', JSON.stringify(updated));
+    void persistServiceTypes(updated);
     setSuccess('Service removed successfully');
   }
 
@@ -183,7 +197,7 @@ export default function BusinessSettingsPage() {
       s.id === id ? { ...s, name, price } : s
     );
     setServiceTypes(updated);
-    localStorage.setItem('proServiceTypes', JSON.stringify(updated));
+    void persistServiceTypes(updated);
     setSuccess('Service updated successfully');
   }
 

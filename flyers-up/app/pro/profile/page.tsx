@@ -89,6 +89,7 @@ export default function ProProfilePage() {
       const proData = await getMyServicePro(user.id);
       
       // Load extended profile data from localStorage
+      // Legacy fallback only (older sessions stored some fields locally).
       const extendedDataStr = localStorage.getItem('proProfile_extended');
       const extendedData = extendedDataStr ? JSON.parse(extendedDataStr) : {};
       
@@ -110,9 +111,15 @@ export default function ProProfilePage() {
           startingPrice: proData.startingPrice?.toString() || '0',
           location: proFullData?.location || extendedData.location || '',
           serviceRadius: proData.serviceRadius?.toString() || '',
-          yearsExperience: extendedData.yearsExperience?.toString() || '0',
-          verifiedCredentials: extendedData.verifiedCredentials || [],
-          servicesOffered: extendedData.servicesOffered || [category?.slug || ''],
+          yearsExperience: (proData.yearsExperience != null ? String(proData.yearsExperience) : (extendedData.yearsExperience?.toString() || '0')),
+          verifiedCredentials:
+            (proData.verifiedCredentials && proData.verifiedCredentials.length > 0)
+              ? proData.verifiedCredentials
+              : (extendedData.verifiedCredentials || []),
+          servicesOffered:
+            (proData.servicesOffered && proData.servicesOffered.length > 0)
+              ? proData.servicesOffered
+              : (extendedData.servicesOffered || [category?.slug || '']),
           darkMode: localStorage.getItem('darkMode') === 'true',
           jobsCompleted: proFullData?.review_count || 0,
           averageRating: proFullData?.rating || 0,
@@ -158,6 +165,13 @@ export default function ProProfilePage() {
         return;
       }
 
+      const yearsExpStr = formData.yearsExperience.trim();
+      const yearsExpNum = yearsExpStr === '' ? null : Number(yearsExpStr);
+      if (yearsExpNum !== null && (Number.isNaN(yearsExpNum) || yearsExpNum < 0)) {
+        setError('Years experience must be a positive number.');
+        return;
+      }
+
       const startingPriceStr = formData.startingPrice.trim();
       const startingPriceNum = startingPriceStr === '' ? null : Number(startingPriceStr);
       if (startingPriceNum !== null && (Number.isNaN(startingPriceNum) || startingPriceNum < 0)) {
@@ -173,6 +187,9 @@ export default function ProProfilePage() {
         location: formData.location.trim() || undefined,
         service_radius: formData.serviceRadius ? parseInt(formData.serviceRadius) : undefined,
         business_hours: stringifyBusinessHoursModel(businessHoursModel),
+        years_experience: yearsExpNum ?? undefined,
+        services_offered: formData.servicesOffered,
+        certifications: formData.verifiedCredentials,
       });
 
       if (!result.success) {
@@ -180,18 +197,15 @@ export default function ProProfilePage() {
         return;
       }
 
-      // Persist "extended" profile fields (UI-only for now).
-      // These fields are currently sourced from localStorage in `loadProfile()`.
+      // Legacy best-effort: keep localStorage in sync for older pages still reading it.
       try {
-        const extendedDataStr = localStorage.getItem('proProfile_extended');
-        const extendedData = extendedDataStr ? JSON.parse(extendedDataStr) : {};
-        extendedData.yearsExperience = Number(formData.yearsExperience || 0);
-        extendedData.verifiedCredentials = formData.verifiedCredentials;
-        extendedData.servicesOffered = formData.servicesOffered;
-        localStorage.setItem('proProfile_extended', JSON.stringify(extendedData));
-      } catch {
-        // Ignore localStorage failures (e.g. privacy mode).
-      }
+        const ext = {
+          yearsExperience: Number(formData.yearsExperience || 0),
+          verifiedCredentials: formData.verifiedCredentials,
+          servicesOffered: formData.servicesOffered,
+        };
+        localStorage.setItem('proProfile_extended', JSON.stringify(ext));
+      } catch {}
 
       // Save dark mode preference
       localStorage.setItem('darkMode', formData.darkMode.toString());

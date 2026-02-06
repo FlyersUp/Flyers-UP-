@@ -43,6 +43,9 @@ CREATE TABLE IF NOT EXISTS public.service_pros (
   display_name TEXT NOT NULL,
   bio TEXT,
   category_id UUID NOT NULL REFERENCES public.service_categories(id),
+  -- Optional onboarding fields
+  secondary_category_id uuid REFERENCES public.service_categories(id),
+  service_area_zip text,
   starting_price NUMERIC NOT NULL DEFAULT 0,
   rating NUMERIC NOT NULL DEFAULT 0 CHECK (rating >= 0 AND rating <= 5),
   review_count INTEGER NOT NULL DEFAULT 0,
@@ -50,6 +53,11 @@ CREATE TABLE IF NOT EXISTS public.service_pros (
   available BOOLEAN NOT NULL DEFAULT true,
   service_radius INTEGER,
   business_hours TEXT,
+  -- Extended profile fields
+  years_experience integer,
+  services_offered text[] NOT NULL DEFAULT '{}'::text[],
+  certifications jsonb NOT NULL DEFAULT '[]'::jsonb,
+  service_types jsonb NOT NULL DEFAULT '[]'::jsonb,
   -- Stripe Connect (optional)
   stripe_account_id text,
   stripe_details_submitted boolean NOT NULL DEFAULT false,

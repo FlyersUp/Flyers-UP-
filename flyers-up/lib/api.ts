@@ -1868,6 +1868,10 @@ export interface ServiceProProfile {
   startingPrice: number;
   serviceRadius: number | null;
   businessHours: string | null;
+  yearsExperience: number | null;
+  verifiedCredentials: string[];
+  servicesOffered: string[];
+  serviceTypes: Array<{ name: string; price: string; id?: string }>;
 }
 
 export async function getMyServicePro(userId: string): Promise<ServiceProProfile | null> {
@@ -1875,14 +1879,7 @@ export async function getMyServicePro(userId: string): Promise<ServiceProProfile
     const { data, error } = await supabase
       .from('service_pros')
       .select(`
-        id,
-        user_id,
-        display_name,
-        bio,
-        category_id,
-        starting_price,
-        service_radius,
-        business_hours,
+        *,
         service_categories (
           name
         )
@@ -1905,6 +1902,16 @@ export async function getMyServicePro(userId: string): Promise<ServiceProProfile
       startingPrice: data.starting_price,
       serviceRadius: data.service_radius,
       businessHours: data.business_hours,
+      yearsExperience: (data as any).years_experience ?? null,
+      verifiedCredentials: Array.isArray((data as any).certifications)
+        ? ((data as any).certifications as unknown[]).filter((v) => typeof v === 'string') as string[]
+        : [],
+      servicesOffered: Array.isArray((data as any).services_offered)
+        ? ((data as any).services_offered as unknown[]).filter((v) => typeof v === 'string') as string[]
+        : [],
+      serviceTypes: Array.isArray((data as any).service_types)
+        ? ((data as any).service_types as any[]).filter((s) => s && typeof s.name === 'string' && typeof s.price === 'string')
+        : [],
     };
   } catch (err) {
     console.error('Unexpected error fetching service pro:', err);
@@ -1934,6 +1941,7 @@ export interface UpdateServiceProParams {
   service_area_zip?: string;
   services_offered?: string[];
   certifications?: unknown[];
+  service_types?: unknown[];
 }
 
 export async function updateServicePro(

@@ -45,6 +45,7 @@ export async function updateMyServiceProAction(
     if (params.service_area_zip !== undefined) updateData.service_area_zip = params.service_area_zip;
     if (params.services_offered !== undefined) updateData.services_offered = params.services_offered;
     if (params.certifications !== undefined) updateData.certifications = params.certifications;
+    if (params.service_types !== undefined) updateData.service_types = params.service_types;
 
     const { error } = await admin.from('service_pros').update(updateData).eq('user_id', userId);
     if (error) return { success: false, error: error.message };
