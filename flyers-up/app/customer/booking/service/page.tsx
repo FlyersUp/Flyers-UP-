@@ -1,12 +1,13 @@
 'use client';
 
 import { AppLayout } from '@/components/layouts/AppLayout';
-import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { mockServicePros } from '@/lib/mockData';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useState, Suspense } from 'react';
+import Link from 'next/link';
+import { Suspense } from 'react';
+import { getProById } from '@/lib/api';
+import { useEffect, useState } from 'react';
 
 /**
  * Booking - Select Service - Screen 5
@@ -16,62 +17,52 @@ function BookingServiceContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const proId = searchParams.get('proId');
-  const pro = mockServicePros.find(p => p.id === proId);
-  const [selectedService, setSelectedService] = useState<string>('');
+  const [proName, setProName] = useState<string | null>(null);
 
-  const services = [
-    { id: '1', name: 'Standard Clean', price: 75, duration: '2 hours' },
-    { id: '2', name: 'Deep Clean', price: 150, duration: '4 hours' },
-    { id: '3', name: 'Move-Out Clean', price: 200, duration: '6 hours' },
-  ];
-
-  const selected = services.find(s => s.id === selectedService);
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!proId) return;
+      const p = await getProById(proId);
+      if (!mounted) return;
+      setProName(p?.name ?? null);
+    };
+    void load();
+    return () => {
+      mounted = false;
+    };
+  }, [proId]);
 
   return (
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-semibold text-text mb-6">
-          Select Service
-        </h1>
+        <h1 className="text-2xl font-semibold text-text mb-2">Select Service</h1>
+        <p className="text-sm text-muted mb-6">
+          {proName ? `For ${proName}. ` : ''}This step used to show demo services. Now it stays empty until real services are wired up.
+        </p>
 
-        <div className="space-y-4 mb-8">
-          {services.map((service) => (
-            <Card
-              key={service.id}
-              withRail
-              onClick={() => setSelectedService(service.id)}
-              className={selectedService === service.id ? 'border-accent border-2' : ''}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-text mb-1">{service.name}</h3>
-                  <p className="text-sm text-muted">{service.duration}</p>
-                </div>
-                <div className="text-xl font-bold text-text">${service.price}</div>
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        {/* Summary pill */}
-        {selected && (
-          <div className="fixed bottom-16 left-0 right-0 bg-surface border-t border-border p-4">
-            <div className="max-w-4xl mx-auto flex items-center justify-between">
-              <div>
-                <div className="text-sm text-muted">{pro?.name}</div>
-                <div className="font-semibold text-text">
-                  {selected.name} • ${selected.price}
-                </div>
-              </div>
-              <Button
-                onClick={() => router.push(`/customer/booking/schedule?proId=${proId}&serviceId=${selectedService}`)}
-                disabled={!selectedService}
-              >
-                Continue →
-              </Button>
+        <Card withRail className="mb-6">
+          <div className="space-y-2">
+            <div className="font-semibold text-text">Coming soon</div>
+            <div className="text-sm text-muted">
+              We’ll let pros publish real service menus (and pricing) here.
             </div>
           </div>
-        )}
+        </Card>
+
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={() => router.push('/services')} showArrow={false}>
+            Browse services
+          </Button>
+          {proId ? (
+            <Link
+              href={`/customer/pros/${encodeURIComponent(proId)}`}
+              className="inline-flex items-center px-4 py-2 rounded-xl border border-border bg-surface2 hover:bg-surface transition-colors text-text font-medium"
+            >
+              Back to pro profile
+            </Link>
+          ) : null}
+        </div>
       </div>
     </AppLayout>
   );

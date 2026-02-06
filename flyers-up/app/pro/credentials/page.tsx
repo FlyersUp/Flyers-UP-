@@ -12,19 +12,6 @@ import Link from 'next/link';
  * Document upload UI with status badges
  */
 export default function Credentials() {
-  const credentials = [
-    { id: '1', name: 'Business License', status: 'verified', date: 'Jan 1, 2024' },
-    { id: '2', name: 'Insurance Certificate', status: 'verified', date: 'Jan 1, 2024' },
-    { id: '3', name: 'Background Check', status: 'pending', date: 'Jan 10, 2024' },
-  ];
-
-  const getStatusBadge = (status: string) => {
-    if (status === 'verified') {
-      return <OfficialBadge>VERIFIED</OfficialBadge>;
-    }
-    return <OfficialBadge>PENDING REVIEW</OfficialBadge>;
-  };
-
   return (
     <AppLayout mode="pro">
       <div className="max-w-4xl mx-auto px-4 py-6">
@@ -33,21 +20,21 @@ export default function Credentials() {
         </h1>
 
         <div className="space-y-4 mb-6">
-          {credentials.map((cred) => (
-            <Card withRail={false} key={cred.id} className="border-l-[3px] border-l-accent">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-text mb-1">{cred.name}</div>
-                  <div className="text-sm text-muted">Uploaded {cred.date}</div>
+          <Card withRail={false} className="border-l-[3px] border-l-accent">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="font-semibold text-text mb-1">No documents uploaded yet</div>
+                <div className="text-sm text-muted">
+                  This used to show demo verification data. When credential uploads are enabled, your real status will appear here.
                 </div>
-                {getStatusBadge(cred.status)}
               </div>
-            </Card>
-          ))}
+              <OfficialBadge>COMING SOON</OfficialBadge>
+            </div>
+          </Card>
         </div>
 
         <div className="space-y-3">
-          <Button variant="secondary" className="w-full">
+          <Button variant="secondary" className="w-full" disabled>
             ADD DOCUMENT →
           </Button>
           <Link href="/pro/verified-badge" className="block">

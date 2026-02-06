@@ -5,13 +5,13 @@ import { Label } from '@/components/ui/Label';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { mockServicePros } from '@/lib/mockData';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useState, useEffect } from 'react';
 import { getProById, getActiveAddonsForPro, type ServiceAddon, type ServicePro } from '@/lib/api';
 import { getCurrentUser, listUserAddresses, type UserAddress } from '@/lib/api';
 import { formatMoney, centsToDollars } from '@/lib/utils/money';
+import { logErr } from '@/lib/utils/logErr';
 
 /**
  * Booking - Review Details - Screen 7
@@ -28,12 +28,11 @@ function BookingReviewContent() {
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>(''); // '' => custom
   
-  type ProForReview = ServicePro | (typeof mockServicePros)[number];
-  const [pro, setPro] = useState<ProForReview | null>(null);
+  const [pro, setPro] = useState<ServicePro | null>(null);
   const [addons, setAddons] = useState<ServiceAddon[]>([]);
   const [selectedAddonIds, setSelectedAddonIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const basePriceCents = pro?.startingPrice ? Math.round(pro.startingPrice * 100) : 12000; // Default $120
+  const basePriceCents = pro?.startingPrice ? Math.round(pro.startingPrice * 100) : 0;
 
   useEffect(() => {
     const loadData = async () => {
@@ -62,16 +61,9 @@ function BookingReviewContent() {
           // Load active add-ons for this pro and category
           const addonsList = await getActiveAddonsForPro(proId, proData.categorySlug);
           setAddons(addonsList);
-        } else {
-          // Fallback to mock data
-          const mockPro = mockServicePros.find(p => p.id === proId);
-          if (mockPro) setPro(mockPro);
         }
       } catch (err) {
-        console.error('Error loading pro/add-ons:', err);
-        // Fallback to mock data
-        const mockPro = mockServicePros.find(p => p.id === proId);
-        if (mockPro) setPro(mockPro);
+        logErr('Error loading pro/add-ons', err);
       } finally {
         setLoading(false);
       }
@@ -158,20 +150,17 @@ function BookingReviewContent() {
 
             <div className="border-t border-border pt-4">
               <Label className="mb-2 block">DATE</Label>
-              <p className="text-text">{date || 'Jan 15, 2024'}</p>
-              <button className="text-sm text-accent mt-1">Edit</button>
+              <p className="text-text">{date || '—'}</p>
             </div>
 
             <div className="border-t border-border pt-4">
               <Label className="mb-2 block">TIME</Label>
-              <p className="text-text">{time || '10:00 AM'}</p>
-              <button className="text-sm text-accent mt-1">Edit</button>
+              <p className="text-text">{time || '—'}</p>
             </div>
 
             <div className="border-t border-border pt-4">
               <Label className="mb-2 block">PRO</Label>
-              <p className="text-text">{pro?.name}</p>
-              <button className="text-sm text-accent mt-1">Edit</button>
+              <p className="text-text">{pro?.name || '—'}</p>
             </div>
 
             {/* Add-Ons Selection */}
@@ -206,7 +195,7 @@ function BookingReviewContent() {
               <div className="space-y-2 mb-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted">Base Service</span>
-                  <span className="text-text">{formatMoney(basePriceCents)}</span>
+                  <span className="text-text">{basePriceCents > 0 ? formatMoney(basePriceCents) : 'TBD'}</span>
                 </div>
                 {selectedAddonIds.size > 0 && (
                   <div className="flex justify-between text-sm">
@@ -217,7 +206,9 @@ function BookingReviewContent() {
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-border">
                 <Label>TOTAL</Label>
-                <div className="text-2xl font-bold text-text">${totalDollars}</div>
+                <div className="text-2xl font-bold text-text">
+                  {basePriceCents > 0 ? `$${totalDollars}` : 'TBD'}
+                </div>
               </div>
             </div>
           </div>

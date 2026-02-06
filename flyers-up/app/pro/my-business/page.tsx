@@ -13,11 +13,11 @@ import { useState } from 'react';
  */
 export default function MyBusiness() {
   const [formData, setFormData] = useState({
-    businessName: 'Sarah Johnson Cleaning',
-    description: 'Professional cleaning services with 8 years of experience.',
-    serviceAreas: 'Downtown, Midtown, Uptown',
-    categories: 'Cleaning, Deep Cleaning',
-    startingPrice: '75',
+    businessName: '',
+    description: '',
+    serviceAreas: '',
+    categories: '',
+    startingPrice: '',
   });
 
   return (
@@ -46,6 +46,7 @@ export default function MyBusiness() {
                 rows={4}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Describe your business in 1–2 sentences…"
               />
             </div>
             <Input

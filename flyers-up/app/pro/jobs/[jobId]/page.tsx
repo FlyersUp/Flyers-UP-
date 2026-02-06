@@ -4,8 +4,11 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { use } from 'react';
+import Link from 'next/link';
+import { use, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { getBookingById, getCurrentUser, type BookingDetails } from '@/lib/api';
+import { normalizeUuidOrNull } from '@/lib/isUuid';
 
 /**
  * Active Job Screen - Screen 17
@@ -14,6 +17,47 @@ import { useRouter } from 'next/navigation';
 export default function ActiveJob({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = use(params);
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [booking, setBooking] = useState<BookingDetails | null>(null);
+  const [signedIn, setSignedIn] = useState<boolean>(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      setLoading(true);
+      const user = await getCurrentUser();
+      if (!mounted) return;
+      setSignedIn(Boolean(user));
+      if (!user) {
+        setBooking(null);
+        setLoading(false);
+        return;
+      }
+
+      const id = normalizeUuidOrNull(jobId);
+      if (!id) {
+        setBooking(null);
+        setLoading(false);
+        return;
+      }
+
+      const b = await getBookingById(id);
+      if (!mounted) return;
+      setBooking(b);
+      setLoading(false);
+    };
+    void load();
+    return () => {
+      mounted = false;
+    };
+  }, [jobId]);
+
+  const formattedDate = useMemo(() => {
+    if (!booking) return null;
+    const d = new Date(booking.serviceDate);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  }, [booking]);
 
   return (
     <AppLayout mode="pro">
@@ -22,44 +66,71 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
           Job Details
         </h1>
 
-        <Card withRail className="mb-6">
-          <div className="space-y-6">
-            <div>
-              <Label className="mb-2 block">ADDRESS</Label>
-              <p className="text-text">123 Main St, Apt 4B</p>
+        {loading ? (
+          <Card withRail className="mb-6">
+            <p className="text-sm text-muted/70">Loading…</p>
+          </Card>
+        ) : !signedIn ? (
+          <Card withRail className="mb-6">
+            <p className="text-sm text-muted/70">Please sign in to view job details.</p>
+            <div className="mt-4">
+              <Link
+                href={`/signin?next=${encodeURIComponent(`/pro/jobs/${jobId}`)}`}
+                className="text-sm font-medium text-text hover:underline"
+              >
+                Sign in →
+              </Link>
             </div>
-
-            <div className="border-t border-border pt-4">
-              <Label className="mb-2 block">TIME</Label>
-              <p className="text-text">Jan 15, 2024 at 10:00 AM</p>
-            </div>
-
-            <div className="border-t border-border pt-4">
-              <Label className="mb-2 block">SERVICES</Label>
-              <p className="text-text">Deep Clean</p>
-            </div>
-
-            <div className="border-t border-border pt-4">
-              <Label className="mb-2 block">CUSTOMER NOTES</Label>
-              <p className="text-text">
-                Please focus on the kitchen and bathrooms. Extra attention to the oven.
+          </Card>
+        ) : !booking ? (
+          <Card withRail className="mb-6 border-l-[3px] border-l-accent">
+            <div className="space-y-2">
+              <div className="font-semibold text-text">No job details yet</div>
+              <p className="text-sm text-muted">
+                This screen used to show demo data. Real jobs will appear here once you accept a request.
               </p>
             </div>
+          </Card>
+        ) : (
+          <Card withRail className="mb-6">
+            <div className="space-y-6">
+              <div>
+                <Label className="mb-2 block">ADDRESS</Label>
+                <p className="text-text">{booking.address || '—'}</p>
+              </div>
 
-            <div className="border-t-2 border-accent pt-4 bg-accent/5 rounded-lg p-4">
-              <div className="flex justify-between items-center">
-                <Label>TOTAL</Label>
-                <div className="text-2xl font-bold text-text">$150</div>
+              <div className="border-t border-border pt-4">
+                <Label className="mb-2 block">TIME</Label>
+                <p className="text-text">
+                  {formattedDate || '—'} {booking.serviceTime ? `at ${booking.serviceTime}` : ''}
+                </p>
+              </div>
+
+              <div className="border-t border-border pt-4">
+                <Label className="mb-2 block">STATUS</Label>
+                <p className="text-text">{booking.status}</p>
+              </div>
+
+              <div className="border-t border-border pt-4">
+                <Label className="mb-2 block">CUSTOMER NOTES</Label>
+                <p className="text-text">{booking.notes || '—'}</p>
+              </div>
+
+              <div className="border-t-2 border-accent pt-4 bg-accent/5 rounded-lg p-4">
+                <div className="flex justify-between items-center">
+                  <Label>TOTAL</Label>
+                  <div className="text-2xl font-bold text-text">{booking.price != null ? `$${booking.price}` : 'TBD'}</div>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         <div className="space-y-3">
-          <Button className="w-full" onClick={() => router.push(`/pro/jobs/${jobId}/timeline`)}>
+          <Button className="w-full" onClick={() => router.push(`/pro/jobs/${jobId}/timeline`)} disabled={!booking}>
             START JOB →
           </Button>
-          <Button variant="secondary" className="w-full">
+          <Button variant="secondary" className="w-full" disabled>
             MARK AS COMPLETE →
           </Button>
         </div>

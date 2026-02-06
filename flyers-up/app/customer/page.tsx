@@ -3,11 +3,8 @@
 import { useEffect, useState } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Label } from '@/components/ui/Label';
-import { ServiceProCard } from '@/components/ui/ServiceProCard';
-import { QuickRequestCard } from '@/components/ui/QuickRequestCard';
+import { Card } from '@/components/ui/Card';
 import { UpcomingCard, type UpcomingBooking } from '@/components/ui/UpcomingCard';
-import { TrustCoverageCard } from '@/components/ui/TrustCoverageCard';
-import { mockServicePros, mockCategories } from '@/lib/mockData';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
@@ -73,68 +70,57 @@ export default function CustomerHome() {
                   {userName}
                 </h1>
                 <div className="text-sm text-muted">Customer</div>
-                <div className="mt-1 text-sm text-muted">123 Main St, Your City</div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* New modules (do not change existing structure below) */}
+        {/* Clean slate (no mock data) */}
         <div className="mb-8 space-y-4">
-          <QuickRequestCard
-            locationText="123 Main St, Your City"
-            requestHref="/services"
-          />
           <UpcomingCard booking={upcoming} browseHref="/services" />
-          <TrustCoverageCard
-            flags={{
-              verifiedPros: true,
-              securePayments: true,
-              supportHref: '/settings/help-support',
-            }}
-          />
+          <Card className="border-l-[3px] border-l-accent">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold tracking-tight text-text">Start here</div>
+                <div className="mt-1 text-sm text-muted">
+                  No fake data. Take one action and your dashboard will fill in.
+                </div>
+              </div>
+              <div className="shrink-0">
+                <Link href="/services" className="text-sm font-medium text-text hover:underline">
+                  Request a service
+                </Link>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Link
+                href="/services"
+                className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors px-4 py-3"
+              >
+                <div className="text-sm font-semibold text-text">Browse services</div>
+                <div className="text-xs text-muted mt-1">See what’s available and request help.</div>
+              </Link>
+              <Link
+                href="/customer/settings/addresses"
+                className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors px-4 py-3"
+              >
+                <div className="text-sm font-semibold text-text">Add your address</div>
+                <div className="text-xs text-muted mt-1">So requests and booking are faster.</div>
+              </Link>
+            </div>
+          </Card>
         </div>
 
-        {/* Services Section */}
+        {/* Keep the browsing entry point, but don’t render mock lists here. */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <Label>SERVICES NEAR YOU</Label>
-            <Link href="/customer/categories">
-              <span className="text-sm font-medium text-text hover:underline">See all</span>
+          <div className="flex items-center justify-between mb-3">
+            <Label>SERVICES</Label>
+            <Link href="/services">
+              <span className="text-sm font-medium text-text hover:underline">Browse</span>
             </Link>
           </div>
-          
-          {/* Category chips */}
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
-            {mockCategories.slice(0, 6).map((cat) => (
-              <Link
-                key={cat.id}
-                href={`/customer/categories/${cat.id}`}
-                className="flex-shrink-0 surface-card px-4 py-3"
-              >
-                <div className="text-2xl mb-1">{cat.icon}</div>
-                <div className="text-sm font-medium text-text">{cat.name}</div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* Featured Pros */}
-        <div className="mb-8">
-          <Label className="mb-4 block">FEATURED PROS</Label>
-          <div className="space-y-4">
-            {mockServicePros.map((pro) => (
-              <Link key={pro.id} href={`/customer/pros/${pro.id}`}>
-                <ServiceProCard
-                  name={pro.name}
-                  rating={pro.rating}
-                  reviewCount={pro.reviewCount}
-                  startingPrice={pro.startingPrice}
-                  badges={pro.badges}
-                  accentLeft
-                />
-              </Link>
-            ))}
+          <div className="text-sm text-muted">
+            Browse services to find a pro and request help.
           </div>
         </div>
       </div>

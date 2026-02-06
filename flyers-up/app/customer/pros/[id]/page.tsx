@@ -14,8 +14,13 @@ import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { OfficialBadge } from '@/components/ui/OfficialBadge';
 import { RatingCompact } from '@/components/ui/RatingStars';
-import { getConversationId, getProById } from '@/lib/mockData';
-import { getCurrentUser, getUserBookingPreferences, updateUserBookingPreferences } from '@/lib/api';
+import {
+  getCurrentUser,
+  getProById as getProByIdApi,
+  getUserBookingPreferences,
+  updateUserBookingPreferences,
+  type ServicePro,
+} from '@/lib/api';
 
 function CredentialItem({
   icon,
@@ -44,6 +49,8 @@ export default function CustomerProProfilePage({ params }: { params: Promise<{ i
   const { id } = use(params);
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [pro, setPro] = useState<ServicePro | null>(null);
+  const [proLoading, setProLoading] = useState(true);
 
   useEffect(() => {
     const check = async () => {
@@ -57,10 +64,28 @@ export default function CustomerProProfilePage({ params }: { params: Promise<{ i
     void check();
   }, [id, router]);
 
-  const pro = getProById(id);
   const [favorite, setFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(true);
-  const proId = pro?.id;
+  const proId = pro?.id ?? null;
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!ready) return;
+      setProLoading(true);
+      try {
+        const data = await getProByIdApi(id);
+        if (!mounted) return;
+        setPro(data);
+      } finally {
+        if (mounted) setProLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      mounted = false;
+    };
+  }, [id, ready]);
 
   useEffect(() => {
     const load = async () => {
@@ -92,6 +117,17 @@ export default function CustomerProProfilePage({ params }: { params: Promise<{ i
       </AppLayout>
     );
   }
+
+  if (proLoading) {
+    return (
+      <AppLayout mode="customer">
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          <p className="text-sm text-muted/70">Loading…</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
   if (!pro) {
     return (
       <AppLayout mode="customer">
@@ -148,18 +184,7 @@ export default function CustomerProProfilePage({ params }: { params: Promise<{ i
         <section className="bg-surface rounded-[18px] border border-hairline shadow-card p-6 mt-4">
           <div className="flex items-start gap-4">
             <div className="w-20 h-20 rounded-2xl overflow-hidden bg-surface2 flex items-center justify-center">
-              {pro.avatar && pro.avatar.trim() !== '' ? (
-                <Image
-                  src={pro.avatar}
-                  alt={pro.name}
-                  width={80}
-                  height={80}
-                  className="w-full h-full object-cover"
-                  unoptimized
-                />
-              ) : (
-                <span className="text-3xl">👤</span>
-              )}
+              <span className="text-3xl">👤</span>
             </div>
 
             <div className="flex-1">
@@ -169,29 +194,23 @@ export default function CustomerProProfilePage({ params }: { params: Promise<{ i
                 <span className="text-sm text-muted/70">({pro.reviewCount} reviews)</span>
               </div>
 
-              {pro.badges?.length ? (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {pro.badges.map((badge) => (
-                    <OfficialBadge key={typeof badge === 'string' ? badge : badge.id}>
-                      {typeof badge === 'string' ? badge : badge.label}
-                    </OfficialBadge>
-                  ))}
-                </div>
-              ) : null}
+              <div className="mt-2 text-sm text-muted">
+                {pro.categoryName} • {pro.location}
+              </div>
             </div>
           </div>
 
           <div className="mt-6 grid grid-cols-3 gap-3">
             <div className="text-center p-3 bg-surface2 rounded-xl">
-              <p className="text-2xl font-bold text-text">{pro.startingPrice}</p>
+              <p className="text-2xl font-bold text-text">${pro.startingPrice}</p>
               <p className="text-sm text-muted/70">Starting</p>
             </div>
             <div className="text-center p-3 bg-surface2 rounded-xl">
-              <p className="text-2xl font-bold text-text">{pro.completedJobs ?? 0}</p>
+              <p className="text-2xl font-bold text-text">—</p>
               <p className="text-sm text-muted/70">Jobs</p>
             </div>
             <div className="text-center p-3 bg-surface2 rounded-xl">
-              <p className="text-2xl font-bold text-text">{pro.responseTime ?? '—'}</p>
+              <p className="text-2xl font-bold text-text">—</p>
               <p className="text-sm text-muted/70">Response</p>
             </div>
           </div>
@@ -203,22 +222,25 @@ export default function CustomerProProfilePage({ params }: { params: Promise<{ i
             >
               Book This Pro
             </Link>
-            <Link
-              href={`/customer/messages/${getConversationId('customer-1', pro.id)}`}
-              className="px-4 py-3 bg-surface2 hover:bg-surface text-text rounded-xl font-medium transition-colors"
+            <button
+              type="button"
+              disabled
+              className="px-4 py-3 bg-surface2 text-muted/60 rounded-xl font-medium border border-hairline cursor-not-allowed"
+              title="Messaging will appear once you start a booking"
             >
               💬 Message
-            </Link>
+            </button>
           </div>
         </section>
 
         <section className="bg-surface rounded-[18px] border border-hairline shadow-card p-6 mt-6">
           <h2 className="text-lg font-semibold text-text mb-4">Credentials &amp; Trust</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <CredentialItem icon="📅" label="Experience" value={`${pro.yearsExperience ?? 0} years`} verified />
-            <CredentialItem icon="🛡️" label="Insurance" value={pro.insurance ? 'Verified' : 'Not verified'} verified={pro.insurance} />
-            <CredentialItem icon="🏢" label="LLC" value={pro.llcVerified ? 'Verified' : 'Not verified'} verified={pro.llcVerified} />
-            <CredentialItem icon="✓" label="Background" value={pro.backgroundChecked ? 'Checked' : 'Not checked'} verified={pro.backgroundChecked} />
+          <div className="text-sm text-muted">
+            Verification details will show here as pros complete them. Read what verification means in{' '}
+            <Link href="/trust-verification" className="underline underline-offset-4">
+              Trust &amp; Verification
+            </Link>
+            .
           </div>
         </section>
       </div>

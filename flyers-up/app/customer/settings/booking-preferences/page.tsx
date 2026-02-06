@@ -13,7 +13,6 @@ import {
   updateUserBookingPreferences,
   type UserBookingPreferences,
 } from '@/lib/api';
-import { getProById as getMockProById } from '@/lib/mockData';
 import { TrustRow } from '@/components/ui/TrustRow';
 import { SignInNotice } from '@/components/ui/SignInNotice';
 
@@ -168,15 +167,17 @@ export default function CustomerBookingPreferencesSettingsPage() {
           ) : (
             <div className="mt-4 space-y-2">
               {prefs.favoriteProIds.map((proId) => {
-                const mock = getMockProById(proId);
                 return (
                   <div
                     key={proId}
                     className="flex items-center justify-between p-3 border border-border rounded-lg bg-surface"
                   >
                     <div className="min-w-0">
-                      <p className="font-medium text-text">{mock?.name || `Pro ${proId}`}</p>
-                      <p className="text-xs text-muted/70">{mock?.category || ''}</p>
+                      <p className="font-medium text-text">Saved pro</p>
+                      <p className="text-xs text-muted/70 truncate">{proId}</p>
+                      <Link href={`/customer/pros/${encodeURIComponent(proId)}`} className="text-xs text-accent hover:underline">
+                        View profile →
+                      </Link>
                     </div>
                     <button
                       type="button"

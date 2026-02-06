@@ -2,11 +2,10 @@
 
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Label } from '@/components/ui/Label';
-import { mockCategories } from '@/lib/mockData';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCurrentUser } from '@/lib/api';
+import { getCurrentUser, getServiceCategories, type ServiceCategory } from '@/lib/api';
 
 /**
  * Category List - Screen 2
@@ -15,6 +14,8 @@ import { getCurrentUser } from '@/lib/api';
 export default function CategoriesPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [loadingCats, setLoadingCats] = useState(true);
+  const [categories, setCategories] = useState<ServiceCategory[]>([]);
 
   useEffect(() => {
     const check = async () => {
@@ -24,6 +25,14 @@ export default function CategoriesPage() {
         return;
       }
       setReady(true);
+
+      // Real categories (no mock data)
+      try {
+        const data = await getServiceCategories();
+        setCategories(data);
+      } finally {
+        setLoadingCats(false);
+      }
     };
     void check();
   }, [router]);
@@ -48,18 +57,36 @@ export default function CategoriesPage() {
           <Label>SEE ALL CATEGORIES</Label>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {mockCategories.map((cat) => (
-            <Link
-              key={cat.id}
-              href={`/customer/categories/${cat.id}`}
-              className="bg-surface rounded-xl p-6 border border-border hover:border-accent transition-colors text-center"
-            >
-              <div className="text-4xl mb-3">{cat.icon}</div>
-              <div className="font-medium text-text">{cat.name}</div>
-            </Link>
-          ))}
-        </div>
+        {loadingCats ? (
+          <div className="surface-card p-6">
+            <p className="text-sm text-muted/70">Loading categories…</p>
+          </div>
+        ) : categories.length === 0 ? (
+          <div className="surface-card p-6 border-l-[3px] border-l-accent">
+            <div className="text-base font-semibold text-text">No categories yet</div>
+            <div className="mt-1 text-sm text-muted">
+              Categories will appear here once they’re added.
+            </div>
+            <div className="mt-4">
+              <Link href="/services" className="text-sm font-medium text-text hover:underline">
+                Browse services →
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {categories.map((cat) => (
+              <Link
+                key={cat.id}
+                href={`/services/${encodeURIComponent(cat.slug)}`}
+                className="bg-surface rounded-xl p-6 border border-border hover:border-accent transition-colors text-center"
+              >
+                <div className="text-4xl mb-3">{cat.icon}</div>
+                <div className="font-medium text-text">{cat.name}</div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </AppLayout>
   );
