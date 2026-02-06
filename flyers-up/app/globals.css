@@ -98,6 +98,15 @@
   --accent-contrast: 0 0% 8%;
   --ring: var(--accent);
 
+  /* Subtle pro "canvas" tint (keep accent unchanged) */
+  /* Slightly peachier paper + surfaces so pro side feels warmer */
+  --bg: 38 40% 97%;
+  --surface: 30 55% 99%;
+  --surface-2: 34 36% 95%;
+  --border: 38 22% 85%;
+  --nav-bg: #F6F1EA;
+  --surface-solid: #FFFCFA;
+
   /* Civic Infrastructure–weighted (slightly denser + firmer separators) */
   --page-pad-y: 20px;
   --stack-gap: 14px;
@@ -166,6 +175,14 @@
 .dark.theme-pro {
   /* bump slightly in dark for contrast (pro) */
   --accent: 31 97% 78%;
+
+  /* Subtle warm tint in dark mode too (keep accent unchanged) */
+  --bg: 25 6% 6%;
+  --surface: 25 7% 8%;
+  --surface-2: 25 8% 11%;
+  --border: 25 4% 18%;
+  --nav-bg: #141716;
+  --surface-solid: #141716;
 
   /* Civic Infrastructure–weighted */
   --page-pad-y: 20px;
