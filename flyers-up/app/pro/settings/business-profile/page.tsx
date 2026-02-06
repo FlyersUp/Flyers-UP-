@@ -178,8 +178,39 @@ export default function ProBusinessProfileSettingsPage() {
       certifications,
     }, session?.access_token ?? undefined);
 
-    if (!res.success) setError(res.error || 'Failed to save business profile.');
-    else setSuccess('Business profile saved.');
+    if (!res.success) {
+      setError(res.error || 'Failed to save business profile.');
+      setSaving(false);
+      return;
+    }
+
+    // Read-after-write: confirm values from Supabase.
+    const { data, error: e } = await supabase
+      .from('service_pros')
+      .select(
+        'bio, service_descriptions, service_area_zip, service_radius, years_experience, before_after_photos, certifications, services_offered'
+      )
+      .eq('user_id', userId)
+      .single();
+    if (e) setError(e.message || 'Saved, but failed to reload.');
+    else {
+      setBio(data?.bio || '');
+      setServiceDescriptions(data?.service_descriptions || '');
+      setServiceAreaZip(data?.service_area_zip || '');
+      setServiceRadius(data?.service_radius != null ? String(data.service_radius) : '');
+      setYearsExperience(data?.years_experience != null ? String(data.years_experience) : '');
+      const offered = Array.isArray(data?.services_offered) ? (data.services_offered as string[]) : [];
+      setServicesOfferedText(offered.join(', '));
+      const loadedCerts = Array.isArray(data?.certifications) ? (data.certifications as Certification[]) : [];
+      setCertifications(
+        loadedCerts
+          .filter((c) => typeof c?.name === 'string' && typeof c?.url === 'string')
+          .map((c) => ({ name: c.name, url: c.url }))
+      );
+      const loadedPhotos = Array.isArray(data?.before_after_photos) ? (data.before_after_photos as string[]) : [];
+      setPhotos(loadedPhotos.filter((p) => typeof p === 'string'));
+      setSuccess('Business profile saved.');
+    }
     setSaving(false);
   }
 

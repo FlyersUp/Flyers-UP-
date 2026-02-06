@@ -23,13 +23,31 @@ export async function createAddonAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { userId } = await requireProUser({ accessToken });
-    const category = serviceCategory.trim();
+    const admin = createAdminSupabaseClient();
+
+    // Prefer the passed category slug, but fall back to the pro's saved category.
+    let category = (serviceCategory || '').trim();
     if (!category) {
-      return { success: false, error: 'Set your service category first (My Business → Service Category).' };
+      const { data: proRow } = await admin
+        .from('service_pros')
+        .select(
+          `
+          category_id,
+          service_categories ( slug )
+        `
+        )
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const slug = (proRow as any)?.service_categories?.slug as string | undefined;
+      category = (slug || '').trim();
+    }
+    if (!category) {
+      return { success: false, error: 'Set your service category first (My Business → Service Category), then save.' };
     }
 
     const priceCents = dollarsToCents(priceDollars);
-    const admin = createAdminSupabaseClient();
     const { error } = await admin.from('service_addons').insert({
       pro_id: userId,
       service_category: category,

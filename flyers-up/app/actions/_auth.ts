@@ -30,7 +30,7 @@ function createAuthedClient(accessToken: string) {
   });
 }
 
-export async function requireProUser(opts?: { accessToken?: string }): Promise<{ userId: string }> {
+export async function requireUser(opts?: { accessToken?: string }): Promise<{ userId: string }> {
   // Prefer access token when provided (works even when server cookies aren't present).
   if (opts?.accessToken) {
     const authed = createAuthedClient(opts.accessToken);
@@ -38,10 +38,6 @@ export async function requireProUser(opts?: { accessToken?: string }): Promise<{
       data: { user },
     } = await authed.auth.getUser();
     if (!user) throw new Error('Unauthorized');
-
-    const { data: profile } = await authed.from('profiles').select('role').eq('id', user.id).maybeSingle();
-    if (!profile || profile.role !== 'pro') throw new Error('Unauthorized');
-
     return { userId: user.id };
   }
 
@@ -52,9 +48,38 @@ export async function requireProUser(opts?: { accessToken?: string }): Promise<{
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthorized');
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-  if (!profile || profile.role !== 'pro') throw new Error('Unauthorized');
-
   return { userId: user.id };
+}
+
+export async function requireProUser(opts?: { accessToken?: string }): Promise<{ userId: string }> {
+  const { userId } = await requireUser(opts);
+
+  if (opts?.accessToken) {
+    const authed = createAuthedClient(opts.accessToken);
+    const { data: profile } = await authed.from('profiles').select('role').eq('id', userId).maybeSingle();
+    if (!profile || profile.role !== 'pro') throw new Error('Unauthorized');
+    return { userId };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
+  if (!profile || profile.role !== 'pro') throw new Error('Unauthorized');
+  return { userId };
+}
+
+export async function requireCustomerUser(opts?: { accessToken?: string }): Promise<{ userId: string }> {
+  const { userId } = await requireUser(opts);
+
+  if (opts?.accessToken) {
+    const authed = createAuthedClient(opts.accessToken);
+    const { data: profile } = await authed.from('profiles').select('role').eq('id', userId).maybeSingle();
+    if (!profile || profile.role !== 'customer') throw new Error('Unauthorized');
+    return { userId };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
+  if (!profile || profile.role !== 'customer') throw new Error('Unauthorized');
+  return { userId };
 }
 

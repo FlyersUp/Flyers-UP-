@@ -7,8 +7,9 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { updateProfile, changeEmail } from '@/lib/api';
+import { changeEmail } from '@/lib/api';
 import { TrustRow } from '@/components/ui/TrustRow';
+import { loadCustomerProfile, saveCustomerProfile } from '@/lib/profileStore';
 
 export default function AccountSettingsPage() {
   const [loading, setLoading] = useState(false);
@@ -32,17 +33,11 @@ export default function AccountSettingsPage() {
 
       setEmail(user.email || '');
 
-      // Load profile data
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name, phone, avatar_url')
-        .eq('id', user.id)
-        .single();
-
+      const profile = await loadCustomerProfile(user.id);
       if (profile) {
-        setFullName(profile.full_name || '');
+        setFullName(profile.fullName || '');
         setPhone(profile.phone || '');
-        setAvatarUrl(profile.avatar_url || '');
+        setAvatarUrl(profile.avatarUrl || '');
       }
     } catch (err) {
       console.error('Error loading profile:', err);
@@ -56,7 +51,7 @@ export default function AccountSettingsPage() {
     setError(null);
 
     try {
-      const result = await updateProfile({
+      const result = await saveCustomerProfile({
         full_name: fullName,
         phone: phone || undefined,
         avatar_url: avatarUrl || undefined,
@@ -64,6 +59,14 @@ export default function AccountSettingsPage() {
 
       if (result.success) {
         setSuccess('Profile updated successfully');
+        // Read-after-write: refresh UI from Supabase source of truth.
+        if (result.profile) {
+          setFullName(result.profile.fullName || '');
+          setPhone(result.profile.phone || '');
+          setAvatarUrl(result.profile.avatarUrl || '');
+        } else {
+          await loadProfile();
+        }
       } else {
         setError(result.error || 'Failed to update profile');
       }

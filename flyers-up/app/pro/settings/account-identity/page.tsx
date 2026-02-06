@@ -72,8 +72,24 @@ export default function ProAccountIdentityPage() {
       display_name: businessName,
       logo_url: logoUrl || undefined,
     }, session?.access_token ?? undefined);
-    if (!res.success) setError(res.error || 'Failed to save business identity.');
-    else setSuccess('Business identity saved.');
+    if (!res.success) {
+      setError(res.error || 'Failed to save business identity.');
+      setSaving(false);
+      return;
+    }
+
+    // Read-after-write: confirm from Supabase.
+    const { data, error: e } = await supabase
+      .from('service_pros')
+      .select('display_name, logo_url')
+      .eq('user_id', userId)
+      .single();
+    if (e) setError(e.message || 'Saved, but failed to reload.');
+    else {
+      setBusinessName(data?.display_name || '');
+      setLogoUrl(data?.logo_url || '');
+      setSuccess('Business identity saved.');
+    }
     setSaving(false);
   }
 

@@ -18,11 +18,20 @@
 -- Every user (customer or pro) gets a profile row
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL CHECK (role IN ('customer', 'pro', 'admin')) DEFAULT 'customer',
+  -- role is nullable to support role selection onboarding
+  role TEXT CHECK (role IN ('customer', 'pro', 'admin')),
+  -- auth/onboarding helpers
+  email text,
+  first_name text,
+  zip_code text,
+  onboarding_step text,
+  -- user-editable profile fields
   full_name TEXT,
   phone TEXT,
+  avatar_url text,
   language_preference TEXT DEFAULT 'en',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Service categories (cleaning, plumbing, etc.)
@@ -58,6 +67,10 @@ CREATE TABLE IF NOT EXISTS public.service_pros (
   services_offered text[] NOT NULL DEFAULT '{}'::text[],
   certifications jsonb NOT NULL DEFAULT '[]'::jsonb,
   service_types jsonb NOT NULL DEFAULT '[]'::jsonb,
+  -- Public pro profile fields
+  logo_url text,
+  service_descriptions text,
+  before_after_photos jsonb NOT NULL DEFAULT '[]'::jsonb,
   -- Stripe Connect (optional)
   stripe_account_id text,
   stripe_details_submitted boolean NOT NULL DEFAULT false,
@@ -163,14 +176,16 @@ CREATE POLICY "Users can view own profile"
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE
-  USING (auth.uid() = id);
+  TO authenticated
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
 
--- Allow insert for authenticated users (for signup flow)
--- Note: We use service role key in the API to create profiles after signup
-DROP POLICY IF EXISTS "Service role can insert profiles" ON public.profiles;
-CREATE POLICY "Service role can insert profiles"
+-- Users can insert their own profile row (onboarding / first-login)
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+CREATE POLICY "Users can insert own profile"
   ON public.profiles FOR INSERT
-  WITH CHECK (true);
+  TO authenticated
+  WITH CHECK (auth.uid() = id);
 
 
 -- SERVICE CATEGORIES POLICIES

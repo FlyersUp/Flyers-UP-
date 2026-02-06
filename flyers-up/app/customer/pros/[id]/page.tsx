@@ -16,11 +16,12 @@ import { OfficialBadge } from '@/components/ui/OfficialBadge';
 import { RatingCompact } from '@/components/ui/RatingStars';
 import {
   getCurrentUser,
-  getProById as getProByIdApi,
+  getPublicProProfileById as getProByIdApi,
   getUserBookingPreferences,
   updateUserBookingPreferences,
-  type ServicePro,
+  type PublicProProfile,
 } from '@/lib/api';
+import { parseBusinessHoursModel, summarizeBusinessHours } from '@/lib/utils/businessHours';
 
 function CredentialItem({
   icon,
@@ -49,7 +50,7 @@ export default function CustomerProProfilePage({ params }: { params: Promise<{ i
   const { id } = use(params);
   const router = useRouter();
   const [ready, setReady] = useState(false);
-  const [pro, setPro] = useState<ServicePro | null>(null);
+  const [pro, setPro] = useState<PublicProProfile | null>(null);
   const [proLoading, setProLoading] = useState(true);
 
   useEffect(() => {
@@ -184,7 +185,11 @@ export default function CustomerProProfilePage({ params }: { params: Promise<{ i
         <section className="bg-surface rounded-[18px] border border-hairline shadow-card p-6 mt-4">
           <div className="flex items-start gap-4">
             <div className="w-20 h-20 rounded-2xl overflow-hidden bg-surface2 flex items-center justify-center">
-              <span className="text-3xl">👤</span>
+              {pro.logoUrl ? (
+                <Image src={pro.logoUrl} alt={`${pro.name} logo`} width={80} height={80} className="w-20 h-20 object-cover" />
+              ) : (
+                <span className="text-3xl">👤</span>
+              )}
             </div>
 
             <div className="flex-1">
@@ -214,6 +219,35 @@ export default function CustomerProProfilePage({ params }: { params: Promise<{ i
               <p className="text-sm text-muted/70">Response</p>
             </div>
           </div>
+
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-surface2 rounded-xl">
+              <h3 className="text-sm font-semibold text-text">Business hours</h3>
+              <p className="text-sm text-muted mt-1">
+                {summarizeBusinessHours(parseBusinessHoursModel(pro.businessHours || ''))}
+              </p>
+            </div>
+            <div className="p-4 bg-surface2 rounded-xl">
+              <h3 className="text-sm font-semibold text-text">Experience</h3>
+              <p className="text-sm text-muted mt-1">
+                {pro.yearsExperience != null ? `${pro.yearsExperience} years` : 'Not specified'}
+              </p>
+            </div>
+          </div>
+
+          {pro.serviceTypes && pro.serviceTypes.length > 0 ? (
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold text-text mb-2">Services</h3>
+              <div className="space-y-2">
+                {pro.serviceTypes.map((s, idx) => (
+                  <div key={s.id || `${s.name}-${idx}`} className="flex items-center justify-between p-3 bg-surface2 rounded-xl">
+                    <span className="text-sm text-text font-medium">{s.name}</span>
+                    <span className="text-sm text-muted">${s.price}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="flex gap-3 mt-6">
             <Link

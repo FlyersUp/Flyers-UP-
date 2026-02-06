@@ -35,21 +35,45 @@ export interface Database {
       profiles: {
         Row: {
           id: string;
-          role: string;
+          role: string | null;
+          email: string | null;
+          first_name: string | null;
+          zip_code: string | null;
+          onboarding_step: string | null;
           full_name: string | null;
+          phone: string | null;
+          avatar_url: string | null;
+          language_preference: string | null;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id: string;
-          role: string;
+          role?: string | null;
+          email?: string | null;
+          first_name?: string | null;
+          zip_code?: string | null;
+          onboarding_step?: string | null;
           full_name?: string | null;
+          phone?: string | null;
+          avatar_url?: string | null;
+          language_preference?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
-          role?: string;
+          role?: string | null;
+          email?: string | null;
+          first_name?: string | null;
+          zip_code?: string | null;
+          onboarding_step?: string | null;
           full_name?: string | null;
+          phone?: string | null;
+          avatar_url?: string | null;
+          language_preference?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
       };
       service_categories: {
@@ -98,6 +122,9 @@ export interface Database {
           services_offered?: string[] | null;
           certifications?: Json | null;
           service_types?: Json | null;
+          logo_url?: string | null;
+          service_descriptions?: string | null;
+          before_after_photos?: Json | null;
           created_at: string;
         };
         Insert: {
@@ -119,6 +146,9 @@ export interface Database {
           services_offered?: string[] | null;
           certifications?: Json | null;
           service_types?: Json | null;
+          logo_url?: string | null;
+          service_descriptions?: string | null;
+          before_after_photos?: Json | null;
           created_at?: string;
         };
         Update: {
@@ -140,6 +170,9 @@ export interface Database {
           services_offered?: string[] | null;
           certifications?: Json | null;
           service_types?: Json | null;
+          logo_url?: string | null;
+          service_descriptions?: string | null;
+          before_after_photos?: Json | null;
           created_at?: string;
         };
       };

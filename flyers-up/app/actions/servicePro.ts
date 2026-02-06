@@ -15,7 +15,7 @@ import { requireProUser } from '@/app/actions/_auth';
 export async function updateMyServiceProAction(
   params: UpdateServiceProParams,
   accessToken?: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; servicePro?: Record<string, unknown> }> {
   try {
     const { userId } = await requireProUser({ accessToken });
     const admin = createAdminSupabaseClient();
@@ -38,10 +38,46 @@ export async function updateMyServiceProAction(
     if (params.certifications !== undefined) updateData.certifications = params.certifications;
     if (params.service_types !== undefined) updateData.service_types = params.service_types;
 
-    const { error } = await admin.from('service_pros').update(updateData).eq('user_id', userId);
+    // Ensure required fields exist for upsert (service_pros has NOT NULL display_name, category_id).
+    const { data: existing, error: existErr } = await admin
+      .from('service_pros')
+      .select('display_name, category_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (existErr) return { success: false, error: existErr.message };
+
+    const displayName =
+      (updateData.display_name as string | undefined)?.trim() ||
+      (existing?.display_name as string | undefined)?.trim() ||
+      '';
+    const categoryId =
+      (updateData.category_id as string | undefined)?.trim() ||
+      (existing?.category_id as string | undefined)?.trim() ||
+      '';
+
+    if (!displayName || !categoryId) {
+      return {
+        success: false,
+        error: 'Set your Business Name and Service Category, then save again.',
+      };
+    }
+
+    const payload: Record<string, unknown> = {
+      user_id: userId,
+      display_name: displayName,
+      category_id: categoryId,
+      ...updateData,
+    };
+
+    const { data, error } = await admin
+      .from('service_pros')
+      .upsert(payload, { onConflict: 'user_id' })
+      .select('*')
+      .single();
     if (error) return { success: false, error: error.message };
 
-    return { success: true };
+    // Read-after-write verification (also powers UI refresh).
+    return { success: true, servicePro: (data as unknown as Record<string, unknown>) ?? undefined };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'An unexpected error occurred' };
   }

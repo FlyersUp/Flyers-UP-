@@ -68,6 +68,18 @@ export interface ServicePro {
   available: boolean;
 }
 
+export interface PublicProProfile extends ServicePro {
+  businessHours: string | null;
+  yearsExperience: number | null;
+  servicesOffered: string[];
+  serviceTypes: Array<{ name: string; price: string; id?: string }>;
+  logoUrl: string | null;
+  serviceDescriptions: string | null;
+  serviceAreaZip: string | null;
+  serviceRadius: number | null;
+  beforeAfterPhotos: string[];
+}
+
 export interface ScopeReview {
   id: string;
   bookingId: string;
@@ -636,6 +648,66 @@ export async function getProById(proId: string): Promise<ServicePro | null> {
     startingPrice: data.starting_price,
     location: data.location || 'Not specified',
     available: data.available,
+  };
+}
+
+/**
+ * Public pro profile fields for customer browsing.
+ * This is the "listing" customers use to evaluate and request a job.
+ */
+export async function getPublicProProfileById(proId: string): Promise<PublicProProfile | null> {
+  const { data, error } = await supabase
+    .from('service_pros')
+    .select(
+      `
+      *,
+      service_categories (
+        slug,
+        name
+      )
+    `
+    )
+    .eq('id', proId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching public pro profile by ID:', error);
+    return null;
+  }
+
+  const serviceTypes: Array<{ name: string; price: string; id?: string }> = Array.isArray((data as any).service_types)
+    ? ((data as any).service_types as any[]).filter((s) => s && typeof s.name === 'string' && typeof s.price === 'string')
+    : [];
+
+  const servicesOffered: string[] = Array.isArray((data as any).services_offered)
+    ? ((data as any).services_offered as any[]).filter((v) => typeof v === 'string')
+    : [];
+
+  const photos: string[] = Array.isArray((data as any).before_after_photos)
+    ? ((data as any).before_after_photos as any[]).filter((v) => typeof v === 'string')
+    : [];
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    name: data.display_name,
+    bio: data.bio || '',
+    categorySlug: (data as any).service_categories?.slug || 'general',
+    categoryName: (data as any).service_categories?.name || 'General',
+    rating: data.rating,
+    reviewCount: data.review_count,
+    startingPrice: data.starting_price,
+    location: data.location || 'Not specified',
+    available: data.available,
+    businessHours: (data as any).business_hours ?? null,
+    yearsExperience: (data as any).years_experience ?? null,
+    servicesOffered,
+    serviceTypes,
+    logoUrl: (data as any).logo_url ?? null,
+    serviceDescriptions: (data as any).service_descriptions ?? null,
+    serviceAreaZip: (data as any).service_area_zip ?? null,
+    serviceRadius: (data as any).service_radius ?? null,
+    beforeAfterPhotos: photos,
   };
 }
 

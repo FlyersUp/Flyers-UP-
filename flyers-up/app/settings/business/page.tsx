@@ -150,6 +150,16 @@ export default function BusinessSettingsPage() {
 
       if (result.success) {
         setSuccess('Business profile updated successfully');
+        // Read-after-write: re-fetch from Supabase source of truth.
+        const proData = await getMyServicePro(userId);
+        if (proData) {
+          setDisplayName(proData.displayName);
+          setBio(proData.bio || '');
+          setCategoryId(proData.categoryId);
+          setStartingPrice(proData.startingPrice.toString());
+          setServiceRadius(proData.serviceRadius?.toString() || '');
+          setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
+        }
       } else {
         setError(result.error || 'Failed to update business profile');
       }
@@ -170,7 +180,15 @@ export default function BusinessSettingsPage() {
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    await updateMyServiceProAction({ service_types: next as unknown[] }, session?.access_token ?? undefined);
+    const res = await updateMyServiceProAction({ service_types: next as unknown[] }, session?.access_token ?? undefined);
+    if (!res.success) {
+      setError(res.error || 'Failed to save services.');
+      return;
+    }
+    if (userId) {
+      const proData = await getMyServicePro(userId);
+      if (proData?.serviceTypes) setServiceTypes(proData.serviceTypes);
+    }
   }
 
   function handleAddService() {
