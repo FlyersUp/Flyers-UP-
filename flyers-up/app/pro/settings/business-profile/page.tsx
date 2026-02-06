@@ -163,6 +163,10 @@ export default function ProBusinessProfileSettingsPage() {
       return;
     }
 
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
     const res = await updateMyServiceProAction({
       bio: bio.trim() || undefined,
       service_descriptions: serviceDescriptions.trim() || '',
@@ -172,7 +176,7 @@ export default function ProBusinessProfileSettingsPage() {
       before_after_photos: photos,
       services_offered: servicesOffered,
       certifications,
-    });
+    }, session?.access_token ?? undefined);
 
     if (!res.success) setError(res.error || 'Failed to save business profile.');
     else setSuccess('Business profile saved.');

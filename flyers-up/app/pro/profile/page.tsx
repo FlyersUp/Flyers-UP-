@@ -179,6 +179,11 @@ export default function ProProfilePage() {
         return;
       }
 
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const accessToken = session?.access_token ?? undefined;
+
       const result = await updateMyServiceProAction({
         display_name: displayName,
         bio: formData.bio,
@@ -190,7 +195,7 @@ export default function ProProfilePage() {
         years_experience: yearsExpNum ?? undefined,
         services_offered: formData.servicesOffered,
         certifications: formData.verifiedCredentials,
-      });
+      }, accessToken);
 
       if (!result.success) {
         setError(result.error || 'Failed to update profile.');

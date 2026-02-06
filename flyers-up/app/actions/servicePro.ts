@@ -8,25 +8,16 @@
  * - Still enforces caller is an authenticated pro.
  */
 
-import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import type { UpdateServiceProParams } from '@/lib/api';
-
-async function requireProUser(): Promise<{ userId: string }> {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Unauthorized');
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-  if (!profile || profile.role !== 'pro') throw new Error('Unauthorized');
-
-  return { userId: user.id };
-}
+import { requireProUser } from '@/app/actions/_auth';
 
 export async function updateMyServiceProAction(
-  params: UpdateServiceProParams
+  params: UpdateServiceProParams,
+  accessToken?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId } = await requireProUser();
+    const { userId } = await requireProUser({ accessToken });
     const admin = createAdminSupabaseClient();
 
     // Build the update payload (DB column names).

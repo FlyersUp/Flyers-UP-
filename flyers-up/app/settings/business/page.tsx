@@ -134,6 +134,11 @@ export default function BusinessSettingsPage() {
     setError(null);
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const accessToken = session?.access_token ?? undefined;
+
       const result = await updateMyServiceProAction({
         display_name: displayName,
         bio: bio || undefined,
@@ -141,7 +146,7 @@ export default function BusinessSettingsPage() {
         starting_price: startingPrice ? parseFloat(startingPrice) : undefined,
         service_radius: serviceRadius ? parseInt(serviceRadius) : undefined,
         business_hours: stringifyBusinessHoursModel(businessHoursModel),
-      });
+      }, accessToken);
 
       if (result.success) {
         setSuccess('Business profile updated successfully');
@@ -162,7 +167,10 @@ export default function BusinessSettingsPage() {
     } catch {
       // ignore
     }
-    await updateMyServiceProAction({ service_types: next as unknown[] });
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    await updateMyServiceProAction({ service_types: next as unknown[] }, session?.access_token ?? undefined);
   }
 
   function handleAddService() {
@@ -411,9 +419,12 @@ export default function BusinessSettingsPage() {
                 setLoading(true);
                 
                 if (userId) {
+                  const {
+                    data: { session },
+                  } = await supabase.auth.getSession();
                   await updateMyServiceProAction({
                     business_hours: stringifyBusinessHoursModel(businessHoursModel),
-                  });
+                  }, session?.access_token ?? undefined);
                 }
                 setLoading(false);
                 setSuccess('Schedule updated successfully');

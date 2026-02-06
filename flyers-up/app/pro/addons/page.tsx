@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useState, useEffect } from 'react';
 import { getCurrentUser, getProByUserId, getProAddons, type ServiceAddon } from '@/lib/api';
+import { supabase } from '@/lib/supabaseClient';
 import { createAddonAction, updateAddonAction, deleteAddonAction } from '@/app/actions/addons';
 import { formatMoney, centsToDollars } from '@/lib/utils/money';
 import Link from 'next/link';
@@ -81,12 +82,15 @@ export default function ProAddonsPage() {
 
     try {
       setError(null);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const price = parseFloat(formData.priceDollars);
       if (Number.isNaN(price) || price < 0) {
         setError('Price must be a valid number.');
         return;
       }
-      const result = await createAddonAction(serviceCategory, formData.title.trim(), price);
+      const result = await createAddonAction(serviceCategory, formData.title.trim(), price, session?.access_token ?? undefined);
       if (!result.success) return setError(result.error || 'Failed to create add-on.');
 
       setSuccess('Add-on created successfully!');
@@ -102,7 +106,10 @@ export default function ProAddonsPage() {
   const handleUpdate = async (addonId: string, updates: { title?: string; priceDollars?: number; isActive?: boolean }) => {
     try {
       setError(null);
-      const result = await updateAddonAction(addonId, updates);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const result = await updateAddonAction(addonId, updates, session?.access_token ?? undefined);
       if (!result.success) return setError(result.error || 'Failed to update add-on.');
 
       setSuccess('Add-on updated successfully!');
@@ -122,7 +129,10 @@ export default function ProAddonsPage() {
 
     try {
       setError(null);
-      const result = await deleteAddonAction(addonId);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const result = await deleteAddonAction(addonId, session?.access_token ?? undefined);
       if (!result.success) return setError(result.error || 'Failed to delete add-on.');
 
       setSuccess('Add-on deleted successfully!');

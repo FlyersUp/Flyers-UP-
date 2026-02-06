@@ -65,10 +65,13 @@ export default function ProAccountIdentityPage() {
     setSaving(true);
     setError(null);
     setSuccess(null);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     const res = await updateMyServiceProAction({
       display_name: businessName,
       logo_url: logoUrl || undefined,
-    });
+    }, session?.access_token ?? undefined);
     if (!res.success) setError(res.error || 'Failed to save business identity.');
     else setSuccess('Business identity saved.');
     setSaving(false);

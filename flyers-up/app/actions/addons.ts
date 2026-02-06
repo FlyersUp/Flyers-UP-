@@ -9,18 +9,8 @@
  */
 
 import { dollarsToCents } from '@/lib/utils/money';
-import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabaseServer';
-
-async function requireProUser(): Promise<{ userId: string }> {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Unauthorized');
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-  if (!profile || profile.role !== 'pro') throw new Error('Unauthorized');
-
-  return { userId: user.id };
-}
+import { createAdminSupabaseClient } from '@/lib/supabaseServer';
+import { requireProUser } from '@/app/actions/_auth';
 
 /**
  * Create a new add-on (server action).
@@ -28,10 +18,11 @@ async function requireProUser(): Promise<{ userId: string }> {
 export async function createAddonAction(
   serviceCategory: string,
   title: string,
-  priceDollars: number
+  priceDollars: number,
+  accessToken?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId } = await requireProUser();
+    const { userId } = await requireProUser({ accessToken });
     const category = serviceCategory.trim();
     if (!category) {
       return { success: false, error: 'Set your service category first (My Business → Service Category).' };
@@ -71,10 +62,11 @@ export async function updateAddonAction(
     title?: string;
     priceDollars?: number;
     isActive?: boolean;
-  }
+  },
+  accessToken?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId } = await requireProUser();
+    const { userId } = await requireProUser({ accessToken });
     const admin = createAdminSupabaseClient();
 
     const updateData: Partial<{ title: string; price_cents: number; is_active: boolean }> = {};
@@ -105,9 +97,12 @@ export async function updateAddonAction(
 /**
  * Delete an add-on (server action).
  */
-export async function deleteAddonAction(addonId: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteAddonAction(
+  addonId: string,
+  accessToken?: string
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId } = await requireProUser();
+    const { userId } = await requireProUser({ accessToken });
     const admin = createAdminSupabaseClient();
     const { error } = await admin.from('service_addons').delete().eq('id', addonId).eq('pro_id', userId);
     if (error) return { success: false, error: error.message };
