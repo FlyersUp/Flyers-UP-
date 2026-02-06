@@ -10,9 +10,10 @@ import { TrustRow } from '@/components/ui/TrustRow';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Button } from '@/components/ui/Button';
-import { getCurrentUser, updateServicePro } from '@/lib/api';
+import { getCurrentUser } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { ProAccessNotice } from '@/components/ui/ProAccessNotice';
+import { updateMyServiceProAction } from '@/app/actions/servicePro';
 
 export default function ProBusinessProfileSettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -162,7 +163,7 @@ export default function ProBusinessProfileSettingsPage() {
       return;
     }
 
-    const res = await updateServicePro(userId, {
+    const res = await updateMyServiceProAction({
       bio: bio.trim() || undefined,
       service_descriptions: serviceDescriptions.trim() || '',
       service_area_zip: serviceAreaZip.trim() || '',

@@ -14,7 +14,8 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
-import { getMyServicePro, updateServicePro, getServiceCategories, getProEarnings, getProJobs, type ServiceCategory, type Booking } from '@/lib/api';
+import { getMyServicePro, getServiceCategories, getProEarnings, getProJobs, type ServiceCategory, type Booking } from '@/lib/api';
+import { updateMyServiceProAction } from '@/app/actions/servicePro';
 import { useProEarningsRealtime } from '@/hooks';
 import { formatMoney } from '@/lib/utils/money';
 import { TrustRow } from '@/components/ui/TrustRow';
@@ -128,7 +129,7 @@ export default function BusinessSettingsPage() {
     setError(null);
 
     try {
-      const result = await updateServicePro(userId, {
+      const result = await updateMyServiceProAction({
         display_name: displayName,
         bio: bio || undefined,
         category_id: categoryId || undefined,
@@ -412,7 +413,7 @@ export default function BusinessSettingsPage() {
                 localStorage.setItem('proProfile_extended', JSON.stringify(extendedData));
                 
                 if (userId) {
-                  await updateServicePro(userId, {
+                  await updateMyServiceProAction({
                     business_hours: businessHours || undefined,
                   });
                 }

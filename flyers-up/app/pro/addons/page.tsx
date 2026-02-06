@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useState, useEffect } from 'react';
 import { getCurrentUser, getProByUserId, getProAddons, type ServiceAddon } from '@/lib/api';
-import { createAddon, updateAddon, deleteAddon } from '@/lib/api';
-import { formatMoney, centsToDollars, dollarsToCents } from '@/lib/utils/money';
+import { createAddonAction, updateAddonAction, deleteAddonAction } from '@/app/actions/addons';
+import { formatMoney, centsToDollars } from '@/lib/utils/money';
 import Link from 'next/link';
 
 /**
@@ -81,19 +81,13 @@ export default function ProAddonsPage() {
 
     try {
       setError(null);
-      const user = await getCurrentUser();
-      if (!user || user.role !== 'pro' || !serviceCategory) {
-        setError('Unauthorized.');
+      const price = parseFloat(formData.priceDollars);
+      if (Number.isNaN(price) || price < 0) {
+        setError('Price must be a valid number.');
         return;
       }
-
-      const priceCents = dollarsToCents(parseFloat(formData.priceDollars));
-      const result = await createAddon(user.id, serviceCategory, formData.title.trim(), priceCents);
-
-      if (!result.success) {
-        setError(result.error || 'Failed to create add-on.');
-        return;
-      }
+      const result = await createAddonAction(serviceCategory, formData.title.trim(), price);
+      if (!result.success) return setError(result.error || 'Failed to create add-on.');
 
       setSuccess('Add-on created successfully!');
       setIsCreating(false);
@@ -105,15 +99,11 @@ export default function ProAddonsPage() {
     }
   };
 
-  const handleUpdate = async (addonId: string, updates: { title?: string; priceCents?: number; isActive?: boolean }) => {
+  const handleUpdate = async (addonId: string, updates: { title?: string; priceDollars?: number; isActive?: boolean }) => {
     try {
       setError(null);
-      const result = await updateAddon(addonId, updates);
-
-      if (!result.success) {
-        setError(result.error || 'Failed to update add-on.');
-        return;
-      }
+      const result = await updateAddonAction(addonId, updates);
+      if (!result.success) return setError(result.error || 'Failed to update add-on.');
 
       setSuccess('Add-on updated successfully!');
       setEditingId(null);
@@ -132,12 +122,8 @@ export default function ProAddonsPage() {
 
     try {
       setError(null);
-      const result = await deleteAddon(addonId);
-
-      if (!result.success) {
-        setError(result.error || 'Failed to delete add-on.');
-        return;
-      }
+      const result = await deleteAddonAction(addonId);
+      if (!result.success) return setError(result.error || 'Failed to delete add-on.');
 
       setSuccess('Add-on deleted successfully!');
       await loadData();
@@ -285,10 +271,14 @@ export default function ProAddonsPage() {
                     <div className="flex gap-3">
                       <Button
                         onClick={() => {
-                          const priceCents = dollarsToCents(parseFloat(formData.priceDollars));
+                          const price = parseFloat(formData.priceDollars);
+                          if (Number.isNaN(price) || price < 0) {
+                            setError('Price must be a valid number.');
+                            return;
+                          }
                           handleUpdate(addon.id, {
                             title: formData.title.trim(),
-                            priceCents,
+                            priceDollars: price,
                           });
                         }}
                       >

@@ -8,10 +8,11 @@ import { Label } from '@/components/ui/Label';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import AccountSettingsPage from '@/app/settings/account/page';
-import { getCurrentUser, updateServicePro } from '@/lib/api';
+import { getCurrentUser } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { TrustRow } from '@/components/ui/TrustRow';
 import { ProAccessNotice } from '@/components/ui/ProAccessNotice';
+import { updateMyServiceProAction } from '@/app/actions/servicePro';
 
 export default function ProAccountIdentityPage() {
   const [loading, setLoading] = useState(true);
@@ -64,7 +65,7 @@ export default function ProAccountIdentityPage() {
     setSaving(true);
     setError(null);
     setSuccess(null);
-    const res = await updateServicePro(userId, {
+    const res = await updateMyServiceProAction({
       display_name: businessName,
       logo_url: logoUrl || undefined,
     });

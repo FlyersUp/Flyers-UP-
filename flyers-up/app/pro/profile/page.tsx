@@ -10,8 +10,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePathname } from 'next/navigation';
 import PageLayout from '@/components/PageLayout';
-import { getCurrentUser, getMyServicePro, updateServicePro, getServiceCategories, type ServiceCategory } from '@/lib/api';
+import { getCurrentUser, getMyServicePro, getServiceCategories, type ServiceCategory } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
+import { updateMyServiceProAction } from '@/app/actions/servicePro';
 
 interface ProProfileData {
   displayName: string;
@@ -141,7 +142,7 @@ export default function ProProfilePage() {
       }
 
       // Update service pro (only fields that exist in DB)
-      const result = await updateServicePro(user.id, {
+      const result = await updateMyServiceProAction({
         display_name: formData.displayName,
         bio: formData.bio,
         category_id: formData.categoryId,
