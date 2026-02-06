@@ -92,7 +92,7 @@ export default function JobDetailsPage({ params }: PageProps) {
     }
     if (!bookingLoaded) {
       return (
-        <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg flex items-center justify-center">
           <div className="text-center">
             <p className="text-muted/70">Loading...</p>
           </div>
@@ -102,7 +102,7 @@ export default function JobDetailsPage({ params }: PageProps) {
 
     if (booking) {
       return (
-        <div className="min-h-screen bg-bg">
+        <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg">
           <header className="sticky top-0 z-50 bg-surface border-b border-hairline">
             <div className="max-w-2xl mx-auto px-4 py-4">
               <div className="flex items-center justify-between">
@@ -279,7 +279,7 @@ export default function JobDetailsPage({ params }: PageProps) {
     }
 
     return (
-      <div className="min-h-screen bg-bg flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg flex items-center justify-center">
         <div className="text-center">
           <div className="text-5xl mb-4">📋</div>
           <h1 className="text-2xl font-bold text-text mb-2">Job Not Found</h1>
@@ -311,7 +311,7 @@ export default function JobDetailsPage({ params }: PageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-surface border-b border-hairline">
         <div className="max-w-2xl mx-auto px-4 py-4">

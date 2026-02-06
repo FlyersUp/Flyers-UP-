@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-bg text-text">
+    <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text">
       <header className="border-b border-[var(--surface-border)] bg-[var(--surface-solid)]">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="text-sm font-semibold tracking-tight text-text hover:opacity-90">

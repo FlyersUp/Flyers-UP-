@@ -216,7 +216,7 @@ function AuthInner() {
   }
 
   return (
-    <div className="min-h-screen bg-bg text-text">
+    <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text">
       <div className="min-h-screen flex flex-col">
         <header className="px-4 py-5">
           <div className="max-w-md mx-auto flex items-center justify-between">
@@ -392,7 +392,7 @@ export default function AuthPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg flex items-center justify-center">
           <div className="text-sm text-muted">Loading…</div>
         </div>
       }

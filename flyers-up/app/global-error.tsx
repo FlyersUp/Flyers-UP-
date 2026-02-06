@@ -30,7 +30,7 @@ export default function GlobalError({
 
   return (
     <html>
-      <body className="min-h-screen bg-bg text-text flex items-center justify-center p-6">
+      <body className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text flex items-center justify-center p-6">
         <div className="max-w-md w-full surface-card p-6">
           <div className="text-sm font-semibold tracking-tight">Something went wrong</div>
           <div className="mt-2 text-sm text-muted">

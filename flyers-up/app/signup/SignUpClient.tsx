@@ -86,7 +86,7 @@ export function SignUpClient(props: { initialRole: UserRole }) {
   };
 
   return (
-    <div className="min-h-screen bg-bg text-text flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text flex flex-col">
       <header className="px-4 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Logo size="md" />
