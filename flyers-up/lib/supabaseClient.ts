@@ -55,6 +55,9 @@ export function createSupabaseClient(): SupabaseClient {
   // (This is critical for OTP/magic-link + OAuth flows.)
   const projectRefMatch = upstreamUrl?.match(/^https:\/\/([a-z0-9-]+)\.supabase\.co/i);
   const projectRef = projectRefMatch?.[1] ?? null;
+  // Fallback to a stable key even if NEXT_PUBLIC_SUPABASE_URL is missing/misconfigured.
+  // This prevents session storage from varying based on the proxy URL.
+  const storageKey = projectRef ? `sb-${projectRef}-auth-token` : 'sb-flyersup-auth-token';
 
   return createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
@@ -62,7 +65,7 @@ export function createSupabaseClient(): SupabaseClient {
       autoRefreshToken: true,
       detectSessionInUrl: true,
       flowType: 'pkce',
-      ...(projectRef ? { storageKey: `sb-${projectRef}-auth-token` } : {}),
+      storageKey,
     },
   });
 }

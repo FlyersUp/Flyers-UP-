@@ -7,6 +7,11 @@ import { supabase } from '@/lib/supabaseClient';
 import { getServiceCategories, type ServiceCategory } from '@/lib/api';
 import { getOrCreateProfile, routeAfterAuth, upsertProfile, upsertServicePro } from '@/lib/onboarding';
 
+function isInvalidRefreshToken(err: unknown): boolean {
+  const msg = (err as { message?: string } | null)?.message ?? '';
+  return /invalid refresh token/i.test(msg) || /refresh token not found/i.test(msg);
+}
+
 function ProInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,7 +34,22 @@ function ProInner() {
       setLoading(true);
       setError(null);
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user }, error: userErr } = await supabase.auth.getUser();
+        if (userErr) {
+          if (isInvalidRefreshToken(userErr)) {
+            try {
+              await supabase.auth.signOut();
+            } catch {
+              // ignore
+            }
+          }
+          router.replace(
+            safeNext
+              ? `/auth?next=${encodeURIComponent(safeNext)}&error=${encodeURIComponent('Your session expired. Please sign in again.')}`
+              : `/auth?error=${encodeURIComponent('Your session expired. Please sign in again.')}`
+          );
+          return;
+        }
         if (!user) {
           router.replace(safeNext ? `/auth?next=${encodeURIComponent(safeNext)}` : '/auth');
           return;
@@ -65,7 +85,18 @@ function ProInner() {
     setSaving(true);
     setError(null);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userErr } = await supabase.auth.getUser();
+      if (userErr) {
+        if (isInvalidRefreshToken(userErr)) {
+          try {
+            await supabase.auth.signOut();
+          } catch {
+            // ignore
+          }
+        }
+        router.replace('/auth');
+        return;
+      }
       if (!user) {
         router.replace('/auth');
         return;

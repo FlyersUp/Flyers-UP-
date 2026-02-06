@@ -11,6 +11,11 @@ import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 import { SideMenu } from '@/components/ui/SideMenu';
 
+function isInvalidRefreshToken(err: unknown): boolean {
+  const msg = (err as { message?: string } | null)?.message ?? '';
+  return /invalid refresh token/i.test(msg) || /refresh token not found/i.test(msg);
+}
+
 /**
  * Pro Dashboard - Screen 13
  * KPI cards, today's jobs
@@ -24,6 +29,15 @@ export default function ProDashboard() {
     const guard = async () => {
       const { data: { user }, error: userErr } = await supabase.auth.getUser();
       if (userErr) {
+        if (isInvalidRefreshToken(userErr)) {
+          try {
+            await supabase.auth.signOut();
+          } catch {
+            // ignore
+          }
+          router.replace(`/auth?next=%2Fpro&error=${encodeURIComponent('Your session expired. Please sign in again.')}`);
+          return;
+        }
         router.replace(`/auth?next=%2Fpro&error=${encodeURIComponent('Could not read your session. Please try again.')}`);
         return;
       }
