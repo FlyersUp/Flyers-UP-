@@ -100,10 +100,11 @@
 
   /* Subtle pro "canvas" tint (keep accent unchanged) */
   /* Slightly peachier paper + surfaces so pro side feels warmer */
-  --bg: 38 40% 97%;
-  --surface: 30 55% 99%;
-  --surface-2: 34 36% 95%;
-  --border: 38 22% 85%;
+  /* (Keep it pastel, but visible vs the customer side.) */
+  --bg: 36 55% 96%;
+  --surface: 32 70% 98%;
+  --surface-2: 34 48% 94%;
+  --border: 36 26% 84%;
   --nav-bg: #F6F1EA;
   --surface-solid: #FFFCFA;
 
