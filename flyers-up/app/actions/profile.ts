@@ -3,12 +3,17 @@
 /**
  * Server Actions for Profiles (customers + pros).
  *
- * We use the Service Role key for the write so we never lose data to RLS/cookie issues,
+ * We prefer the Service Role key for the write so we never lose data to RLS/cookie issues,
  * but we still authenticate the caller via access token (preferred) or cookies.
+ *
+ * IMPORTANT: If the service role key is not configured (common in local dev),
+ * we gracefully fall back to writing as the authenticated user via RLS.
  */
 
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { requireUser } from '@/app/actions/_auth';
+import { createAuthedSupabaseClient } from '@/lib/authedSupabaseServer';
 
 export type UpdateMyProfileParams = {
   full_name?: string;
@@ -26,14 +31,24 @@ export async function updateMyProfileAction(
 ): Promise<{ success: boolean; error?: string; profile?: Record<string, unknown> }> {
   try {
     const { userId } = await requireUser({ accessToken });
-    const admin = createAdminSupabaseClient();
 
     const updateData: Record<string, unknown> = { id: userId };
     for (const [k, v] of Object.entries(params)) {
       if (v !== undefined) updateData[k] = v;
     }
 
-    const { data, error } = await admin
+    // Prefer admin client (service role). Fall back to authed client (RLS) when missing.
+    const writer =
+      (() => {
+        try {
+          return createAdminSupabaseClient();
+        } catch {
+          if (accessToken) return createAuthedSupabaseClient(accessToken);
+          return null;
+        }
+      })() ?? (await createServerSupabaseClient());
+
+    const { data, error } = await writer
       .from('profiles')
       .upsert(updateData, { onConflict: 'id' })
       .select('*')

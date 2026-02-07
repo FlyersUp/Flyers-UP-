@@ -8,7 +8,6 @@ function safeUrl(u: string | undefined | null): string | null {
   if (!trimmed) return null;
   try {
     const parsed = new URL(trimmed);
-    // Return origin only (no path/query)
     return parsed.origin;
   } catch {
     return trimmed;
@@ -22,10 +21,6 @@ export async function GET() {
   const supabaseUrlSet = Boolean(nextPublicSupabaseUrl);
   const supabaseAnonKeySet = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   const serviceRoleKeySet = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const stripeSecretKeySet = Boolean(process.env.STRIPE_SECRET_KEY);
-  const stripeWebhookSecretSet = Boolean(process.env.STRIPE_WEBHOOK_SECRET);
-  const stripePublishableKeySet = Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
-  const slackWebhookSet = Boolean(process.env.SLACK_WEBHOOK_URL);
 
   let adminReadOk: boolean | null = null;
   let adminReadError: string | null = null;
@@ -44,33 +39,23 @@ export async function GET() {
   return Response.json(
     {
       ok: true,
-      build: {
-        // These env vars exist on Vercel; null locally.
-        vercelEnv: process.env.VERCEL_ENV ?? null, // 'production' | 'preview' | 'development'
+      schemaVersion: 'health-v2',
+      generatedAt: new Date().toISOString(),
+      vercel: {
+        env: process.env.VERCEL_ENV ?? null,
         gitSha: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
         gitRef: process.env.VERCEL_GIT_COMMIT_REF ?? null,
         region: process.env.VERCEL_REGION ?? null,
-        // Always present and useful for cache/debug.
-        generatedAt: new Date().toISOString(),
-        schemaVersion: 'health-v2',
       },
       env: {
         supabaseUrlSet,
         supabaseAnonKeySet,
         serviceRoleKeySet,
-        stripeSecretKeySet,
-        stripeWebhookSecretSet,
-        stripePublishableKeySet,
-        slackWebhookSet,
       },
       supabase: {
-        // This is the single most common reason for "nothing saves":
-        // SUPABASE_URL is set to a different project than NEXT_PUBLIC_SUPABASE_URL.
-        // Our server and proxy prefer SUPABASE_URL when present.
         nextPublicSupabaseUrl,
         supabaseUrl,
-        usingUpstream:
-          supabaseUrl || nextPublicSupabaseUrl ? (supabaseUrl ?? nextPublicSupabaseUrl) : null,
+        usingUpstream: supabaseUrl || nextPublicSupabaseUrl ? (supabaseUrl ?? nextPublicSupabaseUrl) : null,
       },
       checks: {
         adminReadOk,
@@ -80,12 +65,9 @@ export async function GET() {
     {
       status: 200,
       headers: {
-        // Never cache health checks (we use it for live env debugging).
         'Cache-Control': 'no-store, max-age=0',
       },
     }
   );
 }
-
-
 

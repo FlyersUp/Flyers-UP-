@@ -4,13 +4,17 @@
  * Server Actions for Pro profile/business updates.
  *
  * IMPORTANT:
- * - Uses Service Role on the server to bypass RLS reliably.
+ * - Prefers Service Role on the server to bypass RLS reliably.
  * - Still enforces caller is an authenticated pro.
+ * - If the service role key is not configured (common in local dev),
+ *   falls back to writing as the authenticated user via RLS.
  */
 
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import type { UpdateServiceProParams } from '@/lib/api';
 import { requireProUser } from '@/app/actions/_auth';
+import { createAuthedSupabaseClient } from '@/lib/authedSupabaseServer';
 
 export async function updateMyServiceProAction(
   params: UpdateServiceProParams,
@@ -18,7 +22,6 @@ export async function updateMyServiceProAction(
 ): Promise<{ success: boolean; error?: string; servicePro?: Record<string, unknown> }> {
   try {
     const { userId } = await requireProUser({ accessToken });
-    const admin = createAdminSupabaseClient();
 
     // Build the update payload (DB column names).
     const updateData: Record<string, unknown> = {};
@@ -38,8 +41,19 @@ export async function updateMyServiceProAction(
     if (params.certifications !== undefined) updateData.certifications = params.certifications;
     if (params.service_types !== undefined) updateData.service_types = params.service_types;
 
+    // Prefer admin client (service role). Fall back to authed client (RLS) when missing.
+    const writer =
+      (() => {
+        try {
+          return createAdminSupabaseClient();
+        } catch {
+          if (accessToken) return createAuthedSupabaseClient(accessToken);
+          return null;
+        }
+      })() ?? (await createServerSupabaseClient());
+
     // Ensure required fields exist for upsert (service_pros has NOT NULL display_name, category_id).
-    const { data: existing, error: existErr } = await admin
+    const { data: existing, error: existErr } = await writer
       .from('service_pros')
       .select('display_name, category_id')
       .eq('user_id', userId)
@@ -69,7 +83,7 @@ export async function updateMyServiceProAction(
       ...updateData,
     };
 
-    const { data, error } = await admin
+    const { data, error } = await writer
       .from('service_pros')
       .upsert(payload, { onConflict: 'user_id' })
       .select('*')
