@@ -1981,9 +1981,22 @@ export async function getMyServicePro(userId: string): Promise<ServiceProProfile
       servicesOffered: Array.isArray((data as any).services_offered)
         ? ((data as any).services_offered as unknown[]).filter((v) => typeof v === 'string') as string[]
         : [],
-      serviceTypes: Array.isArray((data as any).service_types)
-        ? ((data as any).service_types as any[]).filter((s) => s && typeof s.name === 'string' && typeof s.price === 'string')
-        : [],
+      serviceTypes: (() => {
+        const raw = (data as any).service_types;
+        if (!Array.isArray(raw)) return [];
+        return (raw as any[])
+          .filter(
+            (s) =>
+              s &&
+              typeof s.name === 'string' &&
+              (typeof s.price === 'string' || typeof s.price === 'number')
+          )
+          .map((s) => ({
+            name: String(s.name),
+            price: String(s.price),
+            id: typeof s.id === 'string' ? s.id : undefined,
+          }));
+      })(),
     };
   } catch (err) {
     console.error('Unexpected error fetching service pro:', err);

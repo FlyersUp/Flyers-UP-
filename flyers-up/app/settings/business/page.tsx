@@ -440,9 +440,14 @@ export default function BusinessSettingsPage() {
                   const {
                     data: { session },
                   } = await supabase.auth.getSession();
-                  await updateMyServiceProAction({
+                  const res = await updateMyServiceProAction({
                     business_hours: stringifyBusinessHoursModel(businessHoursModel),
                   }, session?.access_token ?? undefined);
+                  if (!res.success) {
+                    setError(res.error || 'Failed to save schedule.');
+                    setLoading(false);
+                    return;
+                  }
                 }
                 setLoading(false);
                 setSuccess('Schedule updated successfully');
