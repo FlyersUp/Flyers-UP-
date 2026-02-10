@@ -157,7 +157,14 @@ export function SignInClient(props: {
             </div>
             <h1 className="text-2xl font-bold text-text">{isSignUp ? 'Create your account' : 'Welcome back'}</h1>
             <p className="text-muted mt-2">
-              {isSignUp ? `Sign up as a ${role === 'customer' ? 'customer' : 'service professional'}` : 'Sign in to continue'}
+              {isSignUp
+                ? role === 'customer'
+                  ? 'Browse pros and send requests when you’re ready.'
+                  : 'Get set up to receive requests, respond, and manage your schedule.'
+                : 'Sign in to continue where you left off.'}
+            </p>
+            <p className="text-xs text-muted/70 mt-2">
+              Prefer not to use a password? You can sign in with an email code or Google.
             </p>
           </div>
 
@@ -229,11 +236,13 @@ export function SignInClient(props: {
 
           {pendingConfirm && (
             <div className="mb-4 bg-surface2 text-text px-4 py-3 rounded-lg text-sm border border-border">
-              Check your email to confirm your account, then come back and sign in. If confirmation links are blocked on
-              your network, use the email code flow instead.
+              Check your email to confirm your account, then come back and sign in.
+              <div className="mt-1 text-xs text-muted/70">
+                If email links don’t open on your network/device, you can use email code sign-in instead.
+              </div>
               <div className="mt-2">
                 <Link href="/auth" className="underline underline-offset-4 hover:opacity-80 font-medium">
-                  Continue with Email Code →
+                  Sign in with email code →
                 </Link>
               </div>
             </div>
@@ -276,7 +285,7 @@ export function SignInClient(props: {
               disabled={isLoading}
               className="w-full py-3 rounded-lg font-medium transition-opacity bg-accent text-accentContrast hover:opacity-95 disabled:opacity-50"
             >
-              {isLoading ? 'Please wait...' : 'Continue'}
+              {isLoading ? 'Working…' : isSignUp ? 'Create account' : 'Sign in'}
             </button>
           </form>
 
@@ -288,15 +297,13 @@ export function SignInClient(props: {
           )}
 
           <div className="mt-6 text-center">
-            <div className="text-xs text-muted/70">
-              Having trouble? Some accounts use email code or Google sign-in.
-            </div>
+            <div className="text-xs text-muted/70">Having trouble? Use email code or Google sign-in.</div>
             <div className="mt-2">
               <Link
                 href={nextParam ? `/auth?next=${encodeURIComponent(nextParam)}` : '/auth'}
                 className="text-sm font-medium text-text underline underline-offset-4 decoration-border hover:decoration-text"
               >
-                Use Email Code / Google Sign-in →
+                Continue with email code or Google →
               </Link>
             </div>
           </div>

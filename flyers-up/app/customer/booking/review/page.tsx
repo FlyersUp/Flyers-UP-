@@ -24,6 +24,7 @@ function BookingReviewContent() {
   const serviceId = searchParams.get('serviceId');
   const date = searchParams.get('date');
   const time = searchParams.get('time');
+  const [error, setError] = useState<string | null>(null);
   const [address, setAddress] = useState(''); // Autofilled from saved addresses (or user edit)
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>(''); // '' => custom
@@ -94,8 +95,17 @@ function BookingReviewContent() {
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-semibold text-text mb-6">
-          Review Booking
+          Review request
         </h1>
+        <p className="text-sm text-muted/70 mb-6">
+          Confirm the details below. You’ll send a request next. No payment is collected on this screen.
+        </p>
+
+        {error ? (
+          <div className="mb-4 p-3 bg-danger/10 border border-danger/30 rounded-lg text-text text-sm">
+            {error}
+          </div>
+        ) : null}
 
         <Card withRail className="mb-6">
           <div className="space-y-6">
@@ -194,7 +204,7 @@ function BookingReviewContent() {
             <div className="border-t-2 border-accent pt-4 bg-accent/5 rounded-lg p-4">
               <div className="space-y-2 mb-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted">Base Service</span>
+                  <span className="text-muted">Starting estimate</span>
                   <span className="text-text">{basePriceCents > 0 ? formatMoney(basePriceCents) : 'TBD'}</span>
                 </div>
                 {selectedAddonIds.size > 0 && (
@@ -205,11 +215,14 @@ function BookingReviewContent() {
                 )}
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-border">
-                <Label>TOTAL</Label>
+                <Label>ESTIMATED TOTAL</Label>
                 <div className="text-2xl font-bold text-text">
                   {basePriceCents > 0 ? `$${totalDollars}` : 'TBD'}
                 </div>
               </div>
+              <p className="mt-2 text-xs text-muted/70">
+                You can confirm scope and details in Messages after the pro accepts.
+              </p>
             </div>
           </div>
         </Card>
@@ -218,16 +231,17 @@ function BookingReviewContent() {
           className="w-full"
           onClick={() => {
             if (!address || address.trim() === '') {
-              alert('Please enter a service address');
+              setError('Please enter a service address to continue.');
               return;
             }
+            setError(null);
             const addonIdsParam = Array.from(selectedAddonIds).join(',');
             router.push(
               `/customer/booking/payment?proId=${proId}&serviceId=${serviceId}&date=${date}&time=${time}&total=${totalDollars}&addonIds=${addonIdsParam}&address=${encodeURIComponent(address)}`
             );
           }}
         >
-          CONFIRM BOOKING →
+          Continue to send request →
         </Button>
       </div>
     </AppLayout>

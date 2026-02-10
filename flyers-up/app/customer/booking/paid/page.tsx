@@ -34,7 +34,9 @@ function PaidContent() {
         <Card className="p-8 text-center">
           <div className="text-5xl mb-4">✅</div>
           <h1 className="text-2xl font-semibold text-text mb-2">Payment received</h1>
-          <p className="text-muted mb-6">Thanks—your payment was successful.</p>
+          <p className="text-muted mb-6">
+            Thanks—your payment went through. You can review the request details any time.
+          </p>
 
           {booking ? (
             <div className="mb-5 flex items-center justify-center">
@@ -45,10 +47,10 @@ function PaidContent() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             {bookingId ? (
               <Link href={`/jobs/${bookingId}`}>
-                <Button>View request</Button>
+                <Button>View request details</Button>
               </Link>
             ) : (
-              <Button disabled>View request</Button>
+              <Button disabled>View request details</Button>
             )}
             <Link href="/customer">
               <Button variant="secondary">Back to dashboard</Button>

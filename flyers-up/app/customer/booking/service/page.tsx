@@ -36,23 +36,23 @@ function BookingServiceContent() {
   return (
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-semibold text-text mb-2">Select Service</h1>
+        <h1 className="text-2xl font-semibold text-text mb-2">Choose a service</h1>
         <p className="text-sm text-muted mb-6">
-          {proName ? `For ${proName}. ` : ''}This step used to show demo services. Now it stays empty until real services are wired up.
+          {proName ? `For ${proName}. ` : ''}Service menus are being set up. For now, start from categories and continue from there.
         </p>
 
         <Card withRail className="mb-6">
           <div className="space-y-2">
-            <div className="font-semibold text-text">Coming soon</div>
+            <div className="font-semibold text-text">Service menus (in progress)</div>
             <div className="text-sm text-muted">
-              We’ll let pros publish real service menus (and pricing) here.
+              Soon, pros will be able to publish a clear menu and pricing here. Until then, use categories to browse.
             </div>
           </div>
         </Card>
 
         <div className="flex flex-wrap gap-3">
-          <Button onClick={() => router.push('/services')} showArrow={false}>
-            Browse services
+          <Button onClick={() => router.push('/customer/categories')} showArrow={false}>
+            Browse categories
           </Button>
           {proId ? (
             <Link

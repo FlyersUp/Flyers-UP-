@@ -28,8 +28,11 @@ function BookingPaymentContent() {
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-semibold text-text mb-6">
-          Send Request
+          Send request
         </h1>
+        <p className="text-sm text-muted/70 mb-6">
+          You’re asking the pro to accept this job. You won’t be charged at this step.
+        </p>
 
         <Card className="mb-6">
           <div className="space-y-3">
@@ -55,7 +58,7 @@ function BookingPaymentContent() {
                   {editedAddress || address || 'No address provided'}
                 </p>
                 <p className="text-xs text-muted/70 mt-1">
-                  This is where the pro will arrive to complete the service
+                  This is where the pro will arrive if they accept.
                 </p>
               </div>
             )}
@@ -69,10 +72,10 @@ function BookingPaymentContent() {
               <div className="space-y-3">
                 <Label className="block">HOW THIS WORKS</Label>
                 <p className="text-sm text-muted">
-                  You’re sending a request. The pro can accept or decline. Payment is not collected at this step.
+                  1) You send a request. 2) The pro accepts or declines. 3) If accepted, you can message to confirm details.
                 </p>
                 <p className="text-sm text-muted">
-                  Once accepted, you’ll coordinate details in Messages.
+                  Payment is not collected on this screen.
                 </p>
               </div>
             </Card>
@@ -81,16 +84,15 @@ function BookingPaymentContent() {
           {/* Summary */}
           <div>
             <Card>
-              <Label className="mb-4 block">BOOKING SUMMARY</Label>
+              <Label className="mb-4 block">ESTIMATE</Label>
               <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted">Service</span>
-                  <span className="text-text">$120</span>
-                </div>
                 <div className="border-t border-border pt-3 flex justify-between font-semibold">
                   <span>Estimated total</span>
                   <span>${total}</span>
                 </div>
+                <p className="text-xs text-muted/70">
+                  You can confirm scope and any changes in Messages after acceptance.
+                </p>
               </div>
             </Card>
           </div>
@@ -154,8 +156,18 @@ function BookingPaymentContent() {
             }}
             disabled={isProcessing}
           >
-            {isProcessing ? 'Sending…' : 'Send request →'}
+            {isProcessing ? 'Sending…' : 'Send request (no payment yet) →'}
           </Button>
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="text-sm text-muted hover:text-text"
+              disabled={isProcessing}
+            >
+              ← Back to review
+            </button>
+          </div>
           <div className="mt-3 text-xs text-muted/70 leading-relaxed">
             By booking, you agree to the Flyers Up{' '}
             <Link href="/terms" className="underline hover:text-text">

@@ -262,10 +262,10 @@ export default function BusinessSettingsPage() {
   }));
 
   const tabs = [
-    { id: 'profile' as TabType, label: 'Edit Profile', icon: '👤' },
-    { id: 'schedule' as TabType, label: 'Schedule', icon: '📅' },
-    { id: 'services' as TabType, label: 'Services', icon: '🔧' },
-    { id: 'income' as TabType, label: 'Income & Tips', icon: '💰' },
+    { id: 'profile' as TabType, label: 'Public profile', icon: '👤' },
+    { id: 'services' as TabType, label: 'Services & pricing', icon: '🔧' },
+    { id: 'schedule' as TabType, label: 'Availability', icon: '📅' },
+    { id: 'income' as TabType, label: 'Earnings', icon: '💰' },
     { id: 'reviews' as TabType, label: 'Reviews', icon: '⭐' },
   ];
 
@@ -273,7 +273,10 @@ export default function BusinessSettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-text mb-2">My Business</h1>
-        <p className="text-muted">Manage your business profile and service details</p>
+        <p className="text-muted">
+          Control what customers see, what you offer, and when you’re available.
+          Save anytime.
+        </p>
         <div className="mt-3">
           <TrustRow />
         </div>
@@ -315,9 +318,13 @@ export default function BusinessSettingsPage() {
         {/* Edit Business Profile Tab */}
         {activeTab === 'profile' && (
           <form onSubmit={handleSaveProfile} className="space-y-4">
+            <div className="text-sm text-muted/70">
+              These details appear on your public listing. Required fields are marked with *.
+            </div>
+
             <div>
               <label htmlFor="displayName" className="block text-sm font-medium text-muted mb-1">
-                Business Name *
+                Business name *
               </label>
               <input
                 type="text"
@@ -326,13 +333,13 @@ export default function BusinessSettingsPage() {
                 onChange={(e) => setDisplayName(e.target.value)}
                 required
                 className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
-                placeholder="Your business or display name"
+                placeholder="What customers should call you"
               />
             </div>
 
             <div>
               <label htmlFor="bio" className="block text-sm font-medium text-muted mb-1">
-                About / Bio
+                About
               </label>
               <textarea
                 id="bio"
@@ -340,13 +347,13 @@ export default function BusinessSettingsPage() {
                 onChange={(e) => setBio(e.target.value)}
                 rows={4}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
-                placeholder="Tell customers about your services and experience"
+                placeholder="One or two sentences about your work, experience, and what you’re best at"
               />
             </div>
 
             <div>
               <label htmlFor="category" className="block text-sm font-medium text-muted mb-1">
-                Service Category *
+                Primary service category *
               </label>
               <select
                 id="category"
@@ -355,18 +362,24 @@ export default function BusinessSettingsPage() {
                 required
                 className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
               >
-                <option value="">Select a category</option>
+                <option value="">{categories.length ? 'Select a category' : 'No categories available yet'}</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}
                   </option>
                 ))}
               </select>
+              {!categories.length ? (
+                <p className="text-xs text-muted/70 mt-2">
+                  Categories are required to save your profile. If this stays empty, your database setup is missing category rows or
+                  category read access.
+                </p>
+              ) : null}
             </div>
 
             <div>
               <label htmlFor="startingPrice" className="block text-sm font-medium text-muted mb-1">
-                Starting Price ($) *
+                Starting price ($) *
               </label>
               <input
                 type="number"
@@ -379,11 +392,14 @@ export default function BusinessSettingsPage() {
                 className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 placeholder="0.00"
               />
+              <p className="text-xs text-muted/70 mt-2">
+                This is the starting price customers see. You can add more detailed services in the “Services &amp; pricing” tab.
+              </p>
             </div>
 
             <div>
               <label htmlFor="serviceRadius" className="block text-sm font-medium text-muted mb-1">
-                Service Radius (miles)
+                Service radius (miles)
               </label>
               <input
                 type="number"
@@ -401,8 +417,11 @@ export default function BusinessSettingsPage() {
               disabled={loading}
               className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? 'Saving...' : 'Save Changes'}
+              {loading ? 'Saving…' : 'Save profile'}
             </button>
+            <p className="text-xs text-muted/70">
+              Tip: after saving, refresh to confirm what customers will see.
+            </p>
           </form>
         )}
 
@@ -423,7 +442,7 @@ export default function BusinessSettingsPage() {
                 onChange={(next) => setBusinessHoursModel((prev) => ({ ...prev, weekly: next }))}
               />
               <p className="text-sm text-muted/70 mt-2">
-                Check the days you work, then pick start/end times.
+                Set the days you work, then choose start/end times. You can update this anytime.
               </p>
             </div>
 
@@ -455,7 +474,7 @@ export default function BusinessSettingsPage() {
               disabled={loading}
               className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent disabled:opacity-50 transition-colors"
             >
-              {loading ? 'Saving...' : 'Save Schedule'}
+              {loading ? 'Saving…' : 'Save availability'}
             </button>
           </div>
         )}

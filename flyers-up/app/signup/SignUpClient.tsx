@@ -104,10 +104,17 @@ export function SignUpClient(props: { initialRole: UserRole }) {
                 role === 'customer' ? 'bg-success/15 text-text border border-border' : 'bg-warning/15 text-text border border-border'
               }`}
             >
-              {role === 'customer' ? 'Customer Sign Up' : 'Service Pro Sign Up'}
+              {role === 'customer' ? 'Customer account' : 'Service Pro account'}
             </div>
             <h1 className="text-2xl font-bold text-text">Create your account</h1>
-            <p className="text-muted mt-2">Sign up as a {role === 'customer' ? 'customer' : 'service professional'}</p>
+            <p className="text-muted mt-2">
+              {role === 'customer'
+                ? 'Browse pros and send requests when you’re ready.'
+                : 'Get set up to receive requests, respond, and manage your schedule.'}
+            </p>
+            <p className="text-xs text-muted/70 mt-2">
+              Takes about a minute. You can complete your profile after you’re in.
+            </p>
           </div>
 
           <div className="flex mb-6 bg-surface2 border border-border rounded-xl p-1">
@@ -131,17 +138,19 @@ export function SignUpClient(props: { initialRole: UserRole }) {
 
           {success && (
             <div className="mb-4 bg-success/15 text-text px-4 py-3 rounded-lg text-sm border border-border">
-              Account created successfully!
+              Account created. You’re almost in.
             </div>
           )}
 
           {pendingConfirm && (
             <div className="mb-4 bg-surface2 text-text px-4 py-3 rounded-lg text-sm border border-border">
-              Check your email to confirm your account, then come back and sign in. If confirmation links are blocked on
-              your network, use the email code flow instead.
+              Check your email to confirm your account, then come back and sign in.
+              <div className="mt-1 text-xs text-muted/70">
+                If email links don’t open on your network/device, you can use the email code sign-in instead.
+              </div>
               <div className="mt-2">
                 <Link href="/auth" className="underline underline-offset-4 hover:opacity-80 font-medium">
-                  Continue with Email Code →
+                  Sign in with email code →
                 </Link>
               </div>
             </div>
@@ -203,7 +212,7 @@ export function SignUpClient(props: { initialRole: UserRole }) {
               disabled={isLoading || success}
               className="w-full py-3 rounded-lg font-medium transition-opacity bg-accent text-accentContrast hover:opacity-95 disabled:opacity-50"
             >
-              {isLoading ? 'Creating account...' : success ? 'Account created!' : 'Create Account'}
+              {isLoading ? 'Creating account…' : success ? 'Account created' : 'Create account'}
             </button>
           </form>
 

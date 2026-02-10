@@ -28,8 +28,11 @@ function BookingScheduleContent() {
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-semibold text-text mb-6">
-          Select Date & Time
+          Choose a date &amp; time
         </h1>
+        <p className="text-sm text-muted/70 mb-6">
+          Pick a time that works for you. You’ll review everything before you send the request.
+        </p>
 
         <div className="space-y-6 mb-8">
           <div>
@@ -68,7 +71,7 @@ function BookingScheduleContent() {
               onClick={() => router.push(`/customer/booking/review?proId=${proId}&serviceId=${serviceId}&date=${selectedDate}&time=${selectedTime}`)}
               disabled={!selectedDate || !selectedTime}
             >
-              Continue →
+              Review details →
             </Button>
           </div>
         </div>

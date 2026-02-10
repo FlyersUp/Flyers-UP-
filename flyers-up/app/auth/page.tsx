@@ -232,10 +232,10 @@ function AuthInner() {
             <div className="rounded-2xl border border-border bg-surface shadow-sm">
               <div className="p-6">
                 <h1 className="text-2xl font-semibold tracking-tight">
-                  Local help. Real people. Simple bookings.
+                  Find local help without the guesswork.
                 </h1>
                 <p className="text-muted mt-2">
-                  Get started in a minute. You can add details later.
+                  Sign in to browse pros, send a request, and message on-platform. You can add details later.
                 </p>
 
                 {error && (
@@ -257,7 +257,7 @@ function AuthInner() {
                       className="w-full rounded-xl bg-accent px-4 py-3.5 text-base font-medium text-accentContrast hover:opacity-95 transition-opacity disabled:opacity-50"
                       disabled={status === 'sending' || status === 'verifying'}
                     >
-                      Continue with Email
+                      Continue with email (one-time code)
                     </button>
 
                     <button
@@ -269,10 +269,14 @@ function AuthInner() {
                       Continue with Google
                     </button>
 
+                    <div className="pt-1 text-xs text-muted/70 leading-relaxed">
+                      We’ll email you a one-time code. No password needed for the email option.
+                    </div>
+
                     <div className="pt-2 text-sm text-muted">
                       Already have an account?{' '}
                       <Link href={nextParam ? `/signin?next=${encodeURIComponent(nextParam)}` : '/signin'} className="text-text hover:opacity-80 font-medium">
-                        Log in
+                        Sign in
                       </Link>
                     </div>
                   </div>
@@ -321,10 +325,10 @@ function AuthInner() {
                       <div className="rounded-xl border border-border bg-surface2 px-4 py-4">
                         <div className="font-medium text-text">Check your email</div>
                         <div className="text-sm text-muted mt-1">
-                          We sent a sign-in email to <span className="font-medium">{email}</span>.
+                          We sent a sign-in message to <span className="font-medium">{email}</span>.
                         </div>
                         <div className="text-sm text-muted mt-1">
-                          If you received a 6-digit code, enter it below. If you received a link, you can tap it.
+                          If you see a 6-digit code, enter it below. If you see a link, you can tap it instead.
                         </div>
 
                         <form onSubmit={handleVerifyCode} className="mt-4 space-y-3">
@@ -361,14 +365,14 @@ function AuthInner() {
                             }}
                             className="rounded-xl bg-surface border border-border px-4 py-2.5 text-sm font-medium text-text hover:bg-surface2"
                           >
-                            Send again
+                            Resend code
                           </button>
                           <button
                             type="button"
                             onClick={() => setStep('entry')}
-                            className="rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accentContrast hover:opacity-95 transition-opacity"
+                            className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-medium text-text hover:bg-surface2 transition-colors"
                           >
-                            Done
+                            Change sign-in method
                           </button>
                         </div>
                       </div>
@@ -379,7 +383,7 @@ function AuthInner() {
             </div>
 
             <div className="mt-6 text-xs text-muted/70 leading-relaxed">
-              By continuing, you agree to use Flyers Up respectfully and keep communication on-platform.
+              By continuing, you agree to keep communication on-platform and follow our Terms.
             </div>
           </div>
         </main>

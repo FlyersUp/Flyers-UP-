@@ -42,7 +42,7 @@ function PayContent() {
         <div>
           <h1 className="text-2xl font-semibold text-text">Pay for completed work</h1>
           <p className="text-muted mt-1">
-            Payment is collected after the pro finishes (Model C).
+            Payment is collected after the pro finishes. You’ll only be able to pay when this request is marked “awaiting payment”.
           </p>
         </div>
 
@@ -121,7 +121,7 @@ function PayContent() {
                 }}
                 showArrow={false}
               >
-                {paying ? 'Starting checkout…' : 'Pay now'}
+                {paying ? 'Starting checkout…' : 'Continue to payment'}
               </Button>
               <Link
                 href={`/jobs/${encodeURIComponent(bookingId)}`}
@@ -133,7 +133,7 @@ function PayContent() {
 
             {booking.status !== 'awaiting_payment' ? (
               <p className="text-xs text-muted/70">
-                This booking isn’t awaiting payment right now.
+                This request isn’t ready for payment right now.
               </p>
             ) : null}
           </>

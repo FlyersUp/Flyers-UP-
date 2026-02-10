@@ -52,9 +52,9 @@ export default function CategoriesPage() {
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-text mb-2">
-            All Categories
+            Choose a category
           </h1>
-          <Label>SEE ALL CATEGORIES</Label>
+          <Label>BROWSE FIRST, REQUEST WHEN READY</Label>
         </div>
 
         {loadingCats ? (
@@ -69,7 +69,7 @@ export default function CategoriesPage() {
             </div>
             <div className="mt-4">
               <Link href="/services" className="text-sm font-medium text-text hover:underline">
-                Browse services →
+                Try the services page →
               </Link>
             </div>
           </div>

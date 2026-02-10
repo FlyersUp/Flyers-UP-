@@ -35,7 +35,7 @@ function BookingSuccessContent() {
           <div className="text-5xl mb-4">✅</div>
           <h1 className="text-2xl font-semibold text-text mb-2">Request Sent</h1>
           <p className="text-muted mb-6">
-            Your request is now with the pro. You’ll be notified when they accept or decline.
+            Your request is with the pro now. If they accept, you can message to confirm scope and details.
           </p>
 
           {booking ? (
@@ -47,20 +47,20 @@ function BookingSuccessContent() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             {bookingId ? (
               <Link href={`/customer/chat/${bookingId}`}>
-                <Button>Message Pro</Button>
+                <Button>Message the pro</Button>
               </Link>
             ) : (
-              <Button disabled>Message Pro</Button>
+              <Button disabled>Message the pro</Button>
             )}
             {bookingId ? (
               <Link href={`/jobs/${bookingId}`}>
-                <Button variant="secondary">View Request</Button>
+                <Button variant="secondary">View request details</Button>
               </Link>
             ) : (
-              <Button variant="secondary" disabled>View Request</Button>
+              <Button variant="secondary" disabled>View request details</Button>
             )}
             <Link href="/customer">
-              <Button variant="ghost">Back to Dashboard</Button>
+              <Button variant="ghost">Back to dashboard</Button>
             </Link>
           </div>
 
