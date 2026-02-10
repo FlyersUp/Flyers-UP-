@@ -44,6 +44,15 @@ export async function createServerSupabaseClient() {
     (process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL)!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieOptions: {
+        // Keep cookie storage key stable (and matching the browser client)
+        name: (() => {
+          const upstreamUrl = (process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim();
+          const projectRefMatch = upstreamUrl.match(/^https:\/\/([a-z0-9-]+)\.supabase\.co/i);
+          const projectRef = projectRefMatch?.[1] ?? null;
+          return projectRef ? `sb-${projectRef}-auth-token` : 'sb-flyersup-auth-token';
+        })(),
+      },
       cookies: {
         getAll() {
           return cookieStore.getAll();

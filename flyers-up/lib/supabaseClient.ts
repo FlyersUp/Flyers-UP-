@@ -18,12 +18,30 @@
  * Then uncomment the generic type parameter below.
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
+import type { SupabaseClient } from '@supabase/supabase-js';
 // Uncomment when you have generated types from your actual Supabase schema:
 // import type { Database } from '@/types/database';
 
 // Singleton instance
 let supabaseInstance: SupabaseClient | null = null;
+
+function getUpstreamSupabaseUrl(): string {
+  return (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim();
+}
+
+function getSupabaseAnonKey(): string {
+  return (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
+}
+
+function getAuthCookieName(): string {
+  // When proxying through /api/supabase, Supabase can't infer the project ref.
+  // Use the upstream project ref to keep the cookie storage key stable.
+  const upstreamUrl = getUpstreamSupabaseUrl();
+  const projectRefMatch = upstreamUrl.match(/^https:\/\/([a-z0-9-]+)\.supabase\.co/i);
+  const projectRef = projectRefMatch?.[1] ?? null;
+  return projectRef ? `sb-${projectRef}-auth-token` : 'sb-flyersup-auth-token';
+}
 
 /**
  * Create a Supabase client for browser-side operations.
@@ -38,9 +56,8 @@ export function createSupabaseClient(): SupabaseClient {
     // regional blocks on *.supabase.co.
     typeof window !== 'undefined'
       ? `${window.location.origin}/api/supabase`
-      : process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const upstreamUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      : getUpstreamSupabaseUrl();
+  const supabaseAnonKey = getSupabaseAnonKey();
 
   // Check for env vars at runtime
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -50,22 +67,11 @@ export function createSupabaseClient(): SupabaseClient {
     );
   }
 
-  // When proxying, Supabase can't infer the project ref from our domain.
-  // Set `storageKey` explicitly so sessions/PKCE code verifiers remain stable.
-  // (This is critical for OTP/magic-link + OAuth flows.)
-  const projectRefMatch = upstreamUrl?.match(/^https:\/\/([a-z0-9-]+)\.supabase\.co/i);
-  const projectRef = projectRefMatch?.[1] ?? null;
-  // Fallback to a stable key even if NEXT_PUBLIC_SUPABASE_URL is missing/misconfigured.
-  // This prevents session storage from varying based on the proxy URL.
-  const storageKey = projectRef ? `sb-${projectRef}-auth-token` : 'sb-flyersup-auth-token';
-
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      flowType: 'pkce',
-      storageKey,
+  // Use @supabase/ssr's browser client so auth is stored in cookies.
+  // This is required for server-rendered pages (like /pro) to see the session.
+  return createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: {
+      name: getAuthCookieName(),
     },
   });
 }
