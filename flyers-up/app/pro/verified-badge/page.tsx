@@ -28,7 +28,7 @@ export default function VerifiedBadgePage() {
         <Card withRail className="mb-6">
           <div className="text-center py-8">
             <div className="inline-flex items-center gap-3 bg-surface border border-hairline shadow-card rounded-[18px] px-6 py-4 mb-6">
-              <div className="w-16 h-16 bg-accent/15 rounded-full flex items-center justify-center text-text">
+              <div className="w-16 h-16 bg-surface2 border border-hairline rounded-full flex items-center justify-center text-text">
                 <span className="text-2xl">⏳</span>
               </div>
               <div className="text-left">
@@ -96,15 +96,15 @@ export default function VerifiedBadgePage() {
           <Label className="mb-4 block">HOW TO USE</Label>
           <div className="space-y-3 text-sm text-text">
             <div className="flex items-start gap-3">
-              <span className="text-accent font-bold">1.</span>
+              <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" aria-hidden />
               <p>Export your verified badge in your preferred format (PNG, PDF, or SVG)</p>
             </div>
             <div className="flex items-start gap-3">
-              <span className="text-accent font-bold">2.</span>
+              <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" aria-hidden />
               <p>Use the badge on your website, business cards, or marketing materials</p>
             </div>
             <div className="flex items-start gap-3">
-              <span className="text-accent font-bold">3.</span>
+              <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" aria-hidden />
               <p>The badge shows your verified status and builds trust with customers</p>
             </div>
           </div>

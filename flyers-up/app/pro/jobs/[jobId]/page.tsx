@@ -116,7 +116,7 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
                 <p className="text-text">{booking.notes || '—'}</p>
               </div>
 
-              <div className="border-t-2 border-accent pt-4 bg-accent/5 rounded-lg p-4">
+              <div className="rounded-lg p-4 border border-border bg-surface2 border-l-[3px] border-l-accent">
                 <div className="flex justify-between items-center">
                   <Label>TOTAL</Label>
                   <div className="text-2xl font-bold text-text">{booking.price != null ? `$${booking.price}` : 'TBD'}</div>

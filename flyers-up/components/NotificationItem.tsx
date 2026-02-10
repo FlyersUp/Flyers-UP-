@@ -11,12 +11,16 @@ interface NotificationItemProps {
   className?: string;
 }
 
+// Landing-page discipline:
+// - Keep notifications mostly neutral (works in grayscale)
+// - Use role accent only as a micro indicator (rail + unread dot)
+// - Avoid extra palette (no blue/green/yellow fills)
 const typeConfig: Record<string, { icon: string; accentColor: string; bgColor: string }> = {
-  booking: { icon: '📅', accentColor: 'border-l-accent', bgColor: 'bg-accent/10' },
-  payment: { icon: '💳', accentColor: 'border-l-success', bgColor: 'bg-success/15' },
-  status: { icon: '🚗', accentColor: 'border-l-warning', bgColor: 'bg-warning/15' },
+  booking: { icon: '📅', accentColor: 'border-l-accent', bgColor: 'bg-surface2' },
+  payment: { icon: '💳', accentColor: 'border-l-accent', bgColor: 'bg-surface2' },
+  status: { icon: '🚗', accentColor: 'border-l-accent', bgColor: 'bg-surface2' },
   promo: { icon: '🎉', accentColor: 'border-l-accent', bgColor: 'bg-surface2' },
-  review: { icon: '⭐', accentColor: 'border-l-warning', bgColor: 'bg-warning/15' },
+  review: { icon: '⭐', accentColor: 'border-l-accent', bgColor: 'bg-surface2' },
   system: { icon: '⚙️', accentColor: 'border-l-border', bgColor: 'bg-surface2' },
   message: { icon: '💬', accentColor: 'border-l-accent', bgColor: 'bg-surface2' },
 };
@@ -64,7 +68,9 @@ export default function NotificationItem({ notification, className = '' }: Notif
 
       <div className="flex items-start gap-3">
         {/* Icon */}
-        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${config.bgColor}`}>
+        <div
+          className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center border border-hairline ${config.bgColor}`}
+        >
           <span className="text-lg">{config.icon}</span>
         </div>
 

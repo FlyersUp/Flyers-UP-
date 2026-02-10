@@ -41,16 +41,16 @@ export default function MapPlaceholder({ address, className = '' }: MapPlacehold
         {/* Location pin */}
         <div className="absolute top-1/4 right-1/4 transform -translate-x-1/2">
           <div className="relative">
-            <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-accentContrast text-sm">📍</span>
+            <div className="w-8 h-8 bg-surface border border-accent rounded-full flex items-center justify-center shadow-lg">
+              <span className="text-sm">📍</span>
             </div>
-            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-accent rotate-45" />
+            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-surface border border-accent rotate-45" />
           </div>
         </div>
 
         {/* Current location indicator */}
         <div className="absolute bottom-1/4 left-1/4">
-          <div className="w-4 h-4 bg-info rounded-full border-2 border-surface shadow-md animate-pulse" />
+          <div className="w-4 h-4 bg-surface2 rounded-full border-2 border-accent shadow-md animate-pulse" />
         </div>
       </div>
 
@@ -62,7 +62,7 @@ export default function MapPlaceholder({ address, className = '' }: MapPlacehold
             <span className="text-sm text-text truncate">{address}</span>
           </div>
           <button 
-            className="flex-shrink-0 p-2 text-muted hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+            className="flex-shrink-0 p-2 text-muted hover:text-text hover:bg-surface2 rounded-lg transition-colors"
             title="Copy address"
           >
             📋

@@ -169,7 +169,10 @@ export default function ProPricingAvailabilitySettingsPage() {
               />
               <p className="text-sm text-muted">
                 Base prices per service + schedule availability live in{' '}
-                <Link href="/pro/settings/business" className="text-accent hover:underline">
+                <Link
+                  href="/pro/settings/business"
+                  className="text-text underline underline-offset-4 decoration-border hover:decoration-text"
+                >
                   My Business
                 </Link>.
               </p>

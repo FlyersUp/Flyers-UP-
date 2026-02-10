@@ -290,7 +290,7 @@ export default function BusinessSettingsPage() {
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
               activeTab === tab.id
-                ? 'bg-accent/15 text-text'
+                ? 'bg-surface2 text-text border border-[var(--surface-border)] border-l-[3px] border-l-accent'
                 : 'text-muted hover:bg-surface2'
             }`}
           >

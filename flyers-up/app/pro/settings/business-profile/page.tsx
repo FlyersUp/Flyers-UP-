@@ -327,7 +327,7 @@ export default function ProBusinessProfileSettingsPage() {
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-text truncate">{c.name}</div>
                           <a
-                            className="text-sm text-accent hover:underline truncate block"
+                            className="text-sm text-text underline underline-offset-4 decoration-border hover:decoration-text truncate block"
                             href={c.url}
                             target="_blank"
                             rel="noreferrer"
@@ -369,7 +369,12 @@ export default function ProBusinessProfileSettingsPage() {
                         key={`${p}-${idx}`}
                         className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-surface"
                       >
-                        <a className="text-sm text-accent hover:underline truncate" href={p} target="_blank" rel="noreferrer">
+                        <a
+                          className="text-sm text-text underline underline-offset-4 decoration-border hover:decoration-text truncate"
+                          href={p}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
                           {p}
                         </a>
                         <button
