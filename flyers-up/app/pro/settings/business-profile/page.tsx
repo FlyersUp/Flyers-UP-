@@ -234,7 +234,9 @@ export default function ProBusinessProfileSettingsPage() {
 
           {error && <div className="mt-4 p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">{error}</div>}
           {success && (
-            <div className="mt-4 p-4 bg-warning/15 border border-warning/30 rounded-lg text-text">{success}</div>
+            <div className="mt-4 p-4 bg-surface2 border border-[var(--surface-border)] border-l-[3px] border-l-accent rounded-lg text-text">
+              {success}
+            </div>
           )}
 
           {loading ? (

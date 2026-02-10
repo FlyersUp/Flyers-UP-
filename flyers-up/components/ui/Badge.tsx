@@ -91,24 +91,37 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
-  const statusColors: Record<string, { bg: string; text: string; border: string }> = {
-    pending: { bg: 'bg-badgeFill', text: 'text-muted', border: 'border-badgeBorder' },
-    requested: { bg: 'bg-badgeFill', text: 'text-muted', border: 'border-badgeBorder' },
-    scheduled: { bg: 'bg-badgeFill', text: 'text-muted', border: 'border-badgeBorder' },
-    active: { bg: 'bg-success/15', text: 'text-text', border: 'border-badgeBorder' },
-    in_progress: { bg: 'bg-warning/15', text: 'text-text', border: 'border-badgeBorder' },
-    awaiting_payment: { bg: 'bg-warning/15', text: 'text-text', border: 'border-badgeBorder' },
-    completed: { bg: 'bg-success/15', text: 'text-text', border: 'border-badgeBorder' },
-    cancelled: { bg: 'bg-danger/10', text: 'text-text', border: 'border-badgeBorder' },
-    declined: { bg: 'bg-danger/10', text: 'text-text', border: 'border-badgeBorder' },
-  };
+  // Landing-page discipline:
+  // - Keep badges mostly neutral (works in grayscale)
+  // - Use role accent only as a small indicator for "active/doing/done" states
+  // - Use danger only for negative outcomes
+  const s = status.toLowerCase();
+  const base = { bg: 'bg-badgeFill', text: 'text-text', border: 'border-badgeBorder' };
+  const muted = { bg: 'bg-badgeFill', text: 'text-muted', border: 'border-badgeBorder' };
+  const danger = { bg: 'bg-badgeFill', text: 'text-text', border: 'border-badgeBorder', dot: 'before:bg-danger/80' };
+  const accent = { bg: 'bg-badgeFill', text: 'text-text', border: 'border-badgeBorder', dot: 'before:bg-accent/80' };
 
-  const statusConfig = statusColors[status.toLowerCase()] || statusColors.pending;
+  const statusConfig:
+    | ({ bg: string; text: string; border: string } & { dot?: string })
+    = (() => {
+      if (s === 'pending' || s === 'requested' || s === 'scheduled') return muted;
+      if (s === 'cancelled' || s === 'declined') return danger;
+      if (s === 'active' || s === 'in_progress' || s === 'awaiting_payment' || s === 'completed') return accent;
+      return base;
+    })();
   const displayStatus = status.replaceAll('_', ' ');
 
   return (
     <span
-      className={`inline-flex items-center h-6 px-2.5 rounded-full border text-[11px] uppercase tracking-wide font-medium ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} ${className}`}
+      className={[
+        'relative inline-flex items-center h-6 px-2.5 rounded-full border text-[11px] uppercase tracking-wide font-medium',
+        statusConfig.bg,
+        statusConfig.text,
+        statusConfig.border,
+        statusConfig.dot ? "pl-4 before:content-[''] before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-2 before:w-2 before:rounded-full" : '',
+        statusConfig.dot ?? '',
+        className,
+      ].join(' ')}
     >
       {displayStatus}
     </span>

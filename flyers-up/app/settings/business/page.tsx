@@ -245,7 +245,7 @@ export default function BusinessSettingsPage() {
             <TrustRow />
           </div>
         </div>
-        <div className="p-4 bg-warning/15 border border-warning/30 rounded-lg text-accent">
+        <div className="p-4 bg-surface2 border border-[var(--surface-border)] border-l-[3px] border-l-accent rounded-lg text-text">
           This section is only available for service professionals. Please sign up as a pro to access business settings.
         </div>
       </div>
@@ -302,7 +302,7 @@ export default function BusinessSettingsPage() {
 
       {/* Success/Error Messages */}
       {success && (
-        <div className="p-4 bg-success/15 border border-success/30 rounded-lg text-text">
+        <div className="p-4 bg-surface2 border border-[var(--surface-border)] border-l-[3px] border-l-accent rounded-lg text-text">
           {success}
         </div>
       )}
@@ -493,7 +493,7 @@ export default function BusinessSettingsPage() {
                   </div>
                   <Link
                     href="/pro/addons"
-                    className="shrink-0 text-sm font-medium text-accent hover:underline"
+                    className="shrink-0 text-sm font-medium text-text underline underline-offset-4 decoration-border hover:decoration-text"
                   >
                     Manage →
                   </Link>
@@ -517,7 +517,7 @@ export default function BusinessSettingsPage() {
                             handleUpdateService(service.id, newName, newPrice);
                           }
                         }}
-                        className="px-3 py-1 text-sm text-accent hover:bg-success/15 rounded-lg transition-colors"
+                        className="px-3 py-1 text-sm text-text hover:bg-surface2 rounded-lg transition-colors"
                       >
                         Edit
                       </button>
@@ -575,15 +575,15 @@ export default function BusinessSettingsPage() {
                 <p className="text-muted/70">Loading earnings...</p>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="p-4 bg-success/15 rounded-lg">
+                  <div className="p-4 bg-surface2 border border-[var(--surface-border)] rounded-lg">
                     <p className="text-sm text-muted mb-1">Total Earnings</p>
                     <p className="text-2xl font-bold text-accent">
                       {formatMoney(Math.round(earnings?.totalEarnings || 0))}
                     </p>
                   </div>
-                  <div className="p-4 bg-info/10 rounded-lg border border-border">
+                  <div className="p-4 bg-surface2 border border-[var(--surface-border)] rounded-lg">
                     <p className="text-sm text-muted mb-1">This Month</p>
-                    <p className="text-2xl font-bold text-info">
+                    <p className="text-2xl font-bold text-accent">
                       {formatMoney(Math.round(earnings?.thisMonth || 0))}
                     </p>
                   </div>
@@ -593,7 +593,7 @@ export default function BusinessSettingsPage() {
                       {earnings?.completedJobs || 0}
                     </p>
                   </div>
-                  <div className="p-4 bg-warning/15 rounded-lg">
+                  <div className="p-4 bg-surface2 border border-[var(--surface-border)] rounded-lg">
                     <p className="text-sm text-muted mb-1">Pending</p>
                     <p className="text-2xl font-bold text-accent">
                       {formatMoney(Math.round(earnings?.pendingPayments || 0))}

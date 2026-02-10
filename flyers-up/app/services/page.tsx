@@ -68,9 +68,9 @@ export default function ServicesPage() {
       )}
 
       {/* Info text */}
-      <div className="mt-8 p-5 bg-info/10 rounded-[18px] border border-hairline shadow-card">
-        <p className="text-sm text-info">
-          Tip: choose a category first, then you can compare pros and decide who to request.
+      <div className="mt-8 p-5 bg-surface2 rounded-[18px] border border-hairline shadow-card">
+        <p className="text-sm text-muted">
+          Tip: choose a category first, then compare pros and decide who to request.
         </p>
       </div>
     </Layout>

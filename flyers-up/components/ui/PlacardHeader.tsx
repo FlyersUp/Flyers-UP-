@@ -15,11 +15,11 @@ function toneClasses(tone: PlacardTone) {
     case 'primary':
       return 'border-l-accent/50';
     case 'success':
-      return 'border-l-success/50';
     case 'warning':
-      return 'border-l-warning/50';
     case 'info':
-      return 'border-l-info/50';
+      // Keep landing-page discipline: reserve non-role colors for true errors only.
+      // Use role accent for positive/attention/info section markers.
+      return 'border-l-accent/50';
     case 'danger':
       return 'border-l-danger/50';
     case 'neutral':

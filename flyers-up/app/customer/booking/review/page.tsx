@@ -201,7 +201,7 @@ function BookingReviewContent() {
               </div>
             )}
 
-            <div className="border-t-2 border-accent pt-4 bg-accent/5 rounded-lg p-4">
+            <div className="rounded-lg p-4 border border-border bg-surface2 border-l-[3px] border-l-accent">
               <div className="space-y-2 mb-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted">Starting estimate</span>

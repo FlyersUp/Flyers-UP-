@@ -196,7 +196,7 @@ export default function ProAddonsPage() {
         )}
 
         {success && (
-          <div className="mb-4 p-3 bg-success/15 border border-success/30 rounded-lg text-text text-sm">
+          <div className="mb-4 p-3 bg-surface2 border border-[var(--surface-border)] border-l-[3px] border-l-accent rounded-lg text-text text-sm">
             {success}
           </div>
         )}
@@ -302,11 +302,14 @@ export default function ProAddonsPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="font-semibold text-text">{addon.title}</h3>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          addon.isActive
-                            ? 'bg-success/15 text-text'
-                            : 'bg-surface2 text-muted'
-                        }`}>
+                        <span
+                          className={[
+                            'relative px-2 py-1 text-xs rounded-full border',
+                            addon.isActive
+                              ? "bg-badgeFill text-text border-badgeBorder pl-4 before:content-[''] before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-2 before:w-2 before:rounded-full before:bg-accent/80"
+                              : 'bg-surface2 text-muted border-border',
+                          ].join(' ')}
+                        >
                           {addon.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </div>

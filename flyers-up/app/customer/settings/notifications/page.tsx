@@ -177,7 +177,7 @@ export default function CustomerNotificationSettingsPage() {
         </div>
 
         {success && (
-          <div className="p-4 bg-success/15 border border-success/30 rounded-lg text-text">
+          <div className="p-4 bg-surface2 border border-[var(--surface-border)] border-l-[3px] border-l-accent rounded-lg text-text">
             {success}
           </div>
         )}

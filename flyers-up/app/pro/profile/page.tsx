@@ -298,7 +298,7 @@ export default function ProProfilePage() {
 
         {/* Success/Error Messages */}
         {success && (
-          <div className="mb-4 p-3 bg-success/15 border border-success/30 rounded-lg text-text text-sm">
+          <div className="mb-4 p-3 bg-surface2 border border-[var(--surface-border)] border-l-[3px] border-l-accent rounded-lg text-text text-sm">
             {success}
           </div>
         )}
@@ -444,7 +444,7 @@ export default function ProProfilePage() {
                   key={cred}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${
                     formData.verifiedCredentials.includes(cred)
-                      ? 'bg-success/15 border-accent/40 text-text'
+                      ? "relative bg-badgeFill border-accent/40 text-text pl-6 before:content-[''] before:absolute before:left-3 before:top-1/2 before:-translate-y-1/2 before:h-2 before:w-2 before:rounded-full before:bg-accent/80"
                       : 'bg-surface2 border-border text-text hover:bg-surface2'
                   } ${!isEditing ? 'cursor-default' : ''}`}
                 >
@@ -474,7 +474,7 @@ export default function ProProfilePage() {
                   key={cat.id}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${
                     formData.servicesOffered.includes(cat.slug)
-                      ? 'bg-success/15 border-accent/40 text-text'
+                      ? "relative bg-badgeFill border-accent/40 text-text pl-6 before:content-[''] before:absolute before:left-3 before:top-1/2 before:-translate-y-1/2 before:h-2 before:w-2 before:rounded-full before:bg-accent/80"
                       : 'bg-surface2 border-border text-text hover:bg-surface2'
                   } ${!isEditing ? 'cursor-default' : ''}`}
                 >

@@ -175,7 +175,7 @@ export default function PaymentSettingsPage() {
       </div>
 
       {success && (
-        <div className="p-4 bg-success/15 border border-success/30 rounded-lg text-text">
+        <div className="p-4 bg-surface2 border border-[var(--surface-border)] border-l-[3px] border-l-accent rounded-lg text-text">
           {success}
         </div>
       )}
@@ -205,7 +205,7 @@ export default function PaymentSettingsPage() {
                 </span>
               )}
               {payoutsHoldDays > 0 && (
-                <span className="text-xs font-medium px-2 py-1 rounded-full bg-warning/15 text-text border border-warning/30">
+                <span className="relative text-xs font-medium px-2 py-1 rounded-full bg-badgeFill text-text border border-badgeBorder pl-4 before:content-[''] before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-2 before:w-2 before:rounded-full before:bg-accent/80">
                   Payout delay: {payoutsHoldDays} day{payoutsHoldDays === 1 ? '' : 's'}
                 </span>
               )}

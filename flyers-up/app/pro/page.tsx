@@ -130,14 +130,14 @@ export default function ProDashboard() {
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Link
               href="/pro/settings/business"
-              className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors px-4 py-3"
+              className="rounded-xl border border-hairline bg-surface hover:bg-surface2 transition-colors px-4 py-3 shadow-card"
             >
               <div className="text-sm font-semibold text-text">Polish your business profile</div>
               <div className="text-xs text-muted mt-1">Clear category + service area increases matches.</div>
             </Link>
             <Link
               href="/pro/settings/payments-payouts"
-              className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors px-4 py-3"
+              className="rounded-xl border border-hairline bg-surface hover:bg-surface2 transition-colors px-4 py-3 shadow-card"
             >
               <div className="text-sm font-semibold text-text">Connect payouts</div>
               <div className="text-xs text-muted mt-1">So you can get paid when jobs complete.</div>
@@ -189,7 +189,7 @@ export default function ProDashboard() {
                 </Link>
                 <Link
                   href="/pro/settings/business"
-                  className="inline-flex items-center justify-center rounded-xl px-4 py-2 bg-surface hover:bg-surface2 text-text font-semibold border border-border transition-colors focus-ring"
+                  className="inline-flex items-center justify-center rounded-xl px-4 py-2 bg-surface hover:bg-surface2 text-text font-semibold border border-hairline transition-colors focus-ring"
                 >
                   Update profile
                 </Link>

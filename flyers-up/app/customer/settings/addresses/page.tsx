@@ -158,7 +158,11 @@ export default function CustomerAddressesSettingsPage() {
         </div>
 
         {error && <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">{error}</div>}
-        {success && <div className="p-4 bg-success/15 border border-success/30 rounded-lg text-text">{success}</div>}
+        {success && (
+          <div className="p-4 bg-surface2 border border-[var(--surface-border)] border-l-[3px] border-l-accent rounded-lg text-text">
+            {success}
+          </div>
+        )}
 
         <Card withRail>
           <div className="flex items-center justify-between">
@@ -183,7 +187,7 @@ export default function CustomerAddressesSettingsPage() {
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-text capitalize">{a.label}</p>
                         {a.isDefault ? (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-success/15 text-text border border-success/30">
+                          <span className="relative text-xs px-2 py-0.5 rounded-full bg-badgeFill text-text border border-badgeBorder pl-4 before:content-[''] before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-2 before:w-2 before:rounded-full before:bg-accent/80">
                             Default
                           </span>
                         ) : null}
