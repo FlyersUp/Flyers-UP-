@@ -1,228 +1,70 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { AppLayout } from '@/components/layouts/AppLayout';
-import { Label } from '@/components/ui/Label';
-import { Card } from '@/components/ui/Card';
-import { AppIcon } from '@/components/ui/AppIcon';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
-import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
-import { SideMenu } from '@/components/ui/SideMenu';
-
-function isInvalidRefreshToken(err: unknown): boolean {
-  const msg = (err as { message?: string } | null)?.message ?? '';
-  return /invalid refresh token/i.test(msg) || /refresh token not found/i.test(msg);
-}
+import { redirect } from 'next/navigation';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import ProDashboardClient from '@/components/pro/ProDashboardClient';
 
 /**
- * Pro Dashboard - Screen 13
- * KPI cards, today's jobs
+ * Pro Dashboard (server-gated)
+ *
+ * Fixes "reload" / flicker caused by client-side auth guards:
+ * - Reads session + profile on the server (no first-paint then redirect)
+ * - Keeps Pro pages neutral; role accent is a micro-accent only
  */
-export default function ProDashboard() {
-  const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [userName, setUserName] = useState('Account');
+export default async function ProDashboardPage() {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  useEffect(() => {
-    const guard = async () => {
-      const { data: { user }, error: userErr } = await supabase.auth.getUser();
-      if (userErr) {
-        if (isInvalidRefreshToken(userErr)) {
-          try {
-            await supabase.auth.signOut();
-          } catch {
-            // ignore
-          }
-          router.replace(`/auth?next=%2Fpro&error=${encodeURIComponent('Your session expired. Please sign in again.')}`);
-          return;
-        }
-        router.replace(`/auth?next=%2Fpro&error=${encodeURIComponent('Could not read your session. Please try again.')}`);
-        return;
-      }
-      if (!user) {
-        router.replace(
-          `/auth?next=%2Fpro&error=${encodeURIComponent(
-            'You are not signed in (no session found). If you just signed in, try turning off private browsing and allow site storage.'
-          )}`
-        );
-        return;
-      }
-      const profile = await getOrCreateProfile(user.id, user.email ?? null);
-      if (!profile) return;
-      const fallbackName = (user.email ? user.email.split('@')[0] : 'Account') || 'Account';
-      setUserName(profile.first_name?.trim() || fallbackName);
-      const dest = routeAfterAuth(profile, '/pro');
-      if (dest !== '/pro') {
-        router.replace(dest);
-        return;
-      }
+  if (!user) {
+    redirect('/auth?next=%2Fpro');
+  }
 
-      // Require "customer-visible" pro info before showing the main Pro dashboard.
-      // This ensures pros complete the minimal pro profile (category + service area) first.
-      const { data: proRow, error } = await supabase
-        .from('service_pros')
-        .select('user_id, display_name, category_id, service_area_zip')
-        .eq('user_id', user.id)
-        .maybeSingle();
+  const selectCols = 'id, email, role, first_name, phone, zip_code, onboarding_step';
 
-      const missingProInfo =
-        Boolean(error) ||
-        !proRow ||
-        !proRow.display_name ||
-        !proRow.category_id ||
-        !proRow.service_area_zip;
+  // Server-side get-or-create (RLS allows users to insert their own profile).
+  const { data: profileExisting } = await supabase
+    .from('profiles')
+    .select(selectCols)
+    .eq('id', user.id)
+    .maybeSingle();
 
-      if (missingProInfo) {
-        router.replace('/onboarding/pro?next=%2Fpro');
-        return;
-      }
-    };
-    void guard();
-  }, [router]);
+  const profile =
+    profileExisting ??
+    (
+      await supabase
+        .from('profiles')
+        .insert({ id: user.id, email: user.email ?? null, role: null, onboarding_step: 'role' })
+        .select(selectCols)
+        .single()
+    ).data ??
+    null;
 
-  // Clean slate: no fake jobs/earnings/ratings. We'll wire real bookings later.
-  const todayJobs: Array<{
-    id: string;
-    service: string;
-    customerName: string;
-    time: string;
-    total: number;
-    status: string;
-  }> = [];
+  if (!profile || profile.role !== 'pro') {
+    redirect('/onboarding/role?next=%2Fpro');
+  }
 
-  return (
-    <AppLayout mode="pro">
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-start gap-3">
-            <button
-              type="button"
-              onClick={() => setMenuOpen(true)}
-              className="h-10 w-10 rounded-xl bg-surface2 border border-hairline text-text hover:bg-surface transition-colors"
-              aria-label="Open menu"
-            >
-              ☰
-            </button>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-text">{userName}</h1>
-              <div className="text-sm text-muted">Pro</div>
-            </div>
-          </div>
-        </div>
+  const firstNameMissing = !profile.first_name || profile.first_name.trim().length === 0;
+  const zipMissing = !profile.zip_code || profile.zip_code.trim().length === 0;
+  if (profile.onboarding_step === 'pro_profile' || firstNameMissing || zipMissing) {
+    redirect('/onboarding/pro?next=%2Fpro');
+  }
 
-        {/* Clean-slate onboarding prompt */}
-        <Card className="mb-8 border-l-[3px] border-l-accent">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold tracking-tight text-text">You’re set up. Next: get your first job.</div>
-              <div className="mt-1 text-sm text-muted">
-                Your dashboard stays empty until customers request you. Here’s what you can do now.
-              </div>
-            </div>
-            <div className="shrink-0">
-              <Link href="/pro/requests" className="text-sm font-medium text-text hover:underline">
-                View requests
-              </Link>
-            </div>
-          </div>
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Link
-              href="/pro/settings/business"
-              className="rounded-xl border border-hairline bg-surface hover:bg-surface2 transition-colors px-4 py-3 shadow-card"
-            >
-              <div className="text-sm font-semibold text-text">Polish your business profile</div>
-              <div className="text-xs text-muted mt-1">Clear category + service area increases matches.</div>
-            </Link>
-            <Link
-              href="/pro/settings/payments-payouts"
-              className="rounded-xl border border-hairline bg-surface hover:bg-surface2 transition-colors px-4 py-3 shadow-card"
-            >
-              <div className="text-sm font-semibold text-text">Connect payouts</div>
-              <div className="text-xs text-muted mt-1">So you can get paid when jobs complete.</div>
-            </Link>
-          </div>
-        </Card>
+  // Require customer-visible pro info before showing the dashboard.
+  const { data: proRow } = await supabase
+    .from('service_pros')
+    .select('user_id, display_name, category_id, service_area_zip')
+    .eq('user_id', user.id)
+    .maybeSingle();
 
-        {/* Quick Actions */}
-        <div className="mb-6">
-          <div className="grid grid-cols-2 gap-4">
-            <Link href="/pro/settings/business" className="block">
-              <Card className="cursor-pointer hover:shadow-card transition-shadow">
-                <div className="text-center py-4">
-                  <div className="mb-2 flex justify-center">
-                    <AppIcon name="building" size={22} className="text-muted" alt="" />
-                  </div>
-                  <div className="text-sm font-medium text-text">My Business</div>
-                </div>
-              </Card>
-            </Link>
-            <Link href="/pro/credentials" className="block">
-              <Card className="cursor-pointer hover:shadow-card transition-shadow">
-                <div className="text-center py-4">
-                  <div className="mb-2 flex justify-center">
-                    <AppIcon name="file-text" size={22} className="text-muted" alt="" />
-                  </div>
-                  <div className="text-sm font-medium text-text">Credentials</div>
-                </div>
-              </Card>
-            </Link>
-          </div>
-        </div>
+  const missingProInfo =
+    !proRow || !proRow.display_name || !proRow.category_id || !proRow.service_area_zip;
+  if (missingProInfo) {
+    redirect('/onboarding/pro?next=%2Fpro');
+  }
 
-        {/* Today's Jobs */}
-        <div className="mb-6">
-          <Label className="mb-4 block">TODAY&apos;S JOBS</Label>
-          {todayJobs.length === 0 ? (
-            <Card className="border-l-[3px] border-l-accent">
-              <div className="text-base font-semibold text-text">No jobs scheduled yet</div>
-              <div className="mt-1 text-sm text-muted">
-                When you accept work, it will show up here.
-              </div>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Link
-                  href="/pro/requests"
-                  className="inline-flex items-center justify-center rounded-xl px-4 py-2 bg-accent text-accentContrast font-semibold hover:opacity-95 transition-opacity focus-ring"
-                >
-                  Check requests
-                </Link>
-                <Link
-                  href="/pro/settings/business"
-                  className="inline-flex items-center justify-center rounded-xl px-4 py-2 bg-surface hover:bg-surface2 text-text font-semibold border border-hairline transition-colors focus-ring"
-                >
-                  Update profile
-                </Link>
-              </div>
-            </Card>
-          ) : (
-            <div className="flex flex-col gap-[14px] overflow-visible">
-              {todayJobs.map((job) => (
-                <Link key={job.id} href={`/pro/jobs/${job.id}`} className="block">
-                  <Card className="border-l-[3px] border-l-accent">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className="font-semibold text-text mb-1 truncate">{job.service}</div>
-                        <div className="text-sm text-muted">
-                          {job.customerName} • {job.time}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-text">${job.total}</div>
-                        <div className="mt-1 flex justify-end">
-                          <span className="text-xs text-muted">{job.status}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} mode="pro" userName={userName} />
-    </AppLayout>
-  );
+  const fallbackName = (user.email ? user.email.split('@')[0] : 'Account') || 'Account';
+  const userName = profile.first_name?.trim() || fallbackName;
+
+  return <ProDashboardClient userName={userName} />;
 }
 
