@@ -31,6 +31,7 @@ export async function updateMyServiceProAction(
     if (params.starting_price !== undefined) updateData.starting_price = params.starting_price;
     if (params.service_radius !== undefined) updateData.service_radius = params.service_radius;
     if (params.business_hours !== undefined) updateData.business_hours = params.business_hours;
+    if (params.available !== undefined) updateData.available = params.available;
     if (params.location !== undefined) updateData.location = params.location;
     if (params.logo_url !== undefined) updateData.logo_url = params.logo_url;
     if (params.years_experience !== undefined) updateData.years_experience = params.years_experience;

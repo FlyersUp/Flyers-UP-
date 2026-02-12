@@ -46,6 +46,7 @@ export default function BusinessSettingsPage() {
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [available, setAvailable] = useState(false);
   const [startingPrice, setStartingPrice] = useState('');
   const [serviceRadius, setServiceRadius] = useState('');
   const [businessHoursModel, setBusinessHoursModel] = useState(() => defaultBusinessHoursModel());
@@ -97,6 +98,7 @@ export default function BusinessSettingsPage() {
         setDisplayName(proData.displayName);
         setBio(proData.bio || '');
         setCategoryId(proData.categoryId);
+        setAvailable(Boolean(proData.available));
         setStartingPrice(proData.startingPrice.toString());
         setServiceRadius(proData.serviceRadius?.toString() || '');
         setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
@@ -148,6 +150,7 @@ export default function BusinessSettingsPage() {
         display_name: displayName,
         bio: bio || undefined,
         category_id: categoryId || undefined,
+        available,
         starting_price: startingPrice ? parseFloat(startingPrice) : undefined,
         service_radius: serviceRadius ? parseInt(serviceRadius) : undefined,
         business_hours: stringifyBusinessHoursModel(businessHoursModel),
@@ -178,6 +181,7 @@ export default function BusinessSettingsPage() {
         setDisplayName(proData.displayName);
         setBio(proData.bio || '');
         setCategoryId(proData.categoryId);
+        setAvailable(Boolean(proData.available));
         setStartingPrice(proData.startingPrice.toString());
         setServiceRadius(proData.serviceRadius?.toString() || '');
         setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
@@ -467,6 +471,34 @@ export default function BusinessSettingsPage() {
                 className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
                 placeholder="e.g., 25"
               />
+            </div>
+
+            <div className="rounded-lg border border-border bg-surface p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-text">Available to customers</div>
+                  <div className="mt-1 text-xs text-muted/80">
+                    Turn this on to appear in customer browse results for your category. You can turn it off anytime.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-pressed={available}
+                  onClick={() => setAvailable((v) => !v)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors border border-border ${
+                    available ? 'bg-accent' : 'bg-surface2'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-surface transition-transform shadow ${
+                      available ? 'translate-x-[20px]' : 'translate-x-[2px]'
+                    }`}
+                  />
+                </button>
+              </div>
+              <div className="mt-2 text-xs text-muted/70">
+                {available ? 'Status: Visible in customer browse.' : 'Status: Hidden from customer browse.'}
+              </div>
             </div>
 
             <button

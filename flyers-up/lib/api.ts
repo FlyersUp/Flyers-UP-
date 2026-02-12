@@ -2073,6 +2073,7 @@ export interface ServiceProProfile {
   bio: string | null;
   categoryId: string;
   categoryName: string;
+  available: boolean;
   startingPrice: number;
   serviceRadius: number | null;
   businessHours: string | null;
@@ -2127,6 +2128,7 @@ export async function getMyServicePro(userId: string): Promise<ServiceProProfile
       bio: data.bio,
       categoryId: data.category_id,
       categoryName,
+      available: Boolean((data as any).available ?? false),
       startingPrice: data.starting_price,
       serviceRadius: data.service_radius,
       businessHours: data.business_hours,
@@ -2170,6 +2172,7 @@ export interface UpdateServiceProParams {
   starting_price?: number;
   service_radius?: number;
   business_hours?: string;
+  available?: boolean;
   location?: string;
   yearsExperience?: number;
   verifiedCredentials?: string[];
