@@ -647,21 +647,28 @@ export async function getProsByCategory(categorySlug: string): Promise<ServicePr
  * Get a single service pro by ID.
  */
 export async function getProById(proId: string): Promise<ServicePro | null> {
-  const { data, error } = await supabase
-    .from('service_pros')
-    .select(`
-      *,
-      service_categories (
-        slug,
-        name
-      )
-    `)
-    .eq('id', proId)
-    .single();
+  const { data, error } = await supabase.from('service_pros').select('*').eq('id', proId).maybeSingle();
 
-  if (error) {
+  if (error || !data) {
     console.error('Error fetching pro by ID:', error);
     return null;
+  }
+
+  // Customer booking/browse should only show available pros.
+  if (!data.available) return null;
+
+  let categorySlug = 'general';
+  let categoryName = 'General';
+  try {
+    const { data: cat } = await supabase
+      .from('service_categories')
+      .select('slug, name')
+      .eq('id', data.category_id)
+      .maybeSingle();
+    if (cat?.slug) categorySlug = cat.slug;
+    if (cat?.name) categoryName = cat.name;
+  } catch {
+    // ignore
   }
 
   return {
@@ -669,8 +676,8 @@ export async function getProById(proId: string): Promise<ServicePro | null> {
     userId: data.user_id,
     name: data.display_name,
     bio: data.bio || '',
-    categorySlug: data.service_categories.slug,
-    categoryName: data.service_categories.name,
+    categorySlug,
+    categoryName,
     rating: data.rating,
     reviewCount: data.review_count,
     startingPrice: data.starting_price,
@@ -684,27 +691,38 @@ export async function getProById(proId: string): Promise<ServicePro | null> {
  * This is the "listing" customers use to evaluate and request a job.
  */
 export async function getPublicProProfileById(proId: string): Promise<PublicProProfile | null> {
-  const { data, error } = await supabase
-    .from('service_pros')
-    .select(
-      `
-      *,
-      service_categories (
-        slug,
-        name
-      )
-    `
-    )
-    .eq('id', proId)
-    .single();
+  const { data, error } = await supabase.from('service_pros').select('*').eq('id', proId).maybeSingle();
 
-  if (error) {
+  if (error || !data) {
     console.error('Error fetching public pro profile by ID:', error);
     return null;
   }
 
+  if (!data.available) return null;
+
+  let categorySlug = 'general';
+  let categoryName = 'General';
+  try {
+    const { data: cat } = await supabase
+      .from('service_categories')
+      .select('slug, name')
+      .eq('id', (data as any).category_id)
+      .maybeSingle();
+    if (cat?.slug) categorySlug = cat.slug;
+    if (cat?.name) categoryName = cat.name;
+  } catch {
+    // ignore
+  }
+
   const serviceTypes: Array<{ name: string; price: string; id?: string }> = Array.isArray((data as any).service_types)
-    ? ((data as any).service_types as any[]).filter((s) => s && typeof s.name === 'string' && typeof s.price === 'string')
+    ? ((data as any).service_types as any[])
+        .filter(
+          (s) =>
+            s &&
+            typeof s.name === 'string' &&
+            (typeof s.price === 'string' || typeof s.price === 'number')
+        )
+        .map((s) => ({ name: String(s.name), price: String(s.price), id: typeof s.id === 'string' ? s.id : undefined }))
     : [];
 
   const servicesOffered: string[] = Array.isArray((data as any).services_offered)
@@ -720,8 +738,8 @@ export async function getPublicProProfileById(proId: string): Promise<PublicProP
     userId: data.user_id,
     name: data.display_name,
     bio: data.bio || '',
-    categorySlug: (data as any).service_categories?.slug || 'general',
-    categoryName: (data as any).service_categories?.name || 'General',
+    categorySlug,
+    categoryName,
     rating: data.rating,
     reviewCount: data.review_count,
     startingPrice: data.starting_price,
@@ -747,17 +765,10 @@ export async function getHoardingPros(): Promise<ServicePro[]> {
   const limit = 24;
   const offset = 0;
 
+  // Avoid service_categories join (service_pros has multiple FKs to categories).
   const { data, error } = await supabase
     .from('service_pros')
-    .select(
-      `
-      *,
-      service_categories (
-        slug,
-        name
-      )
-    `
-    )
+    .select('*')
     .eq('accepts_hoarding_jobs', true)
     .eq('available', true)
     .order('rating', { ascending: false })
@@ -768,41 +779,63 @@ export async function getHoardingPros(): Promise<ServicePro[]> {
     return [];
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return data.map((pro: any) => ({
-    id: pro.id,
-    userId: pro.user_id,
-    name: pro.display_name,
-    bio: pro.bio || '',
-    categorySlug: pro.service_categories?.slug || 'general',
-    categoryName: pro.service_categories?.name || 'General',
-    rating: pro.rating,
-    reviewCount: pro.review_count,
-    startingPrice: pro.starting_price,
-    location: pro.location || 'Not specified',
-    available: pro.available,
-  }));
+  // Best-effort category names (optional).
+  const categoryIds = Array.from(
+    new Set((data ?? []).map((p: any) => p?.category_id).filter((v: any) => typeof v === 'string'))
+  );
+  const catById = new Map<string, { slug: string; name: string }>();
+  if (categoryIds.length > 0) {
+    try {
+      const { data: cats } = await supabase.from('service_categories').select('id, slug, name').in('id', categoryIds);
+      (cats ?? []).forEach((c: any) => {
+        if (c?.id && c?.slug && c?.name) catById.set(String(c.id), { slug: String(c.slug), name: String(c.name) });
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  return (data as any[]).map((pro: any) => {
+    const cat = catById.get(String(pro.category_id));
+    return {
+      id: pro.id,
+      userId: pro.user_id,
+      name: pro.display_name,
+      bio: pro.bio || '',
+      categorySlug: cat?.slug || 'general',
+      categoryName: cat?.name || 'General',
+      rating: pro.rating,
+      reviewCount: pro.review_count,
+      startingPrice: pro.starting_price,
+      location: pro.location || 'Not specified',
+      available: pro.available,
+    };
+  });
 }
 
 /**
  * Get service pro by user ID (for pro dashboard).
  */
 export async function getProByUserId(userId: string): Promise<ServicePro | null> {
-  const { data, error } = await supabase
-    .from('service_pros')
-    .select(`
-      *,
-      service_categories (
-        slug,
-        name
-      )
-    `)
-    .eq('user_id', userId)
-    .single();
+  const { data, error } = await supabase.from('service_pros').select('*').eq('user_id', userId).maybeSingle();
 
-  if (error) {
+  if (error || !data) {
     console.error('Error fetching pro by user ID:', error);
     return null;
+  }
+
+  let categorySlug = 'general';
+  let categoryName = 'General';
+  try {
+    const { data: cat } = await supabase
+      .from('service_categories')
+      .select('slug, name')
+      .eq('id', (data as any).category_id)
+      .maybeSingle();
+    if (cat?.slug) categorySlug = cat.slug;
+    if (cat?.name) categoryName = cat.name;
+  } catch {
+    // ignore
   }
 
   return {
@@ -810,8 +843,8 @@ export async function getProByUserId(userId: string): Promise<ServicePro | null>
     userId: data.user_id,
     name: data.display_name,
     bio: data.bio || '',
-    categorySlug: data.service_categories.slug,
-    categoryName: data.service_categories.name,
+    categorySlug,
+    categoryName,
     rating: data.rating,
     reviewCount: data.review_count,
     startingPrice: data.starting_price,

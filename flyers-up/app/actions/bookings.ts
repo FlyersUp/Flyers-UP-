@@ -48,12 +48,11 @@ export async function createBookingWithPayment(
       return { success: false, error: 'Unauthorized. Customer access required.' };
     }
 
-    // 2) Validate pro exists + get pricing context
+    // 2) Validate pro exists + get pricing context.
+    // Avoid service_categories join (service_pros can have multiple FKs to categories).
     const { data: proRow, error: proErr } = await supabase
       .from('service_pros')
-      .select(
-        `id, user_id, starting_price, service_categories!inner ( slug )`
-      )
+      .select('id, user_id, starting_price, category_id, available')
       .eq('id', proId)
       .maybeSingle();
 
@@ -68,7 +67,21 @@ export async function createBookingWithPayment(
       return { success: false, error: 'Service pro not found.' };
     }
 
-    const categorySlug = (proRow as any).service_categories?.slug as string | undefined;
+    if (!(proRow as any).available) {
+      return { success: false, error: 'Service pro not available.' };
+    }
+
+    let categorySlug: string | undefined;
+    try {
+      const { data: cat } = await supabase
+        .from('service_categories')
+        .select('slug')
+        .eq('id', (proRow as any).category_id)
+        .maybeSingle();
+      categorySlug = cat?.slug ?? undefined;
+    } catch {
+      categorySlug = undefined;
+    }
     const basePriceCents = Math.round(Number((proRow as any).starting_price ?? 0) * 100);
 
     // 3) Fetch current add-on prices from database (server-side validation)
