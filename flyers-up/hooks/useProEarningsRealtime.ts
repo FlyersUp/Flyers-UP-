@@ -45,6 +45,18 @@ export function useProEarningsRealtime(
   const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
+  const isUsingSupabaseHttpProxy = useCallback((): boolean => {
+    // When we proxy Supabase through `/api/supabase`, REST works but Realtime WebSockets do not.
+    // Avoid noisy WebSocket errors by skipping `.channel()` subscription in that case.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const url = (supabase as any)?.supabaseUrl as string | undefined;
+      return typeof url === 'string' && url.includes('/api/supabase');
+    } catch {
+      return false;
+    }
+  }, []);
+
   // Fetch the service_pros.id from user_id
   const fetchProId = useCallback(async () => {
     // Check if Supabase is configured
@@ -127,6 +139,7 @@ export function useProEarningsRealtime(
     }
 
     let isMounted = true;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
 
     const setupSubscription = async () => {
       // First, get the pro's service_pros.id
@@ -148,6 +161,17 @@ export function useProEarningsRealtime(
 
       // Initial fetch
       await fetchEarnings();
+
+      // If we're routing Supabase through our HTTP proxy, don't attempt Realtime.
+      // Instead, use a lightweight polling loop.
+      if (isUsingSupabaseHttpProxy()) {
+        pollTimer = setInterval(() => {
+          // Fire-and-forget; hook state handles errors/loading.
+          void fetchEarnings();
+        }, 30_000);
+        setLoading(false);
+        return;
+      }
 
       // Check if Supabase is configured before setting up subscription
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -236,6 +260,10 @@ export function useProEarningsRealtime(
     // Cleanup
     return () => {
       isMounted = false;
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
       if (channelRef.current) {
         try {
           console.log('Unsubscribing from pro earnings realtime');

@@ -19,9 +19,20 @@ CREATE INDEX IF NOT EXISTS idx_service_pros_category_available_rating
 
 -- Fast hoarding lane listing: accepts_hoarding_jobs=true + available=true + rating sort
 -- (accepts_hoarding_jobs is added in earlier migration)
-CREATE INDEX IF NOT EXISTS idx_service_pros_hoarding_available_rating
-  ON public.service_pros (rating DESC)
-  WHERE available = true AND accepts_hoarding_jobs = true;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'service_pros'
+      AND column_name = 'accepts_hoarding_jobs'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_service_pros_hoarding_available_rating
+      ON public.service_pros (rating DESC)
+      WHERE available = true AND accepts_hoarding_jobs = true;
+  END IF;
+END $$;
 
 -- ============================================
 -- 2) BOOKINGS indexes for user timelines

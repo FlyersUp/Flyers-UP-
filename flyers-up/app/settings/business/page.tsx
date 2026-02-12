@@ -158,7 +158,20 @@ export default function BusinessSettingsPage() {
         // Read-after-write: re-fetch from Supabase source of truth.
         const proData = await getMyServicePro(userId);
         if (!proData) {
-          setError('Saved, but could not reload your profile. Please refresh and try again.');
+          // Try to surface the underlying Supabase error instead of a generic message.
+          const { data: debugRow, error: debugErr } = await supabase
+            .from('service_pros')
+            .select('user_id, display_name, category_id')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          if (debugErr) {
+            setError(`Saved, but could not reload your profile: ${debugErr.message}`);
+          } else if (!debugRow) {
+            setError('Saved, but reload found no service_pros row for your account. Please sign out/in and try again.');
+          } else {
+            setError('Saved, but could not reload your profile. Please refresh and try again.');
+          }
           return;
         }
 

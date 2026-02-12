@@ -153,6 +153,10 @@ export interface EarningsSummary {
   pendingPayments: number;
 }
 
+// If the Supabase DB is missing our RPC migrations, calling the RPC will 404.
+// Cache that outcome per browser session to avoid noisy repeated 404s.
+let proEarningsRpcAvailable: boolean | null = null;
+
 // ============================================
 // ADD-ON TYPES
 // ============================================
@@ -982,9 +986,10 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
     // First get the pro's service_pros.id from their user_id
     const { data: proData, error: proError } = await supabase
       .from('service_pros')
-      .select('id, category_id, service_categories(slug)')
+      // Avoid relationship joins here to keep reads resilient even if category RLS is misconfigured.
+      .select('id, category_id')
       .eq('user_id', proUserId)
-      .single();
+      .maybeSingle();
 
     if (proError || !proData) {
       // Only log error if it has a message property (meaningful error) and Supabase is configured
@@ -996,10 +1001,19 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
       return [];
     }
 
-    // Extract category slug from the joined data
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const categoryData = proData.service_categories as any;
-    const categorySlug = categoryData?.slug || 'general';
+    let categorySlug = 'general';
+    try {
+      if (proData.category_id) {
+        const { data: cat } = await supabase
+          .from('service_categories')
+          .select('slug')
+          .eq('id', proData.category_id)
+          .maybeSingle();
+        if (cat?.slug) categorySlug = cat.slug;
+      }
+    } catch {
+      // ignore
+    }
 
     // Then get bookings for that pro
     const { data, error } = await supabase
@@ -1060,24 +1074,92 @@ export async function getProEarnings(proUserId: string): Promise<EarningsSummary
   // The RPC ignores the provided proUserId and always uses auth.uid() server-side.
   // We keep the parameter for API compatibility with existing callers.
   try {
-    const { data, error } = await supabase.rpc('get_my_pro_earnings_summary');
-    if (error || !data || !Array.isArray(data) || data.length === 0) {
+    if (proEarningsRpcAvailable !== false) {
+      const { data, error } = await supabase.rpc('get_my_pro_earnings_summary');
+
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        proEarningsRpcAvailable = true;
+        const row = data[0] as {
+          total_earnings: number | string | null;
+          this_month: number | string | null;
+          completed_jobs: number | null;
+          pending_payments: number | string | null;
+        };
+
+        return {
+          totalEarnings: Number(row.total_earnings ?? 0),
+          thisMonth: Number(row.this_month ?? 0),
+          completedJobs: Number(row.completed_jobs ?? 0),
+          pendingPayments: Number(row.pending_payments ?? 0),
+        };
+      }
+
+      // If the function doesn't exist in the DB, PostgREST returns 404.
+      const status = (error as any)?.status as number | undefined;
+      const code = (error as any)?.code as string | undefined;
+      const msg = String((error as any)?.message ?? '');
+      const isNotFound =
+        status === 404 ||
+        code === 'PGRST202' ||
+        msg.toLowerCase().includes('could not find') ||
+        msg.toLowerCase().includes('function') && msg.toLowerCase().includes('not found');
+
+      if (isNotFound) {
+        proEarningsRpcAvailable = false;
+      }
+    }
+  } catch {
+    // fall through to fallback
+  }
+
+  // Fallback: compute client-side aggregates without RPC.
+  // This avoids repeated RPC 404s in environments where migrations weren't applied.
+  try {
+    const { data: proRow, error: proErr } = await supabase
+      .from('service_pros')
+      .select('id')
+      .eq('user_id', proUserId)
+      .maybeSingle();
+
+    if (proErr || !proRow?.id) {
       return { totalEarnings: 0, thisMonth: 0, completedJobs: 0, pendingPayments: 0 };
     }
 
-    const row = data[0] as {
-      total_earnings: number | string | null;
-      this_month: number | string | null;
-      completed_jobs: number | null;
-      pending_payments: number | string | null;
-    };
+    const proId = proRow.id as string;
+    const monthStartIso = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
 
-    return {
-      totalEarnings: Number(row.total_earnings ?? 0),
-      thisMonth: Number(row.this_month ?? 0),
-      completedJobs: Number(row.completed_jobs ?? 0),
-      pendingPayments: Number(row.pending_payments ?? 0),
-    };
+    // Prefer pro_earnings if available.
+    const [totalEarningsRes, thisMonthRes] = await Promise.all([
+      supabase.from('pro_earnings').select('amount').eq('pro_id', proId),
+      supabase.from('pro_earnings').select('amount').eq('pro_id', proId).gte('created_at', monthStartIso),
+    ]);
+
+    const totalEarnings = Array.isArray(totalEarningsRes.data)
+      ? totalEarningsRes.data.reduce((sum, row: any) => sum + Number(row.amount ?? 0), 0)
+      : 0;
+    const thisMonth = Array.isArray(thisMonthRes.data)
+      ? thisMonthRes.data.reduce((sum, row: any) => sum + Number(row.amount ?? 0), 0)
+      : 0;
+
+    // Completed jobs and pending payments from bookings (source of truth for status).
+    const { data: completedBookings } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('pro_id', proId)
+      .eq('status', 'completed');
+
+    const { data: pendingBookings } = await supabase
+      .from('bookings')
+      .select('price')
+      .eq('pro_id', proId)
+      .in('status', ['requested', 'accepted', 'awaiting_payment']);
+
+    const completedJobs = Array.isArray(completedBookings) ? completedBookings.length : 0;
+    const pendingPayments = Array.isArray(pendingBookings)
+      ? pendingBookings.reduce((sum, row: any) => sum + Number(row.price ?? 0), 0)
+      : 0;
+
+    return { totalEarnings, thisMonth, completedJobs, pendingPayments };
   } catch {
     return { totalEarnings: 0, thisMonth: 0, completedJobs: 0, pendingPayments: 0 };
   }
@@ -1965,20 +2047,40 @@ export interface ServiceProProfile {
 
 export async function getMyServicePro(userId: string): Promise<ServiceProProfile | null> {
   try {
-    const { data, error } = await supabase
-      .from('service_pros')
-      .select(`
-        *,
-        service_categories (
-          name
-        )
-      `)
-      .eq('user_id', userId)
-      .single();
+    // Avoid embedded relationship reads here.
+    // If `service_categories` select is blocked/misconfigured, it can break the whole read
+    // even when `service_pros` itself is readable.
+    const { data, error } = await supabase.from('service_pros').select('*').eq('user_id', userId).maybeSingle();
 
     if (error || !data) {
-      console.error('Error fetching service pro:', error);
+      console.error('Error fetching service pro:', {
+        message: (error as any)?.message,
+        details: (error as any)?.details,
+        hint: (error as any)?.hint,
+        code: (error as any)?.code,
+        status: (error as any)?.status,
+      });
       return null;
+    }
+
+    let categoryName = 'Unknown';
+    try {
+      const { data: cat, error: catErr } = await supabase
+        .from('service_categories')
+        .select('name')
+        .eq('id', data.category_id)
+        .maybeSingle();
+      if (catErr) {
+        console.warn('Error fetching category name:', {
+          message: (catErr as any)?.message,
+          code: (catErr as any)?.code,
+          status: (catErr as any)?.status,
+        });
+      } else if (cat?.name) {
+        categoryName = cat.name;
+      }
+    } catch {
+      // ignore
     }
 
     return {
@@ -1987,7 +2089,7 @@ export async function getMyServicePro(userId: string): Promise<ServiceProProfile
       displayName: data.display_name,
       bio: data.bio,
       categoryId: data.category_id,
-      categoryName: (data.service_categories as { name?: string } | null)?.name || 'Unknown',
+      categoryName,
       startingPrice: data.starting_price,
       serviceRadius: data.service_radius,
       businessHours: data.business_hours,
