@@ -130,8 +130,8 @@ export default function TermsPage() {
           <p>
             Flyers Up may offer verification, credential uploads, identity checks, or third-party screening. Verification may include document review and/or third-party
             checks. Flyers Up does not independently guarantee authenticity or accuracy unless explicitly stated. Verification, badges, ratings, or trust indicators do
-            not guarantee quality, safety, legality, or performance. Users are solely responsible for conducting their own due diligence. Any coverage, shield, protection,
-            or insurance feature may not be available in all locations, may be provided by third parties, and is governed by separate terms.
+            not guarantee quality, safety, legality, or performance. Users are solely responsible for conducting their own due diligence. Any coverage or insurance feature
+            may not be available in all locations, may be provided by third parties, and is governed by separate terms.
           </p>
 
           <h2 className="text-lg font-semibold tracking-tight pt-2">8. User-Generated Content; License; Removal</h2>

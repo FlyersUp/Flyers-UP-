@@ -95,7 +95,6 @@ function getProMenu(): MenuSection[] {
       items: [
         { label: 'Earnings Overview', href: '/pro/earnings' },
         { label: 'Payouts', href: '/pro/settings/payments-payouts' },
-        { label: 'Fees & Holdbacks', href: '/pro/settings/shield' },
         { label: 'Tax Documents', href: '/settings/payments', disabled: true },
         { label: 'Payment Settings', href: '/pro/settings/payments-payouts' },
       ],
@@ -106,7 +105,6 @@ function getProMenu(): MenuSection[] {
         { label: 'Trust & Standing', href: '/pro/verified-badge' },
         { label: 'Reviews & Ratings', href: '/pro/profile', disabled: true },
         { label: 'Disputes', href: '/pro/settings/support-legal', disabled: true },
-        { label: 'Protection Settings', href: '/pro/settings/shield' },
         { label: 'Platform Policies', href: '/pro/settings/support-legal' },
       ],
     },
@@ -165,7 +163,6 @@ function getCustomerMenu(): MenuSection[] {
     {
       title: 'Protection & Trust',
       items: [
-        { label: 'Protection Settings', href: '/customer/settings/shield' },
         { label: 'Verified Pros Explained', href: '/customer/categories' },
         { label: 'Disputes & Support', href: '/customer/settings/help-support' },
       ],

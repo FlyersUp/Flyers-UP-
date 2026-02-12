@@ -19,7 +19,7 @@ export default function CustomerSettings() {
     { id: 'booking-preferences', label: 'BOOKING PREFERENCES', href: '/customer/settings/booking-preferences', icon: 'calendar' as const },
     { id: 'ratings-reviews', label: 'RATINGS & REVIEWS', href: '/customer/settings/ratings-reviews', icon: 'star' as const },
     { id: 'notifications', label: 'NOTIFICATIONS', href: '/customer/settings/notifications', icon: 'bell' as const },
-    { id: 'safety-preferences', label: 'SAFETY & PREFERENCES', href: '/customer/settings/safety-preferences', icon: 'shield-check' as const },
+    { id: 'safety-preferences', label: 'SAFETY & PREFERENCES', href: '/customer/settings/safety-preferences', icon: 'safety-check' as const },
     { id: 'app-preferences', label: 'APP PREFERENCES', href: '/customer/settings/app-preferences', icon: 'settings' as const },
     { id: 'support-legal', label: 'SUPPORT & LEGAL', href: '/customer/settings/support-legal', icon: 'file-text' as const },
   ];

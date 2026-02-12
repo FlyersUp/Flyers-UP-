@@ -8,7 +8,6 @@
 import { use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { StatusBadge } from '@/components/ui/Badge';
-import TrustShieldBanner from '@/components/ui/TrustShieldBanner';
 import { createScopeReview, getBookingById, getCurrentUser, getLatestScopeReview, type BookingDetails, type ScopeReview, type UserWithProfile } from '@/lib/api';
 
 interface PageProps {

@@ -8,7 +8,6 @@
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { RatingCompact } from '@/components/ui/RatingStars';
-import TrustShieldBanner from '@/components/ui/TrustShieldBanner';
 import { getCurrentUser, getProById, type ServicePro } from '@/lib/api';
 
 interface PageProps {
@@ -152,9 +151,6 @@ export default function BookingPage({ params }: PageProps) {
             </Link>
           </div>
         </section>
-
-        {/* Trust section */}
-        <TrustShieldBanner variant="compact" className="mb-6" />
 
       </main>
 

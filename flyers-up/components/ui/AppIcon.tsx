@@ -14,7 +14,7 @@ export type AppIconName =
   | 'star'
   | 'user'
   | 'map-pin'
-  | 'shield-check'
+  | 'safety-check'
   | 'file-text'
   | 'plus';
 

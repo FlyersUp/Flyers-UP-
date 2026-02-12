@@ -15,7 +15,7 @@ export default function ProSettingsIndex() {
     { id: 'payments-payouts', label: 'PAYMENTS & PAYOUTS', href: '/pro/settings/payments-payouts', icon: 'credit-card' as const },
     { id: 'notifications', label: 'NOTIFICATIONS', href: '/pro/settings/notifications', icon: 'bell' as const },
     { id: 'preferences', label: 'APP PREFERENCES', href: '/pro/settings/preferences', icon: 'settings' as const },
-    { id: 'safety-compliance', label: 'SAFETY & COMPLIANCE', href: '/pro/settings/safety-compliance', icon: 'shield-check' as const },
+    { id: 'safety-compliance', label: 'SAFETY & COMPLIANCE', href: '/pro/settings/safety-compliance', icon: 'safety-check' as const },
     { id: 'support-legal', label: 'SUPPORT & LEGAL', href: '/pro/settings/support-legal', icon: 'file-text' as const },
   ];
 

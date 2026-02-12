@@ -20,7 +20,6 @@ export default function ProPricingAvailabilitySettingsPage() {
   const [access, setAccess] = useState<'signed_out' | 'not_pro' | 'pro'>('signed_out');
 
   const [hourlyPricing, setHourlyPricing] = useState(false);
-  const [aiPriceSuggestions, setAiPriceSuggestions] = useState(false);
   const [travelFeeEnabled, setTravelFeeEnabled] = useState(false);
   const [minimumJobPrice, setMinimumJobPrice] = useState<string>('');
 
@@ -44,7 +43,6 @@ export default function ProPricingAvailabilitySettingsPage() {
       setUserId(user.id);
       const s = await getProPricingSettings(user.id);
       setHourlyPricing(s.hourlyPricing);
-      setAiPriceSuggestions(s.aiPriceSuggestions);
       setTravelFeeEnabled(s.travelFeeEnabled);
       setMinimumJobPrice(s.minimumJobPrice != null ? String(s.minimumJobPrice) : '');
       setLoading(false);
@@ -67,7 +65,6 @@ export default function ProPricingAvailabilitySettingsPage() {
 
     const res = await updateProPricingSettings(userId, {
       hourlyPricing,
-      aiPriceSuggestions,
       travelFeeEnabled,
       minimumJobPrice: min,
     });
@@ -145,12 +142,6 @@ export default function ProPricingAvailabilitySettingsPage() {
                 description="Charge hourly instead of flat-rate (where supported)."
                 checked={hourlyPricing}
                 onChange={setHourlyPricing}
-              />
-              <ToggleRow
-                title="AI price suggestions"
-                description="Show suggested pricing recommendations (coming next)."
-                checked={aiPriceSuggestions}
-                onChange={setAiPriceSuggestions}
               />
               <ToggleRow
                 title="Travel fee"

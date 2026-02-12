@@ -40,9 +40,9 @@ export default function TrustVerificationPage() {
           </div>
 
           <div className="surface-card p-5">
-            <div className="text-sm font-semibold tracking-tight">Coverage / shield / insurance</div>
+            <div className="text-sm font-semibold tracking-tight">Coverage / insurance</div>
             <div className="mt-2 text-muted">
-              Any coverage, shield, protection, or insurance feature may not be available in all locations, may be provided by third parties, and is governed by separate terms.
+              Any coverage or insurance feature may not be available in all locations, may be provided by third parties, and is governed by separate terms.
             </div>
           </div>
 

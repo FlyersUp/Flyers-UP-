@@ -1924,77 +1924,21 @@ export async function updateUserAppPreferences(
   }
 }
 
-export async function getUserShieldPlusEnabled(userId: string): Promise<boolean> {
-  const { data, error } = await supabase.from('user_shield_preferences').select('*').eq('user_id', userId).single();
-  if (error) return true;
-  return Boolean(data.shield_plus_enabled);
-}
-
-export async function setUserShieldPlusEnabled(
-  userId: string,
-  enabled: boolean
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const { error } = await supabase
-      .from('user_shield_preferences')
-      .upsert({ user_id: userId, shield_plus_enabled: enabled, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
-    if (error) return { success: false, error: error.message };
-    return { success: true };
-  } catch (err) {
-    console.error('Unexpected error updating shield prefs:', err);
-    return { success: false, error: 'An unexpected error occurred' };
-  }
-}
-
-export type ProShieldSettings = { shieldPlusEnabled: boolean; holdbackPercent: number };
-
-export async function getProShieldSettings(userId: string): Promise<ProShieldSettings> {
-  const { data, error } = await supabase.from('pro_shield_settings').select('*').eq('pro_user_id', userId).single();
-  if (error) return { shieldPlusEnabled: true, holdbackPercent: 0 };
-  return {
-    shieldPlusEnabled: Boolean(data.shield_plus_enabled),
-    holdbackPercent: Number(data.holdback_percent || 0),
-  };
-}
-
-export async function updateProShieldSettings(
-  userId: string,
-  settings: Partial<ProShieldSettings>
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const payload: any = {
-      pro_user_id: userId,
-      shield_plus_enabled: settings.shieldPlusEnabled,
-      holdback_percent: settings.holdbackPercent,
-      updated_at: new Date().toISOString(),
-    };
-    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
-    const { error } = await supabase.from('pro_shield_settings').upsert(payload, { onConflict: 'pro_user_id' });
-    if (error) return { success: false, error: error.message };
-    return { success: true };
-  } catch (err) {
-    console.error('Unexpected error updating pro shield settings:', err);
-    return { success: false, error: 'An unexpected error occurred' };
-  }
-}
-
 export type ProPricingSettings = {
   hourlyPricing: boolean;
   minimumJobPrice: number | null;
   travelFeeEnabled: boolean;
-  aiPriceSuggestions: boolean;
 };
 
 export async function getProPricingSettings(userId: string): Promise<ProPricingSettings> {
   const { data, error } = await supabase.from('pro_pricing_settings').select('*').eq('pro_user_id', userId).single();
   if (error) {
-    return { hourlyPricing: false, minimumJobPrice: null, travelFeeEnabled: false, aiPriceSuggestions: false };
+    return { hourlyPricing: false, minimumJobPrice: null, travelFeeEnabled: false };
   }
   return {
     hourlyPricing: Boolean(data.hourly_pricing),
     minimumJobPrice: data.minimum_job_price ?? null,
     travelFeeEnabled: Boolean(data.travel_fee_enabled),
-    aiPriceSuggestions: Boolean(data.ai_price_suggestions),
   };
 }
 
@@ -2008,7 +1952,6 @@ export async function updateProPricingSettings(
       hourly_pricing: settings.hourlyPricing,
       minimum_job_price: settings.minimumJobPrice,
       travel_fee_enabled: settings.travelFeeEnabled,
-      ai_price_suggestions: settings.aiPriceSuggestions,
       updated_at: new Date().toISOString(),
     };
     Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
