@@ -299,6 +299,17 @@ export default function ProTodayPage() {
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<TodayJob[]>([]);
   const [tasks, setTasks] = useState<TodayTask[]>([]);
+  const [realBookings, setRealBookings] = useState<
+    Array<{
+      id: string;
+      service_date: string;
+      service_time: string;
+      address: string;
+      notes: string | null;
+      status: string;
+      customer?: { fullName: string | null; phone: string | null } | null;
+    }>
+  >([]);
 
   useEffect(() => {
     const guardAndLoad = async () => {
@@ -323,6 +334,26 @@ export default function ProTodayPage() {
       setOverview(data);
       setJobs(data.jobs);
       setTasks(data.tasks);
+
+      // Replace mock timeline jobs with real bookings for today (if any).
+      try {
+        const todayISO = new Date().toISOString().slice(0, 10);
+        const res = await fetch(
+          `/api/pro/bookings?from=${encodeURIComponent(todayISO)}&to=${encodeURIComponent(todayISO)}&limit=50&statuses=${encodeURIComponent(
+            ['requested', 'accepted', 'awaiting_payment', 'completed'].join(',')
+          )}`,
+          { cache: 'no-store' }
+        );
+        const json = (await res.json()) as { ok: boolean; bookings?: any[] };
+        if (res.ok && json.ok && Array.isArray(json.bookings)) {
+          setRealBookings(json.bookings);
+        } else {
+          setRealBookings([]);
+        }
+      } catch {
+        setRealBookings([]);
+      }
+
       setLoading(false);
     };
     void guardAndLoad();
@@ -342,6 +373,8 @@ export default function ProTodayPage() {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
   };
 
+  const showReal = realBookings.length > 0;
+
   if (loading || !overview) {
     return (
       <AppLayout mode="pro">
@@ -357,7 +390,7 @@ export default function ProTodayPage() {
       <TodayHeader dateISO={overview.dateISO} alertCount={alertCount} />
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
-        {!hasJobs ? (
+        {!hasJobs && !showReal ? (
           <Card className="border-l-[3px] border-l-accent">
             <div className="text-sm font-semibold text-text">No jobs scheduled today</div>
             <div className="text-sm text-muted mt-1">When you have bookings for today, they’ll appear here.</div>
@@ -373,7 +406,72 @@ export default function ProTodayPage() {
 
         <TodayAlerts alerts={overview.alerts} />
 
-        {hasJobs ? (
+        {showReal ? (
+          <div>
+            <div className="flex items-center justify-between gap-4 mb-3">
+              <div className="text-sm font-semibold text-text">Timeline</div>
+              <Link className="text-sm text-muted hover:text-text transition-colors" href="/pro">
+                Back to dashboard
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {realBookings.map((b) => (
+                <Card key={b.id} className="border-l-[3px] border-l-accent">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="text-base font-semibold text-text">
+                        {b.service_time} • {b.customer?.fullName || 'Customer'}
+                      </div>
+                      <div className="text-sm text-muted mt-0.5 line-clamp-2">{b.address}</div>
+                      {b.notes ? <div className="text-sm text-muted mt-1 line-clamp-2">Notes: {b.notes}</div> : null}
+                      <div className="mt-2">
+                        <StatusBadge status={b.status} />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <a
+                          className="px-3 py-2 rounded-lg text-sm font-semibold border-2 border-accent bg-surface text-accent hover:bg-surface2 transition-all focus-ring btn-press"
+                          href={mapsHref(b.address)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Navigate
+                        </a>
+                        <a
+                          className="px-3 py-2 rounded-lg text-sm font-semibold border-2 border-accent bg-surface text-accent hover:bg-surface2 transition-all focus-ring btn-press"
+                          href={b.customer?.phone ? `tel:${b.customer.phone}` : undefined}
+                          aria-disabled={!b.customer?.phone}
+                          onClick={(e) => {
+                            if (!b.customer?.phone) e.preventDefault();
+                          }}
+                          title={!b.customer?.phone ? 'No phone number on file' : undefined}
+                        >
+                          Call
+                        </a>
+                        <Link
+                          className="px-3 py-2 rounded-lg text-sm font-semibold border-2 border-accent bg-surface text-accent hover:bg-surface2 transition-all focus-ring btn-press"
+                          href={`/pro/chat/${b.id}`}
+                        >
+                          Message
+                        </Link>
+                        <Button
+                          variant="secondary"
+                          showArrow={false}
+                          className="px-3 py-2 rounded-lg text-sm"
+                          onClick={() => router.push(`/pro/jobs/${b.id}`)}
+                        >
+                          Details
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ) : hasJobs ? (
           <div>
             <div className="flex items-center justify-between gap-4 mb-3">
               <div className="text-sm font-semibold text-text">Timeline</div>

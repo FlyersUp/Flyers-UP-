@@ -66,6 +66,28 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
       }));
   }, [jobs, todayIso]);
 
+  const nextJobs = useMemo(() => {
+    // Show accepted upcoming work even when there are no "today" jobs.
+    // (Many pros accept requests for future dates.)
+    const upcoming = jobs
+      .filter((j) => ['accepted', 'awaiting_payment'].includes(j.status))
+      .slice()
+      .sort((a, b) => {
+        const aKey = `${a.date}T${a.time}`;
+        const bKey = `${b.date}T${b.time}`;
+        return aKey.localeCompare(bKey);
+      });
+    return upcoming.slice(0, 3).map((j) => ({
+      id: j.id,
+      date: j.date,
+      service: j.category || 'Service',
+      customerName: j.customerName || 'Customer',
+      time: j.time,
+      total: Number(j.price ?? 0),
+      status: j.status,
+    }));
+  }, [jobs]);
+
   return (
     <AppLayout mode="pro">
       <div className="max-w-4xl mx-auto px-4 py-6">
@@ -161,6 +183,25 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
             <Card className="border-l-[3px] border-l-accent">
               <div className="text-base font-semibold text-text">No jobs scheduled yet</div>
               <div className="mt-1 text-sm text-muted">When you accept work, it will show up here.</div>
+              {nextJobs.length > 0 ? (
+                <div className="mt-4">
+                  <div className="text-xs text-muted/70 mb-2">Next scheduled</div>
+                  <div className="flex flex-col gap-2">
+                    {nextJobs.map((job) => (
+                      <Link key={job.id} href={`/pro/jobs/${job.id}`} className="block">
+                        <div className="surface-item px-3 py-2">
+                          <div className="text-sm font-semibold text-text">
+                            {job.date} • {job.time}
+                          </div>
+                          <div className="text-sm text-muted truncate">
+                            {job.customerName} • {job.service}
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link
                   href="/pro/requests"
@@ -173,6 +214,12 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
                   className="inline-flex items-center justify-center rounded-xl px-4 py-2 bg-surface hover:bg-surface2 text-text font-semibold border border-hairline transition-colors focus-ring"
                 >
                   Update profile
+                </Link>
+                <Link
+                  href="/pro/today"
+                  className="inline-flex items-center justify-center rounded-xl px-4 py-2 bg-surface hover:bg-surface2 text-text font-semibold border border-hairline transition-colors focus-ring"
+                >
+                  View today
                 </Link>
               </div>
             </Card>

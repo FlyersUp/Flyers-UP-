@@ -22,6 +22,9 @@ type BookingRow = {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const statusFilter = url.searchParams.get('status'); // e.g. requested|accepted|...
+  const statusesRaw = url.searchParams.get('statuses'); // comma-separated
+  const from = url.searchParams.get('from'); // YYYY-MM-DD (service_date)
+  const to = url.searchParams.get('to'); // YYYY-MM-DD (service_date)
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit') ?? '50'), 1), 100);
 
   try {
@@ -59,6 +62,15 @@ export async function GET(req: Request) {
       .limit(limit);
 
     if (statusFilter) q = q.eq('status', statusFilter);
+    if (statusesRaw) {
+      const statuses = statusesRaw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (statuses.length > 0) q = q.in('status', statuses);
+    }
+    if (from) q = q.gte('service_date', from);
+    if (to) q = q.lte('service_date', to);
 
     const { data: bookings, error: bookingsErr } = await q;
     if (bookingsErr) {
