@@ -66,7 +66,7 @@ export default function BusinessSettingsPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        router.push(`/signin?next=${encodeURIComponent(pathname || '/pro/settings/business')}`);
+        router.push(`/auth?next=${encodeURIComponent(pathname || '/pro/settings/business')}`);
         return;
       }
 
@@ -138,6 +138,11 @@ export default function BusinessSettingsPage() {
         data: { session },
       } = await supabase.auth.getSession();
       const accessToken = session?.access_token ?? undefined;
+      if (!accessToken) {
+        setError('Your session expired. Please sign in again.');
+        router.push(`/auth?next=${encodeURIComponent(pathname || '/pro/settings/business')}`);
+        return;
+      }
 
       const result = await updateMyServiceProAction({
         display_name: displayName,
@@ -180,7 +185,13 @@ export default function BusinessSettingsPage() {
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    const res = await updateMyServiceProAction({ service_types: next as unknown[] }, session?.access_token ?? undefined);
+    const accessToken = session?.access_token ?? undefined;
+    if (!accessToken) {
+      setError('Your session expired. Please sign in again.');
+      router.push(`/auth?next=${encodeURIComponent(pathname || '/pro/settings/business')}`);
+      return;
+    }
+    const res = await updateMyServiceProAction({ service_types: next as unknown[] }, accessToken);
     if (!res.success) {
       setError(res.error || 'Failed to save services.');
       return;
@@ -459,9 +470,16 @@ export default function BusinessSettingsPage() {
                   const {
                     data: { session },
                   } = await supabase.auth.getSession();
+                  const accessToken = session?.access_token ?? undefined;
+                  if (!accessToken) {
+                    setError('Your session expired. Please sign in again.');
+                    setLoading(false);
+                    router.push(`/auth?next=${encodeURIComponent(pathname || '/pro/settings/business')}`);
+                    return;
+                  }
                   const res = await updateMyServiceProAction({
                     business_hours: stringifyBusinessHoursModel(businessHoursModel),
-                  }, session?.access_token ?? undefined);
+                  }, accessToken);
                   if (!res.success) {
                     setError(res.error || 'Failed to save schedule.');
                     setLoading(false);

@@ -525,6 +525,23 @@ export async function getServiceCategories(options?: { includeHidden?: boolean }
     return [];
   }
 
+  // If the column exists but no rows are marked public yet, fall back to showing categories
+  // so pros can still complete onboarding and save their business profile.
+  if (!includeHidden && (data?.length ?? 0) === 0) {
+    const retry = await supabase.from('service_categories').select('*').order('name');
+    if (retry.error) {
+      console.error('Error fetching categories (empty public fallback):', retry.error);
+      return [];
+    }
+    return retry.data.map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+      slug: cat.slug,
+      description: cat.description || '',
+      icon: cat.icon || '📦',
+    }));
+  }
+
   return data.map(cat => ({
     id: cat.id,
     name: cat.name,
