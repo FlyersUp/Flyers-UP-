@@ -1018,12 +1018,9 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
     // Then get bookings for that pro
     const { data, error } = await supabase
       .from('bookings')
-      .select(`
-        *,
-        profiles!bookings_customer_id_fkey (
-          full_name
-        )
-      `)
+      // Avoid relationship joins here; PostgREST will return 400 if the FK relationship
+      // name differs across environments. We fetch customer names separately as best-effort.
+      .select('*')
       .eq('pro_id', proData.id)
       .order('service_date', { ascending: true })
       .range(offset, offset + limit - 1);
@@ -1031,9 +1028,50 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
     if (error) {
       // Only log error if it has meaningful content
       if (Object.keys(error).length > 0) {
-        console.error('Error fetching pro jobs:', error);
+        console.error('Error fetching pro jobs:', {
+          message: (error as any)?.message,
+          details: (error as any)?.details,
+          hint: (error as any)?.hint,
+          code: (error as any)?.code,
+          status: (error as any)?.status,
+        });
       }
       return [];
+    }
+
+    const customerIds = Array.from(
+      new Set(
+        (data ?? [])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((b: any) => b?.customer_id as string | null | undefined)
+          .filter((v): v is string => typeof v === 'string' && v.length > 0)
+      )
+    );
+
+    const customerNameById = new Map<string, string>();
+    if (customerIds.length > 0) {
+      try {
+        const { data: profiles, error: profilesErr } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', customerIds);
+
+        if (profilesErr) {
+          console.warn('Error fetching customer names for pro jobs:', {
+            message: (profilesErr as any)?.message,
+            code: (profilesErr as any)?.code,
+            status: (profilesErr as any)?.status,
+          });
+        } else if (Array.isArray(profiles)) {
+          profiles.forEach((p: any) => {
+            if (p?.id && typeof p.full_name === 'string' && p.full_name.trim()) {
+              customerNameById.set(String(p.id), p.full_name.trim());
+            }
+          });
+        }
+      } catch {
+        // ignore
+      }
     }
 
     // Get pro's display name
@@ -1046,8 +1084,7 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
     return data.map(booking => ({
       id: booking.id,
       customerId: booking.customer_id,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      customerName: (booking.profiles as any)?.full_name || 'Customer',
+      customerName: customerNameById.get(booking.customer_id) || 'Customer',
       proId: booking.pro_id,
       proName: proProfile?.display_name || 'Service Pro',
       category: categorySlug,
