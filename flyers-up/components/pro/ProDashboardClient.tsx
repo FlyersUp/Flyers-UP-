@@ -1,25 +1,60 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
 import { AppIcon } from '@/components/ui/AppIcon';
 import Link from 'next/link';
 import { SideMenu } from '@/components/ui/SideMenu';
+import { AtAGlanceCard } from '@/components/ui/AtAGlanceCard';
+import { getProJobs, type Booking } from '@/lib/api';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function ProDashboardClient({ userName }: { userName: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [jobs, setJobs] = useState<Booking[]>([]);
 
-  // Clean slate: no fake jobs/earnings/ratings. We'll wire real bookings later.
-  const todayJobs: Array<{
-    id: string;
-    service: string;
-    customerName: string;
-    time: string;
-    total: number;
-    status: string;
-  }> = [];
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      setJobsLoading(true);
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const user = userData.user;
+        if (!user) {
+          if (mounted) setJobs([]);
+          return;
+        }
+        const data = await getProJobs(user.id);
+        if (!mounted) return;
+        setJobs(data);
+      } finally {
+        if (mounted) setJobsLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayJobs = useMemo(() => {
+    return jobs
+      .filter((j) => j.date === todayIso)
+      .filter((j) => ['accepted', 'requested', 'awaiting_payment'].includes(j.status))
+      .map((j) => ({
+        id: j.id,
+        date: j.date,
+        service: j.category || 'Service',
+        customerName: j.customerName || 'Customer',
+        time: j.time,
+        total: Number(j.price ?? 0),
+        status: j.status,
+      }));
+  }, [jobs, todayIso]);
 
   return (
     <AppLayout mode="pro">
@@ -39,6 +74,10 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
               <div className="text-sm text-muted">Pro</div>
             </div>
           </div>
+        </div>
+
+        <div className="mb-6">
+          <AtAGlanceCard jobs={todayJobs} rating={null} actionNeededCount={null} />
         </div>
 
         {/* Clean-slate onboarding prompt */}
@@ -103,7 +142,12 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
         {/* Today's Jobs */}
         <div className="mb-6">
           <Label className="mb-4 block">TODAY&apos;S JOBS</Label>
-          {todayJobs.length === 0 ? (
+          {jobsLoading ? (
+            <Card className="border-l-[3px] border-l-accent">
+              <div className="text-base font-semibold text-text">Loading…</div>
+              <div className="mt-1 text-sm text-muted">Fetching today’s schedule.</div>
+            </Card>
+          ) : todayJobs.length === 0 ? (
             <Card className="border-l-[3px] border-l-accent">
               <div className="text-base font-semibold text-text">No jobs scheduled yet</div>
               <div className="mt-1 text-sm text-muted">When you accept work, it will show up here.</div>

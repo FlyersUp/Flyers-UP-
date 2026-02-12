@@ -95,6 +95,13 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
           <Card withRail className="mb-6">
             <div className="space-y-6">
               <div>
+                <Label className="mb-2 block">CUSTOMER</Label>
+                <div className="text-sm text-muted/80">
+                  Customer ID: <span className="font-mono text-text">{booking.customerId.slice(0, 8)}…</span>
+                </div>
+              </div>
+
+              <div>
                 <Label className="mb-2 block">ADDRESS</Label>
                 <p className="text-text">{booking.address || '—'}</p>
               </div>

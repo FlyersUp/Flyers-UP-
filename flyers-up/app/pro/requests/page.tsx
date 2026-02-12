@@ -13,6 +13,7 @@ import { updateBookingStatus } from '@/lib/api';
 
 type Row = {
   id: string;
+  customer_id: string;
   service_date: string;
   service_time: string;
   address: string;
@@ -46,7 +47,7 @@ export default function ProRequestsPage() {
 
       const { data, error: qErr } = await supabase
         .from('bookings')
-        .select('id, service_date, service_time, address, notes, status, created_at')
+        .select('id, customer_id, service_date, service_time, address, notes, status, created_at')
         .eq('status', 'requested')
         .order('created_at', { ascending: false });
 
@@ -94,6 +95,9 @@ export default function ProRequestsPage() {
                   <div className="min-w-0">
                     <div className="font-semibold text-text truncate">Service request</div>
                     <div className="text-sm text-muted mt-0.5">
+                      Customer: <span className="font-mono">{r.customer_id.slice(0, 8)}…</span>
+                    </div>
+                    <div className="text-sm text-muted mt-0.5">
                       {new Date(r.service_date).toLocaleDateString()} • {r.service_time}
                     </div>
                     <div className="text-sm text-muted mt-1 line-clamp-2">{r.address}</div>
@@ -104,6 +108,11 @@ export default function ProRequestsPage() {
                   </div>
 
                   <div className="flex flex-col gap-2 w-[11rem] shrink-0">
+                    <Link href={`/pro/jobs/${r.id}`} className="block">
+                      <Button variant="secondary" showArrow={false} className="w-full">
+                        View details
+                      </Button>
+                    </Link>
                     <Button
                       showArrow={false}
                       disabled={actingId === r.id}
@@ -123,6 +132,7 @@ export default function ProRequestsPage() {
                         if (typeof res !== 'boolean' && !res.success) {
                           setError(res.error || 'Failed to accept.');
                         } else {
+                          router.push(`/pro/jobs/${r.id}`);
                           setRows((prev) => prev.filter((x) => x.id !== r.id));
                         }
                         setActingId(null);

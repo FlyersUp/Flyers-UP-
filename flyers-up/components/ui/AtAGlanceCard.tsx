@@ -7,15 +7,26 @@ type JobLike = {
 };
 
 function parseTimeToDate(dateISO: string, time: string) {
-  // Expects `time` like "10:00 AM"
-  const m = time.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!m) return null;
-  const [, hh, mm, ap] = m;
-  let hours = Number(hh);
-  const minutes = Number(mm);
-  const ampm = ap.toUpperCase();
-  if (ampm === 'PM' && hours !== 12) hours += 12;
-  if (ampm === 'AM' && hours === 12) hours = 0;
+  const t = time.trim();
+  // Accept either "10:00 AM" or 24h "14:00" (from <input type="time">).
+  const m12 = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  const m24 = t.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m12 && !m24) return null;
+
+  let hours = 0;
+  let minutes = 0;
+  if (m12) {
+    const [, hh, mm, ap] = m12;
+    hours = Number(hh);
+    minutes = Number(mm);
+    const ampm = ap.toUpperCase();
+    if (ampm === 'PM' && hours !== 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+  } else if (m24) {
+    const [, hh, mm] = m24;
+    hours = Number(hh);
+    minutes = Number(mm);
+  }
   const d = new Date(dateISO + 'T00:00:00');
   d.setHours(hours, minutes, 0, 0);
   return d;
