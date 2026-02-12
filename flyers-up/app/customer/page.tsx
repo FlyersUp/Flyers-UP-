@@ -19,6 +19,7 @@ export default function CustomerHome() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userName, setUserName] = useState('Account');
+  const [upcoming, setUpcoming] = useState<UpcomingBooking | null>(null);
 
   useEffect(() => {
     const guard = async () => {
@@ -47,8 +48,53 @@ export default function CustomerHome() {
     void guard();
   }, [router]);
 
-  // TODO: wire to real bookings/orders when available.
-  const upcoming: UpcomingBooking | null = null;
+  useEffect(() => {
+    let mounted = true;
+    const loadUpcoming = async () => {
+      try {
+        const todayISO = new Date().toISOString().slice(0, 10);
+        const res = await fetch(
+          `/api/customer/bookings?from=${encodeURIComponent(todayISO)}&limit=20&statuses=${encodeURIComponent(
+            ['requested', 'accepted', 'awaiting_payment'].join(',')
+          )}`,
+          { cache: 'no-store' }
+        );
+        const json = (await res.json()) as {
+          ok: boolean;
+          bookings?: Array<{
+            id: string;
+            service_date: string;
+            service_time: string;
+            status: string;
+            pro?: { displayName: string | null } | null;
+          }>;
+        };
+
+        if (!mounted) return;
+        if (!res.ok || !json.ok || !json.bookings?.length) {
+          setUpcoming(null);
+          return;
+        }
+
+        const b = json.bookings[0];
+        const when = `${b.service_date} at ${b.service_time}`;
+        setUpcoming({
+          serviceName: 'Service request',
+          dateTimeLabel: when,
+          proName: b.pro?.displayName || 'Service Pro',
+          status: b.status,
+          detailsHref: `/customer/chat/${b.id}`,
+        });
+      } catch {
+        if (!mounted) return;
+        setUpcoming(null);
+      }
+    };
+    void loadUpcoming();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <AppLayout mode="customer">
@@ -77,7 +123,7 @@ export default function CustomerHome() {
 
         {/* Clean slate (no mock data) */}
         <div className="mb-8 space-y-4">
-          <UpcomingCard booking={upcoming} browseHref="/services" />
+          <UpcomingCard booking={upcoming} browseHref="/customer/categories" />
           <Card className="border-l-[3px] border-l-accent">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
