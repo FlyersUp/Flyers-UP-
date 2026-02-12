@@ -1272,15 +1272,9 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
       status: 'requested',
       status_history: initialStatusHistory,
     })
-    .select(`
-      *,
-      service_pros!inner (
-        display_name,
-        service_categories (
-          slug
-        )
-      )
-    `)
+    // Avoid embedded relationship reads here; service_pros can have multiple FKs to service_categories,
+    // which makes PostgREST joins ambiguous and can cause the entire insert to fail with 400.
+    .select('*')
     .single();
 
   if (error) {
@@ -1319,20 +1313,42 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
     }
   }
 
-  // Get customer name
+  // Best-effort enrichment for UI consumers.
   const { data: profile } = await supabase
     .from('profiles')
     .select('full_name')
     .eq('id', payload.customerId)
-    .single();
+    .maybeSingle();
+
+  let proName = 'Service Pro';
+  let categorySlug = 'general';
+  try {
+    const { data: proRow } = await supabase
+      .from('service_pros')
+      .select('display_name, category_id')
+      .eq('id', payload.proId)
+      .maybeSingle();
+    if (proRow?.display_name) proName = proRow.display_name;
+
+    if (proRow?.category_id) {
+      const { data: cat } = await supabase
+        .from('service_categories')
+        .select('slug')
+        .eq('id', proRow.category_id)
+        .maybeSingle();
+      if (cat?.slug) categorySlug = cat.slug;
+    }
+  } catch {
+    // ignore
+  }
 
   return {
     id: data.id,
     customerId: data.customer_id,
     customerName: profile?.full_name || 'Customer',
     proId: data.pro_id,
-    proName: data.service_pros.display_name,
-    category: data.service_pros.service_categories.slug,
+    proName,
+    category: categorySlug,
     date: data.service_date,
     time: data.service_time,
     address: data.address,
