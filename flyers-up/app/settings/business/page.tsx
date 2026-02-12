@@ -154,17 +154,21 @@ export default function BusinessSettingsPage() {
       }, accessToken);
 
       if (result.success) {
-        setSuccess('Business profile updated successfully');
+        // Verify by re-fetching from source of truth before showing success.
         // Read-after-write: re-fetch from Supabase source of truth.
         const proData = await getMyServicePro(userId);
-        if (proData) {
-          setDisplayName(proData.displayName);
-          setBio(proData.bio || '');
-          setCategoryId(proData.categoryId);
-          setStartingPrice(proData.startingPrice.toString());
-          setServiceRadius(proData.serviceRadius?.toString() || '');
-          setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
+        if (!proData) {
+          setError('Saved, but could not reload your profile. Please refresh and try again.');
+          return;
         }
+
+        setDisplayName(proData.displayName);
+        setBio(proData.bio || '');
+        setCategoryId(proData.categoryId);
+        setStartingPrice(proData.startingPrice.toString());
+        setServiceRadius(proData.serviceRadius?.toString() || '');
+        setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
+        setSuccess('Business profile saved.');
       } else {
         setError(result.error || 'Failed to update business profile');
       }
@@ -175,7 +179,7 @@ export default function BusinessSettingsPage() {
     }
   }
 
-  async function persistServiceTypes(next: Array<{ name: string; price: string; id?: string }>) {
+  async function persistServiceTypes(next: Array<{ name: string; price: string; id?: string }>): Promise<boolean> {
     // Best-effort: keep a local fallback while we migrate older data.
     try {
       localStorage.setItem('proServiceTypes', JSON.stringify(next));
@@ -189,24 +193,32 @@ export default function BusinessSettingsPage() {
     if (!accessToken) {
       setError('Your session expired. Please sign in again.');
       router.push(`/auth?next=${encodeURIComponent(pathname || '/pro/settings/business')}`);
-      return;
+      return false;
     }
     const res = await updateMyServiceProAction({ service_types: next as unknown[] }, accessToken);
     if (!res.success) {
       setError(res.error || 'Failed to save services.');
-      return;
+      return false;
     }
     if (userId) {
       const proData = await getMyServicePro(userId);
-      if (proData?.serviceTypes) setServiceTypes(proData.serviceTypes);
+      if (!proData) {
+        setError('Saved, but could not reload your services. Please refresh and try again.');
+        return false;
+      }
+      if (proData.serviceTypes) setServiceTypes(proData.serviceTypes);
     }
+    return true;
   }
 
-  function handleAddService() {
+  async function handleAddService() {
     if (!newServiceName || !newServicePrice) {
       setError('Please enter both service name and price');
       return;
     }
+
+    setError(null);
+    setSuccess(null);
 
     const newService = {
       name: newServiceName,
@@ -214,28 +226,49 @@ export default function BusinessSettingsPage() {
       id: Date.now().toString(),
     };
 
+    const prev = serviceTypes;
     const updated = [...serviceTypes, newService];
     setServiceTypes(updated);
-    void persistServiceTypes(updated);
+    const ok = await persistServiceTypes(updated);
+    if (!ok) {
+      setServiceTypes(prev);
+      return;
+    }
     setNewServiceName('');
     setNewServicePrice('');
-    setSuccess('Service added successfully');
+    setSuccess('Service saved.');
   }
 
-  function handleRemoveService(id: string) {
+  async function handleRemoveService(id: string) {
+    setError(null);
+    setSuccess(null);
+
+    const prev = serviceTypes;
     const updated = serviceTypes.filter(s => s.id !== id);
     setServiceTypes(updated);
-    void persistServiceTypes(updated);
-    setSuccess('Service removed successfully');
+    const ok = await persistServiceTypes(updated);
+    if (!ok) {
+      setServiceTypes(prev);
+      return;
+    }
+    setSuccess('Service saved.');
   }
 
-  function handleUpdateService(id: string, name: string, price: string) {
+  async function handleUpdateService(id: string, name: string, price: string) {
+    setError(null);
+    setSuccess(null);
+
+    const prev = serviceTypes;
     const updated = serviceTypes.map(s => 
       s.id === id ? { ...s, name, price } : s
     );
     setServiceTypes(updated);
-    void persistServiceTypes(updated);
-    setSuccess('Service updated successfully');
+    const ok = await persistServiceTypes(updated);
+    if (!ok) {
+      setServiceTypes(prev);
+      return;
+    }
+    setSuccess('Service saved.');
   }
 
   if (loadingData) {
@@ -465,6 +498,8 @@ export default function BusinessSettingsPage() {
                   return;
                 }
                 setLoading(true);
+                setError(null);
+                setSuccess(null);
                 
                 if (userId) {
                   const {
@@ -485,9 +520,17 @@ export default function BusinessSettingsPage() {
                     setLoading(false);
                     return;
                   }
+                  // Read-after-write verification
+                  const proData = await getMyServicePro(userId);
+                  if (!proData) {
+                    setError('Saved, but could not reload your availability. Please refresh and try again.');
+                    setLoading(false);
+                    return;
+                  }
+                  setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
                 }
                 setLoading(false);
-                setSuccess('Schedule updated successfully');
+                setSuccess('Availability saved.');
               }}
               disabled={loading}
               className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent disabled:opacity-50 transition-colors"
@@ -532,7 +575,7 @@ export default function BusinessSettingsPage() {
                           const newName = prompt('Service name:', service.name);
                           const newPrice = prompt('Price ($):', service.price);
                           if (newName && newPrice && service.id) {
-                            handleUpdateService(service.id, newName, newPrice);
+                            void handleUpdateService(service.id, newName, newPrice);
                           }
                         }}
                         className="px-3 py-1 text-sm text-text hover:bg-surface2 rounded-lg transition-colors"
@@ -540,7 +583,7 @@ export default function BusinessSettingsPage() {
                         Edit
                       </button>
                       <button
-                        onClick={() => service.id && handleRemoveService(service.id)}
+                        onClick={() => service.id && void handleRemoveService(service.id)}
                         className="px-3 py-1 text-sm text-red-600 hover:bg-danger/10 rounded-lg transition-colors"
                       >
                         Remove
@@ -573,7 +616,7 @@ export default function BusinessSettingsPage() {
                   />
                 </div>
                 <button
-                  onClick={handleAddService}
+                  onClick={() => void handleAddService()}
                   className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent transition-colors"
                 >
                   Add Service
