@@ -109,6 +109,13 @@ function isSafeNext(next: string | null): string | null {
 
 export function routeAfterAuth(profile: ProfileRow, next?: string | null): string {
   const safeNext = isSafeNext(next ?? null);
+  // Prevent cross-role redirect loops (e.g. customer being sent to /pro).
+  const roleSafeNext =
+    profile.role === 'customer'
+      ? safeNext && (safeNext.startsWith('/pro') || safeNext.startsWith('/dashboard/pro')) ? null : safeNext
+      : profile.role === 'pro'
+        ? safeNext && (safeNext.startsWith('/customer') || safeNext.startsWith('/dashboard/customer')) ? null : safeNext
+        : safeNext;
 
   // If onboarding_step is set, route there (resume).
   if (profile.onboarding_step === 'role' || profile.role == null) {
@@ -120,17 +127,17 @@ export function routeAfterAuth(profile: ProfileRow, next?: string | null): strin
 
   if (profile.role === 'customer') {
     if (profile.onboarding_step === 'customer_profile' || firstNameMissing) {
-      return safeNext ? `/onboarding/customer?next=${encodeURIComponent(safeNext)}` : '/onboarding/customer';
+      return roleSafeNext ? `/onboarding/customer?next=${encodeURIComponent(roleSafeNext)}` : '/onboarding/customer';
     }
-    return safeNext ?? '/customer';
+    return roleSafeNext ?? '/customer';
   }
 
   if (profile.role === 'pro') {
     // Pro requires first_name + later service_pros fields (collected on /onboarding/pro)
     if (profile.onboarding_step === 'pro_profile' || firstNameMissing || zipMissing) {
-      return safeNext ? `/onboarding/pro?next=${encodeURIComponent(safeNext)}` : '/onboarding/pro';
+      return roleSafeNext ? `/onboarding/pro?next=${encodeURIComponent(roleSafeNext)}` : '/onboarding/pro';
     }
-    return safeNext ?? '/pro';
+    return roleSafeNext ?? '/pro';
   }
 
   // Fallback
