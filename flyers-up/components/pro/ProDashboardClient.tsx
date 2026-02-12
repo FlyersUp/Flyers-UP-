@@ -15,6 +15,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [jobs, setJobs] = useState<Booking[]>([]);
+  const [proRating, setProRating] = useState<number | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -30,6 +31,14 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
         const data = await getProJobs(user.id);
         if (!mounted) return;
         setJobs(data);
+
+        // Best-effort: fetch rating for "Today at a Glance".
+        const { data: proRow } = await supabase
+          .from('service_pros')
+          .select('rating')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (mounted) setProRating(typeof (proRow as any)?.rating === 'number' ? (proRow as any).rating : null);
       } finally {
         if (mounted) setJobsLoading(false);
       }
@@ -41,6 +50,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
   }, []);
 
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const actionNeededCount = useMemo(() => jobs.filter((j) => j.status === 'requested').length, [jobs]);
   const todayJobs = useMemo(() => {
     return jobs
       .filter((j) => j.date === todayIso)
@@ -77,7 +87,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
         </div>
 
         <div className="mb-6">
-          <AtAGlanceCard jobs={todayJobs} rating={null} actionNeededCount={null} />
+          <AtAGlanceCard jobs={todayJobs} rating={proRating} actionNeededCount={actionNeededCount} />
         </div>
 
         {/* Clean-slate onboarding prompt */}

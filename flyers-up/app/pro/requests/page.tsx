@@ -14,6 +14,7 @@ import { updateBookingStatus } from '@/lib/api';
 type Row = {
   id: string;
   customer_id: string;
+  customer?: { fullName: string | null; phone: string | null } | null;
   service_date: string;
   service_time: string;
   address: string;
@@ -45,19 +46,21 @@ export default function ProRequestsPage() {
         return;
       }
 
-      const { data, error: qErr } = await supabase
-        .from('bookings')
-        .select('id, customer_id, service_date, service_time, address, notes, status, created_at')
-        .eq('status', 'requested')
-        .order('created_at', { ascending: false });
-
-      if (qErr) {
-        setError(qErr.message);
+      const res = await fetch('/api/pro/bookings?status=requested&limit=50', { cache: 'no-store' });
+      if (!res.ok) {
+        setError('Failed to load requests.');
         setRows([]);
         setLoading(false);
         return;
       }
-      setRows((data as Row[]) || []);
+      const json = (await res.json()) as { ok: boolean; bookings?: Row[]; error?: string };
+      if (!json.ok) {
+        setError(json.error || 'Failed to load requests.');
+        setRows([]);
+        setLoading(false);
+        return;
+      }
+      setRows(json.bookings || []);
       setLoading(false);
     };
     void run();
@@ -95,8 +98,16 @@ export default function ProRequestsPage() {
                   <div className="min-w-0">
                     <div className="font-semibold text-text truncate">Service request</div>
                     <div className="text-sm text-muted mt-0.5">
-                      Customer: <span className="font-mono">{r.customer_id.slice(0, 8)}…</span>
+                      Customer:{' '}
+                      {r.customer?.fullName ? (
+                        <span className="text-text font-medium">{r.customer.fullName}</span>
+                      ) : (
+                        <span className="font-mono">{r.customer_id.slice(0, 8)}…</span>
+                      )}
                     </div>
+                    {r.customer?.phone ? (
+                      <div className="text-sm text-muted mt-0.5">Phone: {r.customer.phone}</div>
+                    ) : null}
                     <div className="text-sm text-muted mt-0.5">
                       {new Date(r.service_date).toLocaleDateString()} • {r.service_time}
                     </div>
