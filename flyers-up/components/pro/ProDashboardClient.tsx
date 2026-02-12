@@ -51,6 +51,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
 
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const actionNeededCount = useMemo(() => jobs.filter((j) => j.status === 'requested').length, [jobs]);
+  const actionRequired = actionNeededCount > 0;
   const todayJobs = useMemo(() => {
     return jobs
       .filter((j) => j.date === todayIso)
@@ -112,13 +113,35 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
           <AtAGlanceCard jobs={todayJobs} rating={proRating} actionNeededCount={actionNeededCount} />
         </div>
 
+        {actionRequired ? (
+          <Card className="mb-6 border-l-[3px] border-l-accent">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-text">Action required</div>
+                <div className="mt-1 text-sm text-muted">
+                  You have <span className="font-semibold text-accent">{actionNeededCount}</span> new request
+                  {actionNeededCount === 1 ? '' : 's'}.
+                </div>
+              </div>
+              <div className="shrink-0">
+                <Link
+                  href="/pro/requests"
+                  className="inline-flex items-center justify-center rounded-xl px-4 py-2 bg-accent text-accentContrast font-semibold hover:opacity-95 transition-opacity focus-ring"
+                >
+                  Review requests
+                </Link>
+              </div>
+            </div>
+          </Card>
+        ) : null}
+
         {/* Clean-slate onboarding prompt */}
         <Card className="mb-8 border-l-[3px] border-l-accent">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="text-sm font-semibold tracking-tight text-text">You’re set up. Next: get your first job.</div>
+              <div className="text-sm font-semibold tracking-tight text-text">You’re set up. Next: win more work.</div>
               <div className="mt-1 text-sm text-muted">
-                Your dashboard stays empty until customers request you. Here’s what you can do now.
+                Keep your listing tight and respond fast to requests. This is how you start getting consistent bookings.
               </div>
             </div>
             <div className="shrink-0">
@@ -147,6 +170,12 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
 
         {/* Quick Actions */}
         <div className="mb-6">
+          <div className="flex items-end justify-between gap-4 mb-3">
+            <Label>OPPORTUNITIES</Label>
+            <Link href="/pro/settings/business" className="text-sm font-medium text-text hover:underline">
+              Improve listing
+            </Link>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <Link href="/pro/settings/business" className="block">
               <Card className="cursor-pointer hover:shadow-card transition-shadow">
@@ -236,7 +265,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-2xl font-bold text-text">${job.total}</div>
+                        <div className="text-2xl font-bold text-accent">${job.total}</div>
                         <div className="mt-1 flex justify-end">
                           <span className="text-xs text-muted">{job.status}</span>
                         </div>

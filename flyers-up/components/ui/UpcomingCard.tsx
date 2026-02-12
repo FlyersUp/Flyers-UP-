@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { StatusBadge } from '@/components/ui/Badge';
 
 export type UpcomingBooking = {
   serviceName: string;
@@ -9,6 +8,26 @@ export type UpcomingBooking = {
   detailsHref?: string | null;
 };
 
+function CustomerConfirmationPill({ status }: { status: string }) {
+  const s = (status || '').toLowerCase();
+  const confirm = s === 'scheduled' || s === 'completed';
+  const label = status.replaceAll('_', ' ');
+
+  return (
+    <span
+      className={[
+        'relative inline-flex items-center h-6 px-2.5 rounded-full border text-[11px] uppercase tracking-wide font-medium',
+        'bg-badgeFill text-text border-badgeBorder',
+        confirm
+          ? "pl-4 before:content-[''] before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-2 before:w-2 before:rounded-full before:bg-accent/80"
+          : 'text-muted',
+      ].join(' ')}
+    >
+      {label}
+    </span>
+  );
+}
+
 export function UpcomingCard({
   booking,
   browseHref,
@@ -17,7 +36,7 @@ export function UpcomingCard({
   browseHref: string;
 }) {
   return (
-    <div className="surface-card border-l-[3px] border-l-[#6EE7B7]">
+    <div className="surface-card">
       <div className="p-5">
         <div className="flex items-baseline justify-between gap-4">
           <div className="text-sm font-semibold tracking-tight text-text">Upcoming</div>
@@ -36,7 +55,7 @@ export function UpcomingCard({
               <div className="text-sm text-muted">{booking.proName}</div>
             </div>
             <div className="shrink-0">
-              <StatusBadge status={booking.status} />
+              <CustomerConfirmationPill status={booking.status} />
             </div>
           </div>
         ) : (

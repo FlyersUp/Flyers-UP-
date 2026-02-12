@@ -31,7 +31,7 @@ export default function BottomNav() {
   const notificationsHref = mode === 'pro' ? '/pro/notifications' : '/customer/notifications';
   const messagesHref = mode === 'pro' ? '/pro/messages' : '/customer/messages';
   const settingsHref = mode === 'pro' ? '/pro/settings' : '/customer/settings';
-  const activeLink = 'text-text';
+  const activeLink = 'text-accent';
   const inactiveLink = 'text-muted/70 hover:text-text';
   const activeIndicator =
     "after:content-[''] after:absolute after:-bottom-0.5 after:left-1/2 after:h-0.5 after:w-6 after:-translate-x-1/2 after:rounded-full after:bg-accent";

@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 import { SideMenu } from '@/components/ui/SideMenu';
+import { AppIcon } from '@/components/ui/AppIcon';
 
 /**
  * Customer Home - Screen 1
@@ -84,11 +85,17 @@ export default function CustomerHome() {
 
         const b = json.bookings[0];
         const when = `${b.service_date} at ${b.service_time}`;
+        // UI-friendly "safe" labeling: customers see "Scheduled" once accepted.
+        const uiStatus = (() => {
+          const s = (b.status || '').toLowerCase();
+          if (s === 'accepted') return 'scheduled';
+          return b.status;
+        })();
         setUpcoming({
           serviceName: 'Service request',
           dateTimeLabel: when,
           proName: b.pro?.displayName || 'Service Pro',
-          status: b.status,
+          status: uiStatus,
           detailsHref: `/customer/chat/${b.id}`,
         });
       } catch {
@@ -130,32 +137,43 @@ export default function CustomerHome() {
         {/* Clean slate (no mock data) */}
         <div className="mb-8 space-y-4">
           <UpcomingCard booking={upcoming} browseHref="/customer/categories" />
-          <Card className="border-l-[3px] border-l-accent">
+          <Card>
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="text-sm font-semibold tracking-tight text-text">Start here</div>
+                <div className="inline-block text-sm font-semibold tracking-tight text-text pb-2 border-b-2 border-b-accent">
+                  Start here
+                </div>
                 <div className="mt-1 text-sm text-muted">
-                  No fake data. Take one action and your dashboard will fill in.
+                  Calm, step-by-step. Nothing is booked until you confirm.
                 </div>
               </div>
               <div className="shrink-0">
-                <Link href="/services" className="text-sm font-medium text-text hover:underline">
+                <Link
+                  href="/customer/categories"
+                  className="inline-flex items-center justify-center rounded-xl px-4 py-2 bg-accent text-accentContrast font-semibold hover:opacity-95 transition-opacity focus-ring btn-press"
+                >
                   Request a service
                 </Link>
               </div>
             </div>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Link
-                href="/services"
+                href="/customer/categories"
                 className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors px-4 py-3"
               >
+                <div className="mb-2">
+                  <AppIcon name="plus" size={18} className="text-accent" alt="" />
+                </div>
                 <div className="text-sm font-semibold text-text">Browse services</div>
-                <div className="text-xs text-muted mt-1">See what’s available and request help.</div>
+                <div className="text-xs text-muted mt-1">See what’s available, then request help.</div>
               </Link>
               <Link
                 href="/customer/settings/addresses"
                 className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors px-4 py-3"
               >
+                <div className="mb-2">
+                  <AppIcon name="map-pin" size={18} className="text-muted" alt="" />
+                </div>
                 <div className="text-sm font-semibold text-text">Add your address</div>
                 <div className="text-xs text-muted mt-1">So requests and booking are faster.</div>
               </Link>
@@ -167,7 +185,7 @@ export default function CustomerHome() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
             <Label>SERVICES</Label>
-            <Link href="/services">
+            <Link href="/customer/categories">
               <span className="text-sm font-medium text-text hover:underline">Browse</span>
             </Link>
           </div>

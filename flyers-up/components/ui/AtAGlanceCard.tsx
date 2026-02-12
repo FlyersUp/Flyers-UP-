@@ -56,11 +56,21 @@ export function sumTodayEarnings(jobs: JobLike[]) {
   return jobs.reduce((acc, j) => acc + (Number.isFinite(j.total) ? j.total : 0), 0);
 }
 
-function MiniItem({ label, value }: { label: string; value: string }) {
+function MiniItem({
+  label,
+  value,
+  emphasize = false,
+}: {
+  label: string;
+  value: string;
+  emphasize?: boolean;
+}) {
   return (
     <div className="min-w-[9.5rem]">
       <div className="text-xs text-muted">{label}</div>
-      <div className="text-base font-semibold text-text">{value}</div>
+      <div className={['text-base font-semibold', emphasize ? 'text-accent' : 'text-text'].join(' ')}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -78,6 +88,7 @@ export function AtAGlanceCard({
   const expectedPayout = sumTodayEarnings(jobs);
   const ratingHealth = rating != null && rating < 4.7 ? 'Watch' : 'Stable';
   const actionNeeded = actionNeededCount == null ? '—' : actionNeededCount === 0 ? 'None' : String(actionNeededCount);
+  const hasActions = (actionNeededCount ?? 0) > 0;
 
   return (
     <div className="surface-card border-l-[3px] border-l-accent">
@@ -93,9 +104,10 @@ export function AtAGlanceCard({
           <MiniItem
             label="Expected payout today"
             value={expectedPayout == null ? '—' : expectedPayout.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+            emphasize
           />
           <MiniItem label="Rating health" value={ratingHealth} />
-          <MiniItem label="Action needed" value={actionNeeded} />
+          <MiniItem label="Action needed" value={actionNeeded} emphasize={hasActions} />
         </div>
       </div>
     </div>
