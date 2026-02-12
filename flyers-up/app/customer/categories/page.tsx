@@ -78,7 +78,7 @@ export default function CategoriesPage() {
             {categories.map((cat) => (
               <Link
                 key={cat.id}
-                href={`/services/${encodeURIComponent(cat.slug)}`}
+                href={`/customer/categories/${encodeURIComponent(cat.id)}`}
                 className="bg-surface rounded-xl p-6 border border-border hover:border-accent transition-colors text-center"
               >
                 <div className="text-4xl mb-3">{cat.icon}</div>

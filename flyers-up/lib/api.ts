@@ -602,16 +602,23 @@ export async function getProsByCategory(categorySlug: string): Promise<ServicePr
   const limit = 24;
   const offset = 0;
 
+  // Avoid relationship joins here; PostgREST relationship naming can differ across environments,
+  // and a join failure results in a 400 response. Resolve category first, then query pros by category_id.
+  const { data: category, error: catErr } = await supabase
+    .from('service_categories')
+    .select('id, slug, name')
+    .eq('slug', categorySlug)
+    .maybeSingle();
+
+  if (catErr || !category) {
+    if (catErr) console.error('Error resolving category for pro browse:', catErr);
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('service_pros')
-    .select(`
-      *,
-      service_categories!inner (
-        slug,
-        name
-      )
-    `)
-    .eq('service_categories.slug', categorySlug)
+    .select('*')
+    .eq('category_id', category.id)
     .eq('available', true)
     .order('rating', { ascending: false })
     .range(offset, offset + limit - 1);
@@ -626,8 +633,8 @@ export async function getProsByCategory(categorySlug: string): Promise<ServicePr
     userId: pro.user_id,
     name: pro.display_name,
     bio: pro.bio || '',
-    categorySlug: pro.service_categories.slug,
-    categoryName: pro.service_categories.name,
+    categorySlug: category.slug,
+    categoryName: category.name,
     rating: pro.rating,
     reviewCount: pro.review_count,
     startingPrice: pro.starting_price,
