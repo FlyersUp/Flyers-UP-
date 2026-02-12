@@ -15,6 +15,8 @@ function RoleInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get('next');
+  const switchParam = searchParams.get('switch');
+  const switching = switchParam === '1' || switchParam === 'true';
 
   const [selected, setSelected] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,16 +55,19 @@ function RoleInner() {
           setError('Could not load your profile. Please try again.');
           return;
         }
-        if (profile.role) {
+        if (profile.role && !switching) {
           router.replace(routeAfterAuth(profile, safeNext));
           return;
+        }
+        if (profile.role && switching) {
+          setSelected(profile.role);
         }
       } finally {
         setLoading(false);
       }
     };
     void init();
-  }, [router, safeNext]);
+  }, [router, safeNext, switching]);
 
   async function handleContinue() {
     if (!selected) return;
@@ -132,7 +137,9 @@ function RoleInner() {
         <div className="max-w-md mx-auto">
           <div className="rounded-2xl border border-border bg-surface shadow-sm p-6">
             <h1 className="text-2xl font-semibold tracking-tight">How will you use Flyers Up?</h1>
-            <p className="text-muted mt-2">Pick one — you can switch later.</p>
+            <p className="text-muted mt-2">
+              {switching ? 'Switch roles any time.' : 'Pick one — you can switch later.'}
+            </p>
 
             {error && (
               <div className="mt-4 rounded-xl border border-red-100 bg-danger/10 px-4 py-3 text-sm text-text">

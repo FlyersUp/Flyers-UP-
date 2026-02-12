@@ -33,8 +33,9 @@ export default function BottomNav() {
   const settingsHref = mode === 'pro' ? '/pro/settings' : '/customer/settings';
   const activeLink = 'text-accent';
   const inactiveLink = 'text-muted/70 hover:text-text';
+  // Make the active state more noticeable without adding background color.
   const activeIndicator =
-    "after:content-[''] after:absolute after:-bottom-0.5 after:left-1/2 after:h-0.5 after:w-6 after:-translate-x-1/2 after:rounded-full after:bg-accent";
+    "after:content-[''] after:absolute after:-bottom-0.5 after:left-1/2 after:h-1 after:w-8 after:-translate-x-1/2 after:rounded-full after:bg-accent";
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-[var(--nav-solid)] border-t border-[var(--surface-border)] z-50 shadow-card safe-area-bottom opacity-100">

@@ -82,7 +82,8 @@
 /* Role-based accents (light) */
 .theme-customer {
   /* customer accent: #6EE7B7 */
-  --accent: 156 72% 67%;
+  /* Slightly deeper for visibility while staying pastel */
+  --accent: 156 70% 58%;
   --accent-contrast: 0 0% 8%;
   --ring: var(--accent);
 
@@ -94,7 +95,8 @@
 }
 .theme-pro {
   /* pro accent: #FDBA74 */
-  --accent: 31 97% 72%;
+  /* Slightly deeper for visibility while staying pastel */
+  --accent: 31 96% 66%;
   --accent-contrast: 0 0% 8%;
   --ring: var(--accent);
 
@@ -148,14 +150,14 @@
   --badge-border: rgba(255,255,255,0.10);
 
   /* Brand role accents (dark): slightly brighter for contrast */
-  --accent-customer: 156 72% 72%;
-  --accent-pro: 31 97% 78%;
+  --accent-customer: 156 70% 70%;
+  --accent-pro: 31 96% 76%;
 }
 
 /* Role-based accents (dark): slightly brighter than light-mode accent for contrast */
 .dark.theme-customer {
   /* bump slightly in dark for contrast (customer) */
-  --accent: 156 72% 72%;
+  --accent: 156 70% 70%;
 
   /* Warm Neutrality–weighted */
   --page-pad-y: 24px;
@@ -165,7 +167,7 @@
 }
 .dark.theme-pro {
   /* bump slightly in dark for contrast (pro) */
-  --accent: 31 97% 78%;
+  --accent: 31 96% 76%;
 
   /* Civic Infrastructure–weighted */
   --page-pad-y: 20px;

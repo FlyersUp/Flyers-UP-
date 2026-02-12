@@ -162,7 +162,7 @@ export default function CustomerHome() {
                 className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors px-4 py-3"
               >
                 <div className="mb-2">
-                  <AppIcon name="plus" size={18} className="text-accent" alt="" />
+                  <AppIcon name="plus" size={20} className="text-accent" alt="" />
                 </div>
                 <div className="text-sm font-semibold text-text">Browse services</div>
                 <div className="text-xs text-muted mt-1">See what’s available, then request help.</div>

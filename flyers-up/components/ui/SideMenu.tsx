@@ -65,6 +65,10 @@ function Section({ title, items, onNavigate }: { title: string; items: MenuItem[
 function getProMenu(): MenuSection[] {
   return [
     {
+      title: 'Role',
+      items: [{ label: 'Switch role', href: '/onboarding/role?switch=1&next=%2Fpro' }],
+    },
+    {
       title: 'Account & Identity',
       items: [
         { label: 'Profile', href: '/pro/profile' },
@@ -137,6 +141,10 @@ function getProMenu(): MenuSection[] {
 
 function getCustomerMenu(): MenuSection[] {
   return [
+    {
+      title: 'Role',
+      items: [{ label: 'Switch role', href: '/onboarding/role?switch=1&next=%2Fcustomer' }],
+    },
     {
       title: 'Account',
       items: [
