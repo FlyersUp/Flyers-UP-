@@ -20,6 +20,7 @@ export default function CustomerHome() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userName, setUserName] = useState('Account');
   const [upcoming, setUpcoming] = useState<UpcomingBooking | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const guard = async () => {
@@ -43,7 +44,11 @@ export default function CustomerHome() {
       const fallbackName = (user.email ? user.email.split('@')[0] : 'Account') || 'Account';
       setUserName(profile.first_name?.trim() || fallbackName);
       const dest = routeAfterAuth(profile, '/customer');
-      if (dest !== '/customer') router.replace(dest);
+      if (dest !== '/customer') {
+        router.replace(dest);
+        return;
+      }
+      setReady(true);
     };
     void guard();
   }, [router]);
@@ -51,6 +56,7 @@ export default function CustomerHome() {
   useEffect(() => {
     let mounted = true;
     const loadUpcoming = async () => {
+      if (!ready) return;
       try {
         const todayISO = new Date().toISOString().slice(0, 10);
         const res = await fetch(
@@ -94,7 +100,7 @@ export default function CustomerHome() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [ready]);
 
   return (
     <AppLayout mode="customer">
