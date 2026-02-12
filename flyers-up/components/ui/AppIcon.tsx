@@ -1,7 +1,6 @@
  'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
 
 export type AppIconName =
   | 'home'
@@ -30,19 +29,14 @@ export function AppIcon({
   className?: string;
   alt?: string;
 }) {
-  // PNG-first (what you're using from Flaticon), SVG fallback (placeholders).
-  const [ext, setExt] = useState<'png' | 'svg'>('png');
+  // Use SVG icons from `/public/icons` to avoid noisy 404s for missing PNGs.
   return (
     <Image
-      src={`/icons/${name}.${ext}`}
+      src={`/icons/${name}.svg`}
       alt={alt ?? name}
       width={size}
       height={size}
       className={['inline-block', 'opacity-90', className].join(' ')}
-      onError={() => {
-        // If PNG missing, fall back to SVG placeholder.
-        if (ext !== 'svg') setExt('svg');
-      }}
       unoptimized
     />
   );
