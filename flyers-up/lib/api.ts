@@ -1255,6 +1255,20 @@ export async function getProEarnings(proUserId: string): Promise<EarningsSummary
  * - Total price is calculated server-side from snapshots + base price
  */
 export async function createBooking(payload: CreateBookingPayload): Promise<Booking | null> {
+  // Safety guard: bookings must be created by the currently signed-in CUSTOMER.
+  // This prevents a pro account from accidentally creating bookings under their own user id
+  // (which later looks like bookings "transferred" after role switching).
+  const authed = await getCurrentUser();
+  if (!authed) {
+    throw new Error('You must be signed in to create a booking.');
+  }
+  if (authed.role !== 'customer') {
+    throw new Error('Customer access required. Switch your role to Customer to request a booking.');
+  }
+  if (payload.customerId && payload.customerId !== authed.id) {
+    throw new Error('Booking customer mismatch. Please refresh and try again.');
+  }
+
   // Initialize status_history with the 'requested' entry
   const initialStatusHistory: StatusHistoryEntry[] = [
     { status: 'requested', at: new Date().toISOString() }
@@ -1263,7 +1277,7 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
   const { data, error } = await supabase
     .from('bookings')
     .insert({
-      customer_id: payload.customerId,
+      customer_id: authed.id,
       pro_id: payload.proId,
       service_date: payload.date,
       service_time: payload.time,

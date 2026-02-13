@@ -14,7 +14,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createBooking, getCurrentUser, type ServicePro } from '@/lib/api';
+import { getCurrentUser, type ServicePro } from '@/lib/api';
+import { createBookingWithPayment } from '@/app/actions/bookings';
 
 interface BookingFormProps {
   pro: ServicePro;
@@ -60,23 +61,27 @@ export default function BookingForm({ pro }: BookingFormProps) {
         return;
       }
 
-      // Create booking in Supabase
-      await createBooking({
-        customerId: user.id,
-        proId: pro.id,
-        date: formData.date,
-        time: formData.time,
-        address: formData.address,
-        notes: formData.notes,
-      });
+      // Create booking (server action enforces: authenticated customer only)
+      const result = await createBookingWithPayment(
+        pro.id,
+        formData.date,
+        formData.time,
+        formData.address,
+        formData.notes,
+        []
+      );
+      if (!result.success) {
+        setError(result.error || 'Failed to create booking. Please try again.');
+        return;
+      }
 
       // Store success message for dashboard
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('booking_success', 'true');
       }
 
-      // Redirect to customer dashboard
-      router.push('/dashboard/customer');
+      // Redirect to customer home
+      router.push('/customer');
     } catch (err) {
       setError('Failed to create booking. Please try again.');
       console.error('Booking error:', err);
