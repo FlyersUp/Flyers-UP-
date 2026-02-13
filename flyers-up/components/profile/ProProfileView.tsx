@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import type { PublicProProfileModel } from '@/lib/profileData';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ActionButtons } from '@/components/profile/ActionButtons';
-import { HighlightsRow } from '@/components/profile/HighlightsRow';
 import { Tabs, type TabKey } from '@/components/profile/Tabs';
 import { PhotoGrid } from '@/components/profile/PhotoGrid';
 import { ServicesList } from '@/components/profile/ServicesList';
@@ -44,7 +43,14 @@ export function ProProfileView({
     ];
     if (profile.stats.responseTimeMedian) items.push({ label: 'Response', value: profile.stats.responseTimeMedian });
     if (profile.yearsActive != null) items.push({ label: 'Years', value: String(profile.yearsActive) });
-    return items.slice(0, 5);
+    const trimmed = items.slice(0, 5);
+
+    // Micro-accent rule: highlight ONE key stat with orange number only.
+    const pick = (label: string) => trimmed.findIndex((x) => x.label === label && x.value !== '—');
+    const idx = pick('Rating') >= 0 ? pick('Rating') : pick('Years');
+    if (idx >= 0) (trimmed[idx] as any).accent = true;
+
+    return trimmed as any;
   }, [profile]);
 
   const businessHoursSummary = useMemo(() => {
@@ -55,7 +61,7 @@ export function ProProfileView({
     }
   }, [profile.businessHours]);
 
-  const highlights = useMemo(
+  const tabs = useMemo(
     () => [
       { key: 'work' as const, label: 'Work', icon: '▦' },
       { key: 'services' as const, label: 'Services', icon: '≡' },
@@ -106,10 +112,8 @@ export function ProProfileView({
         </div>
       </section>
 
-      <HighlightsRow items={highlights} active={tab} onSelect={setTab} />
-
       <section className="rounded-2xl border border-hairline bg-white shadow-sm overflow-hidden">
-        <Tabs tabs={highlights.map((h) => ({ key: h.key, label: h.label, icon: h.icon }))} active={tab} onChange={setTab} />
+        <Tabs tabs={tabs} active={tab} onChange={setTab} />
         <div className="p-4">
           {tab === 'work' ? <PhotoGrid photos={profile.photos} /> : null}
           {tab === 'services' ? <ServicesList proId={profile.id} services={profile.services} /> : null}
