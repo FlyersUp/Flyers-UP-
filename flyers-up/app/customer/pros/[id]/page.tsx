@@ -14,8 +14,12 @@ import { ProProfileView } from '@/components/profile/ProProfileView';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CustomerProProfilePage({ params }: { params: { id: string } }) {
-  const proId = params.id;
+type RouteParams = { id?: string };
+
+export default async function CustomerProProfilePage({ params }: { params: RouteParams | Promise<RouteParams> }) {
+  const resolved = await Promise.resolve(params);
+  const proId = resolved?.id;
+  if (!proId) return notFound();
 
   // Customer browsing requires sign-in.
   const supabase = await createServerSupabaseClient();

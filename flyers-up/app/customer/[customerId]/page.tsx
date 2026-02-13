@@ -8,8 +8,12 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CustomerPublicForProsPage({ params }: { params: { customerId: string } }) {
-  const customerId = params.customerId;
+type RouteParams = { customerId?: string };
+
+export default async function CustomerPublicForProsPage({ params }: { params: RouteParams | Promise<RouteParams> }) {
+  const resolved = await Promise.resolve(params);
+  const customerId = resolved?.customerId;
+  if (!customerId) return notFound();
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },

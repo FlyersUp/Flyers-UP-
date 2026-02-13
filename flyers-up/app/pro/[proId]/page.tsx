@@ -7,8 +7,12 @@ import { ProProfileView } from '@/components/profile/ProProfileView';
 
 export const dynamic = 'force-dynamic';
 
-export default async function PublicProProfilePage({ params }: { params: { proId: string } }) {
-  const proId = params.proId;
+type RouteParams = { proId?: string };
+
+export default async function PublicProProfilePage({ params }: { params: RouteParams | Promise<RouteParams> }) {
+  const resolved = await Promise.resolve(params);
+  const proId = resolved?.proId;
+  if (!proId) return notFound();
   const profile = await getPublicProProfileByIdServer(proId);
   if (!profile) return notFound();
 
