@@ -39,6 +39,7 @@ export function ThemeProvider({
   const [mode, setMode] = useState<ThemeMode>(defaultMode);
   const THEME_KEY = 'flyersup:theme';
   const DARK_KEY = 'flyersup:darkMode'; // legacy
+  const ROLE_KEY = 'flyersup:lastRole';
 
   // Initialize from storage before first paint (avoids flicker + satisfies strict lint rules).
   const [theme, setTheme] = useState<ThemePreference>(() => {
@@ -84,6 +85,15 @@ export function ThemeProvider({
       // ignore
     }
   }, [theme]);
+
+  // Persist last-used role so shared routes keep the right side.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ROLE_KEY, mode);
+    } catch {
+      // ignore
+    }
+  }, [mode]);
 
   const ctx = useMemo<ThemeContextType>(() => {
     return {

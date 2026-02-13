@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
 type Mode = 'pro' | 'customer';
@@ -121,7 +121,7 @@ function getProMenu(): MenuSection[] {
       items: [
         { label: 'Help Center', href: '/pro/settings/help-support' },
         { label: 'Contact Support', href: '/pro/settings/help-support' },
-        { label: 'Announcements / System Updates', href: '/notifications' },
+        { label: 'Announcements / System Updates', href: '/pro/notifications' },
         { label: 'Legal & Terms', href: '/pro/settings/support-legal' },
       ],
     },
@@ -170,8 +170,8 @@ function getCustomerMenu(): MenuSection[] {
     {
       title: 'Discovery',
       items: [
-        { label: 'Browse Services', href: '/services' },
-        { label: 'Nearby Pros', href: '/browse' },
+        { label: 'Browse Services', href: '/customer/categories' },
+        { label: 'Nearby Pros', href: '/customer/categories' },
         { label: 'Favorites', href: '/customer/settings/booking-preferences', disabled: true },
       ],
     },
@@ -216,6 +216,10 @@ export function SideMenu({
 }) {
   const router = useRouter();
   const openedAtRef = useRef<number>(0);
+  const [identity, setIdentity] = useState<{ email: string | null; idShort: string | null }>({
+    email: null,
+    idShort: null,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -226,6 +230,29 @@ export function SideMenu({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    let mounted = true;
+    const load = async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        const user = data.user;
+        if (!mounted) return;
+        setIdentity({
+          email: user?.email ?? null,
+          idShort: user?.id ? `${user.id.slice(0, 6)}…` : null,
+        });
+      } catch {
+        if (!mounted) return;
+        setIdentity({ email: null, idShort: null });
+      }
+    };
+    void load();
+    return () => {
+      mounted = false;
+    };
+  }, [open]);
 
   const roleLabel = mode === 'pro' ? 'Pro' : 'Customer';
   const sections = mode === 'pro' ? getProMenu() : getCustomerMenu();
@@ -254,6 +281,11 @@ export function SideMenu({
               <div>
                 <div className="text-base font-semibold text-text">{userName}</div>
                 <div className="text-sm text-muted">{roleLabel}</div>
+                {identity.email || identity.idShort ? (
+                  <div className="mt-1 text-xs text-muted/70">
+                    {identity.email ?? '—'}{identity.idShort ? ` • ${identity.idShort}` : ''}
+                  </div>
+                ) : null}
               </div>
               <button
                 onClick={onClose}

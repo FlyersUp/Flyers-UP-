@@ -12,12 +12,18 @@ import { AppIcon } from '@/components/ui/AppIcon';
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const mode: 'customer' | 'pro' =
-    pathname?.startsWith('/pro') || pathname?.startsWith('/dashboard/pro')
-      ? 'pro'
-      : pathname?.startsWith('/customer') || pathname?.startsWith('/dashboard/customer')
-        ? 'customer'
-        : 'customer';
+  const mode: 'customer' | 'pro' = (() => {
+    if (pathname?.startsWith('/pro') || pathname?.startsWith('/dashboard/pro')) return 'pro';
+    if (pathname?.startsWith('/customer') || pathname?.startsWith('/dashboard/customer')) return 'customer';
+    // For shared/public routes (e.g. /services, /browse), stick with last-used role.
+    try {
+      const last = window.localStorage.getItem('flyersup:lastRole');
+      if (last === 'pro' || last === 'customer') return last;
+    } catch {
+      // ignore
+    }
+    return 'customer';
+  })();
   const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/');
 
   // Ensure role theme tokens apply even on pages not wrapped in ThemeProvider.

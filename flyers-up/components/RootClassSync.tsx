@@ -12,6 +12,15 @@ function resolveMode(pathname: string, searchParams: URLSearchParams): ThemeMode
   }
 
   if (pathname.startsWith('/pro') || pathname.startsWith('/dashboard/pro')) return 'pro';
+  if (pathname.startsWith('/customer') || pathname.startsWith('/dashboard/customer')) return 'customer';
+
+  // Shared/public routes: use last-used role to avoid "flipping sides" visually.
+  try {
+    const last = window.localStorage.getItem('flyersup:lastRole');
+    if (last === 'pro' || last === 'customer') return last;
+  } catch {
+    // ignore
+  }
   return 'customer';
 }
 
