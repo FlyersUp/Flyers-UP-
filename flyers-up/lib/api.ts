@@ -2191,7 +2191,7 @@ export interface UpdateServiceProParams {
   verifiedCredentials?: string[];
   servicesOffered?: string[];
   availabilityTime?: string;
-  logo_url?: string;
+  logo_url?: string | null;
   years_experience?: number;
   before_after_photos?: unknown[];
   service_descriptions?: string;
@@ -2225,7 +2225,7 @@ export async function updateServicePro(
       service_radius: number;
       business_hours: string;
       location: string;
-      logo_url: string;
+      logo_url: string | null;
       years_experience: number;
       before_after_photos: unknown;
       service_descriptions: string;

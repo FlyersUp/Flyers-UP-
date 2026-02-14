@@ -77,6 +77,25 @@
   /* OfficialBadge (exact spec) */
   --badge-bg: rgba(0,0,0,0.03);
   --badge-border: rgba(0,0,0,0.08);
+
+  /* ============================================
+     ACCENT DENSITY SYSTEM (role-aware)
+     - Default: low accent usage (10–15% intended)
+     - Focus: higher accent usage (20–25% intended) on decision screens only
+     - No new colors: derived from existing --accent
+     ============================================ */
+  --role-accent-hsl: var(--accent); /* HSL triplet */
+  --role-accent: hsl(var(--role-accent-hsl));
+  /* Default density: extremely soft tint + subtle border */
+  --role-tint: hsl(var(--role-accent-hsl) / 0.04);
+  --role-border: hsl(var(--role-accent-hsl) / 0.18);
+}
+
+/* Layout-level accent density toggle */
+[data-accent="focus"] {
+  /* Focus density: allow selected cards + 1–2 panels to be softly tinted */
+  --role-tint: hsl(var(--role-accent-hsl) / 0.10);
+  --role-border: hsl(var(--role-accent-hsl) / 0.32);
 }
 
 /* Role-based accents (light) */
@@ -195,6 +214,21 @@ body {
   border-radius: 18px;
   border: var(--card-border);
   box-shadow: var(--shadow-card);
+}
+
+/* AccentDensity-aware card treatments (only affects the card surface itself) */
+[data-accent="focus"] .surface-card[data-tone="tint"] {
+  background: var(--role-tint);
+  border-color: var(--role-border);
+}
+
+/* Selectable card state: default density stays neutral; focus density allows tint */
+[data-accent="default"] .surface-card[data-selected="true"] {
+  border-color: hsl(var(--role-accent-hsl) / 0.22);
+}
+[data-accent="focus"] .surface-card[data-selected="true"] {
+  background: var(--role-tint);
+  border-color: var(--role-border);
 }
 
 /* A slightly denser surface for list items inside cards */

@@ -15,6 +15,7 @@ import {
 } from '@/lib/api';
 import { TrustRow } from '@/components/ui/TrustRow';
 import { SignInNotice } from '@/components/ui/SignInNotice';
+import { ToggleRow } from '@/components/ui/ToggleRow';
 
 export default function CustomerBookingPreferencesSettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -61,41 +62,6 @@ export default function CustomerBookingPreferencesSettingsPage() {
     if (!res.success) setError(res.error || 'Failed to save booking preferences.');
     else setSuccess('Booking preferences saved.');
     setSaving(false);
-  }
-
-  function ToggleRow({
-    title,
-    description,
-    checked,
-    onChange,
-  }: {
-    title: string;
-    description: string;
-    checked: boolean;
-    onChange: (next: boolean) => void;
-  }) {
-    return (
-      <div className="flex items-center justify-between gap-4 p-4 border border-border rounded-lg bg-surface">
-        <div className="min-w-0">
-          <h3 className="font-medium text-text">{title}</h3>
-          <p className="text-sm text-muted">{description}</p>
-        </div>
-        <button
-          type="button"
-          aria-pressed={checked}
-          onClick={() => onChange(!checked)}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors border border-border ${
-            checked ? 'bg-accent' : 'bg-surface2'
-          }`}
-        >
-          <span
-            className={`inline-block h-5 w-5 transform rounded-full bg-surface transition-transform shadow ${
-              checked ? 'translate-x-[20px]' : 'translate-x-[2px]'
-            }`}
-          />
-        </button>
-      </div>
-    );
   }
 
   return (

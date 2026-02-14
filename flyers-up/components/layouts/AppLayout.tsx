@@ -9,11 +9,26 @@ interface AppLayoutProps {
   children: ReactNode;
   mode?: 'customer' | 'pro';
   showRail?: boolean;
+  accentDensity?: 'default' | 'focus';
 }
 
-function LayoutContent({ children, showRail = true }: { children: ReactNode; showRail: boolean }) {
+function LayoutContent({
+  children,
+  showRail = true,
+  mode,
+  accentDensity,
+}: {
+  children: ReactNode;
+  showRail: boolean;
+  mode: 'customer' | 'pro';
+  accentDensity: 'default' | 'focus';
+}) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text flex pb-20">
+    <div
+      data-role={mode}
+      data-accent={accentDensity}
+      className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text flex pb-20"
+    >
       {showRail && <Rail className="h-screen" showLabel />}
       <div className="flex-1">
         {children}
@@ -26,10 +41,15 @@ function LayoutContent({ children, showRail = true }: { children: ReactNode; sho
 /**
  * Main app layout with white left rail + colored stripe
  */
-export function AppLayout({ children, mode = 'customer', showRail = true }: AppLayoutProps) {
+export function AppLayout({
+  children,
+  mode = 'customer',
+  showRail = true,
+  accentDensity = 'default',
+}: AppLayoutProps) {
   return (
     <ThemeProvider defaultMode={mode}>
-      <LayoutContent showRail={showRail}>
+      <LayoutContent showRail={showRail} mode={mode} accentDensity={accentDensity}>
         {children}
       </LayoutContent>
     </ThemeProvider>

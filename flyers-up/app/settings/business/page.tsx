@@ -20,6 +20,7 @@ import { useProEarningsRealtime } from '@/hooks';
 import { formatMoney } from '@/lib/utils/money';
 import { TrustRow } from '@/components/ui/TrustRow';
 import { WeeklySchedulePicker } from '@/components/ui/WeeklySchedulePicker';
+import { Switch } from '@/components/ui/Switch';
 import {
   parseBusinessHoursModel,
   stringifyBusinessHoursModel,
@@ -481,20 +482,7 @@ export default function BusinessSettingsPage() {
                     Turn this on to appear in customer browse results for your category. You can turn it off anytime.
                   </div>
                 </div>
-                <button
-                  type="button"
-                  aria-pressed={available}
-                  onClick={() => setAvailable((v) => !v)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors border border-border ${
-                    available ? 'bg-accent' : 'bg-surface2'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-surface transition-transform shadow ${
-                      available ? 'translate-x-[20px]' : 'translate-x-[2px]'
-                    }`}
-                  />
-                </button>
+                <Switch checked={available} onCheckedChange={setAvailable} aria-label="Available to customers" />
               </div>
               <div className="mt-2 text-xs text-muted/70">
                 {available ? 'Status: Visible in customer browse.' : 'Status: Hidden from customer browse.'}

@@ -5,7 +5,7 @@
  * Allows users to update their profile information
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { changeEmail } from '@/lib/api';
 import { TrustRow } from '@/components/ui/TrustRow';
@@ -21,6 +21,8 @@ export default function AccountSettingsPage() {
   const [phone, setPhone] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -102,6 +104,67 @@ export default function AccountSettingsPage() {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
+    }
+  }
+
+  function safeExtFromFile(file: File): string {
+    const n = (file.name || '').toLowerCase();
+    const m = n.match(/\.([a-z0-9]+)$/i);
+    const ext = m?.[1] ?? '';
+    if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'heic'].includes(ext)) return ext === 'jpeg' ? 'jpg' : ext;
+    if (file.type === 'image/png') return 'png';
+    if (file.type === 'image/webp') return 'webp';
+    if (file.type === 'image/gif') return 'gif';
+    if (file.type === 'image/jpeg') return 'jpg';
+    return 'png';
+  }
+
+  async function uploadAvatar(userId: string, file: File): Promise<string> {
+    const ext = safeExtFromFile(file);
+    const safeName = `${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
+    const path = `${userId}/avatar/${safeName}`;
+    const { data, error: uploadErr } = await supabase.storage.from('profile-images').upload(path, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type || undefined,
+    });
+    if (uploadErr || !data?.path) {
+      throw new Error(uploadErr?.message || 'Upload failed. Ensure the `profile-images` bucket exists and policies are applied.');
+    }
+    const pub = supabase.storage.from('profile-images').getPublicUrl(data.path);
+    const url = pub.data.publicUrl;
+    if (!url) throw new Error('Upload succeeded but could not resolve a public URL.');
+    return url;
+  }
+
+  async function handleUploadAvatar() {
+    setSuccess(null);
+    setError(null);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setError('You must be signed in to upload a photo.');
+      return;
+    }
+
+    const file = avatarInputRef.current?.files?.[0] ?? null;
+    if (!file) return;
+
+    setUploadingAvatar(true);
+    try {
+      const url = await uploadAvatar(user.id, file);
+      setAvatarUrl(url);
+      // Save immediately so the new photo is reflected everywhere.
+      const result = await saveCustomerProfile({ avatar_url: url });
+      if (!result.success) {
+        setError(result.error || 'Uploaded, but failed to save your profile photo.');
+      } else {
+        setSuccess('Profile photo updated.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload profile photo.');
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
     }
   }
 
@@ -229,19 +292,40 @@ export default function AccountSettingsPage() {
             )}
           </div>
           <div className="flex-1">
-            <label htmlFor="avatarUrl" className="block text-sm font-medium text-muted mb-1">
-              Image URL
-            </label>
-            <input
-              type="url"
-              id="avatarUrl"
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
-              placeholder="https://..."
-            />
-            <p className="text-xs text-muted/70 mt-1">
-              For now we support a URL. Next step is uploads to storage.
+            <div className="flex items-center gap-2">
+              <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={() => void handleUploadAvatar()} />
+              <button
+                type="button"
+                disabled={loading || uploadingAvatar}
+                onClick={() => avatarInputRef.current?.click()}
+                className="px-4 py-2 border border-border rounded-lg bg-surface hover:bg-surface2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-text font-medium"
+              >
+                {uploadingAvatar ? 'Uploading…' : 'Upload photo'}
+              </button>
+              {avatarUrl ? (
+                <button
+                  type="button"
+                  disabled={loading || uploadingAvatar}
+                  onClick={async () => {
+                    setSuccess(null);
+                    setError(null);
+                    setAvatarUrl('');
+                    try {
+                      const result = await saveCustomerProfile({ avatar_url: null });
+                      if (!result.success) setError(result.error || 'Failed to remove profile photo.');
+                      else setSuccess('Profile photo removed.');
+                    } catch {
+                      setError('Failed to remove profile photo.');
+                    }
+                  }}
+                  className="px-3 py-2 text-sm text-muted hover:text-text disabled:opacity-50"
+                >
+                  Remove
+                </button>
+              ) : null}
+            </div>
+            <p className="text-xs text-muted/70 mt-2">
+              Uses Supabase Storage (`profile-images`). If uploads fail, apply migration `016_add_profile_image_storage.sql`.
             </p>
           </div>
         </div>

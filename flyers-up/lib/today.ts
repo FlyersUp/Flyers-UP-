@@ -1,5 +1,4 @@
 import { getProJobs } from '@/lib/api';
-import { mockJobs, mockConversations } from '@/lib/mockData';
 
 export type TodayJobStatus = 'upcoming' | 'in_progress' | 'completed' | 'delayed';
 export type TodayRiskLevel = 'low' | 'medium' | 'high';
@@ -114,54 +113,6 @@ function buildDefaultTasks(): TodayTask[] {
   ];
 }
 
-function buildMessagesFallback(proUserId: string): TodayMessageThread[] {
-  // TODO: Filter threads to bookings scheduled today when schema supports it.
-  const threads = mockConversations
-    .filter((c) => c.proId === proUserId)
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 3);
-
-  return threads.map((t) => ({
-    thread_id: t.id,
-    client_name: t.customerName,
-    snippet: t.lastMessage || '—',
-    updated_at: t.updatedAt,
-  }));
-}
-
-function buildMockJobsForToday(dateISO: string): TodayJob[] {
-  const base = (mockJobs || []).filter((j) => j.date === '2024-01-15'); // existing mock day
-  const asToday = base.map((j) => ({ ...j, date: dateISO }));
-
-  return asToday
-    .map((j) => {
-      const start = parseTimeToLocalDate(dateISO, j.time) ?? new Date(dateISO + 'T09:00:00');
-      const end = new Date(start.getTime() + 60 * 60000); // TODO: derive from service duration
-      const eta = null; // TODO: derive from location / nav integration if added
-
-      // mockJobs currently uses a limited status union ('scheduled' | 'in_progress').
-      // Keep this resilient if the mock expands later.
-      const rawStatus = (j as unknown as { status: string }).status;
-      const status: TodayJobStatus =
-        rawStatus === 'completed' ? 'completed' : rawStatus === 'in_progress' ? 'in_progress' : 'upcoming';
-
-      return {
-        id: j.id,
-        start_time: start.toISOString(),
-        end_time: end.toISOString(),
-        client_name: j.customerName,
-        client_phone: null,
-        address: j.address,
-        service_type: j.service,
-        status,
-        eta_minutes: eta,
-        risk: deriveRisk(start, eta),
-        bookingId: j.id,
-      } satisfies TodayJob;
-    })
-    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-}
-
 export async function getTodayOverview(proUserId: string): Promise<TodayOverview> {
   const today = new Date();
   const dateISO = formatLocalISODate(today);
@@ -206,12 +157,6 @@ export async function getTodayOverview(proUserId: string): Promise<TodayOverview
       .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
   }
 
-  if (!jobs.length) {
-    // If there are no real jobs (or Supabase isn't configured), provide safe mock data.
-    // TODO: Remove mock fallback once bookings are reliably populated for pros.
-    jobs = buildMockJobsForToday(dateISO);
-  }
-
   jobs = inferStatusesForToday(jobs);
 
   const expected = jobs.reduce((sum, j) => sum + 0, 0);
@@ -235,7 +180,7 @@ export async function getTodayOverview(proUserId: string): Promise<TodayOverview
   }
 
   const tasks = buildDefaultTasks();
-  const messages = buildMessagesFallback(proUserId);
+  const messages: TodayMessageThread[] = []; // TODO: wire real message threads per pro
 
   return { dateISO, jobs, alerts, tasks, earnings, messages };
 }
