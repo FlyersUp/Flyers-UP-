@@ -6,19 +6,18 @@ import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import type { User } from '@supabase/supabase-js';
 
-/** Canonical admin contact: Hello.flyersup@gmail.com (also in privacy/terms). */
-function getAdminEmails(): string[] {
+export function getAdminEmails(): string[] {
   const raw = process.env.ADMIN_EMAILS ?? '';
   return raw
-    .split(',')
+    .split(/[,\n]/g)
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
 }
 
-export function isAdminEmail(email: string | null | undefined): boolean {
-  const adminEmails = getAdminEmails();
-  const e = (email ?? '').trim().toLowerCase();
-  return adminEmails.length > 0 && Boolean(e) && adminEmails.includes(e);
+export function isAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const admins = getAdminEmails();
+  return admins.includes(email.trim().toLowerCase());
 }
 
 export async function requireAdminUser(nextPath: string): Promise<User> {
@@ -28,7 +27,7 @@ export async function requireAdminUser(nextPath: string): Promise<User> {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/signin?next=${encodeURIComponent(nextPath)}`);
+    redirect(`/auth?next=${encodeURIComponent(nextPath)}`);
   }
 
   if (!isAdminEmail(user.email)) {

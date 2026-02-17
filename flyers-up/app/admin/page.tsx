@@ -22,6 +22,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const sessionStatus = session ? 'authenticated (cookie seen and valid)' : 'none';
 
   if (!user) {
     // Use shared helper redirect behavior.
@@ -32,11 +36,37 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   if (!isAdmin) {
     return (
       <Layout title="Flyers Up – Admin">
-        <div className="max-w-2xl mx-auto text-center py-12">
-          <h1 className="text-2xl font-semibold text-text">Access denied</h1>
-          <p className="mt-2 text-sm text-muted">
-            This page requires an admin account. To enable access, set <code>ADMIN_EMAILS</code> in Vercel (comma-separated).
+        <div className="max-w-2xl mx-auto py-12 px-4">
+          <h1 className="text-2xl font-semibold text-text text-center">Access denied</h1>
+          <p className="mt-2 text-sm text-muted text-center">
+            This page requires an admin account.
           </p>
+          {user?.email ? (
+            <div className="mt-6 p-4 rounded-xl border border-border bg-surface2 text-left space-y-2">
+              <p className="text-sm font-medium text-text">You’re signed in as:</p>
+              <p className="text-sm text-muted font-mono break-all">{user.email}</p>
+              <p className="text-xs text-muted mt-2">
+                If this email should have admin access, add it to <code className="bg-surface px-1 rounded">ADMIN_EMAILS</code> in Vercel
+                (comma-separated, e.g. <code className="bg-surface px-1 rounded">Hello.flyersup@gmail.com</code>).
+                Then <strong>redeploy</strong> the app — env vars apply after a new deployment.
+              </p>
+              <p className="text-xs text-muted">
+                Current <code className="bg-surface px-1 rounded">ADMIN_EMAILS</code> on server: {adminEmails ? `set (${adminEmails.split(',').length} value(s))` : '(not set)'}
+              </p>
+            </div>
+          ) : null}
+          <pre className="mt-4 rounded-lg border border-border bg-surface2 p-3 text-xs text-muted overflow-x-auto">
+            USER_EMAIL: {user?.email ?? '(no user)'}
+            {'\n'}Session: {sessionStatus}
+          </pre>
+          <div className="mt-6 text-center">
+            <Link
+              href="/auth?next=/admin"
+              className="text-sm font-medium text-accent hover:underline"
+            >
+              Sign in with email code or Google →
+            </Link>
+          </div>
         </div>
       </Layout>
     );
@@ -65,7 +95,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         ) : null}
 
         <pre className="rounded-lg border border-border bg-surface2 p-3 text-xs text-muted overflow-x-auto">
-          ADMIN_EMAILS: {adminEmails || '(not set)'}
+          USER_EMAIL: {user?.email ?? '(no user)'}
+          {'\n'}Session: {sessionStatus}
+          {'\n'}ADMIN_EMAILS: {adminEmails || '(not set)'}
         </pre>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
