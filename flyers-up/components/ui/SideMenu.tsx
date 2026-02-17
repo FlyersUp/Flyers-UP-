@@ -260,7 +260,7 @@ export function SideMenu({
   async function handleLogout() {
     await supabase.auth.signOut();
     onClose();
-    router.replace('/auth');
+    router.replace('/');
   }
 
   if (!open) return null;

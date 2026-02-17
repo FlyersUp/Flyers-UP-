@@ -2,7 +2,9 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabaseServer';
-import { isAdminEmail } from '@/app/admin/_admin';
+import { isAdminUser } from '@/app/admin/_admin';
+
+export const dynamic = 'force-dynamic';
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -17,10 +19,10 @@ export default async function AdminErrorsPage({ searchParams }: { searchParams: 
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect('/signin?next=/admin/errors');
+    redirect('/auth?next=/admin/errors');
   }
 
-  const isAdmin = isAdminEmail(user.email);
+  const isAdmin = await isAdminUser(supabase, user);
 
   if (!isAdmin) {
     return (

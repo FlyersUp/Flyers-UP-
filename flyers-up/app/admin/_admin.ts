@@ -20,6 +20,24 @@ export function isAdminEmail(email?: string | null): boolean {
   return admins.includes(email.trim().toLowerCase());
 }
 
+/**
+ * Returns true if the user is an admin: listed in ADMIN_EMAILS OR profile.role === 'admin'.
+ * Use this when you already have the user and can run a DB query (server-only).
+ */
+export async function isAdminUser(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  user: User | null
+): Promise<boolean> {
+  if (!user) return false;
+  if (isAdminEmail(user.email)) return true;
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+  return profile?.role === 'admin';
+}
+
 export async function requireAdminUser(nextPath: string): Promise<User> {
   const supabase = await createServerSupabaseClient();
   const {
@@ -30,9 +48,8 @@ export async function requireAdminUser(nextPath: string): Promise<User> {
     redirect(`/auth?next=${encodeURIComponent(nextPath)}`);
   }
 
-  if (!isAdminEmail(user.email)) {
-    // Redirect to admin home; admin pages should render access denied there too.
-    redirect('/admin?denied=1');
+  if (!(await isAdminUser(supabase, user))) {
+    redirect('/auth?denied=1');
   }
 
   return user;

@@ -1,7 +1,9 @@
 import Layout from '@/components/Layout';
 import Link from 'next/link';
-import { requireAdminUser, isAdminEmail } from '@/app/admin/_admin';
+import { requireAdminUser, isAdminUser } from '@/app/admin/_admin';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+
+export const dynamic = 'force-dynamic';
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -28,11 +30,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const sessionStatus = session ? 'authenticated (cookie seen and valid)' : 'none';
 
   if (!user) {
-    // Use shared helper redirect behavior.
     await requireAdminUser('/admin');
   }
 
-  const isAdmin = isAdminEmail(user?.email);
+  const isAdmin = await isAdminUser(supabase, user);
   if (!isAdmin) {
     return (
       <Layout title="Flyers Up – Admin">
@@ -46,9 +47,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               <p className="text-sm font-medium text-text">You’re signed in as:</p>
               <p className="text-sm text-muted font-mono break-all">{user.email}</p>
               <p className="text-xs text-muted mt-2">
-                If this email should have admin access, add it to <code className="bg-surface px-1 rounded">ADMIN_EMAILS</code> in Vercel
-                (comma-separated, e.g. <code className="bg-surface px-1 rounded">Hello.flyersup@gmail.com</code>).
-                Then <strong>redeploy</strong> the app — env vars apply after a new deployment.
+                Admin access: add this email to <code className="bg-surface px-1 rounded">ADMIN_EMAILS</code> in Vercel (then redeploy),
+                or set your account’s <code className="bg-surface px-1 rounded">role</code> to <code className="bg-surface px-1 rounded">admin</code> in Supabase (Table Editor → profiles).
               </p>
               <p className="text-xs text-muted">
                 Current <code className="bg-surface px-1 rounded">ADMIN_EMAILS</code> on server: {adminEmails ? `set (${adminEmails.split(',').length} value(s))` : '(not set)'}

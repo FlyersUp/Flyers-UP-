@@ -4,6 +4,8 @@ import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { requireAdminUser } from '@/app/admin/_admin';
 import { adminSetBookingStatusAction } from '@/app/admin/_actions';
 
+export const dynamic = 'force-dynamic';
+
 type SearchParams = Record<string, string | string[] | undefined>;
 
 function pickFirst(v: string | string[] | undefined) {
