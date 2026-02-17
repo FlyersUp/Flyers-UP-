@@ -237,6 +237,87 @@ export interface Database {
           created_at?: string;
         };
       };
+      admin_inputs: {
+        Row: {
+          id: string;
+          key: string;
+          value: string;
+          month: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          key: string;
+          value: string;
+          month?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          key?: string;
+          value?: string;
+          month?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      admin_targets: {
+        Row: {
+          id: string;
+          mrr_target: number | null;
+          jobs_target: number | null;
+          active_pros_target: number | null;
+          fill_rate_target: number | null;
+          time_to_match_target_hours: number | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          mrr_target?: number | null;
+          jobs_target?: number | null;
+          active_pros_target?: number | null;
+          fill_rate_target?: number | null;
+          time_to_match_target_hours?: number | null;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          mrr_target?: number | null;
+          jobs_target?: number | null;
+          active_pros_target?: number | null;
+          fill_rate_target?: number | null;
+          time_to_match_target_hours?: number | null;
+          updated_at?: string;
+        };
+      };
+      admin_alerts_log: {
+        Row: {
+          id: string;
+          type: string;
+          severity: string;
+          message: string;
+          meta: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          type: string;
+          severity?: string;
+          message: string;
+          meta?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          type?: string;
+          severity?: string;
+          message?: string;
+          meta?: Json;
+          created_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
@@ -256,6 +337,9 @@ export type ServiceCategory = Database['public']['Tables']['service_categories']
 export type ServiceProRow = Database['public']['Tables']['service_pros']['Row'];
 export type BookingRow = Database['public']['Tables']['bookings']['Row'];
 export type ProEarning = Database['public']['Tables']['pro_earnings']['Row'];
+export type AdminInput = Database['public']['Tables']['admin_inputs']['Row'];
+export type AdminTarget = Database['public']['Tables']['admin_targets']['Row'];
+export type AdminAlertLog = Database['public']['Tables']['admin_alerts_log']['Row'];
 
 // Joined types for common queries
 export interface ServiceProWithCategory extends ServiceProRow {

@@ -98,13 +98,14 @@
   --role-border: hsl(var(--role-accent-hsl) / 0.32);
 }
 
-/* Role-based accents (light) */
+/* Role-based accents (light) - role-accent-hsl follows --accent for tint/border */
 .theme-customer {
   /* customer accent: #6EE7B7 */
   /* Slightly deeper for visibility while staying pastel */
   --accent: 156 70% 58%;
   --accent-contrast: 0 0% 8%;
   --ring: var(--accent);
+  --role-accent-hsl: var(--accent);
 
   /* Warm Neutrality–weighted (more breathing room) */
   --page-pad-y: 24px;
@@ -118,6 +119,7 @@
   --accent: 31 96% 66%;
   --accent-contrast: 0 0% 8%;
   --ring: var(--accent);
+  --role-accent-hsl: var(--accent);
 
   /* Civic Infrastructure–weighted (slightly denser + firmer separators) */
   --page-pad-y: 20px;
@@ -177,6 +179,7 @@
 .dark.theme-customer {
   /* bump slightly in dark for contrast (customer) */
   --accent: 156 70% 70%;
+  --role-accent-hsl: var(--accent);
 
   /* Warm Neutrality–weighted */
   --page-pad-y: 24px;
@@ -187,6 +190,7 @@
 .dark.theme-pro {
   /* bump slightly in dark for contrast (pro) */
   --accent: 31 96% 76%;
+  --role-accent-hsl: var(--accent);
 
   /* Civic Infrastructure–weighted */
   --page-pad-y: 20px;

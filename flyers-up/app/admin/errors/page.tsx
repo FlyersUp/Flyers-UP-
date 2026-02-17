@@ -2,19 +2,12 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabaseServer';
+import { isAdminEmail } from '@/app/admin/_admin';
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
 function pickFirst(v: string | string[] | undefined) {
   return Array.isArray(v) ? v[0] : v;
-}
-
-function getAdminEmails(): string[] {
-  const raw = process.env.ADMIN_EMAILS ?? '';
-  return raw
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
 }
 
 export default async function AdminErrorsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -27,9 +20,7 @@ export default async function AdminErrorsPage({ searchParams }: { searchParams: 
     redirect('/signin?next=/admin/errors');
   }
 
-  const adminEmails = getAdminEmails();
-  const email = (user.email ?? '').toLowerCase();
-  const isAdmin = adminEmails.length > 0 && adminEmails.includes(email);
+  const isAdmin = isAdminEmail(user.email);
 
   if (!isAdmin) {
     return (

@@ -32,6 +32,9 @@ const config: Config = {
         nav: 'var(--nav-bg)',
         badgeFill: 'var(--badge-bg)',
         badgeBorder: 'var(--badge-border)',
+        /* Accent density: soft tint and border from --role-accent (used in focus mode) */
+        roleTint: 'var(--role-tint)',
+        roleBorder: 'var(--role-border)',
       },
       boxShadow: {
         sm: 'var(--shadow-1)',

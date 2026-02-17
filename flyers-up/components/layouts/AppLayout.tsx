@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import { Rail } from '@/components/ui/Rail';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { useAccentDensity } from '@/contexts/AccentDensityContext';
 import BottomNav from '@/components/BottomNav';
 
 interface AppLayoutProps {
@@ -39,14 +40,18 @@ function LayoutContent({
 }
 
 /**
- * Main app layout with white left rail + colored stripe
+ * Main app layout with white left rail + colored stripe.
+ * Accent density: prop overrides layout context (from AccentDensityProvider).
+ * Focus mode (~25% accent) is used only on decision/commit layouts (e.g. booking flow).
  */
 export function AppLayout({
   children,
   mode = 'customer',
   showRail = true,
-  accentDensity = 'default',
+  accentDensity: accentDensityProp,
 }: AppLayoutProps) {
+  const accentFromContext = useAccentDensity();
+  const accentDensity = accentDensityProp ?? accentFromContext;
   return (
     <ThemeProvider defaultMode={mode}>
       <LayoutContent showRail={showRail} mode={mode} accentDensity={accentDensity}>
