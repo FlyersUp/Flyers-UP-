@@ -15,6 +15,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const ok = pickFirst(sp.ok);
   const error = pickFirst(sp.error);
 
+  // Read env only in server component (never in "use client" or client bundle)
+  const adminEmails = process.env.ADMIN_EMAILS ?? '';
+
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -60,6 +63,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             {ok}
           </div>
         ) : null}
+
+        <pre className="rounded-lg border border-border bg-surface2 p-3 text-xs text-muted overflow-x-auto">
+          ADMIN_EMAILS: {adminEmails || '(not set)'}
+        </pre>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Link href="/admin/command-center" className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors p-4">

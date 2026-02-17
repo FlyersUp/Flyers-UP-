@@ -19,9 +19,8 @@ function readAuthErrorFromHash(): string | null {
   const errorDescription = params.get('error_description');
   if (!errorCode && !errorDescription) return null;
 
-  // Keep copy short + reassuring.
   if (errorCode === 'otp_expired') {
-    return 'That link has expired. Please request a new one.';
+    return 'That code or link has expired. Please request a new code at /auth.';
   }
   return errorDescription ? decodeURIComponent(errorDescription) : 'Sign-in failed. Please try again.';
 }
@@ -63,7 +62,7 @@ function CallbackInner() {
         } = await supabase.auth.getSession();
         if (!session) {
           setError(
-            'We couldn’t establish a session from that link. If your network blocks supabase.co links, use the email code flow at /auth instead.'
+            'We couldn’t establish a session. Use the 6-digit email code flow at /auth instead.'
           );
           return;
         }

@@ -238,11 +238,11 @@ export function SignInClient(props: {
             <div className="mb-4 bg-surface2 text-text px-4 py-3 rounded-lg text-sm border border-border">
               Check your email to confirm your account, then come back and sign in.
               <div className="mt-1 text-xs text-muted/70">
-                If email links don’t open on your network/device, you can use email code sign-in instead.
+                We sent you a 6-digit code or confirmation link. You can also sign in with the email code flow.
               </div>
               <div className="mt-2">
                 <Link href="/auth" className="underline underline-offset-4 hover:opacity-80 font-medium">
-                  Sign in with email code →
+                  Sign in with 6-digit email code →
                 </Link>
               </div>
             </div>

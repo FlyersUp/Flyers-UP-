@@ -1,3 +1,7 @@
+/**
+ * Admin access helpers. SERVER-ONLY: do not import from "use client" components.
+ * process.env.ADMIN_EMAILS is read only here (and in admin page); keep it out of client bundle.
+ */
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import type { User } from '@supabase/supabase-js';
