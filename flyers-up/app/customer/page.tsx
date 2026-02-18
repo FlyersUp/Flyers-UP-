@@ -43,7 +43,9 @@ export default function CustomerHome() {
       const profile = await getOrCreateProfile(user.id, user.email ?? null);
       if (!profile) return;
       const fallbackName = (user.email ? user.email.split('@')[0] : 'Account') || 'Account';
-      setUserName(profile.first_name?.trim() || fallbackName);
+      const first = profile.first_name?.trim();
+      const last = profile.last_name?.trim();
+      setUserName([first, last].filter(Boolean).join(' ') || fallbackName);
       const dest = routeAfterAuth(profile, '/customer');
       if (dest !== '/customer') {
         router.replace(dest);

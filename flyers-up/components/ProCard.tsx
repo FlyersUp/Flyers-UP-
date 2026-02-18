@@ -30,6 +30,14 @@ export default function ProCard({ pro }: ProCardProps) {
         </div>
       </div>
 
+      {/* Speed & reliability signals */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted mb-3">
+        {pro.reviewCount > 0 && (
+          <span>Completed {pro.reviewCount} job{pro.reviewCount === 1 ? '' : 's'}</span>
+        )}
+        {pro.available && <span>Available today</span>}
+      </div>
+
       {/* Bio */}
       <p className="text-sm text-muted mb-4 line-clamp-2">
         {pro.bio}

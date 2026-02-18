@@ -26,6 +26,7 @@ export interface ProfileRow {
   email: string | null;
   role: AppRole | null;
   first_name: string | null;
+  last_name: string | null;
   phone: string | null;
   zip_code: string | null;
   onboarding_step: string | null;
@@ -34,7 +35,7 @@ export interface ProfileRow {
 export async function getProfile(userId: string): Promise<ProfileRow | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, role, first_name, phone, zip_code, onboarding_step')
+    .select('id, email, role, first_name, last_name, phone, zip_code, onboarding_step')
     .eq('id', userId)
     .maybeSingle();
 
@@ -59,7 +60,7 @@ export async function getOrCreateProfile(userId: string, email: string | null): 
       role: null,
       onboarding_step: 'role',
     })
-    .select('id, email, role, first_name, phone, zip_code, onboarding_step')
+    .select('id, email, role, first_name, last_name, phone, zip_code, onboarding_step')
     .single();
 
   if (error) {
@@ -123,18 +124,20 @@ export function routeAfterAuth(profile: ProfileRow, next?: string | null): strin
   }
 
   const firstNameMissing = !profile.first_name || profile.first_name.trim().length === 0;
+  const lastNameMissing = !profile.last_name || profile.last_name.trim().length === 0;
   const zipMissing = !profile.zip_code || profile.zip_code.trim().length === 0;
 
   if (profile.role === 'customer') {
-    if (profile.onboarding_step === 'customer_profile' || firstNameMissing) {
-      return roleSafeNext ? `/onboarding/customer?next=${encodeURIComponent(roleSafeNext)}` : '/onboarding/customer';
+    // Send new customers to request flow first; collect name there before booking.
+    if (profile.onboarding_step === 'customer_profile' || firstNameMissing || lastNameMissing) {
+      return roleSafeNext ? `/customer/request/start?next=${encodeURIComponent(roleSafeNext)}` : '/customer/request/start';
     }
     return roleSafeNext ?? '/customer';
   }
 
   if (profile.role === 'pro') {
-    // Pro requires first_name + later service_pros fields (collected on /onboarding/pro)
-    if (profile.onboarding_step === 'pro_profile' || firstNameMissing || zipMissing) {
+    // Pro requires first_name + last_name + later service_pros fields (collected on /onboarding/pro)
+    if (profile.onboarding_step === 'pro_profile' || firstNameMissing || lastNameMissing || zipMissing) {
       return roleSafeNext ? `/onboarding/pro?next=${encodeURIComponent(roleSafeNext)}` : '/onboarding/pro';
     }
     return roleSafeNext ?? '/pro';

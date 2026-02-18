@@ -7,6 +7,7 @@ type BookingItem = {
   proName: string;
   status: string;
   href: string;
+  proId?: string;
 };
 
 function SectionTitle({ title, action }: { title: string; action?: { label: string; href: string } }) {
@@ -40,20 +41,46 @@ function StatusPill({ status }: { status: string }) {
 }
 
 function BookingCard({ b }: { b: BookingItem }) {
+  const isCompleted = (b.status || '').toLowerCase() === 'completed';
   return (
-    <Link href={b.href} className="block">
-      <div className="rounded-2xl border border-hairline bg-white shadow-sm p-4 hover:shadow transition-shadow">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-sm font-semibold truncate">{b.proName}</div>
-            <div className="mt-1 text-sm text-muted">{b.when}</div>
-          </div>
-          <div className="shrink-0">
-            <StatusPill status={b.status} />
-          </div>
+    <div className="rounded-2xl border border-hairline bg-white shadow-sm p-4 hover:shadow transition-shadow">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold truncate">{b.proName}</div>
+          <div className="mt-1 text-sm text-muted">{b.when}</div>
+          {isCompleted && b.proId && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link
+                href={`/book/${encodeURIComponent(b.proId)}`}
+                className="text-xs font-medium text-accent hover:underline"
+              >
+                Rebook this pro
+              </Link>
+              <Link
+                href={`/customer/pros/${encodeURIComponent(b.proId)}`}
+                className="text-xs font-medium text-muted hover:text-text"
+              >
+                Save this pro
+              </Link>
+              <Link
+                href={`/book/${encodeURIComponent(b.proId)}?recurring=1`}
+                className="text-xs font-medium text-muted hover:text-text"
+              >
+                Schedule recurring
+              </Link>
+            </div>
+          )}
+        </div>
+        <div className="shrink-0 flex items-center gap-2">
+          <StatusPill status={b.status} />
+          {!isCompleted && (
+            <Link href={b.href} className="text-xs font-medium text-accent hover:underline">
+              View
+            </Link>
+          )}
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 

@@ -23,6 +23,7 @@ function CustomerInner() {
   const [error, setError] = useState<string | null>(null);
 
   const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [zip, setZip] = useState('');
   const [phone, setPhone] = useState('');
 
@@ -64,6 +65,7 @@ function CustomerInner() {
         }
 
         setFirstName(profile.first_name || '');
+        setLastName(profile.last_name || '');
         setZip(profile.zip_code || '');
         setPhone(profile.phone || '');
       } finally {
@@ -99,11 +101,16 @@ function CustomerInner() {
         setError('Please enter your first name.');
         return;
       }
+      if (!lastName.trim()) {
+        setError('Please enter your last name.');
+        return;
+      }
 
       const res = await upsertProfile({
         id: user.id,
         role: 'customer',
         first_name: firstName.trim(),
+        last_name: lastName.trim(),
         zip_code: zip.trim() || null,
         phone: phone.trim() || null,
         onboarding_step: null,
@@ -153,18 +160,33 @@ function CustomerInner() {
             )}
 
             <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-              <div>
-                <label className="block text-sm font-medium text-muted mb-1" htmlFor="firstName">
-                  First name
-                </label>
-                <input
-                  id="firstName"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
-                  placeholder="Sam"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-muted mb-1" htmlFor="firstName">
+                    First name
+                  </label>
+                  <input
+                    id="firstName"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                    className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                    placeholder="Sam"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted mb-1" htmlFor="lastName">
+                    Last name
+                  </label>
+                  <input
+                    id="lastName"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                    className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                    placeholder="Smith"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

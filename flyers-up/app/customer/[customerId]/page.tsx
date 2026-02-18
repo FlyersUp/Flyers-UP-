@@ -43,7 +43,7 @@ export default async function CustomerPublicForProsPage({ params }: { params: Ro
 
   const { data: cust } = await admin
     .from('profiles')
-    .select('id, first_name, avatar_url, created_at')
+    .select('id, first_name, last_name, avatar_url, created_at')
     .eq('id', customerId)
     .maybeSingle();
 
@@ -63,7 +63,7 @@ export default async function CustomerPublicForProsPage({ params }: { params: Ro
     }
   })();
 
-  const name = String((cust as any).first_name ?? 'Customer');
+  const name = [ (cust as any).first_name, (cust as any).last_name ].filter(Boolean).join(' ') || 'Customer';
 
   return (
     <div className="theme-customer">

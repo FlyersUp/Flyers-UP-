@@ -26,27 +26,35 @@ export default function HomePage() {
               href="/signup?role=customer"
               className="px-4 py-2 text-sm font-medium bg-surface hover:bg-surface2 text-text rounded-lg transition-colors border border-border"
             >
-              Request a Service (Free)
+              Book a Pro
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
+      {/* Hero Section - outcome-driven */}
       <section className="py-20 px-4">
         <div className="max-w-6xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-text mb-6 leading-tight">
-            Hire local service pros without getting ripped off, ghosted, or disappointed.
+            Book a trusted pro in under 2 minutes.
           </h1>
-          <p className="text-xl text-muted mb-8 max-w-2xl mx-auto">
-            Verified profiles, clear expectations, and platform accountability—before they step into your home.
+          <p className="text-xl text-muted mb-4 max-w-2xl mx-auto">
+            Most NYC requests accepted in under 10 minutes.
           </p>
+          <p className="text-lg text-muted mb-8 max-w-xl mx-auto">
+            Verified local pros in your zip.
+          </p>
+          <div className="flex flex-wrap justify-center gap-4 mb-10">
+            <span className="text-sm text-muted border border-border rounded-full px-4 py-2 bg-surface">Fulfillment rate %</span>
+            <span className="text-sm text-muted border border-border rounded-full px-4 py-2 bg-surface">Avg time to accept</span>
+            <span className="text-sm text-muted border border-border rounded-full px-4 py-2 bg-surface">Active pros in your zip</span>
+          </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
               href="/signup?role=customer" 
               className="px-8 py-4 bg-[hsl(var(--accent-customer))] hover:opacity-95 text-text text-lg font-semibold rounded-xl shadow-card transition-all focus-ring"
             >
-              Request a Service (Free)
+              Book a Pro (Free)
             </Link>
             <a
               href="#pros"
@@ -215,7 +223,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* For Pros Section */}
+      {/* For Pros Section - sell the opportunity */}
       <section id="pros" className="py-20 px-4 bg-surface2">
         <div className="max-w-6xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -225,10 +233,13 @@ export default function HomePage() {
               </div>
               <div className="inline-flex items-center gap-3 mb-3">
                 <span className="h-6 w-[3px] rounded-full bg-[hsl(var(--accent-pro)/0.75)]" aria-hidden />
-                <h2 className="text-3xl sm:text-4xl font-bold text-text">Are you a service professional?</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold text-text">Earn more. No monthly fee.</h2>
               </div>
-              <p className="text-muted text-lg mb-6">
-                Bring your skills—not a marketing budget. Get clearer requests and repeat customers.
+              <p className="text-muted text-lg mb-4">
+                NYC pros in top categories earn $800–$1,400/week.
+              </p>
+              <p className="text-muted mb-6">
+                Only pay when you get paid. No monthly subscription.
               </p>
               <ul className="space-y-3 mb-8">
                 <li className="flex items-center gap-3 text-text">

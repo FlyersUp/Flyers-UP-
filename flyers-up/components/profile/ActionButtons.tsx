@@ -5,6 +5,7 @@ export function ActionButtons({
   primaryLabel,
   secondaryHref,
   secondaryLabel,
+  secondaryTitle,
   secondaryDisabledText,
   tertiaryHref,
   tertiaryLabel,
@@ -14,6 +15,7 @@ export function ActionButtons({
   primaryLabel: string;
   secondaryHref?: string | null;
   secondaryLabel: string;
+  secondaryTitle?: string;
   secondaryDisabledText?: string;
   tertiaryHref?: string | null;
   tertiaryLabel: string;
@@ -31,6 +33,7 @@ export function ActionButtons({
       {secondaryHref ? (
         <Link
           href={secondaryHref}
+          title={secondaryTitle}
           className="col-span-1 inline-flex items-center justify-center rounded-xl px-3 py-2.5 bg-white border border-hairline text-text font-semibold text-sm hover:shadow-sm transition-shadow focus-ring btn-press"
         >
           {secondaryLabel}

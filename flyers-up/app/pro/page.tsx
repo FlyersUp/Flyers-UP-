@@ -19,7 +19,7 @@ export default async function ProDashboardPage() {
     redirect('/auth?next=%2Fpro');
   }
 
-  const selectCols = 'id, email, role, first_name, phone, zip_code, onboarding_step';
+  const selectCols = 'id, email, role, first_name, last_name, phone, zip_code, onboarding_step';
 
   // Server-side get-or-create (RLS allows users to insert their own profile).
   const { data: profileExisting } = await supabase
@@ -44,8 +44,9 @@ export default async function ProDashboardPage() {
   }
 
   const firstNameMissing = !profile.first_name || profile.first_name.trim().length === 0;
+  const lastNameMissing = !profile.last_name || profile.last_name.trim().length === 0;
   const zipMissing = !profile.zip_code || profile.zip_code.trim().length === 0;
-  if (profile.onboarding_step === 'pro_profile' || firstNameMissing || zipMissing) {
+  if (profile.onboarding_step === 'pro_profile' || firstNameMissing || lastNameMissing || zipMissing) {
     redirect('/onboarding/pro?next=%2Fpro');
   }
 
@@ -63,7 +64,7 @@ export default async function ProDashboardPage() {
   }
 
   const fallbackName = (user.email ? user.email.split('@')[0] : 'Account') || 'Account';
-  const userName = profile.first_name?.trim() || fallbackName;
+  const userName = [profile.first_name?.trim(), profile.last_name?.trim()].filter(Boolean).join(' ') || fallbackName;
 
   return <ProDashboardClient userName={userName} />;
 }

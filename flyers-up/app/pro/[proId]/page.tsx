@@ -21,7 +21,8 @@ export default async function PublicProProfilePage({ params }: { params: RoutePa
     data: { user },
   } = await supabase.auth.getUser();
 
-  let messageHref: string | null = null;
+  let messageHref: string = `/book/${encodeURIComponent(profile.id)}`;
+  let messageTitle: string | null = 'Start a booking to message this pro';
   if (user?.id) {
     const admin = createAdminSupabaseClient();
     const { data: b } = await admin
@@ -32,7 +33,10 @@ export default async function PublicProProfilePage({ params }: { params: RoutePa
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (b?.id) messageHref = `/customer/chat/${encodeURIComponent(String(b.id))}`;
+    if (b?.id) {
+      messageHref = `/customer/chat/${encodeURIComponent(String(b.id))}`;
+      messageTitle = null;
+    }
   }
 
   const callHref = profile.phonePublic && profile.phone ? `tel:${profile.phone}` : null;
@@ -45,6 +49,7 @@ export default async function PublicProProfilePage({ params }: { params: RoutePa
           profile={profile}
           bookHref={`/book/${encodeURIComponent(profile.id)}`}
           messageHref={messageHref}
+          messageTitle={messageTitle}
           callHref={callHref}
         />
       </div>

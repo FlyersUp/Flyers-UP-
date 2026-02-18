@@ -24,7 +24,7 @@ export default async function AccountPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role, first_name, avatar_url, created_at')
+    .select('id, role, first_name, last_name, avatar_url, created_at')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -90,6 +90,7 @@ export default async function AccountPage() {
       proName: pro?.name ?? 'Service Pro',
       status: String(b.status || ''),
       href: `/customer/chat/${encodeURIComponent(String(b.id))}`,
+      proId: b.pro_id ? String(b.pro_id) : undefined,
     };
   });
 
@@ -119,7 +120,7 @@ export default async function AccountPage() {
     <AppLayout mode="customer">
       <div className="max-w-[720px] mx-auto px-4 py-6 theme-customer">
         <CustomerAccountView
-          firstName={String((profile as any).first_name ?? 'Account')}
+          firstName={[ (profile as any).first_name, (profile as any).last_name ].filter(Boolean).join(' ') || 'Account'}
           avatarUrl={typeof (profile as any).avatar_url === 'string' ? (profile as any).avatar_url : null}
           memberSinceLabel={fmtMemberSince((profile as any).created_at ?? null)}
           bookingsCount={upcoming.length + past.length}

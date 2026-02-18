@@ -31,7 +31,6 @@ export default async function CustomerProProfilePage({ params }: { params: Route
   const profile = await getPublicProProfileByIdServer(proId);
   if (!profile) return notFound();
 
-  let messageHref: string | null = null;
   const admin = createAdminSupabaseClient();
   const { data: b } = await admin
     .from('bookings')
@@ -41,7 +40,10 @@ export default async function CustomerProProfilePage({ params }: { params: Route
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (b?.id) messageHref = `/customer/chat/${encodeURIComponent(String(b.id))}`;
+  const messageHref = b?.id
+    ? `/customer/chat/${encodeURIComponent(String(b.id))}`
+    : `/book/${encodeURIComponent(profile.id)}`;
+  const messageTitle = b?.id ? null : 'Start a booking to message this pro';
 
   const callHref = profile.phonePublic && profile.phone ? `tel:${profile.phone}` : null;
 
@@ -55,6 +57,7 @@ export default async function CustomerProProfilePage({ params }: { params: Route
               profile={profile}
               bookHref={`/book/${encodeURIComponent(profile.id)}`}
               messageHref={messageHref}
+              messageTitle={messageTitle}
               callHref={callHref}
             />
           </div>

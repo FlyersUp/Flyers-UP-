@@ -50,8 +50,10 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
   }, []);
 
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const actionNeededCount = useMemo(() => jobs.filter((j) => j.status === 'requested').length, [jobs]);
+  const requestedJobs = useMemo(() => jobs.filter((j) => j.status === 'requested'), [jobs]);
+  const actionNeededCount = requestedJobs.length;
   const actionRequired = actionNeededCount > 0;
+  const demandCategory = requestedJobs[0]?.category ?? 'service';
   const todayJobs = useMemo(() => {
     return jobs
       .filter((j) => j.date === todayIso)
@@ -66,6 +68,8 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
         status: j.status,
       }));
   }, [jobs, todayIso]);
+
+  const completedCount = useMemo(() => jobs.filter((j) => j.status === 'completed').length, [jobs]);
 
   const nextJobs = useMemo(() => {
     // Show accepted upcoming work even when there are no "today" jobs.
@@ -109,18 +113,15 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
           </div>
         </div>
 
-        <div className="mb-6">
-          <AtAGlanceCard jobs={todayJobs} rating={proRating} actionNeededCount={actionNeededCount} />
-        </div>
-
         {actionRequired ? (
-          <Card className="mb-6 border-l-[3px] border-l-accent">
+          <Card className="mb-4 border-l-[3px] border-l-accent bg-[hsl(var(--accent)/0.06)]">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-text">Action required</div>
+                <div className="text-sm font-semibold text-text">
+                  🔥 {actionNeededCount} customer{actionNeededCount === 1 ? '' : 's'} looking for {demandCategory} near you right now
+                </div>
                 <div className="mt-1 text-sm text-muted">
-                  You have <span className="font-semibold text-accent">{actionNeededCount}</span> new request
-                  {actionNeededCount === 1 ? '' : 's'}.
+                  Respond fast to win the job.
                 </div>
               </div>
               <div className="shrink-0">
@@ -128,7 +129,32 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
                   href="/pro/requests"
                   className="inline-flex items-center justify-center rounded-xl px-4 py-2 bg-accent text-accentContrast font-semibold hover:opacity-95 transition-opacity focus-ring"
                 >
-                  Review requests
+                  View requests
+                </Link>
+              </div>
+            </div>
+          </Card>
+        ) : null}
+
+        <div className="mb-6">
+          <AtAGlanceCard jobs={todayJobs} rating={proRating} actionNeededCount={actionNeededCount} />
+        </div>
+
+        {completedCount > 0 ? (
+          <Card className="mb-6 border-l-[3px] border-l-accent">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-text">Earnings & repeat work</div>
+                <div className="mt-1 text-sm text-muted">
+                  View your earnings summary. Completed jobs can lead to repeat bookings—keep messages open.
+                </div>
+              </div>
+              <div className="shrink-0">
+                <Link
+                  href="/pro/earnings"
+                  className="inline-flex items-center justify-center rounded-xl px-4 py-2 bg-accent text-accentContrast font-semibold hover:opacity-95 transition-opacity focus-ring"
+                >
+                  Earnings summary
                 </Link>
               </div>
             </div>

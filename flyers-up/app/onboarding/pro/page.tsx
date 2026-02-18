@@ -23,11 +23,15 @@ function ProInner() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [primaryCategoryId, setPrimaryCategoryId] = useState('');
   const [secondaryCategoryId, setSecondaryCategoryId] = useState<string>('');
   const [serviceAreaZip, setServiceAreaZip] = useState('');
+  const [liveComplete, setLiveComplete] = useState(false);
+  const [savedCategoryName, setSavedCategoryName] = useState('');
 
   useEffect(() => {
     const init = async () => {
@@ -72,6 +76,7 @@ function ProInner() {
 
         setCategories(cats);
         setFirstName(profile.first_name || '');
+        setLastName(profile.last_name || '');
         setServiceAreaZip(profile.zip_code || '');
       } finally {
         setLoading(false);
@@ -106,6 +111,10 @@ function ProInner() {
         setError('Please enter your first name.');
         return;
       }
+      if (!lastName.trim()) {
+        setError('Please enter your last name.');
+        return;
+      }
       if (!primaryCategoryId) {
         setError('Please select a primary category.');
         return;
@@ -119,6 +128,7 @@ function ProInner() {
         id: user.id,
         role: 'pro',
         first_name: firstName.trim(),
+        last_name: lastName.trim(),
         zip_code: serviceAreaZip.trim(),
         onboarding_step: null,
         email: user.email ?? null,
@@ -130,7 +140,7 @@ function ProInner() {
 
       const proRes = await upsertServicePro({
         user_id: user.id,
-        display_name: firstName.trim(),
+        display_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
         category_id: primaryCategoryId,
         secondary_category_id: secondaryCategoryId || null,
         service_area_zip: serviceAreaZip.trim(),
@@ -139,8 +149,9 @@ function ProInner() {
         setError(proRes.error || 'Could not save your pro profile. Please try again.');
         return;
       }
-
-      router.replace(safeNext ?? '/pro');
+      const catName = categories.find((c) => c.id === primaryCategoryId)?.name ?? 'your category';
+      setSavedCategoryName(catName);
+      setLiveComplete(true);
     } catch (err) {
       console.error(err);
       setError('Something went wrong. Please try again.');
@@ -168,94 +179,168 @@ function ProInner() {
       <main className="px-4 pb-10">
         <div className="max-w-md mx-auto">
           <div className="rounded-2xl border border-border bg-surface shadow-sm p-6">
-            <h1 className="text-2xl font-semibold tracking-tight">Set up your pro profile</h1>
-            <p className="text-muted mt-2">You can add verification and payouts later. This takes under 60 seconds.</p>
-
-            {error && (
-              <div className="mt-4 rounded-xl border border-red-100 bg-danger/10 px-4 py-3 text-sm text-text">
-                {error}
-              </div>
-            )}
-
-            <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-              <div>
-                <label className="block text-sm font-medium text-muted mb-1" htmlFor="firstName">
-                  First name
-                </label>
-                <input
-                  id="firstName"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
-                  placeholder="Sam"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-muted mb-1" htmlFor="primaryCategory">
-                  Primary category
-                </label>
-                <select
-                  id="primaryCategory"
-                  value={primaryCategoryId}
-                  onChange={(e) => setPrimaryCategoryId(e.target.value)}
-                  required
-                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
+            {liveComplete ? (
+              <div className="text-center py-4">
+                <p className="text-2xl font-semibold text-text mb-2">You&apos;re live.</p>
+                <p className="text-muted mb-6">
+                  Customers in <strong className="text-text">{serviceAreaZip}</strong> are requesting{' '}
+                  <strong className="text-text">{savedCategoryName}</strong>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => router.replace(safeNext ?? '/pro')}
+                  className="w-full rounded-xl bg-accent px-4 py-3.5 text-base font-medium text-accentContrast hover:opacity-95"
                 >
-                  <option value="">Select…</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
+                  Go to dashboard
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-2 mb-6">
+                  {([1, 2, 3, 4] as const).map((s) => (
+                    <div
+                      key={s}
+                      className={`h-1 flex-1 rounded-full ${s <= step ? 'bg-accent' : 'bg-surface2'}`}
+                      aria-hidden
+                    />
                   ))}
-                </select>
-              </div>
+                </div>
+                <h1 className="text-xl font-semibold tracking-tight">
+                  {step === 1 && 'Step 1: Identity'}
+                  {step === 2 && 'Step 2: Primary category'}
+                  {step === 3 && 'Step 3: Service area zip'}
+                  {step === 4 && 'Step 4: Review & go live'}
+                </h1>
+                <p className="text-muted mt-1 text-sm">You can add verification and payouts later.</p>
 
-              <div>
-                <label className="block text-sm font-medium text-muted mb-1" htmlFor="secondaryCategory">
-                  Secondary category (optional)
-                </label>
-                <select
-                  id="secondaryCategory"
-                  value={secondaryCategoryId}
-                  onChange={(e) => setSecondaryCategoryId(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
-                >
-                  <option value="">None</option>
-                  {categories
-                    .filter((c) => c.id !== primaryCategoryId)
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
+                {error && (
+                  <div className="mt-4 rounded-xl border border-red-100 bg-danger/10 px-4 py-3 text-sm text-text">
+                    {error}
+                  </div>
+                )}
 
-              <div>
-                <label className="block text-sm font-medium text-muted mb-1" htmlFor="zip">
-                  Service area zip
-                </label>
-                <input
-                  id="zip"
-                  value={serviceAreaZip}
-                  onChange={(e) => setServiceAreaZip(e.target.value)}
-                  required
-                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
-                  placeholder="10001"
-                  inputMode="numeric"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full rounded-xl bg-accent px-4 py-3.5 text-base font-medium text-accentContrast hover:opacity-95 transition-opacity disabled:opacity-50"
-              >
-                {saving ? 'Saving…' : 'Continue'}
-              </button>
-            </form>
+                <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+                  {step === 1 && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-muted mb-1" htmlFor="firstName">First name</label>
+                        <input
+                          id="firstName"
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          required
+                          className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
+                          placeholder="Sam"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-muted mb-1" htmlFor="lastName">Last name</label>
+                        <input
+                          id="lastName"
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          required
+                          className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
+                          placeholder="Smith"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {step === 2 && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-muted mb-1" htmlFor="primaryCategory">Primary category</label>
+                        <select
+                          id="primaryCategory"
+                          value={primaryCategoryId}
+                          onChange={(e) => setPrimaryCategoryId(e.target.value)}
+                          required
+                          className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
+                        >
+                          <option value="">Select…</option>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-muted mb-1" htmlFor="secondaryCategory">Secondary (optional)</label>
+                        <select
+                          id="secondaryCategory"
+                          value={secondaryCategoryId}
+                          onChange={(e) => setSecondaryCategoryId(e.target.value)}
+                          className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
+                        >
+                          <option value="">None</option>
+                          {categories.filter((c) => c.id !== primaryCategoryId).map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
+                  {step === 3 && (
+                    <div>
+                      <label className="block text-sm font-medium text-muted mb-1" htmlFor="zip">Service area zip</label>
+                      <input
+                        id="zip"
+                        value={serviceAreaZip}
+                        onChange={(e) => setServiceAreaZip(e.target.value)}
+                        required
+                        className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
+                        placeholder="10001"
+                        inputMode="numeric"
+                      />
+                    </div>
+                  )}
+                  {step === 4 && (
+                    <div className="rounded-xl border border-border bg-surface2 p-4 text-sm text-muted">
+                      <p><strong className="text-text">Name:</strong> {firstName} {lastName}</p>
+                      <p><strong className="text-text">Category:</strong> {categories.find((c) => c.id === primaryCategoryId)?.name ?? '—'}</p>
+                      <p><strong className="text-text">Service zip:</strong> {serviceAreaZip}</p>
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    {step > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
+                        className="rounded-xl border border-border px-4 py-3 text-base font-medium text-text"
+                      >
+                        Back
+                      </button>
+                    )}
+                    {step < 4 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (step === 1 && (!firstName.trim() || !lastName.trim())) return;
+                          if (step === 2 && !primaryCategoryId) return;
+                          if (step === 3 && !serviceAreaZip.trim()) return;
+                          setStep((s) => (s + 1) as 1 | 2 | 3 | 4);
+                        }}
+                        disabled={
+                          (step === 1 && (!firstName.trim() || !lastName.trim())) ||
+                          (step === 2 && !primaryCategoryId) ||
+                          (step === 3 && !serviceAreaZip.trim())
+                        }
+                        className="flex-1 rounded-xl bg-accent px-4 py-3.5 text-base font-medium text-accentContrast disabled:opacity-50"
+                      >
+                        Next
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={saving}
+                        className="flex-1 rounded-xl bg-accent px-4 py-3.5 text-base font-medium text-accentContrast disabled:opacity-50"
+                      >
+                        {saving ? 'Saving…' : 'Go live'}
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </>
+            )}
           </div>
         </div>
       </main>

@@ -23,11 +23,14 @@ export function ProProfileView({
   profile,
   bookHref,
   messageHref,
+  messageTitle,
   callHref,
 }: {
   profile: PublicProProfileModel;
   bookHref: string;
   messageHref: string | null;
+  /** When message links to booking (no existing chat), e.g. "Start a booking to message this pro" */
+  messageTitle?: string | null;
   callHref: string | null;
 }) {
   const [tab, setTab] = useState<TabKey>('work');
@@ -87,6 +90,7 @@ export function ProProfileView({
             primaryLabel="Book"
             secondaryHref={messageHref}
             secondaryLabel="Message"
+            secondaryTitle={messageTitle ?? undefined}
             secondaryDisabledText="Messaging becomes available after you start a booking."
             tertiaryHref={callHref}
             tertiaryLabel="Call"
