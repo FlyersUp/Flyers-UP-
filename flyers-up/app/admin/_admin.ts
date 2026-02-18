@@ -14,10 +14,15 @@ export function getAdminEmails(): string[] {
     .filter(Boolean);
 }
 
+/** Canonical admin account that always has access (no env or DB required). */
+const CANONICAL_ADMIN_EMAIL = 'hello.flyersup@gmail.com';
+
 export function isAdminEmail(email?: string | null): boolean {
   if (!email) return false;
+  const normalized = email.trim().toLowerCase();
+  if (normalized === CANONICAL_ADMIN_EMAIL) return true;
   const admins = getAdminEmails();
-  return admins.includes(email.trim().toLowerCase());
+  return admins.includes(normalized);
 }
 
 /**

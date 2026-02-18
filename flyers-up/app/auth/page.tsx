@@ -25,6 +25,7 @@ function AuthInner() {
   const searchParams = useSearchParams();
   const nextParam = searchParams.get('next');
   const errorParam = searchParams.get('error');
+  const deniedParam = searchParams.get('denied');
 
   const [step, setStep] = useState<Step>('entry');
   const [email, setEmail] = useState('');
@@ -33,6 +34,7 @@ function AuthInner() {
   const [error, setError] = useState<string | null>(errorParam ? decodeURIComponent(errorParam) : null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [supabaseReachability, setSupabaseReachability] = useState<'checking' | 'ok' | 'blocked'>('checking');
+  const [adminDenied, setAdminDenied] = useState<{ email: string; role: string | null } | null>(null);
   const otpInputRef = useRef<HTMLInputElement>(null);
 
   const redirectTo = useMemo(() => {
@@ -93,7 +95,7 @@ function AuthInner() {
     }
   }, [step, email]);
 
-  // Already signed in: redirect away
+  // Already signed in: redirect away (unless admin denied — then show message)
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
@@ -102,6 +104,10 @@ function AuthInner() {
         if (cancelled || !user) return;
         const profile = await getOrCreateProfile(user.id, user.email ?? null);
         if (cancelled || !profile) return;
+        if (deniedParam === '1') {
+          setAdminDenied({ email: user.email ?? '', role: profile?.role ?? null });
+          return;
+        }
         router.replace(routeAfterAuth(profile, nextParam));
       } catch {
         // ignore
@@ -109,7 +115,7 @@ function AuthInner() {
     };
     void check();
     return () => { cancelled = true; };
-  }, [router, nextParam]);
+  }, [router, nextParam, deniedParam]);
 
   // Resend cooldown timer
   useEffect(() => {
@@ -370,6 +376,30 @@ function AuthInner() {
                   Sign in to browse pros, send a request, and message on-platform. You can add details later.
                 </p>
 
+                {adminDenied && (
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 px-4 py-4 text-sm text-text">
+                    <p className="font-semibold">Admin access denied</p>
+                    <p className="mt-1 text-muted">
+                      You’re signed in as <span className="font-mono text-text">{adminDenied.email || '(no email)'}</span>
+                      {adminDenied.role != null && (
+                        <span> (role: <span className="font-mono">{adminDenied.role}</span>)</span>
+                      )}.
+                    </p>
+                    <p className="mt-2 text-muted">
+                      To get admin access: set your account’s <strong>role</strong> to <code>admin</code> in Supabase (Table Editor → profiles, row where <code>id</code> = your user id), or add your email to <code>ADMIN_EMAILS</code> in Vercel and redeploy.
+                    </p>
+                    <Link
+                      href={adminDenied.role === 'pro' ? '/pro' : '/customer'}
+                      className="mt-3 inline-block rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accentContrast hover:opacity-95"
+                    >
+                      Go to my dashboard
+                    </Link>
+                    <span className="mx-2 text-muted">·</span>
+                    <Link href="/admin" className="text-sm font-medium text-accent hover:underline">
+                      Try admin again
+                    </Link>
+                  </div>
+                )}
                 {error && (
                   <div className="mt-4 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-text">
                     {error}

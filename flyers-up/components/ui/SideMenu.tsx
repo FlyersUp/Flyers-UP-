@@ -255,7 +255,13 @@ export function SideMenu({
   }, [open]);
 
   const roleLabel = mode === 'pro' ? 'Pro' : 'Customer';
-  const sections = mode === 'pro' ? getProMenu() : getCustomerMenu();
+  const baseSections = mode === 'pro' ? getProMenu() : getCustomerMenu();
+  const isCanonicalAdmin =
+    identity.email?.trim().toLowerCase() === 'hello.flyersup@gmail.com';
+  const adminSection: MenuSection[] = isCanonicalAdmin
+    ? [{ title: 'Admin', items: [{ label: 'Switch to Admin', href: '/admin' }] }]
+    : [];
+  const sections = [...adminSection, ...baseSections];
 
   async function handleLogout() {
     await supabase.auth.signOut();
