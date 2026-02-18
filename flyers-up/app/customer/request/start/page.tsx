@@ -1,7 +1,7 @@
 'use client';
 
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
-import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getCurrentUser, getServiceCategories, type ServiceCategory } from '@/lib/api';
@@ -19,7 +19,7 @@ type ProRow = {
   categoryName: string;
 };
 
-export default function CustomerRequestStartPage() {
+function CustomerRequestStartInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get('next');
@@ -294,5 +294,19 @@ export default function CustomerRequestStartPage() {
         )}
       </div>
     </AppLayout>
+  );
+}
+
+export default function CustomerRequestStartPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppLayout mode="customer">
+          <div className="max-w-2xl mx-auto px-4 py-8 text-center text-muted">Loading…</div>
+        </AppLayout>
+      }
+    >
+      <CustomerRequestStartInner />
+    </Suspense>
   );
 }
