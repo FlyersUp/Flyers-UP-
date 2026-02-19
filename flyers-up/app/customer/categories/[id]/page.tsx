@@ -21,6 +21,7 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [categoryName, setCategoryName] = useState<string>('Service Pros');
+  const [categoryUnavailable, setCategoryUnavailable] = useState(false);
   const [pros, setPros] = useState<Array<{
     id: string;
     name: string;
@@ -51,10 +52,17 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
       try {
         const { data: cat } = await supabase
           .from('service_categories')
-          .select('name, slug')
+          .select('name, slug, is_active_phase1')
           .eq('id', categoryId)
           .maybeSingle();
 
+        if (cat && (cat as { is_active_phase1?: boolean }).is_active_phase1 === false) {
+          setCategoryName(cat?.name || 'Category');
+          setCategoryUnavailable(true);
+          setPros([]);
+          setLoading(false);
+          return;
+        }
         setCategoryName(cat?.name || 'Service Pros');
         if (cat?.slug) {
           const data = await getProsByCategory(cat.slug);
@@ -110,7 +118,19 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
         </div>
 
         {/* Pro List */}
-        {loading ? (
+        {categoryUnavailable ? (
+          <div className="surface-card p-6 border-l-[3px] border-l-accent">
+            <div className="text-base font-semibold text-text">This category is temporarily unavailable during platform updates.</div>
+            <div className="mt-2 text-sm text-muted">
+              Check back soon or browse other categories.
+            </div>
+            <div className="mt-4">
+              <Link href="/customer/categories" className="text-sm font-medium text-accent hover:underline">
+                ← Back to categories
+              </Link>
+            </div>
+          </div>
+        ) : loading ? (
           <div className="surface-card p-6">
             <p className="text-sm text-muted/70">Loading pros…</p>
           </div>

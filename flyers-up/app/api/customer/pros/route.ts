@@ -4,13 +4,15 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/customer/pros?categorySlug=cleaning&zip=10001
- * Returns up to 5 pros for the category, optionally filtered by zip (service_area_zip).
+ * GET /api/customer/pros?categorySlug=cleaning&zip=10001&radiusMiles=10
+ * Returns pros for the category, filtered by zip and optional radius.
+ * radiusMiles: 0 = exact zip only, 10/25 = same metro (3-digit prefix), 50 = no zip filter (wider).
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const categorySlug = searchParams.get('categorySlug') ?? '';
   const zip = searchParams.get('zip')?.trim() ?? '';
+  const radiusMiles = Math.min(50, Math.max(0, parseInt(searchParams.get('radiusMiles') ?? '0', 10) || 0));
 
   if (!categorySlug) {
     return Response.json({ ok: false, pros: [], error: 'categorySlug required' }, { status: 400 });
@@ -21,11 +23,14 @@ export async function GET(request: NextRequest) {
     .from('service_categories')
     .select('id, slug, name')
     .eq('slug', categorySlug)
+    .eq('is_active_phase1', true)
     .maybeSingle();
 
   if (!category) {
     return Response.json({ ok: true, pros: [], categoryName: null });
   }
+
+  const limit = radiusMiles === 0 ? 5 : radiusMiles <= 10 ? 10 : radiusMiles <= 25 ? 15 : 20;
 
   let query = supabase
     .from('service_pros')
@@ -33,10 +38,15 @@ export async function GET(request: NextRequest) {
     .eq('category_id', category.id)
     .eq('available', true)
     .order('rating', { ascending: false })
-    .limit(5);
+    .limit(limit);
 
   if (zip) {
-    query = query.eq('service_area_zip', zip);
+    if (radiusMiles === 0) {
+      query = query.eq('service_area_zip', zip);
+    } else if (radiusMiles <= 25 && zip.length >= 3) {
+      const prefix = zip.slice(0, 3);
+      query = query.ilike('service_area_zip', `${prefix}%`);
+    }
   }
 
   const { data: rows, error } = await query;

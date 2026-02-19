@@ -84,6 +84,9 @@ export interface Database {
           description: string | null;
           icon: string | null;
           created_at: string;
+          is_public?: boolean | null;
+          is_active_phase1?: boolean | null;
+          parent_id?: string | null;
         };
         Insert: {
           id?: string;
@@ -92,6 +95,9 @@ export interface Database {
           description?: string | null;
           icon?: string | null;
           created_at?: string;
+          is_public?: boolean | null;
+          is_active_phase1?: boolean | null;
+          parent_id?: string | null;
         };
         Update: {
           id?: string;
@@ -100,6 +106,9 @@ export interface Database {
           description?: string | null;
           icon?: string | null;
           created_at?: string;
+          is_public?: boolean | null;
+          is_active_phase1?: boolean | null;
+          parent_id?: string | null;
         };
       };
       service_pros: {

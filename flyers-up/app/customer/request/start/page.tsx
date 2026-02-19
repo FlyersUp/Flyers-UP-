@@ -31,6 +31,7 @@ function CustomerRequestStartInner() {
   const [categorySlug, setCategorySlug] = useState('');
   const [categoryName, setCategoryName] = useState('');
   const [zip, setZip] = useState('');
+  const [radiusMiles, setRadiusMiles] = useState(10);
   const [pros, setPros] = useState<ProRow[]>([]);
   const [loadingPros, setLoadingPros] = useState(false);
   const [firstName, setFirstName] = useState('');
@@ -62,7 +63,7 @@ function CustomerRequestStartInner() {
     setError(null);
     try {
       const res = await fetch(
-        `/api/customer/pros?categorySlug=${encodeURIComponent(categorySlug)}&zip=${encodeURIComponent(zip.trim())}`
+        `/api/customer/pros?categorySlug=${encodeURIComponent(categorySlug)}&zip=${encodeURIComponent(zip.trim())}&radiusMiles=${radiusMiles}`
       );
       const json = await res.json();
       if (!json.ok) {
@@ -193,6 +194,17 @@ function CustomerRequestStartInner() {
               placeholder="10001"
               className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-text"
             />
+            <label className="block text-sm font-medium text-muted mt-3">Search radius</label>
+            <select
+              value={radiusMiles}
+              onChange={(e) => setRadiusMiles(Number(e.target.value))}
+              className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-text"
+            >
+              <option value={0}>My zip only</option>
+              <option value={10}>Within 10 miles</option>
+              <option value={25}>Within 25 miles</option>
+              <option value={50}>Wider search (50+ miles)</option>
+            </select>
             <button
               type="button"
               disabled={!canLoadPros || loadingPros}
@@ -210,11 +222,11 @@ function CustomerRequestStartInner() {
               ← Change zip
             </button>
             <p className="text-sm text-muted">
-              {categoryName} in {zip}
+              {categoryName} {radiusMiles === 0 ? `in ${zip}` : `near ${zip} (${radiusMiles === 50 ? '50+ mi' : `within ${radiusMiles} mi`})`}
             </p>
             {error && <p className="text-sm text-red-600">{error}</p>}
             {pros.length === 0 && !loadingPros && (
-              <p className="text-muted">No pros in this zip for this category. Try another zip or category.</p>
+              <p className="text-muted">No pros found for this search. Try a wider radius, different zip, or category.</p>
             )}
             <ul className="space-y-3">
               {pros.map((p) => (

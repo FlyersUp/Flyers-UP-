@@ -64,16 +64,11 @@ export default function ProProfilePage() {
     averageRating: 0,
   });
   const [businessHoursModel, setBusinessHoursModel] = useState(() => defaultBusinessHoursModel());
+  const [showInactiveCategoryBanner, setShowInactiveCategoryBanner] = useState(false);
 
   useEffect(() => {
-    loadProfile();
-    loadCategories();
+    void loadProfile();
   }, []);
-
-  const loadCategories = async () => {
-    const cats = await getServiceCategories();
-    setCategories(cats);
-  };
 
   const loadProfile = async () => {
     try {
@@ -86,14 +81,13 @@ export default function ProProfilePage() {
         return;
       }
 
-      const proData = await getMyServicePro(user.id);
+      const [proData, cats] = await Promise.all([getMyServicePro(user.id), getServiceCategories()]);
+      setCategories(cats);
       
       // Load extended profile data from localStorage
-      // Legacy fallback only (older sessions stored some fields locally).
       const extendedDataStr = localStorage.getItem('proProfile_extended');
       const extendedData = extendedDataStr ? JSON.parse(extendedDataStr) : {};
       
-      // Get rating and review count from service_pros
       const { data: proFullData } = await supabase
         .from('service_pros')
         .select('rating, review_count, location')
@@ -101,12 +95,14 @@ export default function ProProfilePage() {
         .single();
       
       if (proData) {
-        const category = categories.find(c => c.id === proData.categoryId);
+        const category = cats.find((c: { id: string }) => c.id === proData.categoryId);
+        const hasInactiveCategory = proData.categoryId && !category;
+        setShowInactiveCategoryBanner(!!hasInactiveCategory);
         setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
         setFormData({
           displayName: proData.displayName || '',
           bio: proData.bio || '',
-          categoryId: proData.categoryId || '',
+          categoryId: hasInactiveCategory ? '' : (proData.categoryId || ''),
           categorySlug: category?.slug || '',
           startingPrice: proData.startingPrice?.toString() || '0',
           location: proFullData?.location || extendedData.location || '',
@@ -375,6 +371,11 @@ export default function ProProfilePage() {
 
               <div>
                 <label className="block text-sm font-medium text-text mb-1">Service Category</label>
+                {showInactiveCategoryBanner ? (
+                  <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+                    This category is temporarily unavailable during platform updates. Please select a new category.
+                  </div>
+                ) : null}
                 {isEditing ? (
                   <select
                     value={formData.categoryId}
@@ -385,6 +386,7 @@ export default function ProProfilePage() {
                         categoryId: e.target.value,
                         categorySlug: selected?.slug || '',
                       });
+                      if (e.target.value) setShowInactiveCategoryBanner(false);
                     }}
                     className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent"
                   >

@@ -138,3 +138,40 @@ export async function adminUpdateCommandCenterInputsAction(formData: FormData) {
   redirect(addQuery(returnTo, 'ok', 'Inputs saved.'));
 }
 
+export async function adminToggleCategoryPhase1Action(formData: FormData) {
+  await requireAdminUser('/admin/categories');
+
+  const categoryId = String(formData.get('categoryId') ?? '').trim();
+  const active = String(formData.get('active') ?? '').trim().toLowerCase() === 'true';
+  const returnTo = '/admin/categories';
+
+  if (!categoryId) {
+    redirect(addQuery(returnTo, 'error', 'Missing category id.'));
+  }
+
+  const admin = createAdminSupabaseClient();
+  const { error } = await admin
+    .from('service_categories')
+    .update({ is_active_phase1: active })
+    .eq('id', categoryId);
+
+  if (error) {
+    redirect(addQuery(returnTo, 'error', error.message));
+  }
+
+  try {
+    const { data: { user } } = await (await import('@/lib/supabaseServer').then(m => m.createServerSupabaseClient())).auth.getUser();
+    await admin.from('admin_updates').insert({
+      table_name: 'service_categories',
+      record_id: categoryId,
+      action: active ? 'activate_phase1' : 'deactivate_phase1',
+      admin_user_id: user?.id ?? null,
+      payload: { is_active_phase1: active },
+    });
+  } catch {
+    // Log is optional; continue on failure
+  }
+
+  redirect(addQuery(returnTo, 'ok', `Category ${active ? 'activated' : 'deactivated'} for Phase 1.`));
+}
+

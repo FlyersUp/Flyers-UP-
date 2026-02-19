@@ -109,6 +109,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             <div className="text-sm font-semibold text-text">Marketplace density</div>
             <div className="mt-1 text-sm text-muted">Pros per category per zip · Requests per category per zip.</div>
           </Link>
+          <Link href="/admin/categories" className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors p-4">
+            <div className="text-sm font-semibold text-text">Categories (Phase 1)</div>
+            <div className="mt-1 text-sm text-muted">Toggle is_active_phase1 · Show/hide from customers &amp; pros.</div>
+          </Link>
           <Link href="/admin/users" className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors p-4">
             <div className="text-sm font-semibold text-text">Users</div>
             <div className="mt-1 text-sm text-muted">Search profiles + pro availability.</div>

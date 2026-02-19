@@ -52,6 +52,11 @@ export interface ServiceCategory {
   slug: string;
   description: string;
   icon: string;
+  /** Phase 1 rollout: only true categories visible to customers and pro onboarding. */
+  is_active_phase1?: boolean | null;
+  /** Parent category for sub-categories. NULL = top-level. */
+  parent_id?: string | null;
+  is_public?: boolean | null;
 }
 
 export interface ServicePro {
@@ -497,26 +502,30 @@ export function onAuthStateChange(
 /**
  * Get service categories.
  *
- * Default behavior is PUBLIC categories only (is_public = true) when the column exists.
- * This keeps dormant lanes (e.g. hoarding) hidden from normal browsing.
+ * - includeHidden: true (admin) → all categories, no Phase 1 filter.
+ * - includeHidden: false (default) → Phase 1 only: is_active_phase1 = true, top-level (parent_id IS NULL).
+ *   Also respects is_public for dormant lanes (e.g. hoarding).
  */
 export async function getServiceCategories(options?: { includeHidden?: boolean }): Promise<ServiceCategory[]> {
   const includeHidden = Boolean(options?.includeHidden);
 
-  // Prefer filtering by is_public (added via migration). If the column doesn't exist yet,
-  // fall back to the old query so the app doesn't hard-fail.
   const baseQuery = supabase.from('service_categories').select('*').order('name');
-  const { data, error } = includeHidden ? await baseQuery : await baseQuery.eq('is_public', true);
+  let query = baseQuery;
+
+  if (!includeHidden) {
+    query = query.eq('is_public', true).eq('is_active_phase1', true).is('parent_id', null);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
-    // If the is_public column isn't present yet, retry without the filter.
-    if (!includeHidden && /is_public/i.test(error.message)) {
+    if (!includeHidden && (/is_active_phase1|is_public|parent_id/i.test(error.message))) {
       const retry = await supabase.from('service_categories').select('*').order('name');
       if (retry.error) {
         console.error('Error fetching categories (retry):', retry.error);
         return [];
       }
-      return retry.data.map((cat) => ({
+      return (retry.data ?? []).map((cat: any) => ({
         id: cat.id,
         name: cat.name,
         slug: cat.slug,
@@ -524,20 +533,14 @@ export async function getServiceCategories(options?: { includeHidden?: boolean }
         icon: cat.icon || '📦',
       }));
     }
-
     console.error('Error fetching categories:', error);
     return [];
   }
 
-  // If the column exists but no rows are marked public yet, fall back to showing categories
-  // so pros can still complete onboarding and save their business profile.
   if (!includeHidden && (data?.length ?? 0) === 0) {
-    const retry = await supabase.from('service_categories').select('*').order('name');
-    if (retry.error) {
-      console.error('Error fetching categories (empty public fallback):', retry.error);
-      return [];
-    }
-    return retry.data.map((cat) => ({
+    const retry = await supabase.from('service_categories').select('*').eq('is_public', true).order('name');
+    if (retry.error) return [];
+    return (retry.data ?? []).map((cat: any) => ({
       id: cat.id,
       name: cat.name,
       slug: cat.slug,
@@ -546,7 +549,7 @@ export async function getServiceCategories(options?: { includeHidden?: boolean }
     }));
   }
 
-  return data.map(cat => ({
+  return (data ?? []).map((cat: any) => ({
     id: cat.id,
     name: cat.name,
     slug: cat.slug,
@@ -557,7 +560,8 @@ export async function getServiceCategories(options?: { includeHidden?: boolean }
 
 /**
  * Fetch a single category by slug.
- * Use includeHidden=true for gated lanes (e.g. /book?category=hoarding).
+ * Use includeHidden=true for admin or gated lanes (e.g. /book?category=hoarding).
+ * When includeHidden=false, only returns if is_active_phase1 = true.
  */
 export async function getCategoryBySlug(
   slug: string,
@@ -565,28 +569,24 @@ export async function getCategoryBySlug(
 ): Promise<ServiceCategory | null> {
   const includeHidden = Boolean(options?.includeHidden);
   const baseQuery = supabase.from('service_categories').select('*').eq('slug', slug).limit(1);
-  const { data, error } = includeHidden ? await baseQuery : await baseQuery.eq('is_public', true);
+  const query = includeHidden
+    ? baseQuery
+    : baseQuery.eq('is_public', true).eq('is_active_phase1', true);
+  const { data, error } = await query;
 
   if (error) {
-    if (!includeHidden && /is_public/i.test(error.message)) {
+    if (!includeHidden && (/is_active_phase1|is_public/i.test(error.message))) {
       const retry = await supabase.from('service_categories').select('*').eq('slug', slug).limit(1);
-      if (retry.error) {
-        console.error('Error fetching category by slug (retry):', retry.error);
-        return null;
-      }
+      if (retry.error) return null;
       const row = retry.data?.[0];
-      return row
-        ? { id: row.id, name: row.name, slug: row.slug, description: row.description || '', icon: row.icon || '📦' }
-        : null;
+      return row ? { id: row.id, name: row.name, slug: row.slug, description: row.description || '', icon: row.icon || '📦' } : null;
     }
     console.error('Error fetching category by slug:', error);
     return null;
   }
 
   const row = data?.[0];
-  return row
-    ? { id: row.id, name: row.name, slug: row.slug, description: row.description || '', icon: row.icon || '📦' }
-    : null;
+  return row ? { id: row.id, name: row.name, slug: row.slug, description: row.description || '', icon: row.icon || '📦' } : null;
 }
 
 // ============================================
@@ -595,20 +595,24 @@ export async function getCategoryBySlug(
 
 /**
  * Get service pros by category slug.
+ * Only returns pros for Phase 1 active categories when phase1Only=true (default).
  */
-export async function getProsByCategory(categorySlug: string): Promise<ServicePro[]> {
-  // Default limit prevents unbounded reads as the marketplace scales.
-  // Add pagination UI when expanding beyond this.
+export async function getProsByCategory(
+  categorySlug: string,
+  options?: { phase1Only?: boolean }
+): Promise<ServicePro[]> {
+  const phase1Only = options?.phase1Only !== false;
   const limit = 24;
   const offset = 0;
 
-  // Avoid relationship joins here; PostgREST relationship naming can differ across environments,
-  // and a join failure results in a 400 response. Resolve category first, then query pros by category_id.
-  const { data: category, error: catErr } = await supabase
+  let catQuery = supabase
     .from('service_categories')
     .select('id, slug, name')
-    .eq('slug', categorySlug)
-    .maybeSingle();
+    .eq('slug', categorySlug);
+  if (phase1Only) {
+    catQuery = catQuery.eq('is_active_phase1', true);
+  }
+  const { data: category, error: catErr } = await catQuery.maybeSingle();
 
   if (catErr || !category) {
     if (catErr) console.error('Error resolving category for pro browse:', catErr);
