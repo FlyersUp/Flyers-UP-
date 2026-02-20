@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { use, useEffect, useMemo, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -19,13 +19,19 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
   const [rows, setRows] = useState<Array<{ id: string; sender_role: string; message: string; created_at: string }>>([]);
   const [status, setStatus] = useState<string>('requested');
   const [loading, setLoading] = useState(true);
-
-  const title = useMemo(() => `Booking ${bookingId.slice(0, 8)}`, [bookingId]);
+  const [proName, setProName] = useState<string>('Pro');
 
   async function load() {
     setLoading(true);
-    const { data: booking } = await supabase.from('bookings').select('status').eq('id', bookingId).maybeSingle();
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('status, service_pros(display_name)')
+      .eq('id', bookingId)
+      .maybeSingle();
     if (booking?.status) setStatus(booking.status);
+    const raw = (booking as { service_pros?: { display_name: string | null } | { display_name: string | null }[] | null })?.service_pros;
+    const pro = Array.isArray(raw) ? raw[0] : raw;
+    setProName(pro?.display_name?.trim() || 'Pro');
 
     const { data } = await supabase
       .from('booking_messages')
@@ -45,7 +51,7 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
     <AppLayout mode="customer">
       <div className="flex flex-col h-screen max-w-4xl mx-auto">
         {/* Header */}
-        <div className="bg-surface border-b border-border px-4 py-4 flex items-center gap-4">
+        <div className="bg-surface border-b border-[var(--surface-border)] px-4 py-4 flex items-center gap-4">
           <Link href="/customer/messages" className="text-muted hover:text-text">
             ←
           </Link>
@@ -53,7 +59,7 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
             <span className="text-muted">C</span>
           </div>
           <div className="flex-1">
-            <div className="font-semibold text-text">{title}</div>
+            <div className="font-semibold text-text">{proName}</div>
             <Badge variant="highlight">{status.replaceAll('_', ' ').toUpperCase()}</Badge>
           </div>
         </div>
@@ -77,7 +83,7 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
                 >
                   <div
                     className={`max-w-xs rounded-xl px-4 py-2 ${
-                      mine ? 'bg-accent text-text' : 'bg-surface border border-border text-text'
+                      mine ? 'bg-accent text-accentContrast' : 'bg-surface2 border border-[var(--hairline)] text-text'
                     }`}
                   >
                     <p>{msg.message}</p>
@@ -92,7 +98,7 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
         </div>
 
         {/* Input */}
-        <div className="bg-surface border-t border-border px-4 py-4">
+        <div className="bg-surface border-t border-[var(--surface-border)] px-4 py-4">
           <div className="flex gap-2">
             <Input
               placeholder="Type a message..."

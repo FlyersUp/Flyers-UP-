@@ -28,7 +28,7 @@ function LayoutContent({
     <div
       data-role={mode}
       data-accent={accentDensity}
-      className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text flex pb-20"
+      className="min-h-screen bg-bg text-text flex pb-20"
     >
       {showRail && <Rail className="h-screen" showLabel />}
       <div className="flex-1">

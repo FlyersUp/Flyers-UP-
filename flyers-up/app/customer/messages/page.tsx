@@ -15,6 +15,7 @@ type ThreadRow = {
   time: string;
   lastMessage: string;
   lastAt: string | null;
+  otherPartyName: string;
 };
 
 export default function CustomerMessagesPage() {
@@ -34,7 +35,7 @@ export default function CustomerMessagesPage() {
 
       const { data: bookings } = await supabase
         .from('bookings')
-        .select('id, status, service_date, service_time, created_at')
+        .select('id, status, service_date, service_time, created_at, service_pros(display_name)')
         .order('created_at', { ascending: false })
         .limit(25);
 
@@ -44,6 +45,7 @@ export default function CustomerMessagesPage() {
         service_date: string;
         service_time: string;
         created_at: string;
+        service_pros?: { display_name: string | null } | { display_name: string | null }[] | null;
       }>;
 
       const rows: ThreadRow[] = [];
@@ -56,6 +58,9 @@ export default function CustomerMessagesPage() {
           .limit(1);
 
         const lastRow = (last && last[0]) as { message: string; created_at: string } | undefined;
+        const raw = booking.service_pros;
+        const pro = Array.isArray(raw) ? raw[0] : raw;
+        const proName = pro?.display_name?.trim() || 'Pro';
         rows.push({
           bookingId: booking.id,
           status: booking.status,
@@ -63,6 +68,7 @@ export default function CustomerMessagesPage() {
           time: booking.service_time,
           lastMessage: lastRow?.message ?? 'No messages yet',
           lastAt: lastRow?.created_at ?? null,
+          otherPartyName: proName,
         });
       }
 
@@ -94,7 +100,7 @@ export default function CustomerMessagesPage() {
                 <Card withRail>
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="font-semibold text-text">Booking</div>
+                      <div className="font-semibold text-text">{t.otherPartyName}</div>
                       <div className="text-sm text-muted mt-0.5 truncate">{t.lastMessage}</div>
                       <div className="mt-2">
                         <StatusBadge status={t.status} />

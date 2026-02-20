@@ -8,10 +8,17 @@ import { StatusBadge } from '@/components/ui/Badge';
 import { supabase } from '@/lib/supabaseClient';
 import { useEffect, useState } from 'react';
 
+type ThreadRow = {
+  bookingId: string;
+  status: string;
+  date: string;
+  time: string;
+  lastMessage: string;
+  otherPartyName: string;
+};
+
 export default function ProMessagesPage() {
-  const [threads, setThreads] = useState<
-    Array<{ bookingId: string; status: string; date: string; time: string; lastMessage: string }>
-  >([]);
+  const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,7 +34,7 @@ export default function ProMessagesPage() {
 
       const { data: bookings } = await supabase
         .from('bookings')
-        .select('id, status, service_date, service_time, created_at')
+        .select('id, status, service_date, service_time, created_at, customer_id')
         .order('created_at', { ascending: false })
         .limit(25);
 
@@ -37,9 +44,25 @@ export default function ProMessagesPage() {
         service_date: string;
         service_time: string;
         created_at: string;
+        customer_id: string;
       }>;
 
-      const rows: Array<{ bookingId: string; status: string; date: string; time: string; lastMessage: string }> = [];
+      const customerIds = [...new Set(b.map((x) => x.customer_id).filter(Boolean))];
+      const profileById = new Map<string, string>();
+      if (customerIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, full_name')
+          .in('id', customerIds);
+        (profiles ?? []).forEach((p: { id: string; first_name?: string | null; last_name?: string | null; full_name?: string | null }) => {
+          const name = p.full_name?.trim()
+            || [p.first_name?.trim(), p.last_name?.trim()].filter(Boolean).join(' ')
+            || 'Customer';
+          profileById.set(p.id, name);
+        });
+      }
+
+      const rows: ThreadRow[] = [];
       for (const booking of b) {
         const { data: last } = await supabase
           .from('booking_messages')
@@ -49,12 +72,14 @@ export default function ProMessagesPage() {
           .limit(1);
 
         const lastRow = (last && last[0]) as { message: string } | undefined;
+        const customerName = profileById.get(booking.customer_id) || 'Customer';
         rows.push({
           bookingId: booking.id,
           status: booking.status,
           date: booking.service_date,
           time: booking.service_time,
           lastMessage: lastRow?.message ?? 'No messages yet',
+          otherPartyName: customerName,
         });
       }
 
@@ -72,7 +97,7 @@ export default function ProMessagesPage() {
     <AppLayout mode="pro">
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="mb-6">
-          <Label className="mb-2 block">PRO MESSAGES</Label>
+          <Label className="mb-2 block">Messages</Label>
           <h1 className="text-2xl font-semibold text-text">Messages</h1>
           <p className="text-muted mt-1">Your conversations with customers will show up here.</p>
         </div>
@@ -86,7 +111,7 @@ export default function ProMessagesPage() {
                 <Card withRail>
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="font-semibold text-text">Booking</div>
+                      <div className="font-semibold text-text">{t.otherPartyName}</div>
                       <div className="text-sm text-muted mt-0.5 truncate">{t.lastMessage}</div>
                       <div className="mt-2">
                         <StatusBadge status={t.status} />

@@ -29,14 +29,14 @@ export function Switch({
   const resolvedId = id ?? `switch-${autoId}`;
 
   const trackBase =
-    'relative inline-flex h-6 w-11 items-center rounded-full border transition-colors duration-200';
-  const trackInactive = 'bg-surface2 border-border';
-  const trackActive = 'bg-accent border-border shadow-inner hover:brightness-95';
-  const trackDisabled = 'bg-surface2 border-border opacity-70 cursor-not-allowed';
+    'relative inline-flex h-6 w-11 items-center rounded-full border-2 transition-colors duration-200';
+  const trackInactive = 'bg-surface2 border-[var(--hairline)]';
+  const trackActive = 'bg-[hsl(var(--switch-accent,var(--accent)))] border-[hsl(var(--switch-accent,var(--accent)))] shadow-[0_0_0_1px_hsl(var(--switch-accent,var(--accent)))] hover:brightness-110';
+  const trackDisabled = 'bg-surface2 border-[var(--hairline)] opacity-70 cursor-not-allowed';
 
   const thumbBase =
-    'inline-block h-5 w-5 transform rounded-full transition-transform duration-200 shadow-sm';
-  const thumbOn = 'translate-x-[20px]';
+    'inline-block h-5 w-5 transform rounded-full transition-transform duration-200 shadow-md';
+  const thumbOn = 'translate-x-[20px] bg-white';
   const thumbOff = 'translate-x-[2px]';
   const thumbEnabled = 'bg-surface';
   const thumbDisabled = 'bg-surface2';

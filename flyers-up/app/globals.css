@@ -116,15 +116,20 @@
   --role-tint: hsl(var(--role-accent-hsl) / 0.10);
   --role-border: hsl(var(--role-accent-hsl) / 0.32);
 }
+.dark [data-accent="focus"] {
+  --role-tint: hsl(var(--role-accent-hsl) / 0.12);
+  --role-border: hsl(var(--role-accent-hsl) / 0.4);
+}
 
 /* Role-based accents (light) - role-accent-hsl follows --accent for tint/border */
 .theme-customer {
-  /* customer accent: #6EE7B7 */
-  /* Slightly deeper for visibility while staying pastel */
+  /* customer accent: pastel green - slightly deeper for visibility */
   --accent: 156 70% 58%;
   --accent-contrast: 0 0% 8%;
   --ring: var(--accent);
   --role-accent-hsl: var(--accent);
+  /* Switch: slightly more saturated for visibility */
+  --switch-accent: 156 65% 55%;
 
   /* Warm Neutrality–weighted (more breathing room) */
   --page-pad-y: 24px;
@@ -133,12 +138,13 @@
   --surface-border: rgba(0,0,0,0.06);
 }
 .theme-pro {
-  /* pro accent: #FDBA74 */
-  /* Slightly deeper for visibility while staying pastel */
+  /* pro accent: pastel orange - slightly deeper for visibility */
   --accent: 31 96% 66%;
   --accent-contrast: 0 0% 8%;
   --ring: var(--accent);
   --role-accent-hsl: var(--accent);
+  /* Switch: slightly more saturated for visibility */
+  --switch-accent: 31 95% 62%;
 
   /* Civic Infrastructure–weighted (slightly denser + firmer separators) */
   --page-pad-y: 20px;
@@ -149,30 +155,34 @@
 
 /* Dark mode: warm-charcoal surfaces + off-white ink + subtle borders */
 .dark {
-  /* Core (dark) - exact spec */
-  /* bg-app: #0F1110 */
+  /* Core (dark) - layered surfaces, premium feel */
+  /* bg-app: near-black charcoal */
   --bg: 150 6% 6%;
-  /* card bg: #141716 */
-  --surface: 160 7% 8%;
-  /* secondary card bg: #1A1E1C */
-  --surface-2: 150 7% 11%;
-  --border: 42 4% 18%;
-  --text: 44 35% 94%;
-  --text-muted: 42 12% 68%;
+  /* page/card bg */
+  --surface: 160 7% 9%;
+  /* elevated surface (cards, panels) */
+  --surface-2: 150 6% 12%;
+  --border: 42 5% 20%;
+  /* Primary text: bright enough for readability */
+  --text: 44 30% 96%;
+  /* Secondary: readable, not washed out */
+  --text-muted: 42 15% 72%;
 
-  /* Hairline borders + depth (exact spec) */
-  /* slightly stronger gray highlight for borders/dividers */
-  --hairline: rgba(255,255,255,0.08);
-  /* Card separation seam (hairline shadow) */
-  --shadow-card: 0 1px 0 rgba(255,255,255,0.04),
-                 0 10px 24px rgba(0,0,0,0.35);
-  --shadow-card-hover: 0 1px 0 rgba(255,255,255,0.06),
-                       0 10px 24px rgba(0,0,0,0.45);
-  --card-border: 1px solid rgba(255,255,255,0.08);
+  /* Hairline borders: subtle, low-contrast */
+  --hairline: rgba(255,255,255,0.06);
+  /* Card shadow: minimal, rely on surface contrast */
+  --shadow-card: 0 1px 0 rgba(255,255,255,0.03),
+                 0 4px 12px rgba(0,0,0,0.25);
+  --shadow-card-hover: 0 1px 0 rgba(255,255,255,0.05),
+                       0 6px 16px rgba(0,0,0,0.3);
+  --card-border: 1px solid rgba(255,255,255,0.06);
 
-  /* Bottom nav surface (exact spec) */
+  /* Shadow tokens for dark */
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-2: 0 2px 8px rgba(0,0,0,0.3);
+
+  /* Bottom nav surface */
   --nav-bg: #141716;
-  /* Opaque surfaces for nav/menu (avoid any transparency ambiguity) */
   --nav-solid: var(--nav-bg);
   --surface-solid: #141716;
   --surface-border: rgba(255,255,255,0.06);
@@ -185,20 +195,26 @@
   --panel-pad-x: 20px;
   --panel-pad-y: 20px;
 
-  /* OfficialBadge (exact spec) */
-  --badge-bg: rgba(255,255,255,0.06);
-  --badge-border: rgba(255,255,255,0.10);
+  /* OfficialBadge */
+  --badge-bg: rgba(255,255,255,0.05);
+  --badge-border: rgba(255,255,255,0.08);
 
-  /* Brand role accents (dark): slightly brighter for contrast */
-  --accent-customer: 156 70% 70%;
-  --accent-pro: 31 96% 76%;
+  /* Brand role accents (dark): visible but not neon */
+  --accent-customer: 156 65% 65%;
+  --accent-pro: 31 90% 70%;
+
+  /* Role tint/border for dark: softer alpha to avoid glow */
+  --role-tint: hsl(var(--role-accent-hsl) / 0.08);
+  --role-border: hsl(var(--role-accent-hsl) / 0.35);
 }
 
-/* Role-based accents (dark): slightly brighter than light-mode accent for contrast */
+/* Role-based accents (dark): slightly brighter for contrast, not neon */
 .dark.theme-customer {
   /* bump slightly in dark for contrast (customer) */
-  --accent: 156 70% 70%;
+  --accent: 156 65% 65%;
   --role-accent-hsl: var(--accent);
+  /* Switch: visible pastel green in dark */
+  --switch-accent: 156 60% 58%;
 
   /* Warm Neutrality–weighted */
   --page-pad-y: 24px;
@@ -208,8 +224,10 @@
 }
 .dark.theme-pro {
   /* bump slightly in dark for contrast (pro) */
-  --accent: 31 96% 76%;
+  --accent: 31 90% 70%;
   --role-accent-hsl: var(--accent);
+  /* Switch: visible pastel orange in dark */
+  --switch-accent: 31 88% 65%;
 
   /* Civic Infrastructure–weighted */
   --page-pad-y: 20px;
@@ -267,7 +285,10 @@ body {
 .surface-item {
   background: hsl(var(--surface-2));
   border-radius: var(--radius-md);
-  border: var(--border-thin) solid hsl(var(--border) / 0.08);
+  border: var(--border-thin) solid hsl(var(--border) / 0.5);
+}
+.dark .surface-item {
+  border-color: rgba(255,255,255,0.06);
 }
 
 /* Hide scrollbar but keep functionality */
@@ -312,6 +333,10 @@ body {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
   transition: outline-color var(--transition-fast) var(--ease-out);
+}
+.dark .focus-ring:focus-visible {
+  outline-color: hsl(var(--ring) / 0.9);
+  outline-offset: 2px;
 }
 
 /* Glass effect for overlays */

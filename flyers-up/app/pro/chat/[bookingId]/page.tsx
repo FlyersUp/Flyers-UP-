@@ -19,13 +19,29 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
   const [rows, setRows] = useState<Array<{ id: string; sender_role: string; message: string; created_at: string }>>([]);
   const [status, setStatus] = useState<string>('requested');
   const [loading, setLoading] = useState(true);
-
-  const title = useMemo(() => `Booking ${bookingId.slice(0, 8)}`, [bookingId]);
+  const [customerName, setCustomerName] = useState<string>('Customer');
 
   async function load() {
     setLoading(true);
-    const { data: booking } = await supabase.from('bookings').select('status').eq('id', bookingId).maybeSingle();
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('status, customer_id')
+      .eq('id', bookingId)
+      .maybeSingle();
     if (booking?.status) setStatus(booking.status);
+    const custId = (booking as { customer_id?: string })?.customer_id;
+    if (custId) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, full_name')
+        .eq('id', custId)
+        .maybeSingle();
+      const p = profile as { first_name?: string | null; last_name?: string | null; full_name?: string | null } | null;
+      const name = p?.full_name?.trim()
+        || [p?.first_name?.trim(), p?.last_name?.trim()].filter(Boolean).join(' ')
+        || 'Customer';
+      setCustomerName(name);
+    }
 
     const { data } = await supabase
       .from('booking_messages')
@@ -45,7 +61,7 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
     <AppLayout mode="pro">
       <div className="flex flex-col h-screen max-w-4xl mx-auto">
         {/* Header */}
-        <div className="bg-surface border-b border-border px-4 py-4 flex items-center gap-4">
+        <div className="bg-surface border-b border-[var(--surface-border)] px-4 py-4 flex items-center gap-4">
           <Link href="/pro/messages" className="text-muted hover:text-text">
             ←
           </Link>
@@ -53,7 +69,7 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
             <span className="text-muted">P</span>
           </div>
           <div className="flex-1">
-            <div className="font-semibold text-text">{title}</div>
+            <div className="font-semibold text-text">{customerName}</div>
             <Badge variant="highlight">{status.replaceAll('_', ' ').toUpperCase()}</Badge>
           </div>
         </div>
@@ -77,7 +93,7 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
                 >
                   <div
                     className={`max-w-xs rounded-xl px-4 py-2 ${
-                      mine ? 'bg-accent text-text' : 'bg-surface border border-border text-text'
+                      mine ? 'bg-accent text-accentContrast' : 'bg-surface2 border border-[var(--hairline)] text-text'
                     }`}
                   >
                     <p>{msg.message}</p>
@@ -92,7 +108,7 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
         </div>
 
         {/* Input */}
-        <div className="bg-surface border-t border-border px-4 py-4">
+        <div className="bg-surface border-t border-[var(--surface-border)] px-4 py-4">
           <div className="flex gap-2">
             <Input
               placeholder="Type a message..."
