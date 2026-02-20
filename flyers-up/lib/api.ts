@@ -1246,6 +1246,48 @@ export async function getProEarnings(proUserId: string): Promise<EarningsSummary
   }
 }
 
+export interface RecentEarning {
+  id: string;
+  amount: number;
+  createdAt: string;
+  bookingId: string;
+}
+
+/**
+ * Get recent earnings for a pro (from pro_earnings table).
+ */
+export async function getRecentProEarnings(proUserId: string, limit = 10): Promise<RecentEarning[]> {
+  if (!SUPABASE_CONFIGURED) return [];
+
+  try {
+    const { data: proRow, error: proErr } = await supabase
+      .from('service_pros')
+      .select('id')
+      .eq('user_id', proUserId)
+      .maybeSingle();
+
+    if (proErr || !proRow?.id) return [];
+
+    const { data, error } = await supabase
+      .from('pro_earnings')
+      .select('id, amount, created_at, booking_id')
+      .eq('pro_id', proRow.id)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error || !data) return [];
+
+    return (data as Array<{ id: string; amount: number; created_at: string; booking_id: string }>).map((row) => ({
+      id: row.id,
+      amount: Number(row.amount ?? 0),
+      createdAt: row.created_at,
+      bookingId: row.booking_id,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Create a new booking request.
  */

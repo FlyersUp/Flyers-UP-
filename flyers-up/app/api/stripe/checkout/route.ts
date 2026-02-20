@@ -50,9 +50,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Booking total is not set yet.' }, { status: 400 });
   }
 
+  // If pro has Stripe Connect, use destination charge so payment goes directly to them
+  const { data: proRow } = await supabase
+    .from('service_pros')
+    .select('stripe_account_id, stripe_charges_enabled')
+    .eq('id', booking.pro_id)
+    .maybeSingle();
+
+  const useDestinationCharge =
+    proRow?.stripe_account_id &&
+    proRow?.stripe_charges_enabled === true;
+
   const origin = getOriginFromRequest(req);
   const successUrl = `${origin}/customer/booking/paid?bookingId=${encodeURIComponent(bookingId)}`;
   const cancelUrl = `${origin}/jobs/${encodeURIComponent(bookingId)}`;
+
+  const paymentIntentData: {
+    metadata: { booking_id: string; customer_id: string; pro_id: string };
+    transfer_data?: { destination: string };
+    application_fee_amount?: number;
+  } = {
+    metadata: {
+      booking_id: booking.id,
+      customer_id: booking.customer_id,
+      pro_id: booking.pro_id,
+    },
+  };
+
+  if (useDestinationCharge && proRow?.stripe_account_id) {
+    paymentIntentData.transfer_data = { destination: proRow.stripe_account_id };
+    // Platform fee: set application_fee_amount to take a cut, or omit to send full amount to pro
+  }
 
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
@@ -70,13 +98,7 @@ export async function POST(req: NextRequest) {
     ],
     success_url: successUrl,
     cancel_url: cancelUrl,
-    payment_intent_data: {
-      metadata: {
-        booking_id: booking.id,
-        customer_id: booking.customer_id,
-        pro_id: booking.pro_id,
-      },
-    },
+    payment_intent_data: paymentIntentData,
     metadata: {
       booking_id: booking.id,
     },

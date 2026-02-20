@@ -1,22 +1,54 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { getProEarnings, getRecentProEarnings, type RecentEarning } from '@/lib/api';
+import { supabase } from '@/lib/supabaseClient';
+
+function formatMoney(n: number): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 /**
  * Earnings / Payouts - Screen 15
- * Earnings summary and payout history
+ * Real earnings from pro_earnings; Stripe Connect for payouts
  */
 export default function Earnings() {
-  // Avoid useSearchParams() prerender constraints; this is client-only.
-  // Read once on mount (lazy init) to satisfy lint rule against setState-in-effect.
   const [connect] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return new URLSearchParams(window.location.search).get('connect');
   });
+  const [summary, setSummary] = useState<{ totalEarnings: number; thisMonth: number; completedJobs: number; pendingPayments: number } | null>(null);
+  const [recent, setRecent] = useState<RecentEarning[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !mounted) {
+        setLoading(false);
+        return;
+      }
+      const [earnings, recentList] = await Promise.all([
+        getProEarnings(user.id),
+        getRecentProEarnings(user.id, 10),
+      ]);
+      if (!mounted) return;
+      setSummary(earnings);
+      setRecent(recentList);
+      setLoading(false);
+    }
+    void load();
+    return () => { mounted = false; };
+  }, []);
 
   return (
     <AppLayout mode="pro">
@@ -34,16 +66,20 @@ export default function Earnings() {
                   ? 'Stripe setup in progress'
                   : connect === 'not_configured'
                     ? 'Stripe is not configured'
-                    : 'Stripe connection status'}
+                    : connect === 'missing_account'
+                      ? 'Stripe account missing'
+                      : 'Stripe connection status'}
             </div>
             <div className="mt-1 text-sm text-muted">
               {connect === 'complete'
-                ? 'Payout setup is complete.'
+                ? 'Payout setup is complete. You can receive payments.'
                 : connect === 'pending'
                   ? 'Finish the Stripe steps to enable payouts.'
                   : connect === 'not_configured'
                     ? 'Set STRIPE_SECRET_KEY and enable Connect in Stripe.'
-                    : 'If this looks wrong, try connecting again.'}
+                    : connect === 'missing_account'
+                      ? 'Something went wrong. Try connecting again.'
+                      : 'If this looks wrong, try connecting again.'}
             </div>
           </div>
         ) : null}
@@ -51,34 +87,51 @@ export default function Earnings() {
         {/* Summary */}
         <Card withRail className="mb-6">
           <div className="text-center py-6">
-            <div className="text-4xl font-bold text-text mb-2">$2,450</div>
-            <div className="text-muted mb-4">Total Earnings (This Month)</div>
-            <div className="text-sm text-muted/70">
-              Available for payout: <span className="font-semibold text-accent">$1,200</span>
-            </div>
+            {loading ? (
+              <div className="text-muted">Loading…</div>
+            ) : (
+              <>
+                <div className="text-4xl font-bold text-text mb-2">
+                  {summary ? formatMoney(summary.thisMonth) : '$0'}
+                </div>
+                <div className="text-muted mb-4">Total Earnings (This Month)</div>
+                <div className="text-sm text-muted/70 space-y-1">
+                  {summary && summary.pendingPayments > 0 && (
+                    <div>Pending (awaiting customer payment): <span className="font-semibold text-text">{formatMoney(summary.pendingPayments)}</span></div>
+                  )}
+                  <div>Total earned (all time): <span className="font-semibold text-accent">{summary ? formatMoney(summary.totalEarnings) : '$0'}</span></div>
+                </div>
+              </>
+            )}
           </div>
         </Card>
 
-        {/* Recent Payouts */}
+        {/* Recent Earnings */}
         <div className="mb-6">
-          <Label className="mb-4 block">RECENT PAYOUTS</Label>
-          <div className="space-y-4">
-            {[
-              { date: 'Jan 10, 2024', amount: 450, status: 'Completed' },
-              { date: 'Jan 5, 2024', amount: 380, status: 'Completed' },
-              { date: 'Dec 30, 2023', amount: 520, status: 'Completed' },
-            ].map((payout, i) => (
-              <Card key={i}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-text">{payout.date}</div>
-                    <div className="text-sm text-muted">{payout.status}</div>
+          <Label className="mb-4 block">Recent earnings</Label>
+          {loading ? (
+            <p className="text-sm text-muted/70">Loading…</p>
+          ) : recent.length === 0 ? (
+            <Card>
+              <div className="py-4 text-center text-sm text-muted">
+                No earnings yet. Completed jobs with paid invoices will appear here.
+              </div>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {recent.map((e) => (
+                <Card key={e.id}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-text">{formatDate(e.createdAt)}</div>
+                      <div className="text-sm text-muted">Paid</div>
+                    </div>
+                    <div className="text-xl font-bold text-accent">{formatMoney(e.amount)}</div>
                   </div>
-                  <div className="text-xl font-bold text-accent">${payout.amount}</div>
-                </div>
-              </Card>
-            ))}
-          </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Connect Stripe */}
@@ -91,7 +144,7 @@ export default function Earnings() {
           }}
           showArrow={false}
         >
-          CONNECT WITH STRIPE →
+          Connect with Stripe
         </Button>
       </div>
     </AppLayout>
