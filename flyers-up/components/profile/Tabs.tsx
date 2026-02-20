@@ -28,7 +28,7 @@ export function Tabs({
               type="button"
               onClick={() => onChange(t.key)}
               className={[
-                'relative flex-1 py-3 text-xs font-semibold uppercase tracking-wide',
+                'relative flex-1 py-3 text-xs font-medium tracking-wide',
                 'transition-colors',
                 isOn ? 'text-text' : 'text-muted hover:text-text',
               ].join(' ')}
@@ -40,7 +40,7 @@ export function Tabs({
               </span>
               {isOn ? (
                 <span
-                  className="absolute left-1/2 -bottom-[1px] h-[2px] w-10 -translate-x-1/2 rounded-full bg-accent"
+                  className="absolute left-1/2 -bottom-[1px] h-[2px] w-10 -translate-x-1/2 rounded-full bg-[var(--role-border)]"
                   aria-hidden
                 />
               ) : null}

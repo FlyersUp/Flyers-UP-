@@ -80,7 +80,7 @@ export default function CustomerMessagesPage() {
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="mb-6">
-          <Label className="mb-2 block">CUSTOMER MESSAGES</Label>
+          <Label className="mb-2 block">Messages</Label>
           <h1 className="text-2xl font-semibold text-text">Messages</h1>
           <p className="text-muted mt-1">Your conversations with pros will show up here.</p>
         </div>

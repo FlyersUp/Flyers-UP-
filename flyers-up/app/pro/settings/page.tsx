@@ -9,14 +9,14 @@ import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 
 export default function ProSettingsIndex() {
   const sections = [
-    { id: 'account-identity', label: 'ACCOUNT & IDENTITY', href: '/pro/settings/account-identity', icon: 'id-card' as const },
-    { id: 'business-profile', label: 'BUSINESS PROFILE', href: '/pro/settings/business-profile', icon: 'building' as const },
-    { id: 'pricing-availability', label: 'PRICING & AVAILABILITY', href: '/pro/settings/pricing-availability', icon: 'calendar' as const },
-    { id: 'payments-payouts', label: 'PAYMENTS & PAYOUTS', href: '/pro/settings/payments-payouts', icon: 'credit-card' as const },
-    { id: 'notifications', label: 'NOTIFICATIONS', href: '/pro/settings/notifications', icon: 'bell' as const },
-    { id: 'preferences', label: 'APP PREFERENCES', href: '/pro/settings/preferences', icon: 'settings' as const },
-    { id: 'safety-compliance', label: 'SAFETY & COMPLIANCE', href: '/pro/settings/safety-compliance', icon: 'safety-check' as const },
-    { id: 'support-legal', label: 'SUPPORT & LEGAL', href: '/pro/settings/support-legal', icon: 'file-text' as const },
+    { id: 'account-identity', label: 'Account & identity', href: '/pro/settings/account-identity', icon: 'id-card' as const },
+    { id: 'business-profile', label: 'Business profile', href: '/pro/settings/business-profile', icon: 'building' as const },
+    { id: 'pricing-availability', label: 'Pricing & availability', href: '/pro/settings/pricing-availability', icon: 'calendar' as const },
+    { id: 'payments-payouts', label: 'Payments & payouts', href: '/pro/settings/payments-payouts', icon: 'credit-card' as const },
+    { id: 'notifications', label: 'Notifications', href: '/pro/settings/notifications', icon: 'bell' as const },
+    { id: 'preferences', label: 'App preferences', href: '/pro/settings/preferences', icon: 'settings' as const },
+    { id: 'safety-compliance', label: 'Safety & compliance', href: '/pro/settings/safety-compliance', icon: 'safety-check' as const },
+    { id: 'support-legal', label: 'Support & legal', href: '/pro/settings/support-legal', icon: 'file-text' as const },
   ];
 
   return (
@@ -33,7 +33,7 @@ export default function ProSettingsIndex() {
             <Link key={section.id} href={section.href} className="block">
               <Card withRail>
                 <div className="flex items-center justify-between">
-                  <Label>
+                  <Label variant="card">
                     <span className="inline-flex items-center gap-2">
                       <AppIcon name={section.icon as AppIconName} size={18} className="text-muted" alt="" />
                       <span>{section.label}</span>

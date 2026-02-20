@@ -91,7 +91,7 @@ export function AtAGlanceCard({
   const hasActions = (actionNeededCount ?? 0) > 0;
 
   return (
-    <div className="surface-card border-l-[3px] border-l-accent">
+    <div className="surface-card border-l-[var(--border-accent)] border-l-accent">
       <div className="p-5">
         <div className="flex items-baseline justify-between gap-4">
           <div className="text-sm font-semibold text-text">Today at a Glance</div>

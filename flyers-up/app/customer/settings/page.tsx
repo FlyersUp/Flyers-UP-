@@ -13,15 +13,15 @@ import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
  */
 export default function CustomerSettings() {
   const sections = [
-    { id: 'account-profile', label: 'ACCOUNT & PROFILE', href: '/customer/settings/account-profile', icon: 'user' as const },
-    { id: 'addresses', label: 'ADDRESSES', href: '/customer/settings/addresses', icon: 'map-pin' as const },
-    { id: 'payment-methods', label: 'PAYMENT METHODS', href: '/customer/settings/payment-methods', icon: 'credit-card' as const },
-    { id: 'booking-preferences', label: 'BOOKING PREFERENCES', href: '/customer/settings/booking-preferences', icon: 'calendar' as const },
-    { id: 'ratings-reviews', label: 'RATINGS & REVIEWS', href: '/customer/settings/ratings-reviews', icon: 'star' as const },
-    { id: 'notifications', label: 'NOTIFICATIONS', href: '/customer/settings/notifications', icon: 'bell' as const },
-    { id: 'safety-preferences', label: 'SAFETY & PREFERENCES', href: '/customer/settings/safety-preferences', icon: 'safety-check' as const },
-    { id: 'app-preferences', label: 'APP PREFERENCES', href: '/customer/settings/app-preferences', icon: 'settings' as const },
-    { id: 'support-legal', label: 'SUPPORT & LEGAL', href: '/customer/settings/support-legal', icon: 'file-text' as const },
+    { id: 'account-profile', label: 'Account & profile', href: '/customer/settings/account-profile', icon: 'user' as const },
+    { id: 'addresses', label: 'Addresses', href: '/customer/settings/addresses', icon: 'map-pin' as const },
+    { id: 'payment-methods', label: 'Payment methods', href: '/customer/settings/payment-methods', icon: 'credit-card' as const },
+    { id: 'booking-preferences', label: 'Booking preferences', href: '/customer/settings/booking-preferences', icon: 'calendar' as const },
+    { id: 'ratings-reviews', label: 'Ratings & reviews', href: '/customer/settings/ratings-reviews', icon: 'star' as const },
+    { id: 'notifications', label: 'Notifications', href: '/customer/settings/notifications', icon: 'bell' as const },
+    { id: 'safety-preferences', label: 'Safety & preferences', href: '/customer/settings/safety-preferences', icon: 'safety-check' as const },
+    { id: 'app-preferences', label: 'App preferences', href: '/customer/settings/app-preferences', icon: 'settings' as const },
+    { id: 'support-legal', label: 'Support & legal', href: '/customer/settings/support-legal', icon: 'file-text' as const },
   ];
 
   return (
@@ -39,7 +39,7 @@ export default function CustomerSettings() {
             <Link key={section.id} href={section.href} className="block">
               <Card withRail>
                 <div className="flex items-center justify-between">
-                  <Label>
+                  <Label variant="card">
                     <span className="inline-flex items-center gap-2">
                       <AppIcon name={section.icon as AppIconName} size={18} className="text-muted" alt="" />
                       <span>{section.label}</span>

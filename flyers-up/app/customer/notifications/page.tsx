@@ -15,7 +15,7 @@ export default function CustomerNotifications() {
           Notifications
         </h1>
 
-        <div className="surface-card p-6 border-l-[3px] border-l-accent">
+        <div className="surface-card p-6 border-l-[var(--border-accent)] border-l-accent">
           <div className="text-base font-semibold text-text">No notifications yet</div>
           <div className="mt-1 text-sm text-muted">
             When you book a pro or get messages, you’ll see updates here.

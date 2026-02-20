@@ -142,7 +142,7 @@ export default function CustomerHome() {
           <Card>
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="inline-block text-sm font-semibold tracking-tight text-text pb-2 border-b-2 border-b-accent">
+                <div className="text-sm font-medium tracking-tight text-text pb-2 border-b border-[var(--role-border)]">
                   Start here
                 </div>
                 <div className="mt-1 text-sm text-muted">
@@ -186,7 +186,7 @@ export default function CustomerHome() {
         {/* Keep the browsing entry point, but don’t render mock lists here. */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
-            <Label>SERVICES</Label>
+            <Label>Services</Label>
             <Link href="/customer/categories">
               <span className="text-sm font-medium text-text hover:underline">Browse</span>
             </Link>

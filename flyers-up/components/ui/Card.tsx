@@ -34,7 +34,7 @@ export function Card({
       className={`${baseStyles} ${interactiveStyles} ${className} flex`}
       onClick={onClick}
     >
-      {withRail && <Rail className="rounded-l-[18px]" />}
+      {withRail && <Rail className="rounded-l-[var(--radius-lg)]" />}
       <div className="flex-1 p-[var(--card-pad)]">
         {children}
       </div>

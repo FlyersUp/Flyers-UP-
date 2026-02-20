@@ -12,8 +12,8 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
  */
 export function Input({ label, error, className = '', ...props }: InputProps) {
   const fieldClasses = error
-    ? 'border-danger border-t-danger focus:ring-danger/30 focus:border-danger'
-    : 'border-border border-t-accent focus:ring-accent/30 focus:border-accent';
+    ? 'border-danger focus:ring-2 focus:ring-danger/20 focus:border-danger'
+    : 'border-[var(--hairline)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.2)] focus:border-[var(--role-border)]';
 
   return (
     <div className="w-full">
@@ -23,7 +23,7 @@ export function Input({ label, error, className = '', ...props }: InputProps) {
         </label>
       )}
       <input
-        className={`w-full px-4 py-3 rounded-xl border border-t-2 bg-surface text-text placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-offset-0 transition-all ${fieldClasses} ${className}`}
+        className={`w-full px-4 py-3 rounded-[var(--radius-lg)] border bg-surface text-text placeholder:text-muted/70 focus:outline-none transition-all duration-[var(--transition-base)] ${fieldClasses} ${className}`}
         {...props}
       />
       {error && (

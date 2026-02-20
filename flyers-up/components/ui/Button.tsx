@@ -19,11 +19,10 @@ export function Button({
   className = '',
   ...props 
 }: ButtonProps) {
-  const baseStyles = 'px-6 py-3 rounded-xl font-semibold transition-all focus-ring btn-press flex items-center justify-center gap-2';
+  const baseStyles = 'px-6 py-3 rounded-[var(--radius-lg)] font-medium transition-all duration-[var(--transition-base)] focus-ring btn-press flex items-center justify-center gap-2';
   
   const variants = {
-    primary: `bg-accent text-accentContrast shadow-sm hover:shadow-md`,
-    // Keep secondary calm + neutral; accent is for indicators, not full outlines.
+    primary: `bg-accent text-accentContrast shadow-[var(--shadow-1)] hover:opacity-95`,
     secondary: `border border-[var(--surface-border)] bg-surface text-text hover:bg-surface2`,
     ghost: `bg-transparent text-text hover:bg-surface2`,
   };
@@ -35,7 +34,7 @@ export function Button({
     >
       {children}
       {showArrow && variant === 'primary' && (
-        <span className="text-lg">→</span>
+        <span className="text-base opacity-80">→</span>
       )}
     </button>
   );

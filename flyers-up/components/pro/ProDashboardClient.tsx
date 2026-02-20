@@ -114,7 +114,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
         </div>
 
         {actionRequired ? (
-          <Card className="mb-4 border-l-[3px] border-l-accent bg-[hsl(var(--accent)/0.06)]">
+          <Card className="mb-4 border-l-[var(--border-accent)] border-l-accent accent-tint">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-text">
@@ -141,7 +141,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
         </div>
 
         {completedCount > 0 ? (
-          <Card className="mb-6 border-l-[3px] border-l-accent">
+          <Card className="mb-6 border-l-[var(--border-accent)] border-l-accent">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-text">Earnings & repeat work</div>
@@ -162,7 +162,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
         ) : null}
 
         {/* Clean-slate onboarding prompt */}
-        <Card className="mb-8 border-l-[3px] border-l-accent">
+        <Card className="mb-8 border-l-[var(--border-accent)] border-l-accent">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="text-sm font-semibold tracking-tight text-text">You’re set up. Next: win more work.</div>
@@ -197,7 +197,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
         {/* Quick Actions */}
         <div className="mb-6">
           <div className="flex items-end justify-between gap-4 mb-3">
-            <Label>OPPORTUNITIES</Label>
+            <Label>Opportunities</Label>
             <Link href="/pro/settings/business" className="text-sm font-medium text-text hover:underline">
               Improve listing
             </Link>
@@ -228,14 +228,14 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
 
         {/* Today's Jobs */}
         <div className="mb-6">
-          <Label className="mb-4 block">TODAY&apos;S JOBS</Label>
+          <Label className="mb-4 block">Today&apos;s jobs</Label>
           {jobsLoading ? (
-            <Card className="border-l-[3px] border-l-accent">
+            <Card className="border-l-[var(--border-accent)] border-l-accent">
               <div className="text-base font-semibold text-text">Loading…</div>
               <div className="mt-1 text-sm text-muted">Fetching today’s schedule.</div>
             </Card>
           ) : todayJobs.length === 0 ? (
-            <Card className="border-l-[3px] border-l-accent">
+            <Card className="border-l-[var(--border-accent)] border-l-accent">
               <div className="text-base font-semibold text-text">No jobs scheduled yet</div>
               <div className="mt-1 text-sm text-muted">When you accept work, it will show up here.</div>
               {nextJobs.length > 0 ? (
@@ -282,7 +282,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
             <div className="flex flex-col gap-[14px] overflow-visible">
               {todayJobs.map((job) => (
                 <Link key={job.id} href={`/pro/jobs/${job.id}`} className="block">
-                  <Card className="border-l-[3px] border-l-accent">
+                  <Card className="border-l-[var(--border-accent)] border-l-accent">
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <div className="font-semibold text-text mb-1 truncate">{job.service}</div>

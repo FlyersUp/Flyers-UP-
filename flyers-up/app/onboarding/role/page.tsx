@@ -135,7 +135,7 @@ function RoleInner() {
 
       <main className="px-4 pb-10">
         <div className="max-w-md mx-auto">
-          <div className="rounded-2xl border border-border bg-surface shadow-sm p-6">
+          <div className="rounded-[var(--radius-xl)] border border-[var(--hairline)] bg-surface shadow-card p-6">
             <h1 className="text-2xl font-semibold tracking-tight">How will you use Flyers Up?</h1>
             <p className="text-muted mt-2">
               {switching ? 'Switch roles any time.' : 'Pick one — you can switch later.'}
@@ -151,10 +151,10 @@ function RoleInner() {
               <button
                 type="button"
                 onClick={() => setSelected('customer')}
-                className={`w-full text-left rounded-2xl border px-4 py-4 transition-colors ${
+                className={`w-full text-left rounded-[var(--radius-xl)] border px-4 py-4 transition-colors duration-[var(--transition-base)] ${
                   selected === 'customer'
                     ? 'border-[hsl(var(--accent-customer))] bg-[hsl(var(--accent-customer)/0.12)]'
-                    : 'border-border bg-surface hover:bg-surface2'
+                    : 'border-[var(--hairline)] bg-surface hover:bg-surface2'
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -169,10 +169,10 @@ function RoleInner() {
               <button
                 type="button"
                 onClick={() => setSelected('pro')}
-                className={`w-full text-left rounded-2xl border px-4 py-4 transition-colors ${
+                className={`w-full text-left rounded-[var(--radius-xl)] border px-4 py-4 transition-colors duration-[var(--transition-base)] ${
                   selected === 'pro'
                     ? 'border-[hsl(var(--accent-pro))] bg-[hsl(var(--accent-pro)/0.10)]'
-                    : 'border-border bg-surface hover:bg-surface2'
+                    : 'border-[var(--hairline)] bg-surface hover:bg-surface2'
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -189,7 +189,7 @@ function RoleInner() {
               type="button"
               disabled={!selected || saving}
               onClick={handleContinue}
-              className={`mt-6 w-full rounded-xl px-4 py-3.5 text-base font-medium transition-colors disabled:opacity-50 ${
+              className={`mt-6 w-full rounded-[var(--radius-lg)] px-4 py-3.5 text-base font-medium transition-colors duration-[var(--transition-base)] disabled:opacity-50 ${
                 selected === 'customer'
                   ? 'bg-[hsl(var(--accent-customer))] text-text hover:opacity-95'
                   : selected === 'pro'

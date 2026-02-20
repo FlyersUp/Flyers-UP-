@@ -6,9 +6,10 @@
  * - Back button
  * - Bottom navigation footer
  * - Proper padding to prevent content overlap
+ * AccentDensity: default for most pages
  */
 
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import BottomNav from './BottomNav';
 
 interface PageLayoutProps {
@@ -17,6 +18,8 @@ interface PageLayoutProps {
   backButtonText?: string;
   backButtonHref?: string;
   className?: string;
+  mode?: 'customer' | 'pro';
+  accentDensity?: 'default' | 'focus';
 }
 
 export default function PageLayout({
@@ -25,8 +28,13 @@ export default function PageLayout({
   backButtonText = '← Back',
   backButtonHref,
   className = '',
+  mode,
+  accentDensity = 'default',
 }: PageLayoutProps) {
   const router = useRouter();
+  const pathname = usePathname() ?? '';
+
+  const resolvedMode = mode ?? (pathname.startsWith('/pro') ? 'pro' : 'customer');
 
   const handleBack = () => {
     if (backButtonHref) {
@@ -37,7 +45,11 @@ export default function PageLayout({
   };
 
   return (
-    <div className={`min-h-screen bg-bg text-text pb-20 ${className}`}>
+    <div
+      data-role={resolvedMode}
+      data-accent={accentDensity}
+      className={`min-h-screen bg-bg text-text pb-20 ${className}`}
+    >
       {/* Back Button Header */}
       {showBackButton && (
         <header className="bg-[var(--surface-solid)] border-b border-[var(--surface-border)] sticky top-0 z-40">
