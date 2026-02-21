@@ -1,12 +1,14 @@
 import { NextRequest } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const zipcodes = require('zipcodes');
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/customer/pros?categorySlug=cleaning&zip=10001&radiusMiles=10
- * Returns pros for the category, filtered by zip and optional radius.
- * radiusMiles: 0 = exact zip only, 10/25 = same metro (3-digit prefix), 50 = no zip filter (wider).
+ * Returns pros for the category, filtered by zip and radius using actual distance.
+ * radiusMiles: 0 = exact zip only, 10/25/50 = zip codes within that many miles.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -30,7 +32,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ ok: true, pros: [], categoryName: null });
   }
 
-  const limit = radiusMiles === 0 ? 5 : radiusMiles <= 10 ? 10 : radiusMiles <= 25 ? 15 : 20;
+  const limit = radiusMiles === 0 ? 10 : radiusMiles <= 10 ? 25 : radiusMiles <= 25 ? 50 : 100;
 
   let query = supabase
     .from('service_pros')
@@ -40,10 +42,13 @@ export async function GET(request: NextRequest) {
     .order('rating', { ascending: false })
     .limit(limit);
 
+  let zipFilter: Set<string> | null = null;
   if (zip) {
     if (radiusMiles === 0) {
       query = query.eq('service_area_zip', zip);
-    } else if (radiusMiles <= 25 && zip.length >= 3) {
+    } else if (zip.length >= 5 && zipcodes.lookup(zip)) {
+      zipFilter = new Set(zipcodes.radius(zip, radiusMiles));
+    } else if (zip.length >= 3) {
       const prefix = zip.slice(0, 3);
       query = query.ilike('service_area_zip', `${prefix}%`);
     }
@@ -56,7 +61,16 @@ export async function GET(request: NextRequest) {
     return Response.json({ ok: false, pros: [], error: error.message }, { status: 500 });
   }
 
-  const pros = (rows ?? []).map((p: any) => ({
+  let filtered = rows ?? [];
+  if (zipFilter && zipFilter.size > 0) {
+    filtered = filtered.filter((p: { service_area_zip?: string | null }) => {
+      const pzip = (p.service_area_zip ?? '').trim();
+      if (!pzip) return false;
+      return zipFilter!.has(pzip) || zipFilter!.has(pzip.padStart(5, '0'));
+    });
+  }
+
+  const pros = filtered.map((p: any) => ({
     id: p.id,
     userId: p.user_id,
     name: p.display_name ?? 'Pro',
