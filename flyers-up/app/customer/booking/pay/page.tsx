@@ -92,6 +92,9 @@ function PayContent() {
                   <span className="text-muted">Total</span>
                   <span className="text-text font-semibold">{booking.price != null ? `$${booking.price}` : 'TBD'}</span>
                 </div>
+                <p className="text-xs text-muted/70 pt-2 border-t border-border mt-3">
+                  15% platform fee. Includes secure payment processing, fraud protection, and platform operations.
+                </p>
               </div>
             </Card>
 

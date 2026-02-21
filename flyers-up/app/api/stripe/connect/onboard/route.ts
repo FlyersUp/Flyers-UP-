@@ -6,6 +6,7 @@ import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/sup
 
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
+  const nextParam = req.nextUrl.searchParams.get('next') || '/pro/earnings';
 
   if (!stripe) {
     return NextResponse.redirect(new URL('/pro/earnings?connect=not_configured', origin));
@@ -61,11 +62,14 @@ export async function GET(req: NextRequest) {
     await client.from('service_pros').update({ stripe_account_id: accountId }).eq('user_id', user.id);
   }
 
+  const returnUrl = new URL('/api/stripe/connect/return', origin);
+  returnUrl.searchParams.set('next', nextParam);
+
   const link = await stripe.accountLinks.create({
     account: accountId,
     type: 'account_onboarding',
-    refresh_url: `${origin}/api/stripe/connect/onboard`,
-    return_url: `${origin}/api/stripe/connect/return`,
+    refresh_url: `${origin}/api/stripe/connect/onboard?next=${encodeURIComponent(nextParam)}`,
+    return_url: returnUrl.toString(),
   });
 
   return NextResponse.redirect(link.url);

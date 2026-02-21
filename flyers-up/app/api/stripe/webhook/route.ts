@@ -11,6 +11,7 @@ import { stripe } from '@/lib/stripe';
 import Stripe from 'stripe';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { recordServerErrorEvent } from '@/lib/serverError';
+import { sendProPaymentReceipt } from '@/lib/email';
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -85,6 +86,8 @@ export async function POST(req: NextRequest) {
               .eq('id', bookingId)
               .maybeSingle();
 
+            const proId = booking?.pro_id;
+
             if (bErr || !booking) {
               console.warn('Webhook: booking not found for payment', { bookingId, bErr });
               break;
@@ -121,6 +124,31 @@ export async function POST(req: NextRequest) {
                 booking_id: bookingId,
                 amount: amount > 0 ? amount : 0,
               });
+            }
+
+            // Send pro payment receipt email.
+            if (shouldFinalize && proId) {
+              const { data: proRow } = await admin
+                .from('service_pros')
+                .select('user_id, display_name')
+                .eq('id', proId)
+                .maybeSingle();
+              if (proRow?.user_id) {
+                const { data: profile } = await admin
+                  .from('profiles')
+                  .select('email')
+                  .eq('id', proRow.user_id)
+                  .maybeSingle();
+                const proEmail = (profile as { email?: string | null } | null)?.email;
+                if (proEmail?.trim()) {
+                  void sendProPaymentReceipt({
+                    to: proEmail.trim(),
+                    proName: (proRow.display_name as string) || 'Pro',
+                    amount: String(Number(booking.price ?? 0).toFixed(2)),
+                    bookingId,
+                  });
+                }
+              }
             }
           } catch (e) {
             console.warn('Webhook persistence failed', e);

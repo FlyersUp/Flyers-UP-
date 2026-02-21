@@ -17,6 +17,13 @@
 /.next/
 /out/
 
+# next-pwa generated (built on deploy)
+/public/sw.js
+/public/workbox-*.js
+/public/worker-*.js
+/public/sw.js.map
+/public/workbox-*.js.map
+
 # production
 /build
 

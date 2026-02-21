@@ -79,11 +79,12 @@ export async function POST(req: NextRequest) {
 
   if (useDestinationCharge && proRow?.stripe_account_id) {
     paymentIntentData.transfer_data = { destination: proRow.stripe_account_id };
-    // Platform fee: set application_fee_amount to take a cut, or omit to send full amount to pro
+    paymentIntentData.application_fee_amount = Math.round(amountCents * 0.15); // 15% platform fee
   }
 
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
+    customer_email: user.email ?? undefined,
     line_items: [
       {
         quantity: 1,

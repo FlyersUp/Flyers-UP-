@@ -6,6 +6,7 @@ import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/sup
 
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
+  const nextParam = req.nextUrl.searchParams.get('next') || '/pro/earnings';
 
   if (!stripe) {
     return NextResponse.redirect(new URL('/pro/earnings?connect=not_configured', origin));
@@ -57,6 +58,8 @@ export async function GET(req: NextRequest) {
     .eq('user_id', user.id);
 
   const status = detailsSubmitted && chargesEnabled ? 'complete' : 'pending';
-  return NextResponse.redirect(new URL(`/pro/earnings?connect=${status}`, origin));
+  const dest = new URL(nextParam, origin);
+  dest.searchParams.set('connect', status);
+  return NextResponse.redirect(dest);
 }
 

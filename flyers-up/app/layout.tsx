@@ -20,6 +20,13 @@ const oswald = Oswald({
 export const metadata: Metadata = {
   title: "Flyers Up - Local Service Marketplace",
   description: "Book trusted local pros and grow your service business from your phone.",
+  manifest: "/manifest.json",
+  themeColor: "#FAF9F6",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Flyers Up",
+  },
 };
 
 export default function RootLayout({

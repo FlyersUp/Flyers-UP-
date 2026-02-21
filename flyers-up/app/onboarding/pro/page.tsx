@@ -27,11 +27,10 @@ function ProInner() {
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [businessName, setBusinessName] = useState('');
   const [primaryCategoryId, setPrimaryCategoryId] = useState('');
   const [secondaryCategoryId, setSecondaryCategoryId] = useState<string>('');
   const [serviceAreaZip, setServiceAreaZip] = useState('');
-  const [liveComplete, setLiveComplete] = useState(false);
-  const [savedCategoryName, setSavedCategoryName] = useState('');
 
   useEffect(() => {
     const init = async () => {
@@ -129,6 +128,7 @@ function ProInner() {
         role: 'pro',
         first_name: firstName.trim(),
         last_name: lastName.trim(),
+        full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
         zip_code: serviceAreaZip.trim(),
         onboarding_step: null,
         email: user.email ?? null,
@@ -138,9 +138,10 @@ function ProInner() {
         return;
       }
 
+      const displayName = businessName.trim() || `${firstName.trim()} ${lastName.trim()}`.trim();
       const proRes = await upsertServicePro({
         user_id: user.id,
-        display_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+        display_name: displayName,
         category_id: primaryCategoryId,
         secondary_category_id: secondaryCategoryId || null,
         service_area_zip: serviceAreaZip.trim(),
@@ -149,9 +150,8 @@ function ProInner() {
         setError(proRes.error || 'Could not save your pro profile. Please try again.');
         return;
       }
-      const catName = categories.find((c) => c.id === primaryCategoryId)?.name ?? 'your category';
-      setSavedCategoryName(catName);
-      setLiveComplete(true);
+      // Redirect to Stripe Connect onboarding (required to receive payments)
+      window.location.href = `/api/stripe/connect/onboard?next=${encodeURIComponent(safeNext ?? '/pro')}`;
     } catch (err) {
       console.error(err);
       setError('Something went wrong. Please try again.');
@@ -179,23 +179,7 @@ function ProInner() {
       <main className="px-4 pb-10">
         <div className="max-w-md mx-auto">
           <div className="rounded-2xl border border-border bg-surface shadow-sm p-6">
-            {liveComplete ? (
-              <div className="text-center py-4">
-                <p className="text-2xl font-semibold text-text mb-2">You&apos;re live.</p>
-                <p className="text-muted mb-6">
-                  Customers in <strong className="text-text">{serviceAreaZip}</strong> are requesting{' '}
-                  <strong className="text-text">{savedCategoryName}</strong>.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => router.replace(safeNext ?? '/pro')}
-                  className="w-full rounded-xl bg-accent px-4 py-3.5 text-base font-medium text-accentContrast hover:opacity-95"
-                >
-                  Go to dashboard
-                </button>
-              </div>
-            ) : (
-              <>
+            <>
                 <div className="flex gap-2 mb-6">
                   {([1, 2, 3, 4] as const).map((s) => (
                     <div
@@ -221,28 +205,41 @@ function ProInner() {
 
                 <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
                   {step === 1 && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-muted mb-1" htmlFor="firstName">First name</label>
-                        <input
-                          id="firstName"
-                          value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
-                          required
-                          className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
-                          placeholder="Sam"
-                        />
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-muted mb-1" htmlFor="firstName">First name</label>
+                          <input
+                            id="firstName"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            required
+                            className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
+                            placeholder="Sam"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-muted mb-1" htmlFor="lastName">Last name</label>
+                          <input
+                            id="lastName"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            required
+                            className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
+                            placeholder="Smith"
+                          />
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-muted mb-1" htmlFor="lastName">Last name</label>
+                        <label className="block text-sm font-medium text-muted mb-1" htmlFor="businessName">Business name</label>
                         <input
-                          id="lastName"
-                          value={lastName}
-                          onChange={(e) => setLastName(e.target.value)}
-                          required
+                          id="businessName"
+                          value={businessName}
+                          onChange={(e) => setBusinessName(e.target.value)}
                           className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
-                          placeholder="Smith"
+                          placeholder="ABC Cleaning (what customers see)"
                         />
+                        <p className="mt-1 text-xs text-muted">Optional. If blank, your first and last name will be shown.</p>
                       </div>
                     </div>
                   )}
@@ -295,7 +292,8 @@ function ProInner() {
                   )}
                   {step === 4 && (
                     <div className="rounded-xl border border-border bg-surface2 p-4 text-sm text-muted">
-                      <p><strong className="text-text">Name:</strong> {firstName} {lastName}</p>
+                      <p><strong className="text-text">Your name:</strong> {firstName} {lastName}</p>
+                      <p><strong className="text-text">Business name:</strong> {businessName.trim() || `${firstName} ${lastName}`.trim()}</p>
                       <p><strong className="text-text">Category:</strong> {categories.find((c) => c.id === primaryCategoryId)?.name ?? '—'}</p>
                       <p><strong className="text-text">Service zip:</strong> {serviceAreaZip}</p>
                     </div>
@@ -339,8 +337,7 @@ function ProInner() {
                     )}
                   </div>
                 </form>
-              </>
-            )}
+            </>
           </div>
         </div>
       </main>

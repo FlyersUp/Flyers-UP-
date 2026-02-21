@@ -27,6 +27,7 @@ export interface ProfileRow {
   role: AppRole | null;
   first_name: string | null;
   last_name: string | null;
+  full_name: string | null;
   phone: string | null;
   zip_code: string | null;
   onboarding_step: string | null;
