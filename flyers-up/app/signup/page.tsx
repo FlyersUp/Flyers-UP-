@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { SignUpClient } from './SignUpClient';
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
@@ -34,5 +35,9 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
     // ignore: if SSR auth isn't available, fall back to client behavior
   }
 
-  return <SignUpClient initialRole={initialRole} />;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-bg flex items-center justify-center text-muted">Loading…</div>}>
+      <SignUpClient initialRole={initialRole} />
+    </Suspense>
+  );
 }
