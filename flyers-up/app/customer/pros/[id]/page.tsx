@@ -16,8 +16,8 @@ export const dynamic = 'force-dynamic';
 
 type RouteParams = { id?: string };
 
-export default async function CustomerProProfilePage({ params }: { params: RouteParams | Promise<RouteParams> }) {
-  const resolved = await Promise.resolve(params);
+export default async function CustomerProProfilePage({ params }: { params: Promise<RouteParams> }) {
+  const resolved = await params;
   const proId = resolved?.id;
   if (!proId) return notFound();
 

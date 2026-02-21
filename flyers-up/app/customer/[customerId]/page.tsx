@@ -10,8 +10,8 @@ export const dynamic = 'force-dynamic';
 
 type RouteParams = { customerId?: string };
 
-export default async function CustomerPublicForProsPage({ params }: { params: RouteParams | Promise<RouteParams> }) {
-  const resolved = await Promise.resolve(params);
+export default async function CustomerPublicForProsPage({ params }: { params: Promise<RouteParams> }) {
+  const resolved = await params;
   const customerId = resolved?.customerId;
   if (!customerId) return notFound();
   const supabase = await createServerSupabaseClient();
