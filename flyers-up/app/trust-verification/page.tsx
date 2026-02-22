@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { LegalPageShell } from '@/components/LegalPageShell';
 
 export const metadata = {
   title: 'Trust & Verification — Flyers Up',
@@ -6,17 +7,7 @@ export const metadata = {
 
 export default function TrustVerificationPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text">
-      <header className="border-b border-[var(--surface-border)] bg-[var(--surface-solid)]">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-sm font-semibold tracking-tight text-text hover:opacity-90">
-            Flyers Up
-          </Link>
-          <div className="text-xs text-muted">Explainer</div>
-        </div>
-      </header>
-
-      <main className="max-w-3xl mx-auto px-4 py-10">
+    <LegalPageShell>
         <h1 className="text-2xl font-semibold tracking-tight">Trust &amp; Verification</h1>
         <p className="mt-2 text-sm text-muted">
           Plain-English overview of how Flyers Up trust indicators work. This page mirrors Section 7 of the Terms of Service.
@@ -54,8 +45,7 @@ export default function TrustVerificationPage() {
             .
           </div>
         </div>
-      </main>
-    </div>
+    </LegalPageShell>
   );
 }
 

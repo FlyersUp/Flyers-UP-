@@ -5,6 +5,7 @@
  * Provides FAQ, support contact, and terms links
  */
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { TrustRow } from '@/components/ui/TrustRow';
 
@@ -103,27 +104,24 @@ export default function HelpSupportPage() {
             Review our terms of service, privacy policy, and community guidelines.
           </p>
           <div className="space-y-2">
-            <button
-              type="button"
-              disabled
-              className="block w-full text-left px-4 py-2 bg-surface border border-border rounded-lg text-sm text-muted cursor-not-allowed"
+            <Link
+              href="/terms"
+              className="block w-full text-left px-4 py-2 bg-surface border border-border rounded-lg text-sm text-text hover:bg-surface2 transition-colors"
             >
-              Terms of Service (Coming Soon)
-            </button>
-            <button
-              type="button"
-              disabled
-              className="block w-full text-left px-4 py-2 bg-surface border border-border rounded-lg text-sm text-muted cursor-not-allowed"
+              Terms of Service
+            </Link>
+            <Link
+              href="/privacy"
+              className="block w-full text-left px-4 py-2 bg-surface border border-border rounded-lg text-sm text-text hover:bg-surface2 transition-colors"
             >
-              Privacy Policy (Coming Soon)
-            </button>
-            <button
-              type="button"
-              disabled
-              className="block w-full text-left px-4 py-2 bg-surface border border-border rounded-lg text-sm text-muted cursor-not-allowed"
+              Privacy Policy
+            </Link>
+            <Link
+              href="/community-guidelines"
+              className="block w-full text-left px-4 py-2 bg-surface border border-border rounded-lg text-sm text-text hover:bg-surface2 transition-colors"
             >
-              Community Guidelines (Coming Soon)
-            </button>
+              Community Guidelines
+            </Link>
           </div>
         </div>
       </div>

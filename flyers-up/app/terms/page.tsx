@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { LegalPageShell } from '@/components/LegalPageShell';
 
 const TERMS_VERSION = '2026-01-27';
 
@@ -8,17 +8,8 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text">
-      <header className="border-b border-[var(--surface-border)] bg-[var(--surface-solid)]">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-sm font-semibold tracking-tight text-text hover:opacity-90">
-            Flyers Up
-          </Link>
-          <div className="text-xs text-muted">Terms v{TERMS_VERSION}</div>
-        </div>
-      </header>
-
-      <main className="max-w-3xl mx-auto px-4 py-10">
+    <LegalPageShell>
+        <div className="text-xs text-muted mb-4">Terms v{TERMS_VERSION}</div>
         <h1 className="text-2xl font-semibold tracking-tight">Flyers Up LLC — Terms of Service</h1>
         <div className="mt-2 text-sm text-muted">
           <div>
@@ -206,8 +197,7 @@ export default function TermsPage() {
           </p>
           <p className="text-muted">Mailing Address: c/o Registered Agent (mailing address on file)</p>
         </div>
-      </main>
-    </div>
+    </LegalPageShell>
   );
 }
 

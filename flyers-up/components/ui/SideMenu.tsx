@@ -131,6 +131,8 @@ function getProMenu(): MenuSection[] {
         { label: 'Notifications', href: '/pro/settings/notifications' },
         { label: 'Privacy', href: '/pro/settings/privacy-security' },
         { label: 'Security', href: '/pro/settings/account-identity' },
+        { label: 'Two-Factor Authentication', href: '/pro/settings/privacy-security#2fa' },
+        { label: 'Your Data', href: '/pro/settings/privacy-security#your-data' },
         { label: 'Connected Accounts', href: '/pro/settings/payments-payouts' },
       ],
     },
@@ -155,9 +157,9 @@ function getCustomerMenu(): MenuSection[] {
     {
       title: 'Bookings',
       items: [
-        { label: 'Upcoming Bookings', href: '/customer', disabled: true },
-        { label: 'Past Bookings', href: '/customer', disabled: true },
-        { label: 'Saved Pros', href: '/customer', disabled: true },
+        { label: 'Upcoming Bookings', href: '/customer' },
+        { label: 'Past Bookings', href: '/customer' },
+        { label: 'Saved Pros', href: '/customer' },
       ],
     },
     {
@@ -172,15 +174,15 @@ function getCustomerMenu(): MenuSection[] {
       items: [
         { label: 'Browse Services', href: '/customer/categories' },
         { label: 'Nearby Pros', href: '/customer/categories' },
-        { label: 'Favorites', href: '/customer/settings/booking-preferences', disabled: true },
+        { label: 'Favorites', href: '/customer/settings/booking-preferences' },
       ],
     },
     {
       title: 'Payments',
       items: [
-        { label: 'Payment History', href: '/customer/settings/payments', disabled: true },
-        { label: 'Receipts', href: '/customer/settings/payments', disabled: true },
-        { label: 'Refunds', href: '/customer/settings/payments', disabled: true },
+        { label: 'Payment History', href: '/customer/settings/payments' },
+        { label: 'Receipts', href: '/customer/settings/payments' },
+        { label: 'Refunds', href: '/customer/settings/payments' },
       ],
     },
     {
@@ -197,6 +199,8 @@ function getCustomerMenu(): MenuSection[] {
         { label: 'Notifications', href: '/customer/settings/notifications' },
         { label: 'Privacy', href: '/customer/settings/privacy-security' },
         { label: 'Security', href: '/customer/settings/privacy-security' },
+        { label: 'Two-Factor Authentication', href: '/customer/settings/privacy-security#2fa' },
+        { label: 'Your Data', href: '/customer/settings/privacy-security#your-data' },
         { label: 'Logout', href: null, disabled: true },
       ],
     },

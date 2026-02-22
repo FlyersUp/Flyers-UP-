@@ -168,7 +168,7 @@ export default function PrivacySecurityPage() {
       </form>
 
       {/* 2FA (Coming Soon) */}
-      <div className="border-b border-border pb-6">
+      <div id="2fa" className="border-b border-border pb-6 scroll-mt-4">
         <h2 className="text-lg font-semibold text-text mb-4">Two-Factor Authentication</h2>
         <div className="p-4 bg-surface2 border border-border rounded-lg">
           <p className="text-sm text-muted mb-2">
@@ -185,7 +185,7 @@ export default function PrivacySecurityPage() {
       </div>
 
       {/* View Data Used */}
-      <div className="border-b border-border pb-6">
+      <div id="your-data" className="border-b border-border pb-6 scroll-mt-4">
         <h2 className="text-lg font-semibold text-text mb-4">Your Data</h2>
         <div className="p-4 bg-surface2 border border-border rounded-lg">
           <p className="text-sm text-muted mb-2">

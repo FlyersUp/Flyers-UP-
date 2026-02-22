@@ -107,6 +107,14 @@ export default function ProSafetyComplianceSettingsPage() {
                   <div className="text-sm font-medium text-muted">{guidelinesAcknowledged ? 'Acknowledged' : 'Review'}</div>
                 </div>
               </button>
+              <a
+                href="/community-guidelines"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-muted hover:text-text underline"
+              >
+                Read guidelines →
+              </a>
 
               <Input
                 label="Insurance document URL (optional)"
