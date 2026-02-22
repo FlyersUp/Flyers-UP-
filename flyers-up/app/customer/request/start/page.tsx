@@ -218,9 +218,31 @@ function CustomerRequestStartInner() {
 
         {step === 'pros' && (
           <div className="space-y-4">
-            <button type="button" onClick={() => setStep('zip')} className="text-sm text-muted hover:text-text">
-              ← Change zip
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" onClick={() => setStep('zip')} className="text-sm text-muted hover:text-text">
+                ← Change zip
+              </button>
+              <span className="text-muted">|</span>
+              <label className="text-sm text-muted">Radius:</label>
+              <select
+                value={radiusMiles}
+                onChange={(e) => setRadiusMiles(Number(e.target.value))}
+                className="text-sm border border-border rounded-lg px-2 py-1 bg-surface text-text"
+              >
+                <option value={0}>My zip only</option>
+                <option value={10}>10 miles</option>
+                <option value={25}>25 miles</option>
+                <option value={50}>50+ miles</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => void loadPros()}
+                disabled={loadingPros}
+                className="text-sm text-accent hover:text-text font-medium disabled:opacity-50"
+              >
+                {loadingPros ? 'Searching…' : 'Update search'}
+              </button>
+            </div>
             <p className="text-sm text-muted">
               {categoryName} {radiusMiles === 0 ? `in ${zip}` : `near ${zip} (${radiusMiles === 50 ? '50+ mi' : `within ${radiusMiles} mi`})`}
             </p>

@@ -129,11 +129,7 @@ export function routeAfterAuth(profile: ProfileRow, next?: string | null): strin
   const zipMissing = !profile.zip_code || profile.zip_code.trim().length === 0;
 
   if (profile.role === 'customer') {
-    // Only redirect when explicitly in customer_profile onboarding step.
-    // Allow dashboard access without name; name is collected when they try to book.
-    if (profile.onboarding_step === 'customer_profile') {
-      return roleSafeNext ? `/customer/request/start?next=${encodeURIComponent(roleSafeNext)}` : '/customer/request/start';
-    }
+    // Allow dashboard access; name is collected when they try to book.
     return roleSafeNext ?? '/customer';
   }
 

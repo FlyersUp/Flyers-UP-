@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ ok: true, pros: [], categoryName: null });
   }
 
-  const limit = radiusMiles === 0 ? 10 : radiusMiles <= 10 ? 25 : radiusMiles <= 25 ? 50 : 100;
+  const limit = 50;
 
   let query = supabase
     .from('service_pros')
@@ -42,12 +42,14 @@ export async function GET(request: NextRequest) {
     .order('rating', { ascending: false })
     .limit(limit);
 
-  let zipFilter: Set<string> | null = null;
   if (zip) {
     if (radiusMiles === 0) {
       query = query.eq('service_area_zip', zip);
     } else if (zip.length >= 5 && zipcodes.lookup(zip)) {
-      zipFilter = new Set(zipcodes.radius(zip, radiusMiles));
+      const zipsInRadius = zipcodes.radius(zip, radiusMiles);
+      if (zipsInRadius.length > 0) {
+        query = query.in('service_area_zip', zipsInRadius);
+      }
     } else if (zip.length >= 3) {
       const prefix = zip.slice(0, 3);
       query = query.ilike('service_area_zip', `${prefix}%`);
@@ -61,16 +63,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ ok: false, pros: [], error: error.message }, { status: 500 });
   }
 
-  let filtered = rows ?? [];
-  if (zipFilter && zipFilter.size > 0) {
-    filtered = filtered.filter((p: { service_area_zip?: string | null }) => {
-      const pzip = (p.service_area_zip ?? '').trim();
-      if (!pzip) return false;
-      return zipFilter!.has(pzip) || zipFilter!.has(pzip.padStart(5, '0'));
-    });
-  }
-
-  const pros = filtered.map((p: any) => ({
+  const pros = (rows ?? []).map((p: any) => ({
     id: p.id,
     userId: p.user_id,
     name: p.display_name ?? 'Pro',
