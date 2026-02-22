@@ -33,11 +33,11 @@ export async function GET(req: NextRequest) {
 
     let profile, proRow;
     try {
-      const { data: p } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      const { data: p } = await supabase.from('profiles').select('role, first_name, last_name, phone').eq('id', user.id).maybeSingle();
       profile = p;
       const { data: pr } = await supabase
         .from('service_pros')
-        .select('user_id, stripe_account_id')
+        .select('user_id, stripe_account_id, display_name')
         .eq('user_id', user.id)
         .maybeSingle();
       proRow = pr;
@@ -63,10 +63,18 @@ export async function GET(req: NextRequest) {
     let accountId = proRow.stripe_account_id ?? null;
     if (!accountId) {
       try {
+        // Prefill data we already have so Stripe skips those steps during onboarding
+        const firstName = (profile as { first_name?: string })?.first_name?.trim();
+        const lastName = (profile as { last_name?: string })?.last_name?.trim();
+        const phone = (profile as { phone?: string })?.phone?.trim();
+        const displayName = (proRow as { display_name?: string })?.display_name?.trim();
+        const email = user.email?.trim();
+
         const account = await stripe.accounts.create({
           type: 'express',
           country: 'US',
-          email: user.email ?? undefined,
+          business_type: 'individual',
+          email: email || undefined,
           capabilities: {
             card_payments: { requested: true },
             transfers: { requested: true },
@@ -74,6 +82,18 @@ export async function GET(req: NextRequest) {
           metadata: {
             pro_user_id: user.id,
           },
+          // Prefill so Connect Onboarding skips these
+          ...(displayName && { business_profile: { name: displayName } }),
+          ...(firstName || lastName || email || phone
+            ? {
+                individual: {
+                  ...(firstName && { first_name: firstName }),
+                  ...(lastName && { last_name: lastName }),
+                  ...(email && { email }),
+                  ...(phone && { phone }),
+                },
+              }
+            : {}),
         });
 
         accountId = account.id;
