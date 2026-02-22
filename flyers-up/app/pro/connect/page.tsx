@@ -10,7 +10,9 @@ function ConnectInner() {
 
   useEffect(() => {
     const url = `/api/stripe/connect/onboard?next=${encodeURIComponent(nextParam)}`;
-    window.location.href = url;
+    // Brief delay so session cookies are fully persisted before API request
+    const t = setTimeout(() => { window.location.href = url; }, 150);
+    return () => clearTimeout(t);
   }, [nextParam]);
 
   return (

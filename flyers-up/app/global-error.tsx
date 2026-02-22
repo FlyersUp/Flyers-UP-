@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
-
+/**
+ * Catches unhandled errors in the root layout.
+ * Renders a minimal fallback when the main app crashes.
+ */
 export default function GlobalError({
   error,
   reset,
@@ -9,43 +11,36 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    // Best-effort: report the crash (no auth required; server can still record).
-    fetch('/api/errors', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        source: 'client',
-        severity: 'fatal',
-        message: error?.message || 'Global error',
-        stack: (error as any)?.stack ?? null,
-        url: typeof window !== 'undefined' ? window.location.href : null,
-        route: typeof window !== 'undefined' ? window.location.pathname : null,
-        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
-        meta: { digest: (error as any)?.digest ?? null },
-      }),
-      keepalive: true,
-    }).catch(() => {});
-  }, [error]);
-
   return (
-    <html>
-      <body className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text flex items-center justify-center p-6">
-        <div className="max-w-md w-full surface-card p-6">
-          <div className="text-sm font-semibold tracking-tight">Something went wrong</div>
-          <div className="mt-2 text-sm text-muted">
-            Please try again. If this keeps happening, contact support.
-          </div>
+    <html lang="en">
+      <body style={{ fontFamily: 'system-ui', margin: 0, padding: 24, background: '#faf9f6', color: '#1a1a1a' }}>
+        <div style={{ maxWidth: 400, margin: '40px auto', textAlign: 'center' }}>
+          <h1 style={{ fontSize: 20, marginBottom: 8 }}>Something went wrong</h1>
+          <p style={{ color: '#666', fontSize: 14, marginBottom: 24 }}>
+            We encountered an error. Please try again.
+          </p>
           <button
             type="button"
-            className="mt-4 w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-accentContrast hover:opacity-95 transition-opacity"
             onClick={() => reset()}
+            style={{
+              padding: '10px 20px',
+              background: '#2563eb',
+              color: 'white',
+              border: 'none',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontSize: 14,
+            }}
           >
-            Reload
+            Try again
           </button>
+          <p style={{ marginTop: 24 }}>
+            <a href="/" style={{ color: '#2563eb', textDecoration: 'none' }}>
+              Go to home
+            </a>
+          </p>
         </div>
       </body>
     </html>
   );
 }
-

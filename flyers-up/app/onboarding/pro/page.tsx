@@ -151,18 +151,18 @@ function ProInner() {
         return;
       }
       // Redirect to Stripe Connect onboarding (required to receive payments)
-      // Use /pro as final destination; if safeNext is onboard URL, extract inner next or use /pro
-      const finalNext =
-        safeNext?.startsWith('/api/stripe/connect/onboard')
-          ? (() => {
-              try {
-                const u = new URL(safeNext, 'https://x');
-                return u.searchParams.get('next') || '/pro';
-              } catch {
-                return '/pro';
-              }
-            })()
-          : safeNext ?? '/pro';
+      // Extract final destination (/pro) from /pro/connect?next=X or /api/...?next=X
+      const finalNext = (() => {
+        if (!safeNext) return '/pro';
+        try {
+          const u = new URL(safeNext, 'https://x');
+          const inner = u.searchParams.get('next');
+          if (inner) return inner;
+        } catch {
+          // ignore
+        }
+        return safeNext.startsWith('/api/') ? '/pro' : safeNext;
+      })();
       window.location.href = `/pro/connect?next=${encodeURIComponent(finalNext)}`;
     } catch (err) {
       console.error(err);
