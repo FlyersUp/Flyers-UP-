@@ -109,7 +109,13 @@ function AuthInner() {
           setAdminDenied({ email: user.email ?? '', role: profile?.role ?? null });
           return;
         }
-        router.replace(routeAfterAuth(profile, nextParam));
+        const target = routeAfterAuth(profile, nextParam);
+        // API routes need full navigation so cookies are sent; router.replace can fail for /api/*
+        if (target.startsWith('/api/')) {
+          window.location.href = target;
+        } else {
+          router.replace(target);
+        }
       } catch {
         // ignore
       }
@@ -300,7 +306,12 @@ function AuthInner() {
           // ignore
         }
 
-        router.replace(routeAfterAuth(profile, nextParam));
+        const target = routeAfterAuth(profile, nextParam);
+        if (target.startsWith('/api/')) {
+          window.location.href = target;
+        } else {
+          router.replace(target);
+        }
       } catch (err) {
         setStatus('error');
         setError(formatCatch(err));

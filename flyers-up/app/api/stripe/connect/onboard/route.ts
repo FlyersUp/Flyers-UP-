@@ -7,7 +7,8 @@ import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/sup
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
   const nextParam = req.nextUrl.searchParams.get('next') || '/pro/earnings';
-  const onboardNext = `/pro/connect?next=${encodeURIComponent(nextParam)}`;
+  // Use direct API URL so after auth we hit the API with cookies (full navigation)
+  const onboardNext = `/api/stripe/connect/onboard?next=${encodeURIComponent(nextParam)}`;
 
   if (!stripe) {
     return NextResponse.redirect(new URL('/pro/earnings?connect=not_configured', origin));

@@ -98,7 +98,12 @@ function CallbackInner() {
           // ignore
         }
 
-        router.replace(routeAfterAuth(profile, nextParam));
+        const target = routeAfterAuth(profile, nextParam);
+        if (target.startsWith('/api/')) {
+          window.location.href = target;
+        } else {
+          router.replace(target);
+        }
       } catch (err) {
         console.error(err);
         setError('Something went wrong. Please try again.');
