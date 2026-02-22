@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Montserrat, Oswald } from "next/font/google";
 import "./globals.css";
 import { ErrorReporter } from "@/components/ErrorReporter";
@@ -17,11 +17,14 @@ const oswald = Oswald({
   weight: ["400", "500", "600"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#058954",
+};
+
 export const metadata: Metadata = {
   title: "Flyers Up",
   description: "Book trusted local service pros.",
   manifest: "/manifest.webmanifest",
-  themeColor: "#058954",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
