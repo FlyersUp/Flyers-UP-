@@ -18,10 +18,10 @@ const oswald = Oswald({
 });
 
 export const metadata: Metadata = {
-  title: "Flyers Up - Local Service Marketplace",
-  description: "Book trusted local pros and grow your service business from your phone.",
-  manifest: "/manifest.json",
-  themeColor: "#FAF9F6",
+  title: "Flyers Up",
+  description: "Book trusted local service pros.",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#058954",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -37,6 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <script
           // Prevent auth/theme “flash” by setting classes before first paint.
           dangerouslySetInnerHTML={{

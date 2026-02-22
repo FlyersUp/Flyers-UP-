@@ -53,9 +53,9 @@ Pre-launch checklist for www.flyersup.app.
 - [ ] **Zipcodes** — Table populated for radius search
 - [ ] **Feature flags** — ITIN, etc., if needed
 
-### PWA Icons (missing)
+### PWA Icons
 
-- [ ] **Add icons** — `public/icons/icon-192.png` and `icon-512.png` are referenced in manifest but **do not exist** (only `safety-check.svg` in icons folder)
+- [x] **Add icons** — `public/icons/icon-192.png`, `icon-512.png`, and `maskable-512.png` added
 
 ### Manual QA
 
