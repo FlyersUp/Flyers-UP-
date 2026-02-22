@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Logo from '@/components/Logo';
+import AuthLoadingFallback from '@/components/AuthLoadingFallback';
 import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 import { useRouter } from 'next/navigation';
@@ -568,13 +569,7 @@ function AuthInner() {
 
 export default function AuthPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg flex items-center justify-center">
-          <div className="text-sm text-muted">Loading…</div>
-        </div>
-      }
-    >
+    <Suspense fallback={<AuthLoadingFallback />}>
       <AuthInner />
     </Suspense>
   );

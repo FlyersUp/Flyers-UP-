@@ -7,6 +7,7 @@ import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/sup
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
   const nextParam = req.nextUrl.searchParams.get('next') || '/pro/earnings';
+  const onboardNext = `/pro/connect?next=${encodeURIComponent(nextParam)}`;
 
   if (!stripe) {
     return NextResponse.redirect(new URL('/pro/earnings?connect=not_configured', origin));
@@ -15,12 +16,12 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.redirect(new URL('/auth?next=%2Fpro%2Fearnings', origin));
+    return NextResponse.redirect(new URL(`/auth?next=${encodeURIComponent(onboardNext)}`, origin));
   }
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
   if (!profile || profile.role !== 'pro') {
-    return NextResponse.redirect(new URL('/onboarding/role?next=%2Fpro%2Fearnings', origin));
+    return NextResponse.redirect(new URL(`/onboarding/role?next=${encodeURIComponent(onboardNext)}`, origin));
   }
 
   const { data: proRow } = await supabase
@@ -30,8 +31,7 @@ export async function GET(req: NextRequest) {
     .maybeSingle();
 
   if (!proRow) {
-    // Pro hasn't completed the minimal pro onboarding yet.
-    return NextResponse.redirect(new URL('/onboarding/pro?next=%2Fpro%2Fearnings', origin));
+    return NextResponse.redirect(new URL(`/onboarding/pro?next=${encodeURIComponent(onboardNext)}`, origin));
   }
 
   let admin: ReturnType<typeof createAdminSupabaseClient> | null = null;
@@ -65,13 +65,21 @@ export async function GET(req: NextRequest) {
   const returnUrl = new URL('/api/stripe/connect/return', origin);
   returnUrl.searchParams.set('next', nextParam);
 
-  const link = await stripe.accountLinks.create({
-    account: accountId,
-    type: 'account_onboarding',
-    refresh_url: `${origin}/api/stripe/connect/onboard?next=${encodeURIComponent(nextParam)}`,
-    return_url: returnUrl.toString(),
-  });
+  try {
+    const link = await stripe.accountLinks.create({
+      account: accountId,
+      type: 'account_onboarding',
+      refresh_url: `${origin}/api/stripe/connect/onboard?next=${encodeURIComponent(nextParam)}`,
+      return_url: returnUrl.toString(),
+    });
 
-  return NextResponse.redirect(link.url);
+    if (!link?.url) {
+      return NextResponse.redirect(new URL('/pro/earnings?connect=error', origin));
+    }
+    return NextResponse.redirect(link.url);
+  } catch (err) {
+    console.error('Stripe Connect onboard error:', err);
+    return NextResponse.redirect(new URL('/pro/earnings?connect=error', origin));
+  }
 }
 

@@ -140,7 +140,7 @@ export default function Earnings() {
           className="w-full"
           type="button"
           onClick={() => {
-            window.location.href = '/api/stripe/connect/onboard';
+            window.location.href = '/pro/connect';
           }}
           showArrow={false}
         >

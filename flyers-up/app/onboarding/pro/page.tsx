@@ -151,7 +151,7 @@ function ProInner() {
         return;
       }
       // Redirect to Stripe Connect onboarding (required to receive payments)
-      window.location.href = `/api/stripe/connect/onboard?next=${encodeURIComponent(safeNext ?? '/pro')}`;
+      window.location.href = `/pro/connect?next=${encodeURIComponent(safeNext ?? '/pro')}`;
     } catch (err) {
       console.error(err);
       setError('Something went wrong. Please try again.');
