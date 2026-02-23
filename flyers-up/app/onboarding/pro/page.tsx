@@ -4,8 +4,14 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Logo from '@/components/Logo';
 import { supabase } from '@/lib/supabaseClient';
-import { getServiceCategories, type ServiceCategory } from '@/lib/api';
 import { getOrCreateProfile, routeAfterAuth, upsertProfile, upsertServicePro } from '@/lib/onboarding';
+import {
+  getActiveServicesAction,
+  getActiveSubcategoriesByServiceSlugAction,
+  getCategoryIdForServiceSlugAction,
+  setMyProSubcategorySelectionsAction,
+} from '@/app/actions/services';
+import type { Service, ServiceSubcategory } from '@/lib/db/services';
 
 function isInvalidRefreshToken(err: unknown): boolean {
   const msg = (err as { message?: string } | null)?.message ?? '';
@@ -24,12 +30,14 @@ function ProInner() {
   const [error, setError] = useState<string | null>(null);
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [categories, setCategories] = useState<ServiceCategory[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [subcategories, setSubcategories] = useState<ServiceSubcategory[]>([]);
+  const [subcategoriesLoading, setSubcategoriesLoading] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [businessName, setBusinessName] = useState('');
-  const [primaryCategoryId, setPrimaryCategoryId] = useState('');
-  const [secondaryCategoryId, setSecondaryCategoryId] = useState<string>('');
+  const [primaryServiceSlug, setPrimaryServiceSlug] = useState('');
+  const [selectedSubcategoryIds, setSelectedSubcategoryIds] = useState<string[]>([]);
   const [serviceAreaZip, setServiceAreaZip] = useState('');
 
   useEffect(() => {
@@ -58,9 +66,9 @@ function ProInner() {
           return;
         }
 
-        const [profile, cats] = await Promise.all([
+        const [profile, svcs] = await Promise.all([
           getOrCreateProfile(user.id, user.email ?? null),
-          getServiceCategories({ includeHidden: false }),
+          getActiveServicesAction(),
         ]);
 
         if (!profile) {
@@ -73,7 +81,7 @@ function ProInner() {
           return;
         }
 
-        setCategories(cats);
+        setServices(svcs);
         setFirstName(profile.first_name || '');
         setLastName(profile.last_name || '');
         setServiceAreaZip(profile.zip_code || '');
@@ -83,6 +91,27 @@ function ProInner() {
     };
     void init();
   }, [router, safeNext]);
+
+  useEffect(() => {
+    if (!primaryServiceSlug) {
+      setSubcategories([]);
+      setSelectedSubcategoryIds([]);
+      return;
+    }
+    let cancelled = false;
+    setSubcategoriesLoading(true);
+    getActiveSubcategoriesByServiceSlugAction(primaryServiceSlug)
+      .then((subs) => {
+        if (!cancelled) {
+          setSubcategories(subs);
+          setSelectedSubcategoryIds([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setSubcategoriesLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [primaryServiceSlug]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -114,8 +143,12 @@ function ProInner() {
         setError('Please enter your last name.');
         return;
       }
-      if (!primaryCategoryId) {
-        setError('Please select a primary category.');
+      if (!primaryServiceSlug) {
+        setError('Please select a primary service.');
+        return;
+      }
+      if (selectedSubcategoryIds.length === 0) {
+        setError('Please select at least one subcategory.');
         return;
       }
       if (!serviceAreaZip.trim()) {
@@ -138,16 +171,28 @@ function ProInner() {
         return;
       }
 
+      const categoryId = await getCategoryIdForServiceSlugAction(primaryServiceSlug);
+      if (!categoryId) {
+        setError('Could not map service to category. Please try again.');
+        return;
+      }
+
       const displayName = businessName.trim() || `${firstName.trim()} ${lastName.trim()}`.trim();
       const proRes = await upsertServicePro({
         user_id: user.id,
         display_name: displayName,
-        category_id: primaryCategoryId,
-        secondary_category_id: secondaryCategoryId || null,
+        category_id: categoryId,
+        secondary_category_id: null,
         service_area_zip: serviceAreaZip.trim(),
       });
       if (!proRes.success) {
         setError(proRes.error || 'Could not save your pro profile. Please try again.');
+        return;
+      }
+
+      const subRes = await setMyProSubcategorySelectionsAction(primaryServiceSlug, selectedSubcategoryIds);
+      if (!subRes.success) {
+        setError(subRes.error || 'Could not save your service selections. Please try again.');
         return;
       }
       // Redirect to Stripe Connect onboarding (required to receive payments)
@@ -258,34 +303,65 @@ function ProInner() {
                   {step === 2 && (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-muted mb-1" htmlFor="primaryCategory">Primary category</label>
-                        <select
-                          id="primaryCategory"
-                          value={primaryCategoryId}
-                          onChange={(e) => setPrimaryCategoryId(e.target.value)}
-                          required
-                          className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
-                        >
-                          <option value="">Select…</option>
-                          {categories.map((c) => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
+                        <label className="block text-sm font-medium text-muted mb-1">Primary service</label>
+                        <div className="space-y-2 mt-2">
+                          {services.map((s) => (
+                            <label
+                              key={s.id}
+                              className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                                primaryServiceSlug === s.slug ? 'border-accent bg-accent/5' : 'border-border bg-surface hover:border-accent/50'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="primaryService"
+                                value={s.slug}
+                                checked={primaryServiceSlug === s.slug}
+                                onChange={() => setPrimaryServiceSlug(s.slug)}
+                                className="mt-1"
+                              />
+                              <div>
+                                <span className="font-medium text-text">{s.name}</span>
+                                {s.description && (
+                                  <p className="text-sm text-muted mt-0.5">{s.description}</p>
+                                )}
+                              </div>
+                            </label>
                           ))}
-                        </select>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-muted mb-1" htmlFor="secondaryCategory">Secondary (optional)</label>
-                        <select
-                          id="secondaryCategory"
-                          value={secondaryCategoryId}
-                          onChange={(e) => setSecondaryCategoryId(e.target.value)}
-                          className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
-                        >
-                          <option value="">None</option>
-                          {categories.filter((c) => c.id !== primaryCategoryId).map((c) => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </select>
-                      </div>
+                      {primaryServiceSlug && (
+                        <div>
+                          <label className="block text-sm font-medium text-muted mb-1">
+                            Subcategories (select at least one)
+                          </label>
+                          {subcategoriesLoading ? (
+                            <p className="text-sm text-muted">Loading…</p>
+                          ) : (
+                            <div className="space-y-2 mt-2 max-h-48 overflow-y-auto">
+                              {subcategories.map((sub) => (
+                                <label
+                                  key={sub.id}
+                                  className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-surface2 cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedSubcategoryIds.includes(sub.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedSubcategoryIds((prev) => [...prev, sub.id]);
+                                      } else {
+                                        setSelectedSubcategoryIds((prev) => prev.filter((id) => id !== sub.id));
+                                      }
+                                    }}
+                                  />
+                                  <span className="text-text">{sub.name}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </>
                   )}
                   {step === 3 && (
@@ -306,7 +382,8 @@ function ProInner() {
                     <div className="rounded-xl border border-border bg-surface2 p-4 text-sm text-muted">
                       <p><strong className="text-text">Your name:</strong> {firstName} {lastName}</p>
                       <p><strong className="text-text">Business name:</strong> {businessName.trim() || `${firstName} ${lastName}`.trim()}</p>
-                      <p><strong className="text-text">Category:</strong> {categories.find((c) => c.id === primaryCategoryId)?.name ?? '—'}</p>
+                      <p><strong className="text-text">Primary service:</strong> {services.find((s) => s.slug === primaryServiceSlug)?.name ?? '—'}</p>
+                      <p><strong className="text-text">Subcategories:</strong> {subcategories.filter((s) => selectedSubcategoryIds.includes(s.id)).map((s) => s.name).join(', ') || '—'}</p>
                       <p><strong className="text-text">Service zip:</strong> {serviceAreaZip}</p>
                     </div>
                   )}
@@ -325,13 +402,13 @@ function ProInner() {
                         type="button"
                         onClick={() => {
                           if (step === 1 && (!firstName.trim() || !lastName.trim())) return;
-                          if (step === 2 && !primaryCategoryId) return;
+                          if (step === 2 && (!primaryServiceSlug || selectedSubcategoryIds.length === 0)) return;
                           if (step === 3 && !serviceAreaZip.trim()) return;
                           setStep((s) => (s + 1) as 1 | 2 | 3 | 4);
                         }}
                         disabled={
                           (step === 1 && (!firstName.trim() || !lastName.trim())) ||
-                          (step === 2 && !primaryCategoryId) ||
+                          (step === 2 && (!primaryServiceSlug || selectedSubcategoryIds.length === 0 || subcategoriesLoading)) ||
                           (step === 3 && !serviceAreaZip.trim())
                         }
                         className="flex-1 rounded-xl bg-accent px-4 py-3.5 text-base font-medium text-accentContrast disabled:opacity-50"
