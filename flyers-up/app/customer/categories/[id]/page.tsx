@@ -12,7 +12,7 @@ import type { FlyerPro } from '@/components/flyers/FlyerCard';
 
 /**
  * Service Pro List - Screen 3
- * Flyer Wall: pros as flyers pinned to a wooden post
+ * Flyer Wall: Option C - clean minimal paper cards
  */
 export default function CategoryProList({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -95,7 +95,7 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
 
   return (
     <AppLayout mode="customer">
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         <div className="mb-6">
           <Link href="/customer/categories" className="text-sm text-muted mb-2 inline-block">
             ← Back to Categories
@@ -123,10 +123,9 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
           </div>
         ) : pros.length === 0 ? (
           <div className="surface-card p-6 border-l-[3px] border-l-accent">
-            <div className="text-base font-semibold text-text">No flyers found</div>
+            <div className="text-base font-semibold text-text">No pros available</div>
             <div className="mt-1 text-sm text-muted">
-              When pros join this category, they’ll appear here. Check back soon or browse other categories.
-            </div>
+              Try expanding your filters or service area.</div>
             <div className="mt-4">
               <Link href="/customer/categories" className="text-sm font-medium text-accent hover:underline">
                 Browse categories

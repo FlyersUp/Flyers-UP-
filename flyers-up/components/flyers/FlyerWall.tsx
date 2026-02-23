@@ -12,15 +12,16 @@ interface FlyerWallProps {
 
 export function FlyerWall({ pros, categoryName, getBookHref, getMessageHref }: FlyerWallProps) {
   return (
-    <div className="relative">
-      {/* Wooden post background - Option B: vertical post strip behind content */}
-      <div className="wood-post-bg" aria-hidden />
-
-      <div className="relative z-10">
+    <div
+      className="min-h-[40vh] bg-[#FAF8F6]"
+      style={{
+        background: 'radial-gradient(circle at top, rgba(0,0,0,0.03), transparent 55%), #FAF8F6',
+      }}
+    >
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         <FlyerFiltersBar count={pros.length} />
 
-        {/* 2 cols on md+, 1 col on mobile */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {pros.map((pro) => (
             <FlyerCard
               key={pro.id}
