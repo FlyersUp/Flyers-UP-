@@ -44,24 +44,24 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const event = await stripeClient.v2.core.events.retrieve(thinNotification.id);
-    switch (event.type) {
+    const event = (await stripeClient.v2.core.events.retrieve(thinNotification.id)) as {
+      type: string;
+      data?: { object?: Record<string, unknown> };
+    };
+    const eventType = event.type;
+    switch (eventType) {
       case 'v2.core.account[requirements].updated': {
-        const accountId = event?.data?.object?.id;
-        const requirements = event?.data?.object?.requirements;
-        console.log('[Webhook] Account requirements updated:', accountId, requirements);
-        // TODO: Collect any updated requirements - e.g. notify seller, update UI
+        const obj = event.data?.object as { id?: string; requirements?: unknown } | undefined;
+        console.log('[Webhook] Account requirements updated:', obj?.id, obj?.requirements);
         break;
       }
       case 'v2.core.account[configuration.recipient].capability_status_updated': {
-        const accountId = event?.data?.object?.id;
-        const capabilityStatus = event?.data?.object?.configuration?.recipient?.capabilities;
-        console.log('[Webhook] Recipient capability status updated:', accountId, capabilityStatus);
-        // TODO: Update seller dashboard, enable/disable selling
+        const obj = event.data?.object as { id?: string; configuration?: { recipient?: { capabilities?: unknown } } } | undefined;
+        console.log('[Webhook] Recipient capability status updated:', obj?.id, obj?.configuration?.recipient?.capabilities);
         break;
       }
       default:
-        console.log('[Webhook] Unhandled event type:', event.type);
+        console.log('[Webhook] Unhandled event type:', eventType);
     }
   } catch (err) {
     console.error('Webhook handler error:', err);
