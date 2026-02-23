@@ -81,7 +81,7 @@ export async function getMyProSubcategorySelections(
 export async function setMyProSubcategorySelections(
   supabase: SupabaseClient,
   params: { userId: string; serviceSlug: string; subcategoryIds: string[] }
-): Promise<{ success: boolean; error?: string; selections?: ProSubcategorySelection }> {
+): Promise<{ success: boolean; error?: string; category_id?: string; selections?: ProSubcategorySelection }> {
   if (params.subcategoryIds.length === 0) {
     return { success: false, error: 'At least one subcategory is required.' };
   }
