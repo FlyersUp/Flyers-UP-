@@ -9,7 +9,7 @@ function ConnectInner() {
   const nextParam = searchParams.get('next') || '/pro/earnings';
 
   useEffect(() => {
-    const url = `/api/stripe/connect/onboard?next=${encodeURIComponent(nextParam)}`;
+    const url = `/api/stripe/connect-v2/onboard?next=${encodeURIComponent(nextParam)}`;
     // Brief delay so session cookies are fully persisted before API request
     const t = setTimeout(() => { window.location.href = url; }, 150);
     return () => clearTimeout(t);

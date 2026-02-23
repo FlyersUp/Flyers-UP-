@@ -9,7 +9,7 @@ Pre-launch checklist for www.flyersup.app.
 | Area | Status |
 |------|--------|
 | **Stripe Checkout** | Customer payment flow at `/customer/booking/pay` → `/api/stripe/checkout` |
-| **Stripe Connect** | Onboard at `/pro/connect`, return at `/api/stripe/connect/return` |
+| **Stripe Connect** | Onboard at `/pro/connect`, return at `/api/stripe/connect-v2/return` |
 | **Stripe Webhook** | Handles `payment_intent.succeeded`, `payment_intent.payment_failed`; creates pro_earnings |
 | **Auth** | Email OTP (6-digit), Google; `/auth`, `/auth/callback` |
 | **Onboarding** | Customer + Pro flows; role selection; Stripe Connect required for pros |
