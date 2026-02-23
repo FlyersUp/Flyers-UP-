@@ -1,19 +1,18 @@
 'use client';
 
 import { AppLayout } from '@/components/layouts/AppLayout';
-import { Label } from '@/components/ui/Label';
-import { ServiceProCard } from '@/components/ui/ServiceProCard';
-import { Input } from '@/components/ui/Input';
 import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser, getProsByCategory } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
+import { FlyerWall } from '@/components/flyers/FlyerWall';
+import type { FlyerPro } from '@/components/flyers/FlyerCard';
 
 /**
  * Service Pro List - Screen 3
- * List of pros for a category with filters
+ * Flyer Wall: pros as flyers pinned to a wooden post
  */
 export default function CategoryProList({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -22,14 +21,7 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true);
   const [categoryName, setCategoryName] = useState<string>('Service Pros');
   const [categoryUnavailable, setCategoryUnavailable] = useState(false);
-  const [pros, setPros] = useState<Array<{
-    id: string;
-    name: string;
-    rating: number;
-    reviewCount: number;
-    startingPrice: number;
-    badges?: any[];
-  }>>([]);
+  const [pros, setPros] = useState<FlyerPro[]>([]);
 
   useEffect(() => {
     const check = async () => {
@@ -69,11 +61,16 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
           setPros(
             data.map((p) => ({
               id: p.id,
-              name: p.name,
+              displayName: p.name,
+              photoUrl: p.logoUrl ?? null,
+              primaryCategory: p.categoryName,
               rating: p.rating,
-              reviewCount: p.reviewCount,
+              reviewsCount: p.reviewCount,
+              tagline: p.bio?.trim() || null,
+              availability: p.businessHours?.trim() || null,
+              serviceRadius: p.serviceRadius ?? null,
+              serviceRadiusMiles: p.serviceRadius ?? null,
               startingPrice: p.startingPrice,
-              badges: [],
             }))
           );
         } else {
@@ -108,16 +105,6 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
           </h1>
         </div>
 
-        {/* Filters */}
-        <div className="mb-6 space-y-3">
-          <div className="grid grid-cols-3 gap-3">
-            <Input placeholder="Price" />
-            <Input placeholder="Rating" />
-            <Input placeholder="Distance" />
-          </div>
-        </div>
-
-        {/* Pro List */}
         {categoryUnavailable ? (
           <div className="surface-card p-6 border-l-[3px] border-l-accent">
             <div className="text-base font-semibold text-text">This category is temporarily unavailable during platform updates.</div>
@@ -136,30 +123,23 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
           </div>
         ) : pros.length === 0 ? (
           <div className="surface-card p-6 border-l-[3px] border-l-accent">
-            <div className="text-base font-semibold text-text">No pros listed yet</div>
+            <div className="text-base font-semibold text-text">No flyers found</div>
             <div className="mt-1 text-sm text-muted">
-              When pros join this category, they’ll appear here.
+              When pros join this category, they’ll appear here. Check back soon or browse other categories.
             </div>
             <div className="mt-4">
-              <Link href="/services" className="text-sm font-medium text-text hover:underline">
-                Browse services →
+              <Link href="/customer/categories" className="text-sm font-medium text-accent hover:underline">
+                Browse categories
               </Link>
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            {pros.map((pro) => (
-              <Link key={pro.id} href={`/customer/pros/${pro.id}`}>
-                <ServiceProCard
-                  name={pro.name}
-                  rating={pro.rating}
-                  reviewCount={pro.reviewCount}
-                  startingPrice={pro.startingPrice}
-                  badges={pro.badges}
-                />
-              </Link>
-            ))}
-          </div>
+          <FlyerWall
+            pros={pros}
+            categoryName={categoryName}
+            getBookHref={(proId) => `/book/${encodeURIComponent(proId)}`}
+            getMessageHref={(proId) => `/customer/pros/${encodeURIComponent(proId)}`}
+          />
         )}
       </div>
     </AppLayout>

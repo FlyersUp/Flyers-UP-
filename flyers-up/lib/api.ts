@@ -71,6 +71,9 @@ export interface ServicePro {
   startingPrice: number;
   location: string;
   available: boolean;
+  logoUrl?: string | null;
+  businessHours?: string | null;
+  serviceRadius?: number | null;
 }
 
 export interface PublicProProfile extends ServicePro {
@@ -644,6 +647,9 @@ export async function getProsByCategory(
     startingPrice: pro.starting_price,
     location: pro.location || 'Not specified',
     available: pro.available,
+    logoUrl: pro.logo_url || null,
+    businessHours: pro.business_hours || null,
+    serviceRadius: pro.service_radius ?? null,
   }));
 }
 
