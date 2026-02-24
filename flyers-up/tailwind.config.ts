@@ -20,6 +20,8 @@ const config: Config = {
         surface2: 'hsl(var(--surface-2) / <alpha-value>)',
         border: 'hsl(var(--border) / <alpha-value>)',
         text: 'hsl(var(--text) / <alpha-value>)',
+        text2: 'hsl(var(--text-2) / <alpha-value>)',
+        text3: 'hsl(var(--text-3) / <alpha-value>)',
         muted: 'hsl(var(--text-muted) / <alpha-value>)',
         accent: 'hsl(var(--accent) / <alpha-value>)',
         accentContrast: 'hsl(var(--accent-contrast) / <alpha-value>)',

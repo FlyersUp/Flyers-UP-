@@ -7,229 +7,257 @@
 
 :root {
   /* ============================================
-     DESIGN TOKENS (single source of truth)
-     - Radius, border, shadow, typography, spacing, transition
+     CORE NEUTRALS (Flyers Up premium base)
+     Tailwind uses HSL triplets (no hsl() wrapper) for alpha support
      ============================================ */
+  /* Hex for direct var() use; HSL for Tailwind */
+  --bg: 60 9% 95%;        /* #F2F2F0 White Smoke */
+  --surface: 0 0% 100%;   /* #FFFFFF */
+  --surface-2: 30 17% 96%;/* #F7F6F4 */
+  --muted: 30 10% 83%;    /* #D9D5D2 Dust Grey */
+
+  /* Text */
+  --text: 0 0% 7%;        /* #111111 */
+  --text-2: 0 0% 23%;     /* #3A3A3A */
+  --text-3: 0 0% 42%;     /* #6A6A6A */
+
+  /* Borders */
+  --border: 30 10% 80%;   /* #CEC9C5 */
+  --border-2: 30 9% 74%;  /* #BDB7B2 */
+  --ring: rgba(17, 17, 17, 0.18);
+
+  /* Shadows (subtle, Apple-ish) */
+  --shadow-sm: 0 1px 2px rgba(17, 17, 17, 0.06);
+  --shadow-md: 0 6px 18px rgba(17, 17, 17, 0.08);
+  --shadow-1: 0 1px 2px rgba(17, 17, 17, 0.06);
+  --shadow-2: 0 2px 8px rgba(0,0,0,0.06);
+
+  /* Radius + motion */
+  --radius: 14px;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
   --radius-2xl: 24px;
-  --border-thin: 1px;
-  --border-medium: 2px;
-  --border-accent: 3px;
-  --shadow-1: 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-2: 0 2px 8px rgba(0,0,0,0.06);
+  --motion-fast: 150ms;
+  --motion: 200ms;
   --transition-fast: 150ms;
   --transition-base: 200ms;
   --transition-slow: 250ms;
   --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
-  /* ============================================
-     FLYERS UP THEME TOKENS (HSL triplets)
-     - No hard-coded colors in components
-     - Tailwind consumes these via: hsl(var(--token) / <alpha-value>)
-     ============================================ */
+  /* Borders + depth */
+  --border-thin: 1px;
+  --border-medium: 2px;
+  --border-accent: 3px;
+  --hairline: rgba(0,0,0,0.06);
+  --shadow-card: 0 1px 0 rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-card-hover: 0 1px 0 rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.05);
+  --card-border: 1px solid rgba(0,0,0,0.05);
 
-  /* Core (light) */
-  /* bg-app: #FAF9F6 */
-  --bg: 45 29% 97%;
-  --surface: 0 0% 100%;
-  /* nav bg (light): #F2F4F3 */
-  --surface-2: 150 8% 95%;
-  /* Border token still used for misc UI; hairline borders below are used for cards/tiles */
-  --border: 42 23% 86%;
-  --text: 0 0% 8%;
-  --text-muted: 0 0% 37%;
+  /* Role accents (hex for color-mix) */
+  --customer-accent: #058954;
+  --pro-accent: #F59E0B;
+  --surface-hex: #FFFFFF;
+  --customer-border: color-mix(in srgb, var(--customer-accent) 65%, #000 35%);
+  --pro-border: color-mix(in srgb, var(--pro-accent) 65%, #000 35%);
+  --customer-tint: color-mix(in srgb, var(--customer-accent) 12%, var(--surface-hex) 88%);
+  --pro-tint: color-mix(in srgb, var(--pro-accent) 12%, var(--surface-hex) 88%);
 
-  /* Accent defaults (neutral core + role sets --accent) */
-  /* customer accent: #6EE7B7 */
-  --accent: 156 72% 67%;
+  /* App semantic tokens */
+  --background: hsl(var(--bg));
+  --card: hsl(var(--surface));
+  --card-2: hsl(var(--surface-2));
+  --popover: hsl(var(--surface));
+  --muted-bg: hsl(var(--muted));
+  --foreground: hsl(var(--text));
+  --muted-foreground: hsl(var(--text-3));
+  --input: hsl(var(--surface));
+  --input-border: hsl(var(--border));
+  --focus-ring: var(--ring);
+  --btn: #111111;
+  --btn-foreground: #FFFFFF;
+  --outline: var(--border);
+
+  /* Role routing (set by data-role on layout) */
+  --role-accent: var(--customer-accent);
+  --role-border: var(--customer-border);
+  --role-tint: var(--customer-tint);
+  --role-accent-hsl: 158 93% 28%; /* HSL fallback for Tailwind */
+  --accent: 158 93% 28%;
   --accent-contrast: 0 0% 8%;
-
-  /* Brand role accents (used when both roles appear on one screen, e.g. marketing hero) */
-  --accent-customer: 156 72% 67%;
-  --accent-pro: 31 97% 72%;
-
-  /* Optional but recommended */
-  --ring: var(--accent);
+  --accent-customer: 158 93% 28%;
+  --accent-pro: 38 92% 50%;
+  --text-muted: 0 0% 42%;
+  --ring: var(--role-accent);
   --success: 158 55% 78%;
   --warning: 30 100% 72%;
   --info: 211 40% 72%;
   --danger: 3 59% 70%;
 
-  /* Rail & Stripe */
-  --rail-width: 4px;
-  --stripe-width: 1px;
-
-  /* Hairline borders + depth (exact spec) */
-  /* slightly stronger gray highlight for borders/dividers */
-  --hairline: rgba(0,0,0,0.06);
-  /* Card separation seam (hairline shadow) - subtle, stable */
-  --shadow-card: 0 1px 0 rgba(0,0,0,0.05),
-                 0 2px 8px rgba(0,0,0,0.04);
-  /* Hover uses the same offsets; only opacity increases slightly */
-  --shadow-card-hover: 0 1px 0 rgba(0,0,0,0.06),
-                       0 4px 12px rgba(0,0,0,0.05);
-  /* Near-invisible card border (optional) */
-  --card-border: 1px solid rgba(0,0,0,0.05);
-
-  /* Bottom nav surface (exact spec) */
+  /* Nav + surfaces */
   --nav-bg: #F2F4F3;
-  /* Opaque surfaces for nav/menu (avoid any transparency ambiguity) */
   --nav-solid: var(--nav-bg);
   --surface-solid: #FFFFFF;
   --surface-border: rgba(0,0,0,0.06);
 
-  /* ============================================
-     WEIGHTING TOKENS (single system, two emphases)
-     - Customer: Warm Neutrality–weighted
-     - Pro: Civic Infrastructure–weighted
-     ============================================ */
+  /* Weighting tokens */
   --page-pad-x: 16px;
   --page-pad-y: 24px;
   --stack-gap: 16px;
   --card-pad: 20px;
   --panel-pad-x: 20px;
   --panel-pad-y: 20px;
-
-  /* OfficialBadge (exact spec) */
   --badge-bg: rgba(0,0,0,0.03);
   --badge-border: rgba(0,0,0,0.08);
-
-  /* ============================================
-     ACCENT DENSITY SYSTEM (role-aware)
-     - Default: low accent usage (10–15% intended)
-     - Focus: higher accent usage (20–25% intended) on decision screens only
-     - No new colors: derived from existing --accent
-     ============================================ */
-  --role-accent-hsl: var(--accent); /* HSL triplet */
-  --role-accent: hsl(var(--role-accent-hsl));
-  /* Default density: extremely soft tint + subtle border */
-  --role-tint: hsl(var(--role-accent-hsl) / 0.04);
-  --role-border: hsl(var(--role-accent-hsl) / 0.18);
+  --rail-width: 4px;
+  --stripe-width: 1px;
 }
 
-/* Layout-level accent density toggle */
+/* Swap role tokens by data-role (AppLayout) */
+[data-role="customer"] {
+  --role-accent: var(--customer-accent);
+  --role-border: var(--customer-border);
+  --role-tint: var(--customer-tint);
+  --role-accent-hsl: 158 93% 28%;
+  --accent: 158 93% 28%;
+  --accent-customer: 158 93% 28%;
+}
+[data-role="pro"] {
+  --role-accent: var(--pro-accent);
+  --role-border: var(--pro-border);
+  --role-tint: var(--pro-tint);
+  --role-accent-hsl: 38 92% 50%;
+  --accent: 38 92% 50%;
+  --accent-pro: 38 92% 50%;
+}
+
+/* AccentDensity: default vs focus */
+[data-accent="default"] {
+  --focus-tint-strength: 0;
+}
 [data-accent="focus"] {
-  /* Focus density: allow selected cards + 1–2 panels to be softly tinted */
-  --role-tint: hsl(var(--role-accent-hsl) / 0.10);
-  --role-border: hsl(var(--role-accent-hsl) / 0.32);
+  --focus-tint-strength: 1;
+  --role-tint: color-mix(in srgb, var(--role-accent) 10%, var(--surface-hex) 90%);
+  --role-border: color-mix(in srgb, var(--role-accent) 32%, transparent);
 }
+
+/* Fallback for [data-accent] when using hsl-based tokens (e.g. dark mode) */
 .dark [data-accent="focus"] {
   --role-tint: hsl(var(--role-accent-hsl) / 0.12);
   --role-border: hsl(var(--role-accent-hsl) / 0.4);
 }
 
-/* Role-based accents (light) - role-accent-hsl follows --accent for tint/border */
+/* .theme-customer / .theme-pro on root (ThemeContext) – fallback when data-role not on layout */
 .theme-customer {
-  /* customer accent: pastel green - slightly deeper for visibility */
-  --accent: 156 70% 58%;
+  --accent: 158 93% 28%;
   --accent-contrast: 0 0% 8%;
   --ring: var(--accent);
   --role-accent-hsl: var(--accent);
-  /* Switch: slightly more saturated for visibility */
   --switch-accent: 156 65% 55%;
-
-  /* Warm Neutrality–weighted (more breathing room) */
   --page-pad-y: 24px;
   --stack-gap: 18px;
   --card-pad: 20px;
   --surface-border: rgba(0,0,0,0.06);
 }
 .theme-pro {
-  /* pro accent: pastel orange - slightly deeper for visibility */
-  --accent: 31 96% 66%;
+  --accent: 38 92% 50%;
   --accent-contrast: 0 0% 8%;
   --ring: var(--accent);
   --role-accent-hsl: var(--accent);
-  /* Switch: slightly more saturated for visibility */
   --switch-accent: 31 95% 62%;
-
-  /* Civic Infrastructure–weighted (slightly denser + firmer separators) */
   --page-pad-y: 20px;
   --stack-gap: 14px;
   --card-pad: 18px;
   --surface-border: rgba(0,0,0,0.08);
 }
 
-/* Dark mode: warm-charcoal surfaces + off-white ink + subtle borders */
+/* Dark mode: warm charcoal stack to match warm neutrals */
 .dark {
-  /* Core (dark) - layered surfaces, premium feel */
-  /* bg-app: near-black charcoal */
-  --bg: 150 6% 6%;
-  /* page/card bg */
-  --surface: 160 7% 9%;
-  /* elevated surface (cards, panels) */
-  --surface-2: 150 6% 12%;
-  --border: 42 5% 20%;
-  /* Primary text: bright enough for readability */
-  --text: 44 30% 96%;
-  /* Secondary: readable, not washed out */
-  --text-muted: 42 15% 72%;
+  /* Core (dark) - HSL for Tailwind alpha support */
+  --bg: 0 0% 7%;           /* #131313 warm near-black */
+  --surface: 30 4% 10%;    /* #1B1A19 card */
+  --surface-2: 30 6% 12%;  /* #211F1D panel */
+  --muted: 30 8% 15%;      /* #2A2724 dust equivalent */
 
-  /* Hairline borders: subtle, low-contrast */
+  /* Text */
+  --text: 40 14% 95%;      /* #F3F2F0 warm off-white */
+  --text-2: 30 10% 80%;    /* #CFCBC7 */
+  --text-3: 30 8% 64%;     /* #A7A19B */
+
+  /* Borders */
+  --border: 30 6% 18%;     /* #322F2C */
+  --border-2: 30 6% 21%;   /* #3B3733 */
+  --ring: rgba(242, 242, 240, 0.18);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 26px rgba(0, 0, 0, 0.45);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 1px 0 rgba(255,255,255,0.03), 0 4px 12px rgba(0,0,0,0.25);
+  --shadow-card-hover: 0 1px 0 rgba(255,255,255,0.05), 0 6px 16px rgba(0,0,0,0.3);
+
+  /* Hex for color-mix */
+  --surface-hex: #1B1A19;
+
+  /* Role accents: dark-safe borders/tints */
+  --customer-border: color-mix(in srgb, var(--customer-accent) 55%, #000 45%);
+  --pro-border: color-mix(in srgb, var(--pro-accent) 55%, #000 45%);
+  --customer-tint: color-mix(in srgb, var(--customer-accent) 10%, var(--surface-hex) 90%);
+  --pro-tint: color-mix(in srgb, var(--pro-accent) 10%, var(--surface-hex) 90%);
+
+  /* Semantic */
+  --background: hsl(var(--bg));
+  --card: hsl(var(--surface));
+  --card-2: hsl(var(--surface-2));
+  --popover: hsl(var(--surface));
+  --muted-bg: hsl(var(--muted));
+  --foreground: hsl(var(--text));
+  --muted-foreground: hsl(var(--text-3));
+  --input: hsl(var(--surface));
+  --input-border: hsl(var(--border));
+  --focus-ring: var(--ring);
+  --btn: #F3F2F0;
+  --btn-foreground: #141312;
+  --outline: hsl(var(--border));
+
+  /* Legacy / misc */
+  --text-muted: 30 8% 64%;
   --hairline: rgba(255,255,255,0.06);
-  /* Card shadow: minimal, rely on surface contrast */
-  --shadow-card: 0 1px 0 rgba(255,255,255,0.03),
-                 0 4px 12px rgba(0,0,0,0.25);
-  --shadow-card-hover: 0 1px 0 rgba(255,255,255,0.05),
-                       0 6px 16px rgba(0,0,0,0.3);
   --card-border: 1px solid rgba(255,255,255,0.06);
-
-  /* Shadow tokens for dark */
-  --shadow-1: 0 1px 2px rgba(0,0,0,0.2);
-  --shadow-2: 0 2px 8px rgba(0,0,0,0.3);
-
-  /* Bottom nav surface */
-  --nav-bg: #141716;
+  --nav-bg: #131313;
   --nav-solid: var(--nav-bg);
-  --surface-solid: #141716;
+  --surface-solid: #1B1A19;
   --surface-border: rgba(255,255,255,0.06);
-
-  /* Weighting tokens carry across dark mode */
   --page-pad-x: 16px;
   --page-pad-y: 24px;
   --stack-gap: 16px;
   --card-pad: 20px;
   --panel-pad-x: 20px;
   --panel-pad-y: 20px;
-
-  /* OfficialBadge */
   --badge-bg: rgba(255,255,255,0.05);
   --badge-border: rgba(255,255,255,0.08);
-
-  /* Brand role accents (dark): visible but not neon */
-  --accent-customer: 156 65% 65%;
-  --accent-pro: 31 90% 70%;
-
-  /* Role tint/border for dark: softer alpha to avoid glow */
+  --accent-customer: 158 85% 35%;
+  --accent-pro: 38 90% 55%;
   --role-tint: hsl(var(--role-accent-hsl) / 0.08);
   --role-border: hsl(var(--role-accent-hsl) / 0.35);
 }
 
-/* Role-based accents (dark): slightly brighter for contrast, not neon */
+/* Role-based accents (dark) */
 .dark.theme-customer {
-  /* bump slightly in dark for contrast (customer) */
-  --accent: 156 65% 65%;
+  --accent: 158 85% 35%;
   --role-accent-hsl: var(--accent);
-  /* Switch: visible pastel green in dark */
   --switch-accent: 156 60% 58%;
-
-  /* Warm Neutrality–weighted */
   --page-pad-y: 24px;
   --stack-gap: 18px;
   --card-pad: 20px;
   --surface-border: rgba(255,255,255,0.06);
 }
 .dark.theme-pro {
-  /* bump slightly in dark for contrast (pro) */
-  --accent: 31 90% 70%;
+  --accent: 38 90% 55%;
   --role-accent-hsl: var(--accent);
-  /* Switch: visible pastel orange in dark */
   --switch-accent: 31 88% 65%;
-
-  /* Civic Infrastructure–weighted */
   --page-pad-y: 20px;
   --stack-gap: 14px;
   --card-pad: 18px;
