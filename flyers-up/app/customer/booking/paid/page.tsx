@@ -46,9 +46,14 @@ function PaidContent() {
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             {bookingId ? (
-              <Link href={`/jobs/${bookingId}`}>
-                <Button>View request details</Button>
-              </Link>
+              <>
+                <Link href={`/jobs/${bookingId}`}>
+                  <Button>View request details</Button>
+                </Link>
+                <Link href={`/jobs/${bookingId}`}>
+                  <Button variant="secondary">Leave a review for {booking?.proName || 'your Pro'}</Button>
+                </Link>
+              </>
             ) : (
               <Button disabled>View request details</Button>
             )}

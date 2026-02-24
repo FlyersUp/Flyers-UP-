@@ -8,7 +8,9 @@
 import { use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { StatusBadge } from '@/components/ui/Badge';
-import { createScopeReview, getBookingById, getCurrentUser, getLatestScopeReview, type BookingDetails, type ScopeReview, type UserWithProfile } from '@/lib/api';
+import { createScopeReview, getBookingById, getCurrentUser, getLatestScopeReview, getReviewForBooking, type BookingDetails, type BookingReview, type ScopeReview, type UserWithProfile } from '@/lib/api';
+import { submitReviewAction } from '@/app/actions/reviews';
+import { supabase } from '@/lib/supabaseClient';
 
 interface PageProps {
   params: Promise<{ jobId: string }>;
@@ -28,6 +30,13 @@ export default function JobDetailsPage({ params }: PageProps) {
   const [scopeReason, setScopeReason] = useState('');
   const [scopeSubmitting, setScopeSubmitting] = useState(false);
   const [scopeMessage, setScopeMessage] = useState<string | null>(null);
+
+  // Booking review (customer leaves review for pro)
+  const [existingReview, setExistingReview] = useState<BookingReview | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -63,6 +72,10 @@ export default function JobDetailsPage({ params }: PageProps) {
       const latest = await getLatestScopeReview(booking.id);
       if (!mounted) return;
       setLatestScopeReview(latest);
+
+      const rev = await getReviewForBooking(booking.id);
+      if (!mounted) return;
+      setExistingReview(rev);
     }
 
     void loadScopeReview();
@@ -187,6 +200,89 @@ export default function JobDetailsPage({ params }: PageProps) {
             </div>
           </section>
         ) : null}
+
+        {/* Leave a review (customer, completed/awaiting_payment, no review yet) */}
+        {currentUser?.role === 'customer' &&
+          (booking.status === 'completed' || booking.status === 'awaiting_payment') &&
+          (existingReview ? (
+            <section className="bg-surface rounded-[18px] border border-hairline shadow-card p-6 mb-6 border-l-[3px] border-l-accent">
+              <div className="flex items-center gap-2 text-accent">
+                <span className="text-xl">★</span>
+                <h3 className="font-semibold text-text">Thank you for your review</h3>
+              </div>
+              <div className="flex gap-1 mt-2">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <span key={s} className={s <= existingReview.rating ? 'text-warning' : 'text-muted/40'}>
+                    ★
+                  </span>
+                ))}
+              </div>
+              {existingReview.comment && (
+                <p className="text-sm text-text mt-2">{existingReview.comment}</p>
+              )}
+            </section>
+          ) : (
+            <section className="bg-surface rounded-[18px] border border-hairline shadow-card p-6 mb-6 border-l-[3px] border-l-accent">
+              <h3 className="font-semibold text-text mb-1">Leave a review for {booking.proName || 'your Pro'}</h3>
+              <p className="text-sm text-muted/70 mb-4">Help others by sharing your experience.</p>
+
+              <div className="flex gap-1 mb-4">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setReviewRating(s)}
+                    className={`text-2xl transition-colors ${
+                      s <= reviewRating ? 'text-warning hover:text-warning/80' : 'text-muted/40 hover:text-muted/60'
+                    }`}
+                    aria-label={`${s} stars`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+
+              <textarea
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="Optional: Share what went well..."
+                rows={3}
+                className="w-full px-4 py-3 bg-surface2 border border-hairline rounded-xl text-text placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-transparent resize-none mb-4"
+              />
+
+              {reviewMessage && (
+                <p
+                  className={`text-sm mb-4 ${reviewMessage.startsWith('Thank') ? 'text-accent' : 'text-danger'}`}
+                >
+                  {reviewMessage}
+                </p>
+              )}
+
+              <button
+                onClick={async () => {
+                  setReviewSubmitting(true);
+                  setReviewMessage(null);
+                  const {
+                    data: { session },
+                  } = await supabase.auth.getSession();
+                  const res = await submitReviewAction(booking.id, reviewRating, reviewComment || null, session?.access_token);
+                  if (res.success) {
+                    setReviewMessage('Thank you for your review!');
+                    const rev = await getReviewForBooking(booking.id);
+                    setExistingReview(rev);
+                    setReviewComment('');
+                  } else {
+                    setReviewMessage(res.error || 'Failed to submit review.');
+                  }
+                  setReviewSubmitting(false);
+                }}
+                disabled={reviewSubmitting}
+                className="px-4 py-2 rounded-xl bg-accent text-accentContrast font-medium hover:opacity-95 disabled:opacity-70"
+              >
+                {reviewSubmitting ? 'Submitting…' : 'Submit review'}
+              </button>
+            </section>
+          ))}
 
         {/* Scope review (generic, platform-wide) */}
         <section className="bg-surface rounded-[18px] border border-hairline shadow-card p-6 mb-6">

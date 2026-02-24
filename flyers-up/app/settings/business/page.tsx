@@ -56,6 +56,8 @@ export default function BusinessSettingsPage() {
   const [serviceTypes, setServiceTypes] = useState<Array<{ name: string; price: string; id?: string }>>([]);
   const [newServiceName, setNewServiceName] = useState('');
   const [newServicePrice, setNewServicePrice] = useState('');
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  const [editServiceForm, setEditServiceForm] = useState({ name: '', price: '' });
 
   // Earnings
   const { earnings, loading: earningsLoading } = useProEarningsRealtime(userId);
@@ -598,29 +600,74 @@ export default function BusinessSettingsPage() {
               {serviceTypes.length > 0 ? (
                 <div className="space-y-3 mb-6">
                   {serviceTypes.map((service) => (
-                    <div key={service.id} className="surface-card flex items-center gap-3 p-4">
-                      <div className="flex-1">
-                        <p className="font-medium text-text">{service.name}</p>
-                        <p className="text-sm text-muted">${service.price}</p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const newName = prompt('Service name:', service.name);
-                          const newPrice = prompt('Price ($):', service.price);
-                          if (newName && newPrice && service.id) {
-                            void handleUpdateService(service.id, newName, newPrice);
-                          }
-                        }}
-                        className="px-3 py-1 text-sm text-text hover:bg-surface2 rounded-lg transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => service.id && void handleRemoveService(service.id)}
-                        className="px-3 py-1 text-sm text-red-600 hover:bg-danger/10 rounded-lg transition-colors"
-                      >
-                        Remove
-                      </button>
+                    <div key={service.id} className="surface-card p-4">
+                      {editingServiceId === service.id ? (
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            value={editServiceForm.name}
+                            onChange={(e) => setEditServiceForm(f => ({ ...f, name: e.target.value }))}
+                            placeholder="Service name"
+                            className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                          />
+                          <input
+                            type="number"
+                            value={editServiceForm.price}
+                            onChange={(e) => setEditServiceForm(f => ({ ...f, price: e.target.value }))}
+                            placeholder="Price ($)"
+                            min="0"
+                            step="0.01"
+                            className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                if (editServiceForm.name && editServiceForm.price && service.id) {
+                                  void handleUpdateService(service.id, editServiceForm.name, editServiceForm.price);
+                                  setEditingServiceId(null);
+                                  setEditServiceForm({ name: '', price: '' });
+                                } else {
+                                  setError('Please enter both name and price.');
+                                }
+                              }}
+                              className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent/90 transition-colors"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingServiceId(null);
+                                setEditServiceForm({ name: '', price: '' });
+                              }}
+                              className="px-4 py-2 text-text hover:bg-surface2 rounded-lg transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <p className="font-medium text-text">{service.name}</p>
+                            <p className="text-sm text-muted">${service.price}</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setEditingServiceId(service.id ?? null);
+                              setEditServiceForm({ name: service.name, price: service.price });
+                            }}
+                            className="px-3 py-1 text-sm text-text hover:bg-surface2 rounded-lg transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => service.id && void handleRemoveService(service.id)}
+                            className="px-3 py-1 text-sm text-red-600 hover:bg-danger/10 rounded-lg transition-colors"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

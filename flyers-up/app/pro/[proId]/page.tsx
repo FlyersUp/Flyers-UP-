@@ -21,8 +21,8 @@ export default async function PublicProProfilePage({ params }: { params: Promise
     data: { user },
   } = await supabase.auth.getUser();
 
-  let messageHref: string = `/book/${encodeURIComponent(profile.id)}`;
-  let messageTitle: string | null = 'Start a booking to message this pro';
+  let messageHref: string = `/customer/messages?contactPro=${encodeURIComponent(profile.id)}`;
+  let messageTitle: string | null = 'To message this pro, start a booking first';
   if (user?.id) {
     const admin = createAdminSupabaseClient();
     const { data: b } = await admin

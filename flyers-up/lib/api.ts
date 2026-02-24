@@ -911,6 +911,41 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
   }
 }
 
+export interface BookingReview {
+  id: string;
+  bookingId: string;
+  proId: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+}
+
+/**
+ * Get the review for a booking, if one exists.
+ */
+export async function getReviewForBooking(bookingId: string): Promise<BookingReview | null> {
+  try {
+    const { data, error } = await supabase
+      .from('booking_reviews')
+      .select('id, booking_id, pro_id, rating, comment, created_at')
+      .eq('booking_id', bookingId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      bookingId: data.booking_id,
+      proId: data.pro_id,
+      rating: data.rating,
+      comment: data.comment ?? null,
+      createdAt: data.created_at,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Get all bookings for a customer.
  */
