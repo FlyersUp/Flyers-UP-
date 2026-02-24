@@ -2,12 +2,20 @@
 
 import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
+import { useEffect } from 'react';
+import { useNavAlerts } from '@/contexts/NavAlertsContext';
 
 /**
  * Customer Notifications - Screen 11
  * List of notifications with icons and timestamps
  */
 export default function CustomerNotifications() {
+  const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
+
+  useEffect(() => {
+    clearMessagesAlert();
+    clearNotificationsAlert();
+  }, [clearMessagesAlert, clearNotificationsAlert]);
   return (
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">

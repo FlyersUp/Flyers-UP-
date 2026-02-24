@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import { Rail } from '@/components/ui/Rail';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useAccentDensity } from '@/contexts/AccentDensityContext';
+import { NavAlertsProvider } from '@/contexts/NavAlertsContext';
 import BottomNav from '@/components/BottomNav';
 
 interface AppLayoutProps {
@@ -54,9 +55,11 @@ export function AppLayout({
   const accentDensity = accentDensityProp ?? accentFromContext;
   return (
     <ThemeProvider defaultMode={mode}>
-      <LayoutContent showRail={showRail} mode={mode} accentDensity={accentDensity}>
-        {children}
-      </LayoutContent>
+      <NavAlertsProvider>
+        <LayoutContent showRail={showRail} mode={mode} accentDensity={accentDensity}>
+          {children}
+        </LayoutContent>
+      </NavAlertsProvider>
     </ThemeProvider>
   );
 }

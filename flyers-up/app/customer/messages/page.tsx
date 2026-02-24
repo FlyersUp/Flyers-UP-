@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { Label } from '@/components/ui/Label';
 import { StatusBadge } from '@/components/ui/Badge';
 import { supabase } from '@/lib/supabaseClient';
+import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { useEffect, useState } from 'react';
 
 type ThreadRow = {
@@ -21,6 +22,12 @@ type ThreadRow = {
 export default function CustomerMessagesPage() {
   const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
+
+  useEffect(() => {
+    clearMessagesAlert();
+    clearNotificationsAlert();
+  }, [clearMessagesAlert, clearNotificationsAlert]);
 
   useEffect(() => {
     let mounted = true;

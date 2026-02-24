@@ -2,12 +2,20 @@
 
 import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
+import { useEffect } from 'react';
+import { useNavAlerts } from '@/contexts/NavAlertsContext';
 
 /**
  * Pro Notifications - Screen 20
  * Notifications focused on bookings, job changes, payouts
  */
 export default function ProNotifications() {
+  const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
+
+  useEffect(() => {
+    clearMessagesAlert();
+    clearNotificationsAlert();
+  }, [clearMessagesAlert, clearNotificationsAlert]);
   return (
     <AppLayout mode="pro">
       <div className="max-w-4xl mx-auto px-4 py-6">

@@ -9,9 +9,21 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { AppIcon } from '@/components/ui/AppIcon';
+import { useNavAlerts } from '@/contexts/NavAlertsContext';
+
+function NavAlertDot({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <span
+      className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-danger border-2 border-[var(--nav-solid)] shrink-0"
+      aria-label="New"
+    />
+  );
+}
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { hasNewMessages, hasNewNotifications } = useNavAlerts();
   const mode: 'customer' | 'pro' = (() => {
     if (pathname?.startsWith('/pro') || pathname?.startsWith('/dashboard/pro')) return 'pro';
     if (pathname?.startsWith('/customer') || pathname?.startsWith('/dashboard/customer')) return 'customer';
@@ -65,8 +77,9 @@ export default function BottomNav() {
               isActive(notificationsHref) ? `${activeLink} ${activeIndicator}` : inactiveLink
             }`}
           >
-            <span className="mb-1">
+            <span className="mb-1 relative inline-block">
               <AppIcon name="bell" size={22} className="" alt="Notifications" />
+              <NavAlertDot show={hasNewNotifications} />
             </span>
             <span className="text-xs font-medium">Notifications</span>
           </Link>
@@ -77,8 +90,9 @@ export default function BottomNav() {
               isActive(messagesHref) ? `${activeLink} ${activeIndicator}` : inactiveLink
             }`}
           >
-            <span className="mb-1">
+            <span className="mb-1 relative inline-block">
               <AppIcon name="chat" size={22} className="" alt="Messages" />
+              <NavAlertDot show={hasNewMessages} />
             </span>
             <span className="text-xs font-medium">Messages</span>
           </Link>

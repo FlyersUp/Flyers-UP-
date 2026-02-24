@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import { useNavAlerts } from '@/contexts/NavAlertsContext';
 
 /**
  * Pro Chat - Screen 18
@@ -20,6 +21,12 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
   const [status, setStatus] = useState<string>('requested');
   const [loading, setLoading] = useState(true);
   const [customerName, setCustomerName] = useState<string>('Customer');
+  const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
+
+  useEffect(() => {
+    clearMessagesAlert();
+    clearNotificationsAlert();
+  }, [clearMessagesAlert, clearNotificationsAlert]);
 
   async function load() {
     setLoading(true);
@@ -86,18 +93,22 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
           ) : (
             rows.map((msg) => {
               const mine = msg.sender_role === 'pro';
+              const isCustomer = msg.sender_role === 'customer';
+              const bubbleStyle = isCustomer
+                ? 'bg-[#77DD77] text-gray-900 border border-[#66cc66]'
+                : 'bg-amber-100 text-gray-900 border border-amber-200';
+              const senderName = isCustomer ? customerName : 'You';
               return (
                 <div
                   key={msg.id}
-                  className={`flex ${mine ? 'justify-end' : 'justify-start'}`}
+                  className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}
                 >
+                  <span className="text-xs font-medium text-muted mb-0.5">{senderName}</span>
                   <div
-                    className={`max-w-xs rounded-xl px-4 py-2 ${
-                      mine ? 'bg-accent text-accentContrast' : 'bg-surface2 border border-[var(--hairline)] text-text'
-                    }`}
+                    className={`max-w-xs rounded-xl px-4 py-2 ${bubbleStyle}`}
                   >
                     <p>{msg.message}</p>
-                    <div className="text-xs text-muted/70 mt-1">
+                    <div className="text-xs text-gray-600 mt-1">
                       {new Date(msg.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                     </div>
                   </div>
