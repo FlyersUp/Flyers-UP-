@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
 
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
+    automatic_tax: { enabled: true },
     customer_email: user.email ?? undefined,
     line_items: [
       {

@@ -13,6 +13,7 @@ import {
   createAccountLinkV2,
   getStripeConnectClient,
 } from '@/lib/stripeConnect';
+import { stripe } from '@/lib/stripe';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 
 export async function GET(req: NextRequest) {
@@ -80,10 +81,32 @@ export async function GET(req: NextRequest) {
     const refreshUrl = `${origin}/api/stripe/connect-v2/onboard?next=${encodeURIComponent(nextParam)}`;
     const returnUrl = `${origin}/api/stripe/connect-v2/return?next=${encodeURIComponent(nextParam)}`;
 
-    const linkResult = await createAccountLinkV2(accountId, refreshUrl, returnUrl);
-    if ('error' in linkResult) return redirectError(linkResult.error);
+    let linkUrl: string | null = null;
 
-    return NextResponse.redirect(linkResult.url);
+    const linkResult = await createAccountLinkV2(accountId, refreshUrl, returnUrl);
+    if ('error' in linkResult) {
+      // Existing accounts may be V1 (created before we switched to V2). Stripe rejects: "V1 Accounts cannot be used in V2 Account APIs"
+      const errMsg = (linkResult.error ?? '').toLowerCase();
+      const isV1AccountError = errMsg.includes('v1') && errMsg.includes('v2');
+      if (isV1AccountError && stripe) {
+        try {
+          const link = await stripe.accountLinks.create({
+            account: accountId,
+            type: 'account_onboarding',
+            refresh_url: refreshUrl,
+            return_url: `${origin}/api/stripe/connect/return?next=${encodeURIComponent(nextParam)}`,
+          });
+          linkUrl = link?.url ?? null;
+        } catch {
+          // fall through to redirectError
+        }
+      }
+      if (!linkUrl) return redirectError(linkResult.error);
+    } else {
+      linkUrl = linkResult.url;
+    }
+
+    return NextResponse.redirect(linkUrl!);
   } catch (err) {
     return redirectError(err instanceof Error ? err.message : 'Onboarding failed');
   }
