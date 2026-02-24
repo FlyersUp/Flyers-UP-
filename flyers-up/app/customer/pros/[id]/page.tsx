@@ -42,8 +42,8 @@ export default async function CustomerProProfilePage({ params }: { params: Promi
     .maybeSingle();
   const messageHref = b?.id
     ? `/customer/chat/${encodeURIComponent(String(b.id))}`
-    : `/customer/messages?contactPro=${encodeURIComponent(profile.id)}`;
-  const messageTitle = b?.id ? null : 'To message this pro, start a booking first';
+    : `/customer/contact/${encodeURIComponent(profile.id)}`;
+  const messageTitle = null;
 
   const callHref = profile.phonePublic && profile.phone ? `tel:${profile.phone}` : null;
 

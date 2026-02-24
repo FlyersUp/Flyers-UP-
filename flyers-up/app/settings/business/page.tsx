@@ -16,6 +16,12 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { getMyServicePro, getServiceCategories, getProEarnings, getProJobs, type ServiceCategory, type Booking } from '@/lib/api';
 import { updateMyServiceProAction } from '@/app/actions/servicePro';
+import {
+  getActiveSubcategoriesByServiceSlugAction,
+  getMyProSubcategorySelectionsAction,
+  setMyProSubcategorySelectionsAction,
+} from '@/app/actions/services';
+import type { ServiceSubcategory } from '@/lib/db/services';
 import { useProEarningsRealtime } from '@/hooks';
 import { formatMoney } from '@/lib/utils/money';
 import { TrustRow } from '@/components/ui/TrustRow';
@@ -59,12 +65,44 @@ export default function BusinessSettingsPage() {
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [editServiceForm, setEditServiceForm] = useState({ name: '', price: '' });
 
+  // Subcategories (from primary service only)
+  const [subcategories, setSubcategories] = useState<ServiceSubcategory[]>([]);
+  const [subcategoriesLoading, setSubcategoriesLoading] = useState(false);
+  const [selectedSubcategoryIds, setSelectedSubcategoryIds] = useState<string[]>([]);
+  const [subcategoriesSaving, setSubcategoriesSaving] = useState(false);
+
   // Earnings
   const { earnings, loading: earningsLoading } = useProEarningsRealtime(userId);
 
   useEffect(() => {
     checkAuthAndLoad();
   }, []);
+
+  const categorySlug = categories.find((c) => c.id === categoryId)?.slug ?? '';
+
+  useEffect(() => {
+    if (!categorySlug || !userId) {
+      setSubcategories([]);
+      setSelectedSubcategoryIds([]);
+      return;
+    }
+    let cancelled = false;
+    setSubcategoriesLoading(true);
+    Promise.all([
+      getActiveSubcategoriesByServiceSlugAction(categorySlug),
+      getMyProSubcategorySelectionsAction(),
+    ])
+      .then(([subs, selections]) => {
+        if (cancelled) return;
+        setSubcategories(subs);
+        const forThisService = selections.find((s) => s.service_slug === categorySlug);
+        setSelectedSubcategoryIds(forThisService?.subcategory_ids ?? []);
+      })
+      .finally(() => {
+        if (!cancelled) setSubcategoriesLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [categorySlug, userId]);
 
   async function checkAuthAndLoad() {
     try {
@@ -424,7 +462,8 @@ export default function BusinessSettingsPage() {
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                disabled={!!categoryId}
+                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 <option value="">{categories.length ? 'Select a category' : 'No categories available yet'}</option>
                 {categories.map((cat) => (
@@ -433,6 +472,11 @@ export default function BusinessSettingsPage() {
                   </option>
                 ))}
               </select>
+              {categoryId ? (
+                <p className="text-xs text-muted/70 mt-2">
+                  Your primary service is locked. You can only offer subcategories within this service.
+                </p>
+              ) : null}
               {!categories.length ? (
                 <p className="text-xs text-muted/70 mt-2">
                   Categories are required to save your profile. If this stays empty, your database setup is missing category rows or
@@ -579,6 +623,80 @@ export default function BusinessSettingsPage() {
         {activeTab === 'services' && (
           <div className="space-y-6">
             <div>
+              {!categoryId ? (
+                <div className="p-4 mb-6 rounded-lg border border-border bg-surface2 text-text">
+                  <p className="font-medium mb-1">Set your primary service first</p>
+                  <p className="text-sm text-muted">
+                    Save your primary service category in the Public profile tab, then you can select which subcategories you offer here.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('profile')}
+                    className="mt-3 text-sm font-medium text-accent hover:underline"
+                  >
+                    Go to Public profile →
+                  </button>
+                </div>
+              ) : (
+                <div className="surface-card p-4 mb-6">
+                  <h3 className="font-semibold text-text mb-2">Subcategories (within your primary service)</h3>
+                  <p className="text-sm text-muted mb-4">
+                    Select which subcategories you offer. These are the only options available—your primary service is locked.
+                  </p>
+                  {subcategoriesLoading ? (
+                    <p className="text-sm text-muted/70">Loading subcategories…</p>
+                  ) : subcategories.length === 0 ? (
+                    <p className="text-sm text-muted/70">No subcategories available for your primary service.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-3">
+                        {subcategories.map((sub) => (
+                          <label
+                            key={sub.id}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:bg-surface2 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedSubcategoryIds.includes(sub.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedSubcategoryIds((prev) => [...prev, sub.id]);
+                                } else {
+                                  setSelectedSubcategoryIds((prev) => prev.filter((id) => id !== sub.id));
+                                }
+                              }}
+                              className="rounded border-border text-accent focus:ring-accent"
+                            />
+                            <span className="text-sm text-text">{sub.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setSubcategoriesSaving(true);
+                          setError(null);
+                          setSuccess(null);
+                          const res = await setMyProSubcategorySelectionsAction(categorySlug, selectedSubcategoryIds);
+                          setSubcategoriesSaving(false);
+                          if (res.success) {
+                            setSuccess('Subcategories saved.');
+                          } else {
+                            setError(res.error || 'Failed to save subcategories.');
+                          }
+                        }}
+                        disabled={subcategoriesSaving || selectedSubcategoryIds.length === 0}
+                        className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {subcategoriesSaving ? 'Saving…' : 'Save subcategories'}
+                      </button>
+                      {selectedSubcategoryIds.length === 0 && (
+                        <p className="text-xs text-muted/70">Select at least one subcategory to save.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="surface-card p-4 mb-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
@@ -595,7 +713,7 @@ export default function BusinessSettingsPage() {
                   </Link>
                 </div>
               </div>
-              <h3 className="text-lg font-semibold text-text mb-4">Your Services</h3>
+              <h3 className="text-lg font-semibold text-text mb-4">Your Services (pricing)</h3>
               
               {serviceTypes.length > 0 ? (
                 <div className="space-y-3 mb-6">

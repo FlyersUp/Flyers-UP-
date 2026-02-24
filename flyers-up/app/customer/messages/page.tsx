@@ -1,13 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Card } from '@/components/ui/Card';
 import { Label } from '@/components/ui/Label';
 import { StatusBadge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { supabase } from '@/lib/supabaseClient';
 import { useEffect, useState } from 'react';
 
@@ -20,20 +17,6 @@ type ThreadRow = {
   lastAt: string | null;
   otherPartyName: string;
 };
-
-function ContactProBanner() {
-  const searchParams = useSearchParams();
-  const contactPro = searchParams.get('contactPro');
-  if (!contactPro) return null;
-  return (
-    <div className="mb-6 p-4 rounded-xl border border-[var(--surface-border)] border-l-[3px] border-l-accent bg-surface2">
-      <p className="text-sm text-text mb-3">To message this pro, start a booking first.</p>
-      <Link href={`/book/${encodeURIComponent(contactPro)}`}>
-        <Button>Start booking</Button>
-      </Link>
-    </div>
-  );
-}
 
 export default function CustomerMessagesPage() {
   const [threads, setThreads] = useState<ThreadRow[]>([]);
@@ -108,10 +91,6 @@ export default function CustomerMessagesPage() {
           <h1 className="text-2xl font-semibold text-text">Messages</h1>
           <p className="text-muted mt-1">Your conversations with pros will show up here.</p>
         </div>
-
-        <Suspense fallback={null}>
-          <ContactProBanner />
-        </Suspense>
 
         {loading ? (
           <p className="text-sm text-muted/70">Loading…</p>
