@@ -78,7 +78,10 @@ export default function BusinessSettingsPage() {
     checkAuthAndLoad();
   }, []);
 
-  const categorySlug = categories.find((c) => c.id === categoryId)?.slug ?? '';
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+  const categorySlug = selectedCategory?.slug ?? '';
+  const primaryCategoryInactive = Boolean(selectedCategory && selectedCategory.is_active_phase1 === false);
+  const activeCategories = categories.filter((c) => c.is_active_phase1 !== false);
 
   useEffect(() => {
     if (!categorySlug || !userId) {
@@ -129,8 +132,8 @@ export default function BusinessSettingsPage() {
 
       setUserRole('pro');
 
-      // Load categories
-      const cats = await getServiceCategories();
+      // Load categories (include hidden so we can detect inactive primary e.g. photography → trainer-tutor)
+      const cats = await getServiceCategories({ includeHidden: true });
       setCategories(cats);
 
       // Load business data
@@ -457,22 +460,27 @@ export default function BusinessSettingsPage() {
               <label htmlFor="category" className="block text-sm font-medium text-muted mb-1">
                 Primary service category *
               </label>
+              {primaryCategoryInactive && (
+                <div className="mb-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm text-text">
+                  Your primary service ({selectedCategory?.name}) is no longer available. Please select a new service below.
+                </div>
+              )}
               <select
                 id="category"
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 required
-                disabled={!!categoryId}
+                disabled={!!categoryId && !primaryCategoryInactive}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                <option value="">{categories.length ? 'Select a category' : 'No categories available yet'}</option>
-                {categories.map((cat) => (
+                <option value="">{activeCategories.length ? 'Select a category' : 'No categories available yet'}</option>
+                {activeCategories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}
                   </option>
                 ))}
               </select>
-              {categoryId ? (
+              {categoryId && !primaryCategoryInactive ? (
                 <p className="text-xs text-muted/70 mt-2">
                   Your primary service is locked. You can only offer subcategories within this service.
                 </p>

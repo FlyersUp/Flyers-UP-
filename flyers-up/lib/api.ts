@@ -521,6 +521,15 @@ export async function getServiceCategories(options?: { includeHidden?: boolean }
 
   const { data, error } = await query;
 
+  const mapCat = (cat: any) => ({
+    id: cat.id,
+    name: cat.name,
+    slug: cat.slug,
+    description: cat.description || '',
+    icon: cat.icon || '📦',
+    ...(includeHidden && { is_active_phase1: cat.is_active_phase1 ?? null }),
+  });
+
   if (error) {
     if (!includeHidden && (/is_active_phase1|is_public|parent_id/i.test(error.message))) {
       const retry = await supabase.from('service_categories').select('*').order('name');
@@ -528,13 +537,7 @@ export async function getServiceCategories(options?: { includeHidden?: boolean }
         console.error('Error fetching categories (retry):', retry.error);
         return [];
       }
-      return (retry.data ?? []).map((cat: any) => ({
-        id: cat.id,
-        name: cat.name,
-        slug: cat.slug,
-        description: cat.description || '',
-        icon: cat.icon || '📦',
-      }));
+      return (retry.data ?? []).map(mapCat);
     }
     console.error('Error fetching categories:', error);
     return [];
@@ -543,22 +546,10 @@ export async function getServiceCategories(options?: { includeHidden?: boolean }
   if (!includeHidden && (data?.length ?? 0) === 0) {
     const retry = await supabase.from('service_categories').select('*').eq('is_public', true).order('name');
     if (retry.error) return [];
-    return (retry.data ?? []).map((cat: any) => ({
-      id: cat.id,
-      name: cat.name,
-      slug: cat.slug,
-      description: cat.description || '',
-      icon: cat.icon || '📦',
-    }));
+    return (retry.data ?? []).map(mapCat);
   }
 
-  return (data ?? []).map((cat: any) => ({
-    id: cat.id,
-    name: cat.name,
-    slug: cat.slug,
-    description: cat.description || '',
-    icon: cat.icon || '📦',
-  }));
+  return (data ?? []).map(mapCat);
 }
 
 /**
