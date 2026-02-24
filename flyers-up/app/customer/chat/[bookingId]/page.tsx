@@ -21,6 +21,7 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
   const [status, setStatus] = useState<string>('requested');
   const [loading, setLoading] = useState(true);
   const [proName, setProName] = useState<string>('Pro');
+  const [isInquiry, setIsInquiry] = useState(false);
   const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
 
   useEffect(() => {
@@ -32,10 +33,15 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
     setLoading(true);
     const { data: booking } = await supabase
       .from('bookings')
-      .select('status, service_pros(display_name)')
+      .select('status, address, notes, service_pros(display_name)')
       .eq('id', bookingId)
       .maybeSingle();
     if (booking?.status) setStatus(booking.status);
+    const b = booking as { address?: string; notes?: string } | null;
+    setIsInquiry(
+      b?.address === 'To be confirmed' &&
+      (b?.notes?.includes('Contact request') ?? false)
+    );
     const raw = (booking as { service_pros?: { display_name: string | null } | { display_name: string | null }[] | null })?.service_pros;
     const pro = Array.isArray(raw) ? raw[0] : raw;
     setProName(pro?.display_name?.trim() || 'Pro');
@@ -67,9 +73,19 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
           </div>
           <div className="flex-1">
             <div className="font-semibold text-text">{proName}</div>
-            <Badge variant="highlight">{status.replaceAll('_', ' ').toUpperCase()}</Badge>
+            {isInquiry ? (
+              <span className="text-xs text-muted">Questions only – no booking yet</span>
+            ) : (
+              <Badge variant="highlight">{status.replaceAll('_', ' ').toUpperCase()}</Badge>
+            )}
           </div>
         </div>
+
+        {isInquiry && (
+          <div className="mx-4 mb-2 px-3 py-2 rounded-lg bg-surface2 border border-[var(--surface-border)] text-sm text-muted">
+            You&apos;re just asking questions. When you&apos;re ready to book, start a request from the pro&apos;s profile.
+          </div>
+        )}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
@@ -77,15 +93,19 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
             <p className="text-sm text-muted/70">Loading…</p>
           ) : rows.length === 0 ? (
             <div className="text-center">
-              <Label className="bg-surface2">NO MESSAGES YET</Label>
-              <div className="text-xs text-muted/70 mt-1">Send the first message to coordinate details.</div>
+              <Label className="bg-surface2">{isInquiry ? 'ASK A QUESTION' : 'NO MESSAGES YET'}</Label>
+              <div className="text-xs text-muted/70 mt-1">
+                {isInquiry
+                  ? 'Send a message to ask questions – no commitment to book.'
+                  : 'Send the first message to coordinate details.'}
+              </div>
             </div>
           ) : (
             rows.map((msg) => {
               const mine = msg.sender_role === 'customer';
               const isCustomer = msg.sender_role === 'customer';
               const bubbleStyle = isCustomer
-                ? 'bg-[#77DD77] text-gray-900 border border-[#66cc66]'
+                ? 'bg-[#b2fba5] text-gray-900 border border-[#9ae88d]'
                 : 'bg-amber-100 text-gray-900 border border-amber-200';
               const senderName = isCustomer ? 'You' : proName;
               return (

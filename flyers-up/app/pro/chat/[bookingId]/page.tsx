@@ -21,6 +21,7 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
   const [status, setStatus] = useState<string>('requested');
   const [loading, setLoading] = useState(true);
   const [customerName, setCustomerName] = useState<string>('Customer');
+  const [isInquiry, setIsInquiry] = useState(false);
   const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
 
   useEffect(() => {
@@ -32,10 +33,15 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
     setLoading(true);
     const { data: booking } = await supabase
       .from('bookings')
-      .select('status, customer_id')
+      .select('status, address, notes, customer_id')
       .eq('id', bookingId)
       .maybeSingle();
     if (booking?.status) setStatus(booking.status);
+    const b = booking as { address?: string; notes?: string } | null;
+    setIsInquiry(
+      b?.address === 'To be confirmed' &&
+      (b?.notes?.includes('Contact request') ?? false)
+    );
     const custId = (booking as { customer_id?: string })?.customer_id;
     if (custId) {
       const { data: profile } = await supabase
@@ -77,9 +83,19 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
           </div>
           <div className="flex-1">
             <div className="font-semibold text-text">{customerName}</div>
-            <Badge variant="highlight">{status.replaceAll('_', ' ').toUpperCase()}</Badge>
+            {isInquiry ? (
+              <span className="text-xs text-muted">Inquiry – questions only, no booking yet</span>
+            ) : (
+              <Badge variant="highlight">{status.replaceAll('_', ' ').toUpperCase()}</Badge>
+            )}
           </div>
         </div>
+
+        {isInquiry && (
+          <div className="mx-4 mb-2 px-3 py-2 rounded-lg bg-surface2 border border-[var(--surface-border)] text-sm text-muted">
+            Customer is asking questions. They can start a booking when they&apos;re ready.
+          </div>
+        )}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
@@ -95,7 +111,7 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
               const mine = msg.sender_role === 'pro';
               const isCustomer = msg.sender_role === 'customer';
               const bubbleStyle = isCustomer
-                ? 'bg-[#77DD77] text-gray-900 border border-[#66cc66]'
+                ? 'bg-[#b2fba5] text-gray-900 border border-[#9ae88d]'
                 : 'bg-amber-100 text-gray-900 border border-amber-200';
               const senderName = isCustomer ? customerName : 'You';
               return (

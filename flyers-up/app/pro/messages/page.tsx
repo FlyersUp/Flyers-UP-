@@ -16,6 +16,7 @@ type ThreadRow = {
   time: string;
   lastMessage: string;
   otherPartyName: string;
+  isInquiry: boolean;
 };
 
 export default function ProMessagesPage() {
@@ -41,13 +42,15 @@ export default function ProMessagesPage() {
 
       const { data: bookings } = await supabase
         .from('bookings')
-        .select('id, status, service_date, service_time, created_at, customer_id')
+        .select('id, status, address, notes, service_date, service_time, created_at, customer_id')
         .order('created_at', { ascending: false })
         .limit(25);
 
       const b = (bookings || []) as Array<{
         id: string;
         status: string;
+        address?: string;
+        notes?: string;
         service_date: string;
         service_time: string;
         created_at: string;
@@ -80,6 +83,9 @@ export default function ProMessagesPage() {
 
         const lastRow = (last && last[0]) as { message: string } | undefined;
         const customerName = profileById.get(booking.customer_id) || 'Customer';
+        const isInquiry =
+          booking.address === 'To be confirmed' &&
+          (booking.notes?.includes('Contact request') ?? false);
         rows.push({
           bookingId: booking.id,
           status: booking.status,
@@ -87,6 +93,7 @@ export default function ProMessagesPage() {
           time: booking.service_time,
           lastMessage: lastRow?.message ?? 'No messages yet',
           otherPartyName: customerName,
+          isInquiry,
         });
       }
 
@@ -121,7 +128,13 @@ export default function ProMessagesPage() {
                       <div className="font-semibold text-text">{t.otherPartyName}</div>
                       <div className="text-sm text-muted mt-0.5 truncate">{t.lastMessage}</div>
                       <div className="mt-2">
-                        <StatusBadge status={t.status} />
+                        {t.isInquiry ? (
+                          <span className="inline-flex h-6 px-2.5 rounded-full border border-badgeBorder bg-badgeFill text-muted text-[11px] uppercase tracking-wide font-medium">
+                            Inquiry
+                          </span>
+                        ) : (
+                          <StatusBadge status={t.status} />
+                        )}
                       </div>
                     </div>
                     <div className="text-xs text-muted/70 whitespace-nowrap text-right">

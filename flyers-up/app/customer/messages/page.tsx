@@ -17,6 +17,7 @@ type ThreadRow = {
   lastMessage: string;
   lastAt: string | null;
   otherPartyName: string;
+  isInquiry: boolean;
 };
 
 export default function CustomerMessagesPage() {
@@ -42,7 +43,7 @@ export default function CustomerMessagesPage() {
 
       const { data: bookings } = await supabase
         .from('bookings')
-        .select('id, status, service_date, service_time, created_at, service_pros(display_name)')
+        .select('id, status, address, notes, service_date, service_time, created_at, service_pros(display_name)')
         .eq('customer_id', user.id)
         .order('created_at', { ascending: false })
         .limit(25);
@@ -50,6 +51,8 @@ export default function CustomerMessagesPage() {
       const b = (bookings || []) as Array<{
         id: string;
         status: string;
+        address?: string;
+        notes?: string;
         service_date: string;
         service_time: string;
         created_at: string;
@@ -69,6 +72,9 @@ export default function CustomerMessagesPage() {
         const raw = booking.service_pros;
         const pro = Array.isArray(raw) ? raw[0] : raw;
         const proName = pro?.display_name?.trim() || 'Pro';
+        const isInquiry =
+          booking.address === 'To be confirmed' &&
+          (booking.notes?.includes('Contact request') ?? false);
         rows.push({
           bookingId: booking.id,
           status: booking.status,
@@ -77,6 +83,7 @@ export default function CustomerMessagesPage() {
           lastMessage: lastRow?.message ?? 'No messages yet',
           lastAt: lastRow?.created_at ?? null,
           otherPartyName: proName,
+          isInquiry,
         });
       }
 
@@ -111,7 +118,13 @@ export default function CustomerMessagesPage() {
                       <div className="font-semibold text-text">{t.otherPartyName}</div>
                       <div className="text-sm text-muted mt-0.5 truncate">{t.lastMessage}</div>
                       <div className="mt-2">
-                        <StatusBadge status={t.status} />
+                        {t.isInquiry ? (
+                          <span className="inline-flex h-6 px-2.5 rounded-full border border-badgeBorder bg-badgeFill text-muted text-[11px] uppercase tracking-wide font-medium">
+                            Inquiry
+                          </span>
+                        ) : (
+                          <StatusBadge status={t.status} />
+                        )}
                       </div>
                     </div>
                     <div className="text-xs text-muted/70 whitespace-nowrap text-right">
