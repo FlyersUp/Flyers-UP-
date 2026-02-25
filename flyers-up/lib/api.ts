@@ -110,6 +110,12 @@ export interface BookingDetails {
   createdAt: string;
   proName?: string;
   proUserId?: string;
+  /** Job progress timestamps */
+  acceptedAt?: string | null;
+  onTheWayAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  statusHistory?: StatusHistoryEntry[];
 }
 
 // Status history entry for tracking booking lifecycle
@@ -896,6 +902,11 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       proName: (data.service_pros as any)?.display_name,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       proUserId: (data.service_pros as any)?.user_id,
+      acceptedAt: data.accepted_at ?? null,
+      onTheWayAt: data.on_the_way_at ?? null,
+      startedAt: data.started_at ?? null,
+      completedAt: data.completed_at ?? null,
+      statusHistory: data.status_history as StatusHistoryEntry[] | undefined,
     };
   } catch {
     return null;
@@ -1458,6 +1469,8 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
 export type JobStatusAction =
   | 'accepted'
   | 'declined'
+  | 'on_the_way'
+  | 'in_progress'
   | 'awaiting_payment'
   | 'completed'
   | 'cancelled';
@@ -1474,13 +1487,12 @@ export interface UpdateBookingStatusResult {
   booking?: Booking;
 }
 
-// Valid status transitions
+// Valid status transitions (job progression: use PATCH /api/jobs/[jobId]/status for step enforcement)
 const VALID_TRANSITIONS: Record<string, JobStatusAction[]> = {
   requested: ['accepted', 'declined'],
-  // Model C: pro marks work complete => awaiting_payment, then payment => completed.
-  // Keep 'completed' allowed for backwards compatibility (older flows).
-  accepted: ['awaiting_payment', 'completed', 'cancelled'],
-  // Terminal states - no further transitions allowed
+  accepted: ['on_the_way', 'awaiting_payment', 'completed', 'cancelled'],
+  on_the_way: ['in_progress'],
+  in_progress: ['awaiting_payment'],
   awaiting_payment: [],
   completed: [],
   cancelled: [],

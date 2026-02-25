@@ -3,13 +3,12 @@
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import JobTimelineCard from '@/components/jobs/JobTimelineCard';
 import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
+import { JobNextAction } from '@/components/jobs/JobNextAction';
 import Link from 'next/link';
 import { use, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { getBookingById, getCurrentUser, updateBookingStatus, type BookingDetails } from '@/lib/api';
+import { getBookingById, getCurrentUser, type BookingDetails } from '@/lib/api';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 
 /**
@@ -18,7 +17,6 @@ import { normalizeUuidOrNull } from '@/lib/isUuid';
  */
 export default function ActiveJob({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = use(params);
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [signedIn, setSignedIn] = useState<boolean>(false);
@@ -131,44 +129,29 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
         )}
 
         {booking && (
-          <JobTimelineCard
-            status={mapDbStatusToTimeline(booking.status)}
-            timestamps={buildTimestampsFromBooking(booking.createdAt, (booking as BookingDetails & { statusHistory?: { status: string; at: string }[] }).statusHistory)}
-            className="mb-6"
-          />
-        )}
+          <div className="mb-6 rounded-2xl border border-black/10 shadow-sm overflow-hidden bg-[hsl(var(--surface))]">
+            <JobTimelineCard
+              status={mapDbStatusToTimeline(booking.status)}
+              timestamps={buildTimestampsFromBooking(
+                booking.createdAt,
+                booking.statusHistory,
+                {
+                  acceptedAt: booking.acceptedAt,
+                  onTheWayAt: booking.onTheWayAt,
+                  startedAt: booking.startedAt,
+                  completedAt: booking.completedAt,
+                }
+              )}
+              className="rounded-t-2xl border-0 shadow-none mb-0"
+            />
 
-        <div className="space-y-3">
-          <Button className="w-full" onClick={() => router.push(`/pro/jobs/${jobId}/timeline`)} disabled={!booking}>
-            START JOB →
-          </Button>
-          <Button
-            variant="secondary"
-            className="w-full"
-            disabled={!booking || booking.status !== 'accepted'}
-            onClick={async () => {
-              if (!booking) return;
-              const user = await getCurrentUser();
-              if (!user || user.role !== 'pro') {
-                router.replace(`/auth?next=${encodeURIComponent(`/pro/jobs/${jobId}`)}`);
-                return;
-              }
-              const res = await updateBookingStatus({
-                bookingId: booking.id,
-                newStatus: 'awaiting_payment',
-                proUserId: user.id,
-              });
-              if (typeof res !== 'boolean' && !res.success) {
-                // best-effort: keep it simple for now
-                return;
-              }
-              const updated = await getBookingById(booking.id);
-              setBooking(updated);
-            }}
-          >
-            MARK AS COMPLETE →
-          </Button>
-        </div>
+            <JobNextAction
+              booking={booking}
+              onUpdated={setBooking}
+              jobId={jobId}
+            />
+          </div>
+        )}
       </div>
     </AppLayout>
   );

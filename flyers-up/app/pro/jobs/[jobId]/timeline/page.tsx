@@ -2,6 +2,7 @@
 
 import { AppLayout } from '@/components/layouts/AppLayout';
 import JobTimelineCard from '@/components/jobs/JobTimelineCard';
+import { JobNextAction } from '@/components/jobs/JobNextAction';
 import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 import { getBookingById, getCurrentUser, type BookingDetails } from '@/lib/api';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
@@ -48,7 +49,12 @@ export default function JobTimelinePage({ params }: { params: Promise<{ jobId: s
 
   const status = booking ? mapDbStatusToTimeline(booking.status) : 'BOOKED';
   const timestamps = booking
-    ? buildTimestampsFromBooking(booking.createdAt, (booking as BookingDetails & { statusHistory?: { status: string; at: string }[] }).statusHistory)
+    ? buildTimestampsFromBooking(booking.createdAt, booking.statusHistory, {
+        acceptedAt: booking.acceptedAt,
+        onTheWayAt: booking.onTheWayAt,
+        startedAt: booking.startedAt,
+        completedAt: booking.completedAt,
+      })
     : {};
 
   return (
@@ -77,10 +83,14 @@ export default function JobTimelinePage({ params }: { params: Promise<{ jobId: s
             <p className="text-sm text-muted">No job found.</p>
           </div>
         ) : (
-          <JobTimelineCard
-            status={status}
-            timestamps={timestamps}
-          />
+          <div className="rounded-2xl border border-black/10 shadow-sm overflow-hidden bg-[hsl(var(--surface))]">
+            <JobTimelineCard
+              status={status}
+              timestamps={timestamps}
+              className="rounded-t-2xl border-0 shadow-none mb-0"
+            />
+            <JobNextAction booking={booking} onUpdated={setBooking} jobId={jobId} />
+          </div>
         )}
       </div>
     </AppLayout>

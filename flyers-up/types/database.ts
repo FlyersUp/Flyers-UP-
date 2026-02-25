@@ -24,6 +24,8 @@ export type UserRole = 'customer' | 'pro' | 'admin';
 export type BookingStatus =
   | 'requested'
   | 'accepted'
+  | 'on_the_way'
+  | 'in_progress'
   | 'awaiting_payment'
   | 'completed'
   | 'cancelled'
