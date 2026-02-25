@@ -157,9 +157,9 @@ function getCustomerMenu(): MenuSection[] {
     {
       title: 'Bookings',
       items: [
-        { label: 'Upcoming Bookings', href: '/customer' },
-        { label: 'Past Bookings', href: '/customer' },
-        { label: 'Saved Pros', href: '/customer' },
+        { label: 'Upcoming Bookings', href: '/customer/bookings' },
+        { label: 'Past Bookings', href: '/customer/bookings?past=1' },
+        { label: 'Saved Pros', href: '/customer/categories' },
       ],
     },
     {

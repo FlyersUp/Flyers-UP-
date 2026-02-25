@@ -1,0 +1,118 @@
+/**
+ * GET /api/customer/bookings/[bookingId]
+ * Fetch a single booking for the authenticated customer. Enforces ownership.
+ * Returns fields needed for Track Booking page: status, timestamps, pro info, service info.
+ */
+import { NextResponse } from 'next/server';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseServer';
+import { normalizeUuidOrNull } from '@/lib/isUuid';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ bookingId: string }> }
+) {
+  try {
+    const { bookingId } = await params;
+    const id = normalizeUuidOrNull(bookingId);
+    if (!id) {
+      return NextResponse.json({ error: 'Invalid booking ID' }, { status: 400 });
+    }
+
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (!profile || profile.role !== 'customer') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const admin = createAdminSupabaseClient();
+    const { data: booking, error } = await admin
+      .from('bookings')
+      .select(
+        `
+        id,
+        customer_id,
+        pro_id,
+        service_date,
+        service_time,
+        address,
+        notes,
+        status,
+        price,
+        created_at,
+        accepted_at,
+        on_the_way_at,
+        started_at,
+        completed_at,
+        status_history,
+        service_pros (
+          id,
+          display_name,
+          service_categories (
+            name
+          )
+        )
+      `
+      )
+      .eq('id', id)
+      .eq('customer_id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching booking:', error);
+      return NextResponse.json({ error: 'Failed to load booking' }, { status: 500 });
+    }
+
+    if (!booking) {
+      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
+    const sp = booking.service_pros as { display_name?: string; service_categories?: { name?: string } | null } | null;
+    const cat = sp?.service_categories;
+    const serviceName = (cat && typeof cat === 'object' && 'name' in cat && cat.name) || 'Service';
+    const proName = sp?.display_name?.trim() || 'Pro';
+
+    return NextResponse.json(
+      {
+        booking: {
+          id: booking.id,
+          customerId: booking.customer_id,
+          proId: booking.pro_id,
+          serviceDate: booking.service_date,
+          serviceTime: booking.service_time,
+          address: booking.address,
+          notes: booking.notes,
+          status: booking.status,
+          price: booking.price,
+          createdAt: booking.created_at,
+          acceptedAt: booking.accepted_at,
+          onTheWayAt: booking.on_the_way_at,
+          startedAt: booking.started_at,
+          completedAt: booking.completed_at,
+          statusHistory: booking.status_history,
+          serviceName,
+          proName,
+        },
+      },
+      { status: 200, headers: { 'Cache-Control': 'no-store' } }
+    );
+  } catch (err) {
+    console.error('Booking API error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

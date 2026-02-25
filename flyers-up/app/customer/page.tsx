@@ -64,7 +64,7 @@ export default function CustomerHome() {
         const todayISO = new Date().toISOString().slice(0, 10);
         const res = await fetch(
           `/api/customer/bookings?from=${encodeURIComponent(todayISO)}&limit=20&statuses=${encodeURIComponent(
-            ['requested', 'accepted', 'awaiting_payment'].join(',')
+            ['requested', 'accepted', 'on_the_way', 'in_progress', 'awaiting_payment'].join(',')
           )}`,
           { cache: 'no-store' }
         );
@@ -91,6 +91,9 @@ export default function CustomerHome() {
         const uiStatus = (() => {
           const s = (b.status || '').toLowerCase();
           if (s === 'accepted') return 'scheduled';
+          if (s === 'on_the_way') return 'on the way';
+          if (s === 'in_progress') return 'in progress';
+          if (s === 'awaiting_payment') return 'completed';
           return b.status;
         })();
         setUpcoming({
@@ -98,7 +101,7 @@ export default function CustomerHome() {
           dateTimeLabel: when,
           proName: b.pro?.displayName || 'Service Pro',
           status: uiStatus,
-          detailsHref: `/customer/chat/${b.id}`,
+          detailsHref: `/customer/bookings/${b.id}/track`,
         });
       } catch {
         if (!mounted) return;

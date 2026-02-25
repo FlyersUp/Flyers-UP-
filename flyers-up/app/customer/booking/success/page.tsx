@@ -46,18 +46,18 @@ function BookingSuccessContent() {
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             {bookingId ? (
-              <Link href={`/customer/chat/${bookingId}`}>
-                <Button>Message the pro</Button>
+              <Link href={`/customer/bookings/${bookingId}/track`}>
+                <Button>Track your booking</Button>
               </Link>
             ) : (
-              <Button disabled>Message the pro</Button>
+              <Button disabled>Track your booking</Button>
             )}
             {bookingId ? (
-              <Link href={`/jobs/${bookingId}`}>
-                <Button variant="secondary">View request details</Button>
+              <Link href={`/customer/chat/${bookingId}`}>
+                <Button variant="secondary">Message the pro</Button>
               </Link>
             ) : (
-              <Button variant="secondary" disabled>View request details</Button>
+              <Button variant="secondary" disabled>Message the pro</Button>
             )}
             <Link href="/customer">
               <Button variant="ghost">Back to dashboard</Button>
