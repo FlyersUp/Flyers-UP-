@@ -70,8 +70,16 @@ export function SignInClient(props: {
     setError(null);
     setPendingConfirm(false);
 
+    const timeoutMs = 15000;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Request timed out. Check your connection or try again.')), timeoutMs);
+    });
+
     try {
-      const result = isSignUp ? await signUp(role, email, password) : await signIn(email, password);
+      const result = await Promise.race([
+        isSignUp ? signUp(role, email, password) : signIn(email, password),
+        timeoutPromise,
+      ]);
 
       if (result.success && result.user) {
         // Make sure a session actually exists before navigating.
@@ -127,7 +135,8 @@ export function SignInClient(props: {
         setError(result.error || 'Unable to continue. Please try again.');
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message);
       console.error('Auth error:', err);
     } finally {
       setIsLoading(false);
