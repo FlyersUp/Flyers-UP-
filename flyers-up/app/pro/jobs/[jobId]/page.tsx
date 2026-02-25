@@ -4,6 +4,8 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import JobTimelineCard from '@/components/jobs/JobTimelineCard';
+import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 import Link from 'next/link';
 import { use, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -114,11 +116,6 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
               </div>
 
               <div className="border-t border-border pt-4">
-                <Label className="mb-2 block">STATUS</Label>
-                <p className="text-text">{booking.status}</p>
-              </div>
-
-              <div className="border-t border-border pt-4">
                 <Label className="mb-2 block">CUSTOMER NOTES</Label>
                 <p className="text-text">{booking.notes || '—'}</p>
               </div>
@@ -131,6 +128,14 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
               </div>
             </div>
           </Card>
+        )}
+
+        {booking && (
+          <JobTimelineCard
+            status={mapDbStatusToTimeline(booking.status)}
+            timestamps={buildTimestampsFromBooking(booking.createdAt, (booking as BookingDetails & { statusHistory?: { status: string; at: string }[] }).statusHistory)}
+            className="mb-6"
+          />
         )}
 
         <div className="space-y-3">

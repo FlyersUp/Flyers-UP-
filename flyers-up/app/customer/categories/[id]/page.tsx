@@ -8,7 +8,7 @@ import { getCurrentUser, getProsByCategory } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { FlyerWall } from '@/components/flyers/FlyerWall';
-import type { FlyerPro } from '@/components/flyers/FlyerCard';
+import type { ProProfilePro } from '@/components/pro/ProProfileCard';
 
 /**
  * Service Pro List - Screen 3
@@ -21,7 +21,7 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true);
   const [categoryName, setCategoryName] = useState<string>('Service Pros');
   const [categoryUnavailable, setCategoryUnavailable] = useState(false);
-  const [pros, setPros] = useState<FlyerPro[]>([]);
+  const [pros, setPros] = useState<ProProfilePro[]>([]);
 
   useEffect(() => {
     const check = async () => {

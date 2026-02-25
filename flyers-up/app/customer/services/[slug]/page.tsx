@@ -6,7 +6,7 @@ import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser } from '@/lib/api';
 import { FlyerWall } from '@/components/flyers/FlyerWall';
-import type { FlyerPro } from '@/components/flyers/FlyerCard';
+import type { ProProfilePro } from '@/components/pro/ProProfileCard';
 
 interface Subcategory {
   id: string;
@@ -27,7 +27,7 @@ export default function ServiceProListPage({ params }: { params: Promise<{ slug:
   const [serviceName, setServiceName] = useState<string>('Service Pros');
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [selectedSubcategorySlug, setSelectedSubcategorySlug] = useState<string | null>(null);
-  const [pros, setPros] = useState<FlyerPro[]>([]);
+  const [pros, setPros] = useState<ProProfilePro[]>([]);
 
   useEffect(() => {
     const check = async () => {
