@@ -8,12 +8,14 @@ import { getBookingById, getCurrentUser, type BookingDetails } from '@/lib/api';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 /**
  * Job Status Timeline - Operational timeline card
  */
 export default function JobTimelinePage({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = use(params);
+  const router = useRouter();
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [signedIn, setSignedIn] = useState(false);
@@ -38,6 +40,10 @@ export default function JobTimelinePage({ params }: { params: Promise<{ jobId: s
       }
       const b = await getBookingById(id);
       if (!mounted) return;
+      if (b && user.id === b.customerId) {
+        router.replace(`/customer/bookings/${id}/track`);
+        return;
+      }
       setBooking(b);
       setLoading(false);
     };
