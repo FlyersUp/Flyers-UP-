@@ -132,7 +132,11 @@ function CustomerBookingsContent() {
                   </div>
                   <BookingStatusBadge status={b.status} />
                 </div>
-                <div className="mt-3 text-sm text-muted">View details →</div>
+                <div className="mt-3 text-sm text-muted">
+                  {(b.status || '').toLowerCase() === 'awaiting_payment'
+                    ? 'Pay now →'
+                    : 'View details →'}
+                </div>
               </Link>
             ))}
           </div>

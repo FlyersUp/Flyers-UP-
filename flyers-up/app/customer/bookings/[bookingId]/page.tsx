@@ -182,6 +182,24 @@ export default function CustomerBookingDetailPage({
                   </div>
                 </section>
 
+                {booking.status === 'awaiting_payment' && (
+                  <div
+                    className="mb-6 rounded-2xl border-2 p-6"
+                    style={{ borderColor: '#B2FBA5', backgroundColor: 'rgba(178,251,165,0.15)' }}
+                  >
+                    <h3 className="font-semibold text-text mb-1">Payment due</h3>
+                    <p className="text-sm text-muted mb-4">
+                      Your pro marked the job complete. Please pay to close out the booking.
+                    </p>
+                    <Link
+                      href={`/customer/booking/pay?bookingId=${encodeURIComponent(bookingId)}`}
+                      className="inline-flex items-center justify-center h-11 px-6 rounded-full text-sm font-semibold text-black bg-[#B2FBA5] hover:brightness-95 transition-all"
+                    >
+                      Pay now →
+                    </Link>
+                  </div>
+                )}
+
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Link
                     href={`/customer/chat/${bookingId}`}
