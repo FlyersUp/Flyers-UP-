@@ -3,6 +3,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
+/** Browser client always uses /api/supabase proxy; Realtime WebSockets don't work through it. */
+function isUsingSupabaseHttpProxy(): boolean {
+  return typeof window !== 'undefined';
+}
+
 interface NavAlertsContextType {
   hasNewMessages: boolean;
   hasNewNotifications: boolean;
@@ -33,6 +38,9 @@ export function NavAlertsProvider({ children }: { children: React.ReactNode }) {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const subscribe = async () => {
+      if (isUsingSupabaseHttpProxy()) {
+        return;
+      }
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
