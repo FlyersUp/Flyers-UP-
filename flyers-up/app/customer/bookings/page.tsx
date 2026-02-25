@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -23,7 +24,7 @@ function statusToUiLabel(s: string): string {
   return s.replaceAll('_', ' ');
 }
 
-export default function CustomerBookingsPage() {
+function CustomerBookingsContent() {
   const searchParams = useSearchParams();
   const [upcoming, setUpcoming] = useState<BookingRow[]>([]);
   const [past, setPast] = useState<BookingRow[]>([]);
@@ -164,5 +165,21 @@ export default function CustomerBookingsPage() {
         )}
       </div>
     </AppLayout>
+  );
+}
+
+export default function CustomerBookingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppLayout mode="customer">
+          <div className="max-w-4xl mx-auto px-4 py-6">
+            <p className="text-sm text-muted">Loading…</p>
+          </div>
+        </AppLayout>
+      }
+    >
+      <CustomerBookingsContent />
+    </Suspense>
   );
 }
