@@ -1,7 +1,4 @@
-import type { NextConfig } from "next";
-import withPWAInit from "next-pwa";
-
-const withPWA = withPWAInit({
+const withPWA = require("next-pwa")({
   dest: "public",
   register: true,
   skipWaiting: true,
@@ -9,7 +6,7 @@ const withPWA = withPWAInit({
   buildExcludes: [/middleware-manifest\.json$/],
 });
 
-const nextConfig: NextConfig = {
+const nextConfig = {
   images: {
     remotePatterns: process.env.NEXT_PUBLIC_SUPABASE_URL
       ? [
@@ -23,4 +20,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withPWA(nextConfig);
+module.exports = withPWA(nextConfig);
