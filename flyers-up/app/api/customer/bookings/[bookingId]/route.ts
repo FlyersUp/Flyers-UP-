@@ -1,6 +1,7 @@
 /**
  * GET /api/customer/bookings/[bookingId]
- * Fetch a single booking for the authenticated customer. Enforces ownership.
+ * Fetch a single booking for the authenticated customer or assigned pro.
+ * Customers: must be the booking's customer. Pros: must be the assigned pro.
  * Returns fields needed for Track Booking page: status, timestamps, pro info, service info.
  */
 import { NextResponse } from 'next/server';
@@ -36,12 +37,14 @@ export async function GET(
       .eq('id', user.id)
       .maybeSingle();
 
-    if (!profile || profile.role !== 'customer') {
+    if (!profile) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const admin = createAdminSupabaseClient();
-    const { data: booking, error } = await admin
+
+    // Customer: fetch only their bookings. Pro: fetch only bookings assigned to them.
+    let q = admin
       .from('bookings')
       .select(
         `
@@ -69,9 +72,25 @@ export async function GET(
         )
       `
       )
-      .eq('id', id)
-      .eq('customer_id', user.id)
-      .maybeSingle();
+      .eq('id', id);
+
+    if (profile.role === 'customer') {
+      q = q.eq('customer_id', user.id);
+    } else if (profile.role === 'pro') {
+      const { data: proRow } = await admin
+        .from('service_pros')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!proRow?.id) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      q = q.eq('pro_id', proRow.id);
+    } else {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { data: booking, error } = await q.maybeSingle();
 
     if (error) {
       console.error('Error fetching booking:', error);
