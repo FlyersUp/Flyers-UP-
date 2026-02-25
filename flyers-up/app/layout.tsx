@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Montserrat, Oswald } from "next/font/google";
 import "./globals.css";
+import PWARegister from "./pwa-register";
 import { ErrorReporter } from "@/components/ErrorReporter";
 import { RootClassSync } from "@/components/RootClassSync";
 import { Suspense } from "react";
@@ -95,6 +96,7 @@ export default function RootLayout({
       <body
         className={`${montserrat.variable} ${oswald.variable} antialiased`}
       >
+        <PWARegister />
         <ErrorReporter />
         <Suspense fallback={null}>
           <RootClassSync />

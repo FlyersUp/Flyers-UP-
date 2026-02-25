@@ -10,7 +10,7 @@ import Logo from '@/components/Logo';
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen bg-bg" style={{ '--accent-customer': '111 91% 82%' } as React.CSSProperties}>
       {/* Header */}
       <header className="px-4 py-5 bg-surface/95 backdrop-blur-sm sticky top-0 z-50 border-b border-[var(--hairline)]">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
