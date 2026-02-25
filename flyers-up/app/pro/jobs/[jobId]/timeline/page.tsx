@@ -41,7 +41,7 @@ export default function JobTimelinePage({ params }: { params: Promise<{ jobId: s
       const b = await getBookingById(id);
       if (!mounted) return;
       if (b && user.id === b.customerId) {
-        router.replace(`/customer/bookings/${id}/track`);
+        router.replace(`/customer/bookings/${id}`);
         return;
       }
       setBooking(b);

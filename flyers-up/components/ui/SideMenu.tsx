@@ -81,6 +81,7 @@ function getProMenu(): MenuSection[] {
     {
       title: 'Work & Operations',
       items: [
+        { label: 'Bookings', href: '/pro/bookings' },
         { label: 'Jobs', href: '/pro' },
         { label: 'Requests', href: '/pro/requests' },
         { label: 'Today (Detailed View)', href: '/pro/today' },
@@ -157,8 +158,7 @@ function getCustomerMenu(): MenuSection[] {
     {
       title: 'Bookings',
       items: [
-        { label: 'Upcoming Bookings', href: '/customer/bookings' },
-        { label: 'Past Bookings', href: '/customer/bookings?past=1' },
+        { label: 'Bookings', href: '/customer/bookings' },
         { label: 'Saved Pros', href: '/customer/categories' },
       ],
     },

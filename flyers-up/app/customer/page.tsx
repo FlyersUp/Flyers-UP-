@@ -101,7 +101,7 @@ export default function CustomerHome() {
           dateTimeLabel: when,
           proName: b.pro?.displayName || 'Service Pro',
           status: uiStatus,
-          detailsHref: `/customer/bookings/${b.id}/track`,
+          detailsHref: `/customer/bookings/${b.id}`,
         });
       } catch {
         if (!mounted) return;

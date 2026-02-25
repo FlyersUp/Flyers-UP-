@@ -49,9 +49,11 @@ export type NextStatusAction = 'ACCEPTED' | 'ON_THE_WAY' | 'IN_PROGRESS' | 'COMP
 
 /**
  * Returns the next DB status in the progression, or null if at end.
+ * Treats 'pending' as equivalent to 'requested'.
  */
 export function getNextDbStatus(currentDbStatus: string): string | null {
-  const idx = DB_STATUS_ORDER.indexOf(currentDbStatus);
+  const s = currentDbStatus === 'pending' ? 'requested' : currentDbStatus;
+  const idx = DB_STATUS_ORDER.indexOf(s);
   if (idx < 0 || idx >= DB_STATUS_ORDER.length - 1) return null;
   return DB_STATUS_ORDER[idx + 1];
 }
@@ -105,6 +107,7 @@ export function getStageState(
 export function mapDbStatusToTimeline(dbStatus: string): Status {
   switch (dbStatus) {
     case 'requested':
+    case 'pending':
       return 'BOOKED';
     case 'accepted':
       return 'ACCEPTED';

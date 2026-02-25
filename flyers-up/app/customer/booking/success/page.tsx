@@ -46,7 +46,7 @@ function BookingSuccessContent() {
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             {bookingId ? (
-              <Link href={`/customer/bookings/${bookingId}/track`}>
+              <Link href={`/customer/bookings/${bookingId}`}>
                 <Button>Track your booking</Button>
               </Link>
             ) : (

@@ -15,11 +15,12 @@ type BookingRow = {
   id: string;
   service_date: string;
   service_time: string;
+  address: string | null;
   status: string;
-  pro?: { displayName: string | null } | null;
+  customer?: { fullName: string | null } | null;
 };
 
-function CustomerBookingsContent() {
+function ProBookingsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [active, setActive] = useState<BookingRow[]>([]);
@@ -39,18 +40,15 @@ function CustomerBookingsContent() {
     let mounted = true;
     (async () => {
       setLoading(true);
-      const todayISO = new Date().toISOString().slice(0, 10);
       try {
         const [activeRes, historyRes, allRes] = await Promise.all([
-          fetch(
-            `/api/customer/bookings?from=${todayISO}&limit=50&statuses=${encodeURIComponent(ACTIVE_STATUSES)}`,
-            { cache: 'no-store' }
-          ),
-          fetch(
-            `/api/customer/bookings?limit=50&statuses=${encodeURIComponent(HISTORY_STATUSES)}`,
-            { cache: 'no-store' }
-          ),
-          fetch(`/api/customer/bookings?limit=100`, { cache: 'no-store' }),
+          fetch(`/api/pro/bookings?statuses=${encodeURIComponent(ACTIVE_STATUSES)}&limit=50`, {
+            cache: 'no-store',
+          }),
+          fetch(`/api/pro/bookings?statuses=${encodeURIComponent(HISTORY_STATUSES)}&limit=50`, {
+            cache: 'no-store',
+          }),
+          fetch(`/api/pro/bookings?limit=100`, { cache: 'no-store' }),
         ]);
 
         const activeJson = (await activeRes.json()) as { ok?: boolean; bookings?: BookingRow[] };
@@ -77,13 +75,13 @@ function CustomerBookingsContent() {
     activeTab === 'active' ? active : activeTab === 'history' ? history : allBookings;
 
   return (
-    <AppLayout mode="customer">
+    <AppLayout mode="pro">
       <BookingsTabsLayout
         title="Bookings"
         activeTab={activeTab}
         onTabChange={(t) => {
           setActiveTab(t);
-          router.replace(`/customer/bookings?tab=${t}`, { scroll: false });
+          router.replace(`/pro/bookings?tab=${t}`, { scroll: false });
         }}
       >
         {loading ? (
@@ -101,38 +99,35 @@ function CustomerBookingsContent() {
                   : 'No bookings yet'}
             </p>
             <p className="mt-1 text-sm text-muted">
-              {activeTab === 'active'
-                ? 'When you book a pro, it will show up here.'
-                : 'Your completed and cancelled bookings will appear here.'}
+              Your bookings will appear here when customers request your services.
             </p>
-            {activeTab !== 'all' && (
-              <Link
-                href="/customer/categories"
-                className="mt-4 inline-block text-sm font-medium text-text hover:underline"
-              >
-                Browse services
-              </Link>
-            )}
           </div>
         ) : (
           <div className="space-y-3">
             {rows.map((b) => (
               <Link
                 key={b.id}
-                href={`/customer/bookings/${b.id}`}
+                href={`/pro/bookings/${b.id}`}
                 className="block rounded-2xl border border-[var(--hairline)] p-5 hover:shadow-sm transition-shadow"
                 style={{ backgroundColor: '#F2F2F0' }}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <div className="font-medium text-text">{b.pro?.displayName || 'Service Pro'}</div>
+                    <div className="font-medium text-text">
+                      {b.customer?.fullName || 'Customer'}
+                    </div>
                     <div className="text-sm text-muted mt-0.5">
                       {b.service_date} at {b.service_time}
                     </div>
+                    {b.address && (
+                      <div className="text-xs text-muted mt-1 truncate max-w-[200px]">
+                        {b.address}
+                      </div>
+                    )}
                   </div>
                   <BookingStatusBadge status={b.status} />
                 </div>
-                <div className="mt-3 text-sm text-muted">View details →</div>
+                <div className="mt-3 text-sm text-muted">View booking →</div>
               </Link>
             ))}
           </div>
@@ -142,18 +137,18 @@ function CustomerBookingsContent() {
   );
 }
 
-export default function CustomerBookingsPage() {
+export default function ProBookingsPage() {
   return (
     <Suspense
       fallback={
-        <AppLayout mode="customer">
+        <AppLayout mode="pro">
           <div className="max-w-4xl mx-auto px-4 py-6">
             <p className="text-sm text-muted">Loading…</p>
           </div>
         </AppLayout>
       }
     >
-      <CustomerBookingsContent />
+      <ProBookingsContent />
     </Suspense>
   );
 }

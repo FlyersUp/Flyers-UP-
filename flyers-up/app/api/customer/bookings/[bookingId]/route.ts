@@ -62,6 +62,7 @@ export async function GET(
         on_the_way_at,
         started_at,
         completed_at,
+        cancelled_at,
         status_history,
         service_pros (
           id,
@@ -123,6 +124,7 @@ export async function GET(
           onTheWayAt: booking.on_the_way_at,
           startedAt: booking.started_at,
           completedAt: booking.completed_at,
+          cancelledAt: (booking as { cancelled_at?: string | null }).cancelled_at ?? null,
           statusHistory: booking.status_history,
           serviceName,
           proName,

@@ -57,7 +57,9 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
   const todayJobs = useMemo(() => {
     return jobs
       .filter((j) => j.date === todayIso)
-      .filter((j) => ['accepted', 'requested', 'awaiting_payment'].includes(j.status))
+      .filter((j) =>
+        ['requested', 'pending', 'accepted', 'on_the_way', 'in_progress', 'awaiting_payment'].includes(j.status)
+      )
       .map((j) => ({
         id: j.id,
         date: j.date,
@@ -72,10 +74,11 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
   const completedCount = useMemo(() => jobs.filter((j) => j.status === 'completed').length, [jobs]);
 
   const nextJobs = useMemo(() => {
-    // Show accepted upcoming work even when there are no "today" jobs.
-    // (Many pros accept requests for future dates.)
+    // Show active upcoming work (bookings never disappear until completed/cancelled)
     const upcoming = jobs
-      .filter((j) => ['accepted', 'awaiting_payment'].includes(j.status))
+      .filter((j) =>
+        ['requested', 'pending', 'accepted', 'on_the_way', 'in_progress', 'awaiting_payment'].includes(j.status)
+      )
       .slice()
       .sort((a, b) => {
         const aKey = `${a.date}T${a.time}`;
@@ -228,7 +231,12 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
 
         {/* Today's Jobs */}
         <div className="mb-6">
-          <Label className="mb-4 block">Today&apos;s jobs</Label>
+          <div className="flex items-center justify-between mb-4">
+            <Label>Today&apos;s jobs</Label>
+            <Link href="/pro/bookings" className="text-sm font-medium text-muted hover:text-text">
+              View all bookings
+            </Link>
+          </div>
           {jobsLoading ? (
             <Card className="border-l-[var(--border-accent)] border-l-accent">
               <div className="text-base font-semibold text-text">Loading…</div>
