@@ -328,15 +328,22 @@ export async function signIn(
     if (authError) {
       console.error('Auth signin error:', authError);
       // Give a clearer hint when the account likely uses OTP/magic-link auth.
-      const msg = authError.message || 'Unable to sign in';
-      if (msg.toLowerCase().includes('invalid login credentials')) {
+      const msg = (authError.message || 'Unable to sign in').toLowerCase();
+      if (msg.includes('email not confirmed')) {
         return {
           success: false,
           error:
-            'Incorrect email or password. If you usually sign in via email code, use “Continue with Email” on the /auth page instead.',
+            'Please confirm your email first. Check your inbox (and spam) for the confirmation link from sign-up, then try again.',
         };
       }
-      return { success: false, error: msg };
+      if (msg.includes('invalid login credentials')) {
+        return {
+          success: false,
+          error:
+            'Incorrect email or password. If you usually sign in via email code or Google, use the /auth page.',
+        };
+      }
+      return { success: false, error: authError.message || 'Unable to sign in' };
     }
 
     if (!authData.user) {

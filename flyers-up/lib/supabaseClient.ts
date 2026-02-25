@@ -50,11 +50,14 @@ function getAuthCookieName(): string {
  * Throws an error if environment variables are not set (at runtime, not build time).
  */
 export function createSupabaseClient(): SupabaseClient {
-  // Get environment variables (may be undefined during build)
+  // In the browser: use direct Supabase URL by default to avoid 504s from the proxy
+  // (Vercel→Supabase can time out). Set NEXT_PUBLIC_SUPABASE_USE_PROXY=true to use
+  // the proxy instead, e.g. when *.supabase.co is blocked in the user's region.
+  const useProxy =
+    typeof window !== 'undefined' &&
+    (process.env.NEXT_PUBLIC_SUPABASE_USE_PROXY ?? '').toLowerCase() === 'true';
   const supabaseUrl =
-    // In the browser, route Supabase traffic through our own domain to bypass
-    // regional blocks on *.supabase.co.
-    typeof window !== 'undefined'
+    typeof window !== 'undefined' && useProxy
       ? `${window.location.origin}/api/supabase`
       : getUpstreamSupabaseUrl();
   const supabaseAnonKey = getSupabaseAnonKey();
