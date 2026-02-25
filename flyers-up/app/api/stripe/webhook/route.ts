@@ -1,8 +1,8 @@
 /**
  * Stripe Webhook Handler
- * Handles Stripe events (payment_intent.succeeded, payment_intent.payment_failed, etc.)
- * 
- * To test locally, use Stripe CLI:
+ * payment_intent.succeeded: sets payment_status=PAID, paid_at, status=completed, pro_earnings.
+ * payment_intent.payment_failed: sets payment_status=FAILED.
+ * Idempotent. Verify signature with STRIPE_WEBHOOK_SECRET.
  * stripe listen --forward-to localhost:3000/api/stripe/webhook
  */
 
@@ -101,13 +101,16 @@ export async function POST(req: NextRequest) {
                 ? [...history, { status: 'completed', at: new Date().toISOString() }]
                 : history;
 
-            // Persist PaymentIntent ID; only finalize status for the expected state.
+            // Persist PaymentIntent ID, payment_status, paid_at; finalize booking status if applicable.
+            const updatePayload: Record<string, unknown> = {
+              payment_intent_id: paymentIntent.id,
+              payment_status: 'PAID',
+              paid_at: new Date().toISOString(),
+              ...(shouldFinalize ? { status: 'completed', status_history: nextHistory } : {}),
+            };
             await admin
               .from('bookings')
-              .update({
-                payment_intent_id: paymentIntent.id,
-                ...(shouldFinalize ? { status: 'completed', status_history: nextHistory } : {}),
-              })
+              .update(updatePayload)
               .eq('id', bookingId);
 
             // Create earnings record (idempotent).
@@ -159,11 +162,23 @@ export async function POST(req: NextRequest) {
 
       case 'payment_intent.payment_failed': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        const bookingId = (paymentIntent.metadata as any)?.booking_id ?? (paymentIntent.metadata as any)?.bookingId;
+        const bookingId = (paymentIntent.metadata as { booking_id?: string; bookingId?: string })?.booking_id
+          ?? (paymentIntent.metadata as { booking_id?: string; bookingId?: string })?.bookingId;
 
         if (bookingId) {
           console.log('Payment failed for booking:', bookingId);
-          // Handle failed payment - maybe notify customer or update booking status
+          try {
+            const admin = createAdminSupabaseClient();
+            await admin
+              .from('bookings')
+              .update({
+                payment_intent_id: paymentIntent.id,
+                payment_status: 'FAILED',
+              })
+              .eq('id', bookingId);
+          } catch (e) {
+            console.warn('Webhook: failed to update booking payment_status', e);
+          }
         }
         break;
       }

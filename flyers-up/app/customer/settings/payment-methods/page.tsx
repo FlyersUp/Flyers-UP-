@@ -1,225 +1,204 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
-import { Card } from '@/components/ui/Card';
-import { Label } from '@/components/ui/Label';
-import { PlacardHeader } from '@/components/ui/PlacardHeader';
-import { TrustRow } from '@/components/ui/TrustRow';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { PaymentMethodCard } from '@/components/billing/PaymentMethodCard';
+import { AddPaymentMethodModal } from '@/components/billing/AddPaymentMethodModal';
 import { SignInNotice } from '@/components/ui/SignInNotice';
-import {
-  deleteUserPaymentMethod,
-  getCurrentUser,
-  listUserPaymentMethods,
-  setDefaultUserPaymentMethod,
-  upsertUserPaymentMethod,
-  type UserPaymentMethod,
-} from '@/lib/api';
+import { getCurrentUser } from '@/lib/api';
+
+type PaymentMethod = {
+  id: string;
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+  isDefault: boolean;
+};
 
 export default function CustomerPaymentMethodsSettingsPage() {
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [setupClientSecret, setSetupClientSecret] = useState<string | null>(null);
 
-  const [methods, setMethods] = useState<UserPaymentMethod[]>([]);
-
-  const [type, setType] = useState<'card' | 'apple_pay' | 'google_pay'>('card');
-  const [label, setLabel] = useState('');
-  const [brand, setBrand] = useState('');
-  const [last4, setLast4] = useState('');
+  const fetchMethods = useCallback(async () => {
+    const res = await fetch('/api/stripe/customer/payment-methods', { cache: 'no-store' });
+    const json = await res.json();
+    if (!res.ok) {
+      setPaymentMethods([]);
+      return;
+    }
+    setPaymentMethods(json.paymentMethods ?? []);
+  }, []);
 
   useEffect(() => {
+    let mounted = true;
     const load = async () => {
       setLoading(true);
-      const user = await getCurrentUser();
-      if (!user) {
-        setUserId(null);
-        setLoading(false);
-        return;
+      try {
+        const user = await getCurrentUser();
+        if (!mounted) return;
+        setUserId(user?.id ?? null);
+        if (user) {
+          await fetchMethods();
+        } else {
+          setPaymentMethods([]);
+        }
+      } catch {
+        if (mounted) setPaymentMethods([]);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      setUserId(user.id);
-      const list = await listUserPaymentMethods(user.id);
-      setMethods(list);
-      setLoading(false);
     };
     void load();
   }, []);
 
-  async function refresh() {
-    if (!userId) return;
-    const list = await listUserPaymentMethods(userId);
-    setMethods(list);
-  }
-
-  async function addMethod() {
-    if (!userId) return;
-    setSaving(true);
-    setError(null);
-    setSuccess(null);
-
-    const l4 = last4.trim();
-    if (type === 'card' && (l4.length < 4 || l4.length > 4)) {
-      setError('Last 4 must be exactly 4 characters.');
-      setSaving(false);
-      return;
+  async function openAddModal() {
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/stripe/customer/setup-intent', { method: 'POST' });
+      const json = await res.json();
+      if (res.ok && json.clientSecret) {
+        setSetupClientSecret(json.clientSecret);
+        setAddModalOpen(true);
+      }
+    } finally {
+      setActionLoading(false);
     }
+  }
 
-    const res = await upsertUserPaymentMethod(userId, {
-      type,
-      label: label.trim(),
-      brand: brand.trim(),
-      last4: l4,
-    });
+  function closeAddModal() {
+    setAddModalOpen(false);
+    setSetupClientSecret(null);
+    void fetchMethods();
+  }
 
-    if (!res.success) setError(res.error || 'Failed to add payment method.');
-    else {
-      setSuccess('Payment method added.');
-      setLabel('');
-      setBrand('');
-      setLast4('');
-      await refresh();
+  async function setDefault(id: string) {
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/stripe/customer/payment-methods/default', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentMethodId: id }),
+      });
+      if (res.ok) await fetchMethods();
+    } finally {
+      setActionLoading(false);
     }
-    setSaving(false);
   }
 
-  async function makeDefault(id: string) {
-    if (!userId) return;
-    setSaving(true);
-    setError(null);
-    const res = await setDefaultUserPaymentMethod(userId, id);
-    if (!res.success) setError(res.error || 'Failed to set default payment method.');
-    await refresh();
-    setSaving(false);
+  async function detach(id: string) {
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/stripe/customer/payment-methods/detach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentMethodId: id }),
+      });
+      if (res.ok) await fetchMethods();
+    } finally {
+      setActionLoading(false);
+    }
   }
 
-  async function remove(id: string) {
-    if (!userId) return;
-    setSaving(true);
-    setError(null);
-    const res = await deleteUserPaymentMethod(userId, id);
-    if (!res.success) setError(res.error || 'Failed to remove payment method.');
-    await refresh();
-    setSaving(false);
-  }
+  const isSignedIn = userId !== null;
 
   return (
     <AppLayout mode="customer">
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         <div>
           <Link href="/customer/settings" className="text-sm text-muted hover:text-text">
             ← Back to Settings
           </Link>
-          <div className="mt-3">
-            <PlacardHeader title="Payment Methods" subtitle="Add, remove, and pick a default." tone="primary" />
-          </div>
-          <div className="mt-3">
-            <TrustRow />
-          </div>
+          <h1 className="text-2xl font-semibold text-text mt-3">Payment Methods</h1>
+          <p className="text-sm text-muted mt-1">Add, remove, and pick a default card.</p>
         </div>
 
-        <Card withRail>
-          <Label>HOW I PAY</Label>
-          {error && <div className="mt-4 p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">{error}</div>}
-          {success && (
-            <div className="mt-4 p-4 bg-surface2 border border-[var(--surface-border)] border-l-[3px] border-l-accent rounded-lg text-text">
-              {success}
-            </div>
-          )}
-
-          {loading ? (
-            <p className="mt-4 text-sm text-muted/70">Loading…</p>
-          ) : !userId ? (
-            <SignInNotice nextHref="/customer/settings/payment-methods" />
-          ) : (
-            <div className="mt-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 border border-border rounded-lg bg-surface">
-                <h3 className="font-medium text-text">Payment type</h3>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value as any)}
-                  className="mt-3 w-full px-3 py-2 border border-border rounded-lg bg-surface text-text"
-                    disabled={saving}
+        {loading ? (
+          <p className="text-sm text-muted">Loading…</p>
+        ) : !isSignedIn ? (
+          <SignInNotice nextHref="/customer/settings/payment-methods" />
+        ) : (
+          <div className="space-y-6">
+            <section>
+              <h2 className="text-base font-semibold text-text mb-4">Saved payment methods</h2>
+              {paymentMethods.length === 0 ? (
+                <div
+                  className="rounded-2xl border border-black/10 p-6 text-center"
+                  style={{ backgroundColor: '#F2F2F0' }}
+                >
+                  <p className="text-sm text-muted mb-4">No saved cards yet.</p>
+                  <button
+                    type="button"
+                    onClick={() => void openAddModal()}
+                    disabled={actionLoading}
+                    className="h-11 px-5 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 disabled:opacity-60 transition-all"
                   >
-                    <option value="card">Card</option>
-                    <option value="apple_pay">Apple Pay</option>
-                    <option value="google_pay">Google Pay</option>
-                  </select>
+                    Add a card
+                  </button>
                 </div>
-                <Input label="Label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g., Personal" />
-                <Input label="Brand" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g., Visa" />
-                <Input label="Last 4" value={last4} onChange={(e) => setLast4(e.target.value)} placeholder="1234" maxLength={4} />
-              </div>
+              ) : (
+                <div className="space-y-3">
+                  {paymentMethods.map((pm) => (
+                    <PaymentMethodCard
+                      key={pm.id}
+                      id={pm.id}
+                      brand={pm.brand}
+                      last4={pm.last4}
+                      expMonth={pm.expMonth}
+                      expYear={pm.expYear}
+                      isDefault={pm.isDefault}
+                      onSetDefault={() => void setDefault(pm.id)}
+                      onRemove={() => void detach(pm.id)}
+                      loading={actionLoading}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => void openAddModal()}
+                    disabled={actionLoading}
+                    className="w-full h-11 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 disabled:opacity-60 transition-all border-0"
+                  >
+                    Add new payment method
+                  </button>
+                </div>
+              )}
+            </section>
 
-              <div className="flex justify-end">
-                <Button type="button" onClick={() => void addMethod()} disabled={saving} showArrow={false}>
-                  {saving ? 'Saving…' : 'Add Payment Method'}
-                </Button>
+            <section>
+              <h2 className="text-base font-semibold text-text mb-4">Billing history</h2>
+              <div
+                className="rounded-2xl border border-black/10 p-6"
+                style={{ backgroundColor: '#F2F2F0' }}
+              >
+                <p className="text-sm text-muted">No billing history yet.</p>
               </div>
+            </section>
 
-              <div className="space-y-2">
-                {methods.length === 0 ? (
-                  <div className="p-4 border border-border rounded-lg bg-surface text-sm text-muted">
-                    No saved payment methods yet.
-                  </div>
-                ) : (
-                  methods.map((m) => (
-                    <div
-                      key={m.id}
-                      className="flex items-center justify-between gap-3 p-4 border border-border rounded-lg bg-surface"
-                    >
-                      <div className="min-w-0">
-                        <div className="font-medium text-text">
-                          {m.label || 'Payment method'} {m.isDefault ? <span className="text-xs text-success">• Default</span> : null}
-                        </div>
-                        <div className="text-sm text-muted">
-                          {m.type === 'card' ? `${m.brand || 'Card'} •••• ${m.last4 || '0000'}` : m.type.replace('_', ' ')}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {!m.isDefault && (
-                          <button
-                            type="button"
-                            className="text-sm text-warning hover:underline"
-                            onClick={() => void makeDefault(m.id)}
-                            disabled={saving}
-                          >
-                            Make default
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="text-sm text-muted hover:text-text"
-                          onClick={() => void remove(m.id)}
-                          disabled={saving}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
+            <section>
+              <h2 className="text-base font-semibold text-text mb-4">Refund history</h2>
+              <div
+                className="rounded-2xl border border-black/10 p-6"
+                style={{ backgroundColor: '#F2F2F0' }}
+              >
+                <p className="text-sm text-muted">No refunds yet.</p>
               </div>
-
-              <div className="p-4 border border-border rounded-lg bg-surface">
-                <h3 className="font-medium text-text">Billing history</h3>
-                <p className="text-sm text-muted">Coming next.</p>
-              </div>
-
-              <div className="p-4 border border-border rounded-lg bg-surface">
-                <h3 className="font-medium text-text">Refund history</h3>
-                <p className="text-sm text-muted">Coming next.</p>
-              </div>
-            </div>
-          )}
-        </Card>
+            </section>
+          </div>
+        )}
       </div>
+
+      {addModalOpen && setupClientSecret && (
+        <AddPaymentMethodModal
+          clientSecret={setupClientSecret}
+          onSuccess={closeAddModal}
+          onClose={closeAddModal}
+        />
+      )}
     </AppLayout>
   );
 }
-
