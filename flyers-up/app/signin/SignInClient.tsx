@@ -39,29 +39,15 @@ export function SignInClient(props: {
     let cancelled = false;
     const check = async () => {
       try {
-        // Check reachability through our reverse-proxy, not directly to *.supabase.co.
-        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-        if (!anonKey) {
-          if (!cancelled) setSupabaseReachability('blocked');
-          return;
-        }
-        const res = await fetch('/api/supabase/auth/v1/health', {
-          method: 'GET',
-          headers: {
-            apikey: anonKey,
-            authorization: `Bearer ${anonKey}`,
-          },
-          cache: 'no-store',
-        });
-        if (!cancelled) setSupabaseReachability(res.ok ? 'ok' : 'blocked');
+        const { supabaseHealth } = await import('@/lib/supabaseHealth');
+        await supabaseHealth(3000);
+        if (!cancelled) setSupabaseReachability('ok');
       } catch {
         if (!cancelled) setSupabaseReachability('blocked');
       }
     };
     void check();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {

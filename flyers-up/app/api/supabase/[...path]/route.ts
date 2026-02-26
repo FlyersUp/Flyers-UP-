@@ -49,12 +49,29 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   const method = req.method.toUpperCase();
   const body = method === 'GET' || method === 'HEAD' ? undefined : await req.arrayBuffer();
 
-  const upstreamRes = await fetch(url, {
-    method,
-    headers,
-    body,
-    redirect: 'manual',
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  let upstreamRes: Response;
+  try {
+    upstreamRes = await fetch(url, {
+      method,
+      headers,
+      body,
+      redirect: 'manual',
+      signal: controller.signal,
+    });
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof Error && e.name === 'AbortError') {
+      return new NextResponse(
+        JSON.stringify({ message: 'Upstream timeout' }),
+        { status: 504, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    throw e;
+  }
+  clearTimeout(timeoutId);
 
   const resHeaders = filterResponseHeaders(upstreamRes.headers);
   return new NextResponse(upstreamRes.body, {

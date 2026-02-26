@@ -51,20 +51,9 @@ function AuthInner() {
     let cancelled = false;
     const check = async () => {
       try {
-        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-        if (!anonKey) {
-          if (!cancelled) setSupabaseReachability('blocked');
-          return;
-        }
-        const res = await fetch('/api/supabase/auth/v1/health', {
-          method: 'GET',
-          headers: {
-            apikey: anonKey,
-            authorization: `Bearer ${anonKey}`,
-          },
-          cache: 'no-store',
-        });
-        if (!cancelled) setSupabaseReachability(res.ok ? 'ok' : 'blocked');
+        const { supabaseHealth } = await import('@/lib/supabaseHealth');
+        await supabaseHealth(3000);
+        if (!cancelled) setSupabaseReachability('ok');
       } catch {
         if (!cancelled) setSupabaseReachability('blocked');
       }
