@@ -240,6 +240,25 @@ export function SignInClient(props: {
                   </Link>
                 </div>
               )}
+              {error.toLowerCase().includes('timed out') && (
+                <div className="mt-2 text-xs">
+                  Try{' '}
+                  <Link
+                    href={`/signin?use_proxy=1${nextParam ? `&next=${encodeURIComponent(nextParam)}` : ''}${role === 'pro' ? '&role=pro' : ''}`}
+                    className="underline underline-offset-4 hover:opacity-80"
+                  >
+                    via proxy
+                  </Link>
+                  {' or '}
+                  <Link
+                    href={`/signin?use_proxy=0${nextParam ? `&next=${encodeURIComponent(nextParam)}` : ''}${role === 'pro' ? '&role=pro' : ''}`}
+                    className="underline underline-offset-4 hover:opacity-80"
+                  >
+                    direct connection
+                  </Link>
+                  .
+                </div>
+              )}
             </div>
           )}
 

@@ -1,241 +1,134 @@
-'use client';
-
+/**
+ * Customer Booking Details Page
+ *
+ * SECTIONS (top to bottom):
+ * A) Top bar: Back, title, status badge
+ * B) Header card: Service name, Pro name, date/time, status
+ * C) Progress: Vertical timeline (BookingTimeline)
+ * D) Latest update card
+ * E) Payment: Total, status, Pay now link if unpaid
+ * F) Service details: Collapsible (address, notes, booking ID)
+ * G) Actions: Message pro, Leave review (if completed)
+ *
+ * DATA: Fetched server-side via getCustomerBooking(). Ownership enforced:
+ * booking.customer_id must equal auth user. Redirects to signin if unauthenticated,
+ * 404 if not found or not owner.
+ */
+import { redirect, notFound } from 'next/navigation';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseServer';
+import { normalizeUuidOrNull } from '@/lib/isUuid';
+import { BookingDetailContent } from './BookingDetailContent';
 import { AppLayout } from '@/components/layouts/AppLayout';
-import { BookingTimeline } from '@/components/bookings/BookingTimeline';
-import { BookingStatusBadge } from '@/components/bookings/BookingStatusBadge';
-import { LatestUpdateCard } from '@/components/bookings/LatestUpdateCard';
-import { TrackBookingRealtime, type TrackBookingData } from '@/components/bookings/TrackBookingRealtime';
-import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
-import Link from 'next/link';
-import { use, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 
-function formatDateTime(serviceDate?: string, serviceTime?: string): string {
-  if (!serviceDate) return '—';
-  try {
-    const d = new Date(serviceDate);
-    if (Number.isNaN(d.getTime())) return serviceDate;
-    const dateStr = d.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-    return serviceTime ? `${dateStr} at ${serviceTime}` : dateStr;
-  } catch {
-    return serviceDate;
-  }
+async function getCustomerBooking(bookingId: string) {
+  const id = normalizeUuidOrNull(bookingId);
+  if (!id) return null;
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: 'unauthorized' as const };
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (!profile || profile.role !== 'customer') return { error: 'forbidden' as const };
+
+  const admin = createAdminSupabaseClient();
+  const { data: booking, error } = await admin
+    .from('bookings')
+    .select(
+      `
+      id,
+      customer_id,
+      pro_id,
+      payment_status,
+      paid_at,
+      service_date,
+      service_time,
+      address,
+      notes,
+      status,
+      price,
+      created_at,
+      accepted_at,
+      on_the_way_at,
+      started_at,
+      completed_at,
+      cancelled_at,
+      status_history,
+      service_pros (
+        id,
+        display_name,
+        service_categories (
+          name
+        )
+      )
+    `
+    )
+    .eq('id', id)
+    .eq('customer_id', user.id)
+    .maybeSingle();
+
+  if (error || !booking) return null;
+
+  const sp = booking.service_pros as { display_name?: string; service_categories?: { name?: string } | null } | null;
+  const cat = sp?.service_categories;
+  const serviceName = (cat && typeof cat === 'object' && 'name' in cat && cat.name) || 'Service';
+  const proName = sp?.display_name?.trim() || 'Pro';
+
+  return {
+    id: booking.id,
+    customerId: booking.customer_id,
+    proId: booking.pro_id,
+    serviceDate: booking.service_date,
+    serviceTime: booking.service_time,
+    address: booking.address ?? undefined,
+    notes: booking.notes ?? undefined,
+    status: booking.status,
+    paymentStatus: (booking as { payment_status?: string }).payment_status ?? 'UNPAID',
+    paidAt: (booking as { paid_at?: string | null }).paid_at ?? null,
+    price: booking.price ?? undefined,
+    createdAt: booking.created_at,
+    acceptedAt: booking.accepted_at ?? null,
+    onTheWayAt: booking.on_the_way_at ?? null,
+    startedAt: booking.started_at ?? null,
+    completedAt: booking.completed_at ?? null,
+    cancelledAt: (booking as { cancelled_at?: string | null }).cancelled_at ?? null,
+    statusHistory: (booking.status_history as { status: string; at: string }[]) ?? undefined,
+    serviceName,
+    proName,
+  };
 }
 
-function getLatestTimestamp(status: string, data: TrackBookingData): string | null {
-  const ts = buildTimestampsFromBooking(
-    data.createdAt,
-    data.statusHistory,
-    {
-      acceptedAt: data.acceptedAt,
-      onTheWayAt: data.onTheWayAt,
-      startedAt: data.startedAt,
-      completedAt: data.completedAt,
-    }
-  );
-  const s = mapDbStatusToTimeline(status);
-  return ts[s] ?? null;
-}
-
-export default function CustomerBookingDetailPage({
+export default async function CustomerBookingDetailPage({
   params,
 }: {
   params: Promise<{ bookingId: string }>;
 }) {
-  const { bookingId } = use(params);
-  const router = useRouter();
-  const [initialBooking, setInitialBooking] = useState<TrackBookingData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { bookingId } = await params;
+  const result = await getCustomerBooking(bookingId);
 
-  const fetchBooking = async (): Promise<TrackBookingData | null> => {
-    try {
-      const res = await fetch(`/api/customer/bookings/${bookingId}`, { cache: 'no-store' });
-      const json = await res.json();
-      if (!res.ok) {
-        if (res.status === 401) router.replace(`/signin?next=/customer/bookings/${bookingId}`);
-        else if (res.status === 404) setError('Booking not found');
-        else setError('Booking not found');
-        return null;
-      }
-      return json.booking as TrackBookingData;
-    } catch {
-      return null;
-    }
-  };
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      const b = await fetchBooking();
-      if (!mounted) return;
-      setInitialBooking(b ?? null);
-      setLoading(false);
-    })();
-    return () => { mounted = false; };
-  }, [bookingId]);
-
-  if (loading && !initialBooking) {
-    return (
-      <AppLayout mode="customer">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <p className="text-sm text-muted">Loading…</p>
-        </div>
-      </AppLayout>
-    );
+  if (result === null) {
+    notFound();
   }
-
-  if (error || !initialBooking) {
-    return (
-      <AppLayout mode="customer">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div
-            className="rounded-2xl border border-[var(--hairline)] p-6"
-            style={{ backgroundColor: '#F2F2F0' }}
-          >
-            <p className="text-sm text-muted">{error || 'Booking not found'}</p>
-            <Link
-              href="/customer/bookings"
-              className="mt-4 inline-block text-sm font-medium text-text hover:underline"
-            >
-              ← Back to bookings
-            </Link>
-          </div>
-        </div>
-      </AppLayout>
-    );
+  if (result && 'error' in result) {
+    if (result.error === 'unauthorized') {
+      redirect(`/signin?next=${encodeURIComponent(`/customer/bookings/${bookingId}`)}`);
+    }
+    notFound();
   }
 
   return (
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <Link
-          href="/customer/bookings"
-          className="text-sm text-muted hover:text-text mb-4 inline-block"
-        >
-          ← Back to bookings
-        </Link>
-
-        <TrackBookingRealtime
-          bookingId={bookingId}
-          initialBooking={initialBooking}
-          fetchBooking={fetchBooking}
-        >
-          {(booking) => {
-            const status = mapDbStatusToTimeline(booking.status);
-            const timestamps = buildTimestampsFromBooking(
-              booking.createdAt,
-              booking.statusHistory,
-              {
-                acceptedAt: booking.acceptedAt,
-                onTheWayAt: booking.onTheWayAt,
-                startedAt: booking.startedAt,
-                completedAt: booking.completedAt,
-              }
-            );
-
-            return (
-              <>
-                <header className="mb-6">
-                  <h1 className="text-2xl font-semibold text-text">Booking Details</h1>
-                  <p className="mt-1 text-sm text-muted">
-                    {booking.serviceName || 'Service'} · {booking.proName || 'Pro'}
-                  </p>
-                  <p className="mt-0.5 text-sm text-muted">
-                    {formatDateTime(booking.serviceDate, booking.serviceTime)}
-                  </p>
-                  <div className="mt-3">
-                    <BookingStatusBadge status={booking.status} />
-                  </div>
-                </header>
-
-                <section className="mb-6">
-                  <LatestUpdateCard
-                    status={status}
-                    timestamp={getLatestTimestamp(booking.status, booking)}
-                  />
-                </section>
-
-                <section className="mb-6">
-                  <h2 className="text-base font-semibold text-text mb-4">Status timeline</h2>
-                  <div
-                    className="rounded-2xl border border-[var(--hairline)] p-6"
-                    style={{ backgroundColor: '#F2F2F0' }}
-                  >
-                    <BookingTimeline
-                      status={status}
-                      timestamps={{
-                        booked: timestamps.BOOKED,
-                        accepted: timestamps.ACCEPTED,
-                        onTheWay: timestamps.ON_THE_WAY,
-                        started: timestamps.IN_PROGRESS,
-                        completed: timestamps.COMPLETED,
-                      }}
-                    />
-                  </div>
-                </section>
-
-                {booking.status === 'awaiting_payment' &&
-                  (booking as { paymentStatus?: string }).paymentStatus !== 'PAID' && (
-                  <div
-                    className="mb-6 rounded-2xl border-2 p-6"
-                    style={{ borderColor: '#B2FBA5', backgroundColor: 'rgba(178,251,165,0.15)' }}
-                  >
-                    <h3 className="font-semibold text-text mb-1">Payment due</h3>
-                    <p className="text-sm text-muted mb-4">
-                      Your pro marked the job complete. Please pay to close out the booking.
-                    </p>
-                    <Link
-                      href={`/customer/bookings/${bookingId}/checkout`}
-                      className="inline-flex items-center justify-center h-11 px-6 rounded-full text-sm font-semibold text-black bg-[#B2FBA5] hover:brightness-95 transition-all"
-                    >
-                      Pay now →
-                    </Link>
-                  </div>
-                )}
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Link
-                    href={`/customer/chat/${bookingId}`}
-                    className="flex-1 h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all"
-                  >
-                    Message Pro
-                  </Link>
-                  <Link
-                    href="/customer/settings/help-support"
-                    className="flex-1 h-11 flex items-center justify-center rounded-full text-sm font-medium border border-black/15 text-black/80 hover:bg-black/5 transition-colors"
-                  >
-                    Help / Support
-                  </Link>
-                </div>
-
-                {status === 'COMPLETED' && (
-                  <div className="mt-6">
-                    <Link
-                      href={`/jobs/${bookingId}`}
-                      className="text-sm font-medium text-text hover:underline"
-                    >
-                      Leave a review →
-                    </Link>
-                  </div>
-                )}
-
-                {process.env.NODE_ENV === 'development' && (
-                  <div className="mt-8 p-3 rounded-lg bg-black/5 text-xs font-mono text-muted">
-                    Debug: id={booking.id} status={booking.status}
-                  </div>
-                )}
-              </>
-            );
-          }}
-        </TrackBookingRealtime>
+        <BookingDetailContent booking={result} bookingId={bookingId} />
       </div>
     </AppLayout>
   );

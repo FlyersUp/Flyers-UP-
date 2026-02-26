@@ -8,6 +8,8 @@ export interface TrackBookingData {
   id: string;
   status: string;
   paymentStatus?: string;
+  paidAt?: string | null;
+  price?: number;
   createdAt: string;
   acceptedAt?: string | null;
   onTheWayAt?: string | null;
