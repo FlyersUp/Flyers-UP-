@@ -101,7 +101,8 @@ export default function RootLayout({
         className={`${montserrat.variable} ${oswald.variable} antialiased`}
       >
         <PWARegister />
-        <ErrorReporter />
+        {/* TEMP: Commented out - uses auth.getSession() when posting errors */}
+        {/* <ErrorReporter /> */}
         <Suspense fallback={null}>
           <RootClassSync />
         </Suspense>
