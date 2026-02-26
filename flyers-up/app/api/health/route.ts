@@ -1,4 +1,5 @@
 export const runtime = 'nodejs';
+export const preferredRegion = ['cle1']; // US East (Ohio)
 
 /**
  * Simple app health for monitors (UptimeRobot, etc.).
