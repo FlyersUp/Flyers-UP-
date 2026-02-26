@@ -10,12 +10,16 @@ const montserrat = Montserrat({
   variable: "--font-montserrat",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
+  display: "swap",
+  preload: false,
 });
 
 const oswald = Oswald({
   variable: "--font-oswald",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
+  display: "swap",
+  preload: false,
 });
 
 export const viewport: Viewport = {
