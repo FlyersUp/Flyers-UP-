@@ -34,7 +34,6 @@ function AuthInner() {
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(errorParam ? decodeURIComponent(errorParam) : null);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [supabaseReachability, setSupabaseReachability] = useState<'checking' | 'ok' | 'blocked'>('checking');
   const [adminDenied, setAdminDenied] = useState<{ email: string; role: string | null } | null>(null);
   const otpInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,21 +45,6 @@ function AuthInner() {
     }
     return base;
   }, [nextParam]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const check = async () => {
-      try {
-        const { supabaseHealth } = await import('@/lib/supabaseHealth');
-        await supabaseHealth(3000);
-        if (!cancelled) setSupabaseReachability('ok');
-      } catch {
-        if (!cancelled) setSupabaseReachability('blocked');
-      }
-    };
-    void check();
-    return () => { cancelled = true; };
-  }, []);
 
   // Restore email from sessionStorage on mount
   useEffect(() => {
@@ -406,8 +390,9 @@ function AuthInner() {
                     {error}
                   </div>
                 )}
-                {supabaseReachability !== 'checking' && supabaseReachability !== 'ok' && (
-                  <div className="mt-4 rounded-xl border border-border bg-surface2 px-4 py-3 text-xs text-muted">
+                {/* reachability warning removed - no health check on load */}
+                {false && (
+                  <div className="hidden">
                     It looks like your network can’t reach Supabase right now. Try a VPN or a different network.
                   </div>
                 )}

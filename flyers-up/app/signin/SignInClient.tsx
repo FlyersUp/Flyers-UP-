@@ -28,27 +28,10 @@ export function SignInClient(props: {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState(false);
-  const [supabaseReachability, setSupabaseReachability] = useState<'checking' | 'ok' | 'blocked'>('checking');
-
   useEffect(() => {
     setError(null);
     setPendingConfirm(false);
   }, [isSignUp]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const check = async () => {
-      try {
-        const { supabaseHealth } = await import('@/lib/supabaseHealth');
-        await supabaseHealth(3000);
-        if (!cancelled) setSupabaseReachability('ok');
-      } catch {
-        if (!cancelled) setSupabaseReachability('blocked');
-      }
-    };
-    void check();
-    return () => { cancelled = true; };
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -303,8 +286,9 @@ export function SignInClient(props: {
             </button>
           </form>
 
-          {supabaseReachability !== 'checking' && supabaseReachability !== 'ok' && (
-            <div className="mt-4 rounded-lg border border-border bg-surface2 px-4 py-3 text-xs text-muted">
+          {/* reachability warning removed - no health check on load */}
+          {false && (
+            <div className="hidden">
               It looks like your network can’t reach Supabase right now. If you’re in Yemen (or on a restricted ISP),
               try a VPN or a different network.
             </div>
