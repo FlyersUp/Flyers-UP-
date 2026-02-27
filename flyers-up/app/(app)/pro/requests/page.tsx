@@ -146,13 +146,10 @@ export default function ProRequestsPage() {
                           router.replace('/auth?next=%2Fpro%2Frequests');
                           return;
                         }
-                        const res = await updateBookingStatus({
-                          bookingId: r.id,
-                          newStatus: 'accepted',
-                          proUserId: user.id,
-                        });
-                        if (typeof res !== 'boolean' && !res.success) {
-                          setError(res.error || 'Failed to accept.');
+                        const res = await fetch(`/api/bookings/${r.id}/accept`, { method: 'POST' });
+                        const json = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                          setError(json.error || 'Failed to accept.');
                         } else {
                           router.push(`/pro/jobs/${r.id}`);
                           setRows((prev) => prev.filter((x) => x.id !== r.id));
