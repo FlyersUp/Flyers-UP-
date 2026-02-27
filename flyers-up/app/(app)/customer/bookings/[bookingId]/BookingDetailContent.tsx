@@ -20,7 +20,6 @@ export interface BookingDetailData {
   enRouteAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
-  paidAt?: string | null;
   statusHistory?: { status: string; at: string }[];
   serviceName?: string;
   proName?: string;
