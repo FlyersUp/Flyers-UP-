@@ -205,7 +205,7 @@ export async function POST(req: NextRequest) {
 
   const result = await Promise.race([
     persistWork(),
-    sleep(PERSIST_TIMEOUT_MS).then(() => ({ persisted: false } as const)),
+    sleep(PERSIST_TIMEOUT_MS).then(() => ({ persisted: false, alerted: false })),
   ]);
 
   return NextResponse.json(
