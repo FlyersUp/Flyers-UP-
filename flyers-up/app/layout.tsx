@@ -1,7 +1,8 @@
 import "./globals.css";
+import { ErrorReporter } from "@/components/ErrorReporter";
 
 /**
- * TEMP: Minimal static layout (no fonts, PWA, ErrorReporter, RootClassSync).
+ * TEMP: Minimal static layout (no fonts, PWA, RootClassSync).
  * Restore full layout when done debugging.
  */
 export default function RootLayout({
@@ -11,7 +12,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ErrorReporter />
+        {children}
+      </body>
     </html>
   );
 }

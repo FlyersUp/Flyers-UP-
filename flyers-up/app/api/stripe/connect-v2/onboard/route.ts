@@ -16,6 +16,9 @@ import {
 import { stripe } from '@/lib/stripe';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 
+export const runtime = 'nodejs';
+export const preferredRegion = ['cle1'];
+
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
   const nextParam = req.nextUrl.searchParams.get('next') ?? '/pro/earnings';

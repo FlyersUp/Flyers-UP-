@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { getActiveSubcategoriesByServiceSlug } from '@/lib/db/services';
 
+export const runtime = 'nodejs';
+export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
 /**

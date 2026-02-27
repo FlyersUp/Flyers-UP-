@@ -13,6 +13,9 @@ import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { recordServerErrorEvent } from '@/lib/serverError';
 import { sendProPaymentReceipt } from '@/lib/email';
 
+export const runtime = 'nodejs';
+export const preferredRegion = ['cle1'];
+
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(req: NextRequest) {

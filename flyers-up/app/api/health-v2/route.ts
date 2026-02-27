@@ -1,4 +1,5 @@
 export const runtime = 'nodejs';
+export const preferredRegion = ['cle1'];
 
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 

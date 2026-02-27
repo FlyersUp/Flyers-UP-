@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'nodejs';
+export const preferredRegion = ['cle1'];
+
 // Proxy Supabase calls through our own domain to bypass regional blocks on *.supabase.co.
 // This is intentionally lightweight: forward method/headers/body/querystring to Supabase.
 //

@@ -9,6 +9,8 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 
+export const runtime = 'nodejs';
+export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
 export async function GET(

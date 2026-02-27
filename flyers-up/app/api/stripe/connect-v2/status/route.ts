@@ -9,6 +9,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAccountStatusV2 } from '@/lib/stripeConnect';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 
+export const runtime = 'nodejs';
+export const preferredRegion = ['cle1'];
+
 export async function GET(req: NextRequest) {
   const accountId = req.nextUrl.searchParams.get('accountId');
 

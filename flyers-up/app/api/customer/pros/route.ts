@@ -3,6 +3,8 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const zipcodes = require('zipcodes');
 
+export const runtime = 'nodejs';
+export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
 /**

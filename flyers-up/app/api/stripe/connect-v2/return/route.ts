@@ -10,6 +10,7 @@ import { getAccountStatusV2, getStripeConnectClient } from '@/lib/stripeConnect'
 import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabaseServer';
 
 export const runtime = 'nodejs';
+export const preferredRegion = ['cle1'];
 
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;

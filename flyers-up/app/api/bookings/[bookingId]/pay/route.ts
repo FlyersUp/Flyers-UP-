@@ -13,9 +13,11 @@ import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { getOrCreateStripeCustomer } from '@/lib/stripeCustomer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 
-const PLATFORM_FEE_RATE = 0.15;
-
+export const runtime = 'nodejs';
+export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
+
+const PLATFORM_FEE_RATE = 0.15;
 
 export async function POST(
   _req: Request,

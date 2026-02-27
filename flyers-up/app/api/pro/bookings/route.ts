@@ -4,6 +4,8 @@ import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { recordServerErrorEvent } from '@/lib/serverError';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 
+export const runtime = 'nodejs';
+export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
 type BookingRow = {

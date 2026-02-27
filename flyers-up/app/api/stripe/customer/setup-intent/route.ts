@@ -9,6 +9,8 @@ import { stripe } from '@/lib/stripe';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { getOrCreateStripeCustomer } from '@/lib/stripeCustomer';
 
+export const runtime = 'nodejs';
+export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
 export async function POST() {

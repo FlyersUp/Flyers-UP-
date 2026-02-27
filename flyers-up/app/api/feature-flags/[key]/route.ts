@@ -1,4 +1,5 @@
 export const runtime = 'nodejs';
+export const preferredRegion = ['cle1'];
 
 /**
  * Feature flag read endpoint (server-authoritative).

@@ -26,6 +26,8 @@ import {
   type NextStatusAction,
 } from '@/components/jobs/jobStatus';
 
+export const runtime = 'nodejs';
+export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
 const VALID_NEXT_STATUSES: NextStatusAction[] = [
