@@ -45,13 +45,28 @@ export function NavAlertsProvider({ children }: { children: React.ReactNode }) {
       if (!user) return;
 
       channel = supabase
-        .channel('nav-alerts-booking-messages')
+        .channel('nav-alerts-messages')
         .on(
           'postgres_changes',
           {
             event: 'INSERT',
             schema: 'public',
             table: 'booking_messages',
+          },
+          (payload) => {
+            const row = payload.new as { sender_id?: string };
+            if (row?.sender_id && row.sender_id !== user.id) {
+              setHasNewMessages(true);
+              setHasNewNotifications(true);
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'conversation_messages',
           },
           (payload) => {
             const row = payload.new as { sender_id?: string };

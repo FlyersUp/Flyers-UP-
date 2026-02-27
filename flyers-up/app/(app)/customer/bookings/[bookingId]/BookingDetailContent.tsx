@@ -17,8 +17,10 @@ export interface BookingDetailData {
   createdAt: string;
   acceptedAt?: string | null;
   onTheWayAt?: string | null;
+  enRouteAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
+  paidAt?: string | null;
   statusHistory?: { status: string; at: string }[];
   serviceName?: string;
   proName?: string;
@@ -56,9 +58,11 @@ function getLatestTimestamp(status: string, data: TrackBookingData): string | nu
     data.statusHistory,
     {
       acceptedAt: data.acceptedAt,
-      onTheWayAt: data.onTheWayAt,
+      onTheWayAt: data.onTheWayAt ?? data.enRouteAt,
+      enRouteAt: data.enRouteAt,
       startedAt: data.startedAt,
       completedAt: data.completedAt,
+      paidAt: data.paidAt,
     }
   );
   const s = mapDbStatusToTimeline(status);
@@ -74,9 +78,11 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     price: b.price,
     createdAt: b.createdAt,
     acceptedAt: b.acceptedAt,
-    onTheWayAt: b.onTheWayAt,
+    onTheWayAt: b.onTheWayAt ?? b.enRouteAt,
+    enRouteAt: b.enRouteAt ?? b.onTheWayAt,
     startedAt: b.startedAt,
     completedAt: b.completedAt,
+    paidAt: b.paidAt,
     statusHistory: b.statusHistory,
     serviceName: b.serviceName,
     proName: b.proName,
@@ -174,6 +180,7 @@ export function BookingDetailContent({
                     onTheWay: timestamps.ON_THE_WAY,
                     started: timestamps.IN_PROGRESS,
                     completed: timestamps.COMPLETED,
+                    paid: timestamps.PAID,
                   }}
                 />
               </div>
@@ -218,14 +225,23 @@ export function BookingDetailContent({
                         </span>
                       )}
                     </div>
-                    {paymentStatus === 'UNPAID' &&
-                      (booking.status === 'awaiting_payment' || booking.status === 'completed') && (
+                    {(booking.status === 'accepted' || booking.status === 'pro_en_route' || booking.status === 'in_progress') && paymentStatus === 'UNPAID' && (
+                      <p className="text-sm text-muted mt-2">
+                        Your card will be authorized when you add a payment method. You will only be charged after job completion.
+                      </p>
+                    )}
+                    {(booking.status === 'accepted' || booking.status === 'pro_en_route' || booking.status === 'in_progress') && paymentStatus === 'UNPAID' && (
                       <Link
-                        href={`/customer/bookings/${bookingId}/checkout`}
+                        href={`/customer/bookings/${bookingId}/authorize`}
                         className="inline-flex items-center justify-center h-11 px-6 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all mt-3"
                       >
-                        Pay now →
+                        Authorize payment method →
                       </Link>
+                    )}
+                    {(booking.status === 'completed_pending_payment' || booking.status === 'awaiting_payment') && paymentStatus === 'UNPAID' && (
+                      <p className="text-sm text-muted mt-2">
+                        Payment will be captured automatically when the pro marks the job complete.
+                      </p>
                     )}
                   </div>
                 ) : (
@@ -296,7 +312,7 @@ export function BookingDetailContent({
                 >
                   Help / Support
                 </Link>
-                {status === 'COMPLETED' && (
+                {(status === 'COMPLETED' || status === 'PAID') && (
                   <Link
                     href={`/jobs/${bookingId}`}
                     className="flex-1 h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all"

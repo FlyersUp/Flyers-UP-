@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/Label';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/Badge';
 import { supabase } from '@/lib/supabaseClient';
-import { updateBookingStatus } from '@/lib/api';
 
 type Row = {
   id: string;
@@ -175,13 +174,10 @@ export default function ProRequestsPage() {
                           router.replace('/auth?next=%2Fpro%2Frequests');
                           return;
                         }
-                        const res = await updateBookingStatus({
-                          bookingId: r.id,
-                          newStatus: 'declined',
-                          proUserId: user.id,
-                        });
-                        if (typeof res !== 'boolean' && !res.success) {
-                          setError(res.error || 'Failed to decline.');
+                        const res = await fetch(`/api/bookings/${r.id}/decline`, { method: 'POST' });
+                        const json = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                          setError(json.error || 'Failed to decline.');
                         } else {
                           setRows((prev) => prev.filter((x) => x.id !== r.id));
                         }

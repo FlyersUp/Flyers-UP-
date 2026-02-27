@@ -68,7 +68,7 @@ export async function POST(
   const status = String(booking.status);
   const paymentStatus = String(booking.payment_status ?? 'UNPAID');
 
-  if (status !== 'awaiting_payment') {
+  if (status !== 'completed_pending_payment' && status !== 'awaiting_payment') {
     return NextResponse.json(
       { error: `Booking is not ready for payment (status: ${status})` },
       { status: 400 }

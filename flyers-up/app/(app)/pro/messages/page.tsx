@@ -10,11 +10,15 @@ import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { useEffect, useState } from 'react';
 
 type ThreadRow = {
-  bookingId: string;
+  id: string;
+  type: 'booking' | 'conversation';
+  bookingId?: string;
+  conversationId?: string;
   status: string;
   date: string;
   time: string;
   lastMessage: string;
+  lastAt: string | null;
   otherPartyName: string;
   isInquiry: boolean;
 };
@@ -40,9 +44,24 @@ export default function ProMessagesPage() {
         return;
       }
 
+      const { data: proRow } = await supabase
+        .from('service_pros')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const proId = proRow?.id;
+      if (!proId) {
+        setThreads([]);
+        setLoading(false);
+        return;
+      }
+
+      const rows: ThreadRow[] = [];
+
       const { data: bookings } = await supabase
         .from('bookings')
         .select('id, status, address, notes, service_date, service_time, created_at, customer_id')
+        .eq('pro_id', proId)
         .order('created_at', { ascending: false })
         .limit(25);
 
@@ -57,7 +76,23 @@ export default function ProMessagesPage() {
         customer_id: string;
       }>;
 
-      const customerIds = [...new Set(b.map((x) => x.customer_id).filter(Boolean))];
+      const { data: conversations } = await supabase
+        .from('conversations')
+        .select('id, created_at, customer_id')
+        .eq('pro_id', proId)
+        .order('created_at', { ascending: false })
+        .limit(25);
+
+      const convs = (conversations || []) as Array<{
+        id: string;
+        created_at: string;
+        customer_id: string;
+      }>;
+
+      const customerIds = [...new Set([
+        ...b.map((x) => x.customer_id),
+        ...convs.map((c) => c.customer_id),
+      ].filter(Boolean))];
       const profileById = new Map<string, string>();
       if (customerIds.length > 0) {
         const { data: profiles } = await supabase
@@ -72,7 +107,6 @@ export default function ProMessagesPage() {
         });
       }
 
-      const rows: ThreadRow[] = [];
       for (const booking of b) {
         const { data: last } = await supabase
           .from('booking_messages')
@@ -81,24 +115,58 @@ export default function ProMessagesPage() {
           .order('created_at', { ascending: false })
           .limit(1);
 
-        const lastRow = (last && last[0]) as { message: string } | undefined;
+        const lastRow = (last && last[0]) as { message: string; created_at: string } | undefined;
         const customerName = profileById.get(booking.customer_id) || 'Customer';
         const isInquiry =
           booking.address === 'To be confirmed' &&
           (booking.notes?.includes('Contact request') ?? false);
         rows.push({
+          id: booking.id,
+          type: 'booking',
           bookingId: booking.id,
           status: booking.status,
           date: booking.service_date,
           time: booking.service_time,
           lastMessage: lastRow?.message ?? 'No messages yet',
+          lastAt: lastRow?.created_at ?? null,
           otherPartyName: customerName,
           isInquiry,
         });
       }
 
+      for (const conv of convs) {
+        const { data: last } = await supabase
+          .from('conversation_messages')
+          .select('message, created_at')
+          .eq('conversation_id', conv.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        const lastRow = (last && last[0]) as { message: string; created_at: string } | undefined;
+        const customerName = profileById.get(conv.customer_id) || 'Customer';
+        const d = new Date(conv.created_at);
+        rows.push({
+          id: conv.id,
+          type: 'conversation',
+          conversationId: conv.id,
+          status: 'inquiry',
+          date: d.toISOString().slice(0, 10),
+          time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          lastMessage: lastRow?.message ?? 'No messages yet',
+          lastAt: lastRow?.created_at ?? null,
+          otherPartyName: customerName,
+          isInquiry: true,
+        });
+      }
+
+      rows.sort((a, b) => {
+        const atA = a.lastAt ?? a.date + 'T' + a.time;
+        const atB = b.lastAt ?? b.date + 'T' + b.time;
+        return new Date(atB).getTime() - new Date(atA).getTime();
+      });
+
       if (!mounted) return;
-      setThreads(rows);
+      setThreads(rows.slice(0, 50));
       setLoading(false);
     }
     void load();
@@ -121,7 +189,11 @@ export default function ProMessagesPage() {
         ) : (
           <div className="space-y-4">
             {threads.map((t) => (
-              <Link key={t.bookingId} href={`/pro/chat/${t.bookingId}`} className="block">
+              <Link
+                key={t.id}
+                href={t.type === 'conversation' ? `/pro/chat/conversation/${t.conversationId}` : `/pro/chat/${t.bookingId}`}
+                className="block"
+              >
                 <Card withRail>
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">

@@ -58,7 +58,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
     return jobs
       .filter((j) => j.date === todayIso)
       .filter((j) =>
-        ['requested', 'pending', 'accepted', 'on_the_way', 'in_progress', 'awaiting_payment'].includes(j.status)
+        ['requested', 'pending', 'accepted', 'pro_en_route', 'on_the_way', 'in_progress', 'completed_pending_payment', 'awaiting_payment'].includes(j.status)
       )
       .map((j) => ({
         id: j.id,
@@ -77,7 +77,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
     // Show active upcoming work (bookings never disappear until completed/cancelled)
     const upcoming = jobs
       .filter((j) =>
-        ['requested', 'pending', 'accepted', 'on_the_way', 'in_progress', 'awaiting_payment'].includes(j.status)
+        ['requested', 'pending', 'accepted', 'pro_en_route', 'on_the_way', 'in_progress', 'completed_pending_payment', 'awaiting_payment'].includes(j.status)
       )
       .slice()
       .sort((a, b) => {

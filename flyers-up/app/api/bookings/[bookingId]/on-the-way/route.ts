@@ -1,6 +1,6 @@
 /**
  * POST /api/bookings/[bookingId]/on-the-way
- * Pro indicates they are on the way. Sets status to on_the_way, on_the_way_at timestamp.
+ * Pro indicates they are on the way. Sets status to pro_en_route, en_route_at timestamp.
  */
 import { NextResponse } from 'next/server';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
@@ -19,5 +19,5 @@ export async function POST(
   if (!id) {
     return NextResponse.json({ error: 'Invalid booking ID' }, { status: 400 });
   }
-  return transitionBookingStatus(id, 'on_the_way');
+  return transitionBookingStatus(id, 'pro_en_route');
 }

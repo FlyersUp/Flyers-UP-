@@ -36,6 +36,17 @@ export default async function PublicProProfilePage({ params }: { params: Promise
     if (b?.id) {
       messageHref = `/customer/chat/${encodeURIComponent(String(b.id))}`;
       messageTitle = null;
+    } else {
+      const { data: c } = await admin
+        .from('conversations')
+        .select('id')
+        .eq('customer_id', user.id)
+        .eq('pro_id', profile.id)
+        .maybeSingle();
+      if (c?.id) {
+        messageHref = `/customer/chat/conversation/${encodeURIComponent(String(c.id))}`;
+        messageTitle = null;
+      }
     }
   }
 

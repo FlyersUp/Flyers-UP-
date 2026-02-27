@@ -13,15 +13,16 @@ export type Status =
   | 'ACCEPTED'
   | 'ON_THE_WAY'
   | 'IN_PROGRESS'
-  | 'COMPLETED';
+  | 'COMPLETED'
+  | 'PAID';
 
 /** DB status values for the pro progression flow (excluding terminal). */
 export const DB_STATUS_ORDER: string[] = [
   'requested',
   'accepted',
-  'on_the_way',
+  'pro_en_route',
   'in_progress',
-  'awaiting_payment',
+  'completed_pending_payment',
 ];
 
 /** Ordered list of stages for the timeline (left-to-right flow). */
@@ -31,6 +32,7 @@ export const STATUS_ORDER: Status[] = [
   'ON_THE_WAY',
   'IN_PROGRESS',
   'COMPLETED',
+  'PAID',
 ];
 
 /** Human-readable labels per stage. */
@@ -40,6 +42,7 @@ export const STATUS_LABELS: Record<Status, string> = {
   ON_THE_WAY: 'On the Way',
   IN_PROGRESS: 'In Progress',
   COMPLETED: 'Completed',
+  PAID: 'Paid',
 };
 
 export type StageState = 'done' | 'active' | 'upcoming';
@@ -81,9 +84,9 @@ export function isValidTransition(currentDbStatus: string, nextDbStatus: string)
 export function apiNextStatusToDb(apiStatus: NextStatusAction): string {
   const map: Record<NextStatusAction, string> = {
     ACCEPTED: 'accepted',
-    ON_THE_WAY: 'on_the_way',
+    ON_THE_WAY: 'pro_en_route',
     IN_PROGRESS: 'in_progress',
-    COMPLETED: 'awaiting_payment',
+    COMPLETED: 'completed_pending_payment',
   };
   return map[apiStatus];
 }
@@ -111,12 +114,15 @@ export function mapDbStatusToTimeline(dbStatus: string): Status {
       return 'BOOKED';
     case 'accepted':
       return 'ACCEPTED';
+    case 'pro_en_route':
     case 'on_the_way':
       return 'ON_THE_WAY';
     case 'in_progress':
       return 'IN_PROGRESS';
+    case 'completed_pending_payment':
     case 'awaiting_payment':
     case 'completed':
+    case 'paid':
       return 'COMPLETED';
     default:
       return 'BOOKED';
@@ -128,8 +134,10 @@ export interface BookingTimestamps {
   createdAt: string;
   acceptedAt?: string | null;
   onTheWayAt?: string | null;
+  enRouteAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
+  paidAt?: string | null;
   statusHistory?: { status: string; at: string }[];
 }
 
@@ -137,14 +145,15 @@ export interface BookingTimestamps {
 export function buildTimestampsFromBooking(
   createdAt: string,
   statusHistory?: { status: string; at: string }[],
-  dedicated?: { acceptedAt?: string | null; onTheWayAt?: string | null; startedAt?: string | null; completedAt?: string | null }
+  dedicated?: { acceptedAt?: string | null; onTheWayAt?: string | null; enRouteAt?: string | null; startedAt?: string | null; completedAt?: string | null; paidAt?: string | null }
 ): Partial<Record<Status, string>> {
   const out: Partial<Record<Status, string>> = {};
   out.BOOKED = createdAt;
   if (dedicated?.acceptedAt) out.ACCEPTED = dedicated.acceptedAt;
-  if (dedicated?.onTheWayAt) out.ON_THE_WAY = dedicated.onTheWayAt;
+  if (dedicated?.enRouteAt ?? dedicated?.onTheWayAt) out.ON_THE_WAY = dedicated?.enRouteAt ?? dedicated?.onTheWayAt ?? null;
   if (dedicated?.startedAt) out.IN_PROGRESS = dedicated.startedAt;
   if (dedicated?.completedAt) out.COMPLETED = dedicated.completedAt;
+  if (dedicated?.paidAt) out.PAID = dedicated.paidAt;
   if (statusHistory?.length && Object.keys(out).length < 5) {
     for (const { status, at } of statusHistory) {
       const s = mapDbStatusToTimeline(status);

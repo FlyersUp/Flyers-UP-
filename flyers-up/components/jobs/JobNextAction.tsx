@@ -24,7 +24,7 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
 
   const timelineStatus = mapDbStatusToTimeline(booking.status);
   const nextStatus = getNextStatus(timelineStatus);
-  const isCompleted = timelineStatus === 'COMPLETED';
+  const isCompleted = timelineStatus === 'COMPLETED' || timelineStatus === 'PAID';
 
   const handleAdvance = async () => {
     if (!nextStatus) return;

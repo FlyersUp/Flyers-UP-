@@ -10,7 +10,10 @@ import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { useEffect, useState } from 'react';
 
 type ThreadRow = {
-  bookingId: string;
+  id: string;
+  type: 'booking' | 'conversation';
+  bookingId?: string;
+  conversationId?: string;
   status: string;
   date: string;
   time: string;
@@ -41,6 +44,8 @@ export default function CustomerMessagesPage() {
         return;
       }
 
+      const rows: ThreadRow[] = [];
+
       const { data: bookings } = await supabase
         .from('bookings')
         .select('id, status, address, notes, service_date, service_time, created_at, service_pros(display_name)')
@@ -59,7 +64,6 @@ export default function CustomerMessagesPage() {
         service_pros?: { display_name: string | null } | { display_name: string | null }[] | null;
       }>;
 
-      const rows: ThreadRow[] = [];
       for (const booking of b) {
         const { data: last } = await supabase
           .from('booking_messages')
@@ -76,6 +80,8 @@ export default function CustomerMessagesPage() {
           booking.address === 'To be confirmed' &&
           (booking.notes?.includes('Contact request') ?? false);
         rows.push({
+          id: booking.id,
+          type: 'booking',
           bookingId: booking.id,
           status: booking.status,
           date: booking.service_date,
@@ -87,8 +93,54 @@ export default function CustomerMessagesPage() {
         });
       }
 
+      const { data: conversations } = await supabase
+        .from('conversations')
+        .select('id, created_at, service_pros(display_name)')
+        .eq('customer_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(25);
+
+      const convs = (conversations || []) as Array<{
+        id: string;
+        created_at: string;
+        service_pros?: { display_name: string | null } | { display_name: string | null }[] | null;
+      }>;
+
+      for (const conv of convs) {
+        const { data: last } = await supabase
+          .from('conversation_messages')
+          .select('message, created_at')
+          .eq('conversation_id', conv.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        const lastRow = (last && last[0]) as { message: string; created_at: string } | undefined;
+        const raw = conv.service_pros;
+        const pro = Array.isArray(raw) ? raw[0] : raw;
+        const proName = pro?.display_name?.trim() || 'Pro';
+        const d = new Date(conv.created_at);
+        rows.push({
+          id: conv.id,
+          type: 'conversation',
+          conversationId: conv.id,
+          status: 'inquiry',
+          date: d.toISOString().slice(0, 10),
+          time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          lastMessage: lastRow?.message ?? 'No messages yet',
+          lastAt: lastRow?.created_at ?? null,
+          otherPartyName: proName,
+          isInquiry: true,
+        });
+      }
+
+      rows.sort((a, b) => {
+        const atA = a.lastAt ?? a.date + 'T' + a.time;
+        const atB = b.lastAt ?? b.date + 'T' + b.time;
+        return new Date(atB).getTime() - new Date(atA).getTime();
+      });
+
       if (!mounted) return;
-      setThreads(rows);
+      setThreads(rows.slice(0, 50));
       setLoading(false);
     }
     void load();
@@ -111,7 +163,11 @@ export default function CustomerMessagesPage() {
         ) : (
           <div className="space-y-4">
             {threads.map((t) => (
-              <Link key={t.bookingId} href={`/customer/chat/${t.bookingId}`} className="block">
+              <Link
+                key={t.id}
+                href={t.type === 'conversation' ? `/customer/chat/conversation/${t.conversationId}` : `/customer/chat/${t.bookingId}`}
+                className="block"
+              >
                 <Card withRail>
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">

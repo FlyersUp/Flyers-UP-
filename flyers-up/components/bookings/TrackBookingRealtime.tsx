@@ -13,8 +13,10 @@ export interface TrackBookingData {
   createdAt: string;
   acceptedAt?: string | null;
   onTheWayAt?: string | null;
+  enRouteAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
+  paidAt?: string | null;
   statusHistory?: { status: string; at: string }[];
   serviceName?: string;
   proName?: string;

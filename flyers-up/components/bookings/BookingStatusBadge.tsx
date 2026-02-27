@@ -2,7 +2,7 @@
 
 /** DB statuses that map to UI. Treat requested and pending as equivalent. */
 const ACTIVE_STATUSES = [
-  'requested', 'pending', 'accepted', 'on_the_way', 'in_progress', 'awaiting_payment',
+  'requested', 'pending', 'accepted', 'pro_en_route', 'on_the_way', 'in_progress', 'completed_pending_payment', 'awaiting_payment',
 ] as const;
 const COMPLETED_STATUSES = ['completed'] as const;
 const TERMINAL_STATUSES = ['cancelled', 'declined'] as const;
@@ -11,9 +11,12 @@ const STATUS_LABELS: Record<string, string> = {
   requested: 'Pending',
   pending: 'Pending',
   accepted: 'Accepted',
+  pro_en_route: 'On the way',
   on_the_way: 'On the way',
   in_progress: 'In progress',
+  completed_pending_payment: 'Completed',
   awaiting_payment: 'Completed',
+  paid: 'Paid',
   completed: 'Completed',
   cancelled: 'Cancelled',
   declined: 'Declined',
@@ -36,7 +39,7 @@ export function BookingStatusBadge({ status, className = '' }: BookingStatusBadg
   const label = STATUS_LABELS[s] ?? status.replaceAll('_', ' ');
 
   let bg: string;
-  if (COMPLETED_STATUSES.includes(s as typeof COMPLETED_STATUSES[number]) || s === 'awaiting_payment') {
+  if (COMPLETED_STATUSES.includes(s as typeof COMPLETED_STATUSES[number]) || s === 'awaiting_payment' || s === 'completed_pending_payment' || s === 'paid') {
     bg = '#B2FBA5';
   } else if (ACTIVE_STATUSES.includes(s as typeof ACTIVE_STATUSES[number]) && !['requested', 'pending'].includes(s)) {
     bg = '#FFC067';

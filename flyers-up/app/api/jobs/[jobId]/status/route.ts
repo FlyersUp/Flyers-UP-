@@ -5,20 +5,21 @@
  *
  * VALID TRANSITIONS (enforced in order):
  *   requested → ACCEPTED (accepted)
- *   accepted → ON_THE_WAY (on_the_way)
- *   on_the_way → IN_PROGRESS (in_progress)
- *   in_progress → COMPLETED (awaiting_payment)
- * (completed status is set by payment flow)
+ *   accepted → ON_THE_WAY (pro_en_route)
+ *   pro_en_route → IN_PROGRESS (in_progress)
+ *   in_progress → COMPLETED (completed_pending_payment)
+ * (paid status is set by payment capture flow)
  *
  * TIMESTAMP COLUMNS (set on each transition):
- *   accepted_at, on_the_way_at, started_at, completed_at, status_updated_at, status_updated_by
+ *   accepted_at, en_route_at, started_at, completed_at, status_updated_at, status_updated_by
  *
  * UI: Pro job detail page (app/pro/jobs/[jobId]/page.tsx) and timeline page
  * (app/pro/jobs/[jobId]/timeline/page.tsx) render JobNextAction which calls this API.
  */
 
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { stripe } from '@/lib/stripe';
+import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import {
   apiNextStatusToDb,
@@ -118,7 +119,7 @@ export async function PATCH(
     const { data: booking, error: fetchErr } = await supabase
       .from('bookings')
       .select(
-        'id, status, status_history, pro_id, accepted_at, on_the_way_at, started_at, completed_at, status_updated_at, status_updated_by'
+        'id, status, status_history, pro_id, payment_intent_id, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, status_updated_at, status_updated_by'
       )
       .eq('id', id)
       .single();
@@ -164,9 +165,9 @@ export async function PATCH(
     };
 
     if (nextDbStatus === 'accepted') update.accepted_at = now;
-    else if (nextDbStatus === 'on_the_way') update.on_the_way_at = now;
+    else if (nextDbStatus === 'pro_en_route') update.en_route_at = now;
     else if (nextDbStatus === 'in_progress') update.started_at = now;
-    else if (nextDbStatus === 'awaiting_payment') update.completed_at = now;
+    else if (nextDbStatus === 'completed_pending_payment') update.completed_at = now;
 
     const { data: updated, error: updateErr } = await supabase
       .from('bookings')
@@ -184,6 +185,49 @@ export async function PATCH(
       );
     }
 
+    if (nextDbStatus === 'completed_pending_payment') {
+      const piId = (booking as { payment_intent_id?: string }).payment_intent_id;
+      if (piId && stripe) {
+        try {
+          const pi = await stripe.paymentIntents.capture(piId);
+          if (pi.status === 'succeeded') {
+            const admin = createAdminSupabaseClient();
+            const paidNow = new Date().toISOString();
+            const paidHistory = [...newHistory, { status: 'paid', at: paidNow }];
+            await admin
+              .from('bookings')
+              .update({
+                status: 'paid',
+                status_history: paidHistory,
+                paid_at: paidNow,
+                payment_status: 'PAID',
+              })
+              .eq('id', id);
+            const { data: final } = await admin.from('bookings').select('id, status, status_history, completed_at, paid_at').eq('id', id).single();
+            return NextResponse.json(
+              {
+                job: {
+                  id: final?.id ?? updated.id,
+                  status: final?.status ?? 'paid',
+                  status_history: final?.status_history ?? paidHistory,
+                  accepted_at: updated.accepted_at,
+                  en_route_at: updated.en_route_at ?? updated.on_the_way_at,
+                  started_at: updated.started_at,
+                  completed_at: final?.completed_at ?? updated.completed_at,
+                  paid_at: final?.paid_at ?? paidNow,
+                  status_updated_at: updated.status_updated_at,
+                  status_updated_by: updated.status_updated_by,
+                },
+              },
+              { status: 200 }
+            );
+          }
+        } catch (captureErr) {
+          console.error('Job status: Payment capture failed', captureErr);
+        }
+      }
+    }
+
     return NextResponse.json(
       {
         job: {
@@ -191,7 +235,7 @@ export async function PATCH(
           status: updated.status,
           status_history: updated.status_history,
           accepted_at: updated.accepted_at,
-          on_the_way_at: updated.on_the_way_at,
+          en_route_at: updated.en_route_at ?? updated.on_the_way_at,
           started_at: updated.started_at,
           completed_at: updated.completed_at,
           status_updated_at: updated.status_updated_at,
@@ -214,6 +258,7 @@ function getAllowedNext(current: string): NextStatusAction | null {
     requested: 'ACCEPTED',
     pending: 'ACCEPTED',
     accepted: 'ON_THE_WAY',
+    pro_en_route: 'IN_PROGRESS',
     on_the_way: 'IN_PROGRESS',
     in_progress: 'COMPLETED',
   };

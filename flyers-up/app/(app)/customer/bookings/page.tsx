@@ -8,8 +8,9 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-const ACTIVE_STATUSES = 'requested,pending,accepted,on_the_way,in_progress,awaiting_payment';
-const HISTORY_STATUSES = 'completed,cancelled,declined';
+const ACTIVE_STATUSES = 'requested,pending,accepted,pro_en_route,on_the_way,in_progress,completed_pending_payment,awaiting_payment';
+const COMPLETED_STATUSES = 'completed,paid';
+const CANCELLED_STATUSES = 'cancelled,declined';
 
 type BookingRow = {
   id: string;
@@ -23,15 +24,15 @@ function CustomerBookingsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [active, setActive] = useState<BookingRow[]>([]);
-  const [history, setHistory] = useState<BookingRow[]>([]);
-  const [allBookings, setAllBookings] = useState<BookingRow[]>([]);
+  const [completed, setCompleted] = useState<BookingRow[]>([]);
+  const [cancelled, setCancelled] = useState<BookingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<BookingsTab>('active');
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'history') setActiveTab('history');
-    else if (tab === 'all') setActiveTab('all');
+    if (tab === 'completed') setActiveTab('completed');
+    else if (tab === 'cancelled') setActiveTab('cancelled');
     else setActiveTab('active');
   }, [searchParams]);
 
@@ -41,31 +42,34 @@ function CustomerBookingsContent() {
       setLoading(true);
       const todayISO = new Date().toISOString().slice(0, 10);
       try {
-        const [activeRes, historyRes, allRes] = await Promise.all([
+        const [activeRes, completedRes, cancelledRes] = await Promise.all([
           fetch(
             `/api/customer/bookings?from=${todayISO}&limit=50&statuses=${encodeURIComponent(ACTIVE_STATUSES)}`,
             { cache: 'no-store' }
           ),
           fetch(
-            `/api/customer/bookings?limit=50&statuses=${encodeURIComponent(HISTORY_STATUSES)}`,
+            `/api/customer/bookings?limit=50&statuses=${encodeURIComponent(COMPLETED_STATUSES)}`,
             { cache: 'no-store' }
           ),
-          fetch(`/api/customer/bookings?limit=100`, { cache: 'no-store' }),
+          fetch(
+            `/api/customer/bookings?limit=50&statuses=${encodeURIComponent(CANCELLED_STATUSES)}`,
+            { cache: 'no-store' }
+          ),
         ]);
 
         const activeJson = (await activeRes.json()) as { ok?: boolean; bookings?: BookingRow[] };
-        const historyJson = (await historyRes.json()) as { ok?: boolean; bookings?: BookingRow[] };
-        const allJson = (await allRes.json()) as { ok?: boolean; bookings?: BookingRow[] };
+        const completedJson = (await completedRes.json()) as { ok?: boolean; bookings?: BookingRow[] };
+        const cancelledJson = (await cancelledRes.json()) as { ok?: boolean; bookings?: BookingRow[] };
 
         if (!mounted) return;
         setActive(activeJson.ok && activeJson.bookings ? activeJson.bookings : []);
-        setHistory(historyJson.ok && historyJson.bookings ? historyJson.bookings : []);
-        setAllBookings(allJson.ok && allJson.bookings ? allJson.bookings : []);
+        setCompleted(completedJson.ok && completedJson.bookings ? completedJson.bookings : []);
+        setCancelled(cancelledJson.ok && cancelledJson.bookings ? cancelledJson.bookings : []);
       } catch {
         if (!mounted) return;
         setActive([]);
-        setHistory([]);
-        setAllBookings([]);
+        setCompleted([]);
+        setCancelled([]);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -74,7 +78,7 @@ function CustomerBookingsContent() {
   }, []);
 
   const rows =
-    activeTab === 'active' ? active : activeTab === 'history' ? history : allBookings;
+    activeTab === 'active' ? active : activeTab === 'completed' ? completed : cancelled;
 
   return (
     <AppLayout mode="customer">
@@ -96,16 +100,18 @@ function CustomerBookingsContent() {
             <p className="text-sm font-medium text-text">
               {activeTab === 'active'
                 ? 'No active bookings'
-                : activeTab === 'history'
-                  ? 'No past bookings'
-                  : 'No bookings yet'}
+                : activeTab === 'completed'
+                  ? 'No completed bookings'
+                  : 'No cancelled bookings'}
             </p>
             <p className="mt-1 text-sm text-muted">
               {activeTab === 'active'
                 ? 'When you book a pro, it will show up here.'
-                : 'Your completed and cancelled bookings will appear here.'}
+                : activeTab === 'completed'
+                  ? 'Your completed bookings will appear here.'
+                  : 'Cancelled bookings will appear here.'}
             </p>
-            {activeTab !== 'all' && (
+            {activeTab === 'active' && (
               <Link
                 href="/customer/categories"
                 className="mt-4 inline-block text-sm font-medium text-text hover:underline"
@@ -133,9 +139,7 @@ function CustomerBookingsContent() {
                   <BookingStatusBadge status={b.status} />
                 </div>
                 <div className="mt-3 text-sm text-muted">
-                  {(b.status || '').toLowerCase() === 'awaiting_payment'
-                    ? 'Pay now →'
-                    : 'View details →'}
+                  View details →
                 </div>
               </Link>
             ))}

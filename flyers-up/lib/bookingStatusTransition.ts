@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from './supabaseServer';
 import { isValidTransition } from '@/components/jobs/jobStatus';
 
-type AllowedDbStatus = 'accepted' | 'on_the_way' | 'in_progress' | 'awaiting_payment';
+type AllowedDbStatus = 'accepted' | 'pro_en_route' | 'in_progress' | 'completed_pending_payment';
 
 export async function transitionBookingStatus(
   bookingId: string,
@@ -56,7 +56,7 @@ export async function transitionBookingStatus(
   const { data: booking, error: fetchErr } = await supabase
     .from('bookings')
     .select(
-      'id, status, status_history, pro_id, accepted_at, on_the_way_at, started_at, completed_at'
+      'id, status, status_history, pro_id, accepted_at, en_route_at, on_the_way_at, started_at, completed_at'
     )
     .eq('id', bookingId)
     .single();
@@ -101,9 +101,9 @@ export async function transitionBookingStatus(
   };
 
   if (nextDbStatus === 'accepted') update.accepted_at = now;
-  else if (nextDbStatus === 'on_the_way') update.on_the_way_at = now;
+  else if (nextDbStatus === 'pro_en_route') update.en_route_at = now;
   else if (nextDbStatus === 'in_progress') update.started_at = now;
-  else if (nextDbStatus === 'awaiting_payment') update.completed_at = now;
+  else if (nextDbStatus === 'completed_pending_payment') update.completed_at = now;
 
   const { data: updated, error: updateErr } = await supabase
     .from('bookings')
@@ -128,7 +128,7 @@ export async function transitionBookingStatus(
         status: updated.status,
         status_history: updated.status_history,
         accepted_at: updated.accepted_at,
-        on_the_way_at: updated.on_the_way_at,
+        en_route_at: updated.en_route_at ?? updated.on_the_way_at,
         started_at: updated.started_at,
         completed_at: updated.completed_at,
       },

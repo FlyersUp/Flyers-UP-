@@ -48,7 +48,7 @@ export async function submitReviewAction(
       return { success: false, error: 'Booking not found.' };
     }
 
-    if (booking.status !== 'completed' && booking.status !== 'awaiting_payment') {
+    if (booking.status !== 'completed' && booking.status !== 'awaiting_payment' && booking.status !== 'paid' && booking.status !== 'completed_pending_payment') {
       return { success: false, error: 'You can only review completed bookings.' };
     }
 

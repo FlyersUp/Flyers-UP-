@@ -1,8 +1,7 @@
 /**
- * Contact Pro - Opens chat with a pro, creating a minimal "contact" booking if needed.
- * Message button without existing booking -> this page -> redirects to chat.
+ * Contact Pro - Opens chat with a pro, creating a conversation only (no booking).
+ * Message button without existing booking -> this page -> redirects to conversation chat.
  */
-
 import { redirect } from 'next/navigation';
 import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabaseServer';
 
@@ -25,8 +24,20 @@ export default async function ContactProPage({ params }: { params: Promise<Route
 
   const admin = createAdminSupabaseClient();
 
-  // Check for existing booking with this pro
-  const { data: existing } = await admin
+  // Check for existing conversation with this pro
+  const { data: existingConv } = await admin
+    .from('conversations')
+    .select('id')
+    .eq('customer_id', user.id)
+    .eq('pro_id', proId)
+    .maybeSingle();
+
+  if (existingConv?.id) {
+    redirect(`/customer/chat/conversation/${existingConv.id}`);
+  }
+
+  // Check for existing booking with this pro (can message via booking)
+  const { data: existingBooking } = await admin
     .from('bookings')
     .select('id')
     .eq('customer_id', user.id)
@@ -35,8 +46,8 @@ export default async function ContactProPage({ params }: { params: Promise<Route
     .limit(1)
     .maybeSingle();
 
-  if (existing?.id) {
-    redirect(`/customer/chat/${existing.id}`);
+  if (existingBooking?.id) {
+    redirect(`/customer/chat/${existingBooking.id}`);
   }
 
   // Verify pro exists
@@ -48,27 +59,20 @@ export default async function ContactProPage({ params }: { params: Promise<Route
 
   if (!pro) redirect('/customer/messages');
 
-  // Create minimal "contact" booking (inquiry) so customer can message the pro
-  const today = new Date().toISOString().slice(0, 10);
+  // Create conversation only (no booking)
   const { data: created, error } = await admin
-    .from('bookings')
+    .from('conversations')
     .insert({
       customer_id: user.id,
       pro_id: proId,
-      service_date: today,
-      service_time: 'TBD',
-      address: 'To be confirmed',
-      notes: 'Contact request – details to be discussed',
-      status: 'requested',
-      status_history: [{ status: 'requested', at: new Date().toISOString() }],
     })
     .select('id')
     .single();
 
   if (error || !created?.id) {
-    console.error('Contact: failed to create booking', error);
+    console.error('Contact: failed to create conversation', error);
     redirect('/customer/messages');
   }
 
-  redirect(`/customer/chat/${created.id}`);
+  redirect(`/customer/chat/conversation/${created.id}`);
 }
