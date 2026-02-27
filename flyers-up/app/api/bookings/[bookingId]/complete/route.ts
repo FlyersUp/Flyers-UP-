@@ -1,6 +1,6 @@
 /**
- * POST /api/bookings/[id]/on-the-way
- * Pro indicates they are on the way. Sets status to on_the_way, on_the_way_at timestamp.
+ * POST /api/bookings/[bookingId]/complete
+ * Pro marks work complete. Sets status to awaiting_payment, completed_at timestamp.
  */
 import { NextResponse } from 'next/server';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
@@ -12,12 +12,12 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   _req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
-  const { id } = await params;
-  const bookingId = normalizeUuidOrNull(id);
-  if (!bookingId) {
+  const { bookingId } = await params;
+  const id = normalizeUuidOrNull(bookingId);
+  if (!id) {
     return NextResponse.json({ error: 'Invalid booking ID' }, { status: 400 });
   }
-  return transitionBookingStatus(bookingId, 'on_the_way');
+  return transitionBookingStatus(id, 'awaiting_payment');
 }

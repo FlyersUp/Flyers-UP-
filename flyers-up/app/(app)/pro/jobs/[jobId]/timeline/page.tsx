@@ -24,28 +24,31 @@ export default function JobTimelinePage({ params }: { params: Promise<{ jobId: s
     let mounted = true;
     const load = async () => {
       setLoading(true);
-      const user = await getCurrentUser();
-      if (!mounted) return;
-      setSignedIn(Boolean(user));
-      if (!user) {
-        setBooking(null);
-        setLoading(false);
-        return;
+      try {
+        const user = await getCurrentUser();
+        if (!mounted) return;
+        setSignedIn(Boolean(user));
+        if (!user) {
+          setBooking(null);
+          return;
+        }
+        const id = normalizeUuidOrNull(jobId);
+        if (!id) {
+          setBooking(null);
+          return;
+        }
+        const b = await getBookingById(id);
+        if (!mounted) return;
+        if (b && user.id === b.customerId) {
+          router.replace(`/customer/bookings/${id}`);
+          return;
+        }
+        setBooking(b);
+      } catch {
+        if (mounted) setBooking(null);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      const id = normalizeUuidOrNull(jobId);
-      if (!id) {
-        setBooking(null);
-        setLoading(false);
-        return;
-      }
-      const b = await getBookingById(id);
-      if (!mounted) return;
-      if (b && user.id === b.customerId) {
-        router.replace(`/customer/bookings/${id}`);
-        return;
-      }
-      setBooking(b);
-      setLoading(false);
     };
     void load();
     return () => {

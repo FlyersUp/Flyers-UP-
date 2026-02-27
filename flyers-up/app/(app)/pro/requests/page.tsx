@@ -31,39 +31,51 @@ export default function ProRequestsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let mounted = true;
     const run = async () => {
       setLoading(true);
       setError(null);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace('/auth?next=%2Fpro%2Frequests');
-        return;
-      }
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!mounted) return;
+        if (!user) {
+          router.replace('/auth?next=%2Fpro%2Frequests');
+          return;
+        }
 
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-      if (!profile || profile.role !== 'pro') {
-        router.replace('/onboarding/role?next=%2Fpro%2Frequests');
-        return;
-      }
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+        if (!mounted) return;
+        if (!profile || profile.role !== 'pro') {
+          router.replace('/onboarding/role?next=%2Fpro%2Frequests');
+          return;
+        }
 
-      const res = await fetch('/api/pro/bookings?status=requested&limit=50', { cache: 'no-store' });
-      if (!res.ok) {
-        setError('Failed to load requests.');
-        setRows([]);
-        setLoading(false);
-        return;
+        const res = await fetch('/api/pro/bookings?status=requested&limit=50', { cache: 'no-store' });
+        if (!mounted) return;
+        if (!res.ok) {
+          setError('Failed to load requests.');
+          setRows([]);
+          return;
+        }
+        const json = (await res.json()) as { ok: boolean; bookings?: Row[]; error?: string };
+        if (!mounted) return;
+        if (!json.ok) {
+          setError(json.error || 'Failed to load requests.');
+          setRows([]);
+          return;
+        }
+        setRows(json.bookings || []);
+      } catch (e) {
+        if (mounted) {
+          setError('Failed to load requests.');
+          setRows([]);
+        }
+      } finally {
+        if (mounted) setLoading(false);
       }
-      const json = (await res.json()) as { ok: boolean; bookings?: Row[]; error?: string };
-      if (!json.ok) {
-        setError(json.error || 'Failed to load requests.');
-        setRows([]);
-        setLoading(false);
-        return;
-      }
-      setRows(json.bookings || []);
-      setLoading(false);
     };
     void run();
+    return () => { mounted = false; };
   }, [router]);
 
   const empty = !loading && rows.length === 0;

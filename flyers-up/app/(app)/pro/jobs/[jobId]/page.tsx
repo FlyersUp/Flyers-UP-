@@ -25,26 +25,29 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
     let mounted = true;
     const load = async () => {
       setLoading(true);
-      const user = await getCurrentUser();
-      if (!mounted) return;
-      setSignedIn(Boolean(user));
-      if (!user) {
-        setBooking(null);
-        setLoading(false);
-        return;
-      }
+      try {
+        const user = await getCurrentUser();
+        if (!mounted) return;
+        setSignedIn(Boolean(user));
+        if (!user) {
+          setBooking(null);
+          return;
+        }
 
-      const id = normalizeUuidOrNull(jobId);
-      if (!id) {
-        setBooking(null);
-        setLoading(false);
-        return;
-      }
+        const id = normalizeUuidOrNull(jobId);
+        if (!id) {
+          setBooking(null);
+          return;
+        }
 
-      const b = await getBookingById(id);
-      if (!mounted) return;
-      setBooking(b);
-      setLoading(false);
+        const b = await getBookingById(id);
+        if (!mounted) return;
+        setBooking(b);
+      } catch {
+        if (mounted) setBooking(null);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     };
     void load();
     return () => {

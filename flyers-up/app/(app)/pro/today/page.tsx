@@ -312,51 +312,83 @@ export default function ProTodayPage() {
   >([]);
 
   useEffect(() => {
+    let mounted = true;
     const guardAndLoad = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        router.replace('/auth?next=%2Fpro%2Ftoday');
-        return;
-      }
-
-      const profile = await getOrCreateProfile(user.id, user.email ?? null);
-      if (!profile) return;
-      const dest = routeAfterAuth(profile, '/pro/today');
-      if (dest !== '/pro/today') {
-        router.replace(dest);
-        return;
-      }
-
-      const data = await getTodayOverview(user.id);
-      setOverview(data);
-      setJobs(data.jobs);
-      setTasks(data.tasks);
-
-      // Replace mock timeline jobs with real bookings for today (if any).
       try {
-        const todayISO = new Date().toISOString().slice(0, 10);
-        const res = await fetch(
-          `/api/pro/bookings?from=${encodeURIComponent(todayISO)}&to=${encodeURIComponent(todayISO)}&limit=50&statuses=${encodeURIComponent(
-            ['requested', 'accepted', 'awaiting_payment', 'completed'].join(',')
-          )}`,
-          { cache: 'no-store' }
-        );
-        const json = (await res.json()) as { ok: boolean; bookings?: any[] };
-        if (res.ok && json.ok && Array.isArray(json.bookings)) {
-          setRealBookings(json.bookings);
-        } else {
-          setRealBookings([]);
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!mounted) return;
+        if (!user) {
+          router.replace('/auth?next=%2Fpro%2Ftoday');
+          return;
+        }
+
+        const profile = await getOrCreateProfile(user.id, user.email ?? null);
+        if (!mounted) return;
+        if (!profile) {
+          const todayISO = new Date().toISOString().slice(0, 10);
+          setOverview({
+            dateISO: todayISO,
+            jobs: [],
+            alerts: [],
+            tasks: [],
+            earnings: { expected: null, completed: null, pending_release: null, tips: null },
+            messages: [],
+          });
+          return;
+        }
+        const dest = routeAfterAuth(profile, '/pro/today');
+        if (dest !== '/pro/today') {
+          router.replace(dest);
+          return;
+        }
+
+        const data = await getTodayOverview(user.id);
+        if (!mounted) return;
+        setOverview(data);
+        setJobs(data.jobs);
+        setTasks(data.tasks);
+
+        // Replace mock timeline jobs with real bookings for today (if any).
+        try {
+          const todayISO = new Date().toISOString().slice(0, 10);
+          const res = await fetch(
+            `/api/pro/bookings?from=${encodeURIComponent(todayISO)}&to=${encodeURIComponent(todayISO)}&limit=50&statuses=${encodeURIComponent(
+              ['requested', 'accepted', 'awaiting_payment', 'completed'].join(',')
+            )}`,
+            { cache: 'no-store' }
+          );
+          const json = (await res.json()) as { ok: boolean; bookings?: any[] };
+          if (mounted && res.ok && json.ok && Array.isArray(json.bookings)) {
+            setRealBookings(json.bookings);
+          } else if (mounted) {
+            setRealBookings([]);
+          }
+        } catch {
+          if (mounted) setRealBookings([]);
         }
       } catch {
-        setRealBookings([]);
+        if (mounted) {
+          const todayISO = new Date().toISOString().slice(0, 10);
+          setOverview({
+            dateISO: todayISO,
+            jobs: [],
+            alerts: [],
+            tasks: [],
+            earnings: { expected: null, completed: null, pending_release: null, tips: null },
+            messages: [],
+          });
+          setJobs([]);
+          setTasks([]);
+        }
+      } finally {
+        if (mounted) setLoading(false);
       }
-
-      setLoading(false);
     };
     void guardAndLoad();
+    return () => { mounted = false; };
   }, [router]);
 
   const hasJobs = jobs.length > 0;

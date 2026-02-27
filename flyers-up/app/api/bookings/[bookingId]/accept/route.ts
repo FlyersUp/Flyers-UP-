@@ -1,6 +1,6 @@
 /**
- * POST /api/bookings/[id]/complete
- * Pro marks work complete. Sets status to awaiting_payment, completed_at timestamp.
+ * POST /api/bookings/[bookingId]/accept
+ * Pro accepts a pending booking. Sets status to accepted, accepted_at timestamp.
  */
 import { NextResponse } from 'next/server';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
@@ -12,12 +12,12 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   _req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
-  const { id } = await params;
-  const bookingId = normalizeUuidOrNull(id);
-  if (!bookingId) {
+  const { bookingId } = await params;
+  const id = normalizeUuidOrNull(bookingId);
+  if (!id) {
     return NextResponse.json({ error: 'Invalid booking ID' }, { status: 400 });
   }
-  return transitionBookingStatus(bookingId, 'awaiting_payment');
+  return transitionBookingStatus(id, 'accepted');
 }

@@ -1,6 +1,6 @@
 /**
- * POST /api/bookings/[id]/start
- * Pro starts work. Sets status to in_progress, started_at timestamp.
+ * POST /api/bookings/[bookingId]/on-the-way
+ * Pro indicates they are on the way. Sets status to on_the_way, on_the_way_at timestamp.
  */
 import { NextResponse } from 'next/server';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
@@ -12,12 +12,12 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   _req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
-  const { id } = await params;
-  const bookingId = normalizeUuidOrNull(id);
-  if (!bookingId) {
+  const { bookingId } = await params;
+  const id = normalizeUuidOrNull(bookingId);
+  if (!id) {
     return NextResponse.json({ error: 'Invalid booking ID' }, { status: 400 });
   }
-  return transitionBookingStatus(bookingId, 'in_progress');
+  return transitionBookingStatus(id, 'on_the_way');
 }

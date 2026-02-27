@@ -25,24 +25,27 @@ export default function ProBookingDetailPage({
     let mounted = true;
     const load = async () => {
       setLoading(true);
-      const user = await getCurrentUser();
-      if (!mounted) return;
-      setSignedIn(Boolean(user));
-      if (!user) {
-        setInitialBooking(null);
-        setLoading(false);
-        return;
+      try {
+        const user = await getCurrentUser();
+        if (!mounted) return;
+        setSignedIn(Boolean(user));
+        if (!user) {
+          setInitialBooking(null);
+          return;
+        }
+        const id = normalizeUuidOrNull(bookingId);
+        if (!id) {
+          setInitialBooking(null);
+          return;
+        }
+        const b = await getBookingById(id);
+        if (!mounted) return;
+        setInitialBooking(b);
+      } catch {
+        if (mounted) setInitialBooking(null);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      const id = normalizeUuidOrNull(bookingId);
-      if (!id) {
-        setInitialBooking(null);
-        setLoading(false);
-        return;
-      }
-      const b = await getBookingById(id);
-      if (!mounted) return;
-      setInitialBooking(b);
-      setLoading(false);
     };
     void load();
     return () => { mounted = false; };

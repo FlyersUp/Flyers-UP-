@@ -1,6 +1,6 @@
 /**
  * Server-side booking status transition logic.
- * Used by PATCH /api/jobs/[jobId]/status and POST /api/bookings/[id]/* endpoints.
+ * Used by PATCH /api/jobs/[jobId]/status and POST /api/bookings/[bookingId]/* endpoints.
  */
 
 import { NextResponse } from 'next/server';
