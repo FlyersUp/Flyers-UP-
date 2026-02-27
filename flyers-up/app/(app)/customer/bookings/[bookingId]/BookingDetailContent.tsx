@@ -81,7 +81,6 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     enRouteAt: b.enRouteAt ?? b.onTheWayAt,
     startedAt: b.startedAt,
     completedAt: b.completedAt,
-    paidAt: b.paidAt,
     statusHistory: b.statusHistory,
     serviceName: b.serviceName,
     proName: b.proName,
