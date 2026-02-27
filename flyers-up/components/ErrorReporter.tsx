@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
 const TERMS_VERSION = '2026-01-27';
@@ -9,6 +9,16 @@ function getRelease() {
   // Vercel injects NEXT_PUBLIC_VERCEL_* on the client only if you define them.
   // We still include a stable app/version marker for correlation.
   return TERMS_VERSION;
+}
+
+function isChunkLoadError(message: string): boolean {
+  const s = message.toLowerCase();
+  return (
+    s.includes('failed to load chunk') ||
+    s.includes('loading chunk') ||
+    s.includes('chunkloaderror') ||
+    s.includes('failed to fetch dynamically imported module')
+  );
 }
 
 async function postError(payload: {
@@ -44,12 +54,16 @@ async function postError(payload: {
 }
 
 export function ErrorReporter() {
+  const [chunkError, setChunkError] = useState(false);
+
   useEffect(() => {
     const onError = (event: ErrorEvent) => {
+      const msg = event.message || 'Window error';
+      if (isChunkLoadError(msg)) setChunkError(true);
       void postError({
-        message: event.message || 'Window error',
-        stack: (event.error && (event.error as any).stack) ? String((event.error as any).stack) : null,
-        severity: 'error',
+        message: msg,
+        stack: event.error && (event.error as any).stack ? String((event.error as any).stack) : null,
+        severity: isChunkLoadError(msg) ? 'fatal' : 'error',
         meta: {
           filename: (event as any).filename,
           lineno: (event as any).lineno,
@@ -60,10 +74,13 @@ export function ErrorReporter() {
 
     const onRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
+      const msg =
+        reason instanceof Error ? reason.message : `Unhandled rejection: ${String(reason)}`;
+      if (isChunkLoadError(msg)) setChunkError(true);
       void postError({
-        message: reason instanceof Error ? reason.message : `Unhandled rejection: ${String(reason)}`,
+        message: msg,
         stack: reason instanceof Error ? reason.stack ?? null : null,
-        severity: 'error',
+        severity: isChunkLoadError(msg) ? 'fatal' : 'error',
       });
     };
 
@@ -75,6 +92,27 @@ export function ErrorReporter() {
     };
   }, []);
 
-  return null;
+  if (!chunkError) return null;
+
+  return (
+    <div
+      role="alert"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+    >
+      <div className="mx-4 max-w-md rounded-xl border border-[var(--hairline)] bg-surface p-6 shadow-xl">
+        <h2 className="text-lg font-semibold text-text">Update available</h2>
+        <p className="mt-2 text-sm text-muted">
+          A new version of the app was deployed. Please refresh the page to load the latest version.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-4 w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-accentContrast hover:opacity-95"
+        >
+          Refresh page
+        </button>
+      </div>
+    </div>
+  );
 }
 

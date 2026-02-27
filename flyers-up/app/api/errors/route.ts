@@ -4,6 +4,8 @@ export const preferredRegion = ['cle1'];
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabaseServer';
 
+const PERSIST_TIMEOUT_MS = 4000;
+
 type ErrorEventInput = {
   source: 'client' | 'server';
   severity?: 'debug' | 'info' | 'warn' | 'error' | 'fatal';
@@ -83,6 +85,10 @@ function safeText(v: unknown, max = 5000): string | null {
   return s.length > max ? s.slice(0, max) : s;
 }
 
+function sleep(ms: number): Promise<'timeout'> {
+  return new Promise((resolve) => setTimeout(() => resolve('timeout'), ms));
+}
+
 export async function POST(req: NextRequest) {
   const raw = await req.text();
   if (!raw || raw.trim() === '') {
@@ -97,7 +103,6 @@ export async function POST(req: NextRequest) {
       contentType: req.headers.get('content-type'),
       rawLen: raw.length,
     });
-    // Fallback for clients that send urlencoded bodies.
     try {
       const params = new URLSearchParams(raw);
       const message = params.get('message');
@@ -133,17 +138,6 @@ export async function POST(req: NextRequest) {
     null;
   const ip = getClientIp(req);
 
-  // Attempt to associate a user if the request is authenticated.
-  let userId: string | null = null;
-  try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    userId = user?.id ?? null;
-  } catch {
-    userId = null;
-  }
-
-  // Write using service role so we always record (even if user is logged out).
   let admin: ReturnType<typeof createAdminSupabaseClient> | null = null;
   try {
     admin = createAdminSupabaseClient();
@@ -151,52 +145,72 @@ export async function POST(req: NextRequest) {
     admin = null;
   }
   if (!admin) {
-    // Fall back to authenticated insert only (may fail if userId is null).
     return NextResponse.json({ ok: false, error: 'Server not configured for error reporting' }, { status: 503 });
   }
 
-  const { data: inserted, error } = await admin
-    .from('error_events')
-    .insert({
-      source,
-      severity: severity ?? 'error',
-      message,
-      stack,
-      url,
-      route,
-      release,
-      user_id: userId,
-      user_agent: userAgent,
-      ip_address: ip,
-      meta: body?.meta ?? {},
-    })
-    .select('id, created_at')
-    .single();
-
-  if (error) {
-    return NextResponse.json({ ok: false, error: (error as any).message ?? 'Insert failed' }, { status: 500 });
-  }
-
-  // Slack alert: only for crashes (fatal) to avoid noise.
-  let alerted = false;
-  try {
-    if (severity === 'fatal') {
-      alerted = await sendSlackAlert({
-        message,
-        severity: severity ?? 'error',
-        source,
-        route,
-        url,
-        userId,
-        release,
-        eventId: inserted?.id ?? null,
-        createdAtIso: inserted?.created_at ? new Date(inserted.created_at as any).toISOString() : null,
-      });
+  const persistWork = async (): Promise<{ persisted: boolean; alerted?: boolean }> => {
+    let userId: string | null = null;
+    try {
+      const supabase = await createServerSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      userId = user?.id ?? null;
+    } catch {
+      userId = null;
     }
-  } catch (e) {
-    console.warn('slack alert failed', e);
-  }
 
-  return NextResponse.json({ ok: true, alerted }, { status: 200 });
+    const { data: inserted, error } = await admin!
+      .from('error_events')
+      .insert({
+        source,
+        severity: severity ?? 'error',
+        message,
+        stack,
+        url,
+        route,
+        release,
+        user_id: userId,
+        user_agent: userAgent,
+        ip_address: ip,
+        meta: body?.meta ?? {},
+      })
+      .select('id, created_at')
+      .single();
+
+    if (error) {
+      console.warn('error_events insert failed', (error as any).message);
+      return { persisted: false };
+    }
+
+    let alerted = false;
+    if (severity === 'fatal') {
+      try {
+        alerted = await sendSlackAlert({
+          message,
+          severity: severity ?? 'error',
+          source,
+          route,
+          url,
+          userId,
+          release,
+          eventId: inserted?.id ?? null,
+          createdAtIso: inserted?.created_at ? new Date(inserted.created_at as any).toISOString() : null,
+        });
+      } catch (e) {
+        console.warn('slack alert failed', e);
+      }
+    }
+
+    return { persisted: true, alerted };
+  };
+
+  const result = await Promise.race([
+    persistWork(),
+    sleep(PERSIST_TIMEOUT_MS).then(() => ({ persisted: false } as const)),
+  ]);
+
+  return NextResponse.json(
+    { ok: true, persisted: result.persisted, alerted: result.alerted ?? false },
+    { status: 200 }
+  );
 }
 
