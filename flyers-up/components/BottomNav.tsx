@@ -10,6 +10,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { AppIcon } from '@/components/ui/AppIcon';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 
 function NavAlertDot({ show }: { show: boolean }) {
   if (!show) return null;
@@ -21,9 +22,22 @@ function NavAlertDot({ show }: { show: boolean }) {
   );
 }
 
+function NotificationBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className="absolute -top-0.5 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full bg-danger border-2 border-[var(--nav-solid)] shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
+      aria-label={`${count} unread notifications`}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
 export default function BottomNav() {
   const pathname = usePathname();
-  const { hasNewMessages, hasNewNotifications } = useNavAlerts();
+  const { hasNewMessages } = useNavAlerts();
+  const { unreadCount } = useNotifications();
   const mode: 'customer' | 'pro' = (() => {
     if (pathname?.startsWith('/pro') || pathname?.startsWith('/dashboard/pro')) return 'pro';
     if (pathname?.startsWith('/customer') || pathname?.startsWith('/dashboard/customer')) return 'customer';
@@ -79,7 +93,7 @@ export default function BottomNav() {
           >
             <span className="mb-1 relative inline-block">
               <AppIcon name="bell" size={22} className="" alt="Notifications" />
-              <NavAlertDot show={hasNewNotifications} />
+              <NotificationBadge count={unreadCount} />
             </span>
             <span className="text-xs font-medium">Notifications</span>
           </Link>

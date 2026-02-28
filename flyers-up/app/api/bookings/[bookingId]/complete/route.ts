@@ -10,6 +10,7 @@ import { stripe } from '@/lib/stripe';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { isValidTransition } from '@/components/jobs/jobStatus';
+import { createNotification, bookingDeepLinkCustomer, bookingDeepLinkPro } from '@/lib/notifications';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -49,7 +50,7 @@ export async function POST(
   const admin = createAdminSupabaseClient();
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, status, status_history, pro_id, payment_intent_id')
+    .select('id, status, status_history, pro_id, customer_id, payment_intent_id')
     .eq('id', id)
     .single();
 
@@ -107,6 +108,30 @@ export async function POST(
             payment_status: 'PAID',
           })
           .eq('id', id);
+        // Notify BOTH customer and pro: Payment completed
+        const custId = booking.customer_id;
+        if (custId) {
+          void createNotification({
+            user_id: custId,
+            type: 'payment_captured',
+            title: 'Payment completed',
+            body: 'Your payment has been processed successfully.',
+            booking_id: id,
+            deep_link: bookingDeepLinkCustomer(id),
+          });
+        }
+        const { data: proRow } = await admin.from('service_pros').select('user_id').eq('id', booking.pro_id).maybeSingle();
+        const proUserId = (proRow as { user_id?: string } | null)?.user_id;
+        if (proUserId) {
+          void createNotification({
+            user_id: proUserId,
+            type: 'payment_captured',
+            title: 'Payment completed',
+            body: 'Payment for this booking has been captured.',
+            booking_id: id,
+            deep_link: bookingDeepLinkPro(id),
+          });
+        }
       }
     } catch (captureErr) {
       console.error('Complete: Payment capture failed', captureErr);

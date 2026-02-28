@@ -3,9 +3,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
-/** Browser client always uses /api/supabase proxy; Realtime WebSockets don't work through it. */
+/** Skip Realtime when using HTTP proxy - WebSockets don't work through it. */
 function isUsingSupabaseHttpProxy(): boolean {
-  return typeof window !== 'undefined';
+  if (typeof window === 'undefined') return true;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('use_proxy') === '1') return true;
+  return (process.env.NEXT_PUBLIC_SUPABASE_USE_PROXY ?? '').toLowerCase() === 'true';
 }
 
 interface NavAlertsContextType {

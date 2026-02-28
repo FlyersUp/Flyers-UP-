@@ -4,18 +4,18 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
 import { useEffect } from 'react';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
+import { NotificationList } from '@/components/notifications/NotificationList';
 
 /**
- * Customer Notifications - Screen 11
- * List of notifications with icons and timestamps
+ * Customer Notifications - Durable list with unread styling, timestamps, deep links
  */
 export default function CustomerNotifications() {
-  const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
+  const { clearMessagesAlert } = useNavAlerts();
 
   useEffect(() => {
     clearMessagesAlert();
-    clearNotificationsAlert();
-  }, [clearMessagesAlert, clearNotificationsAlert]);
+  }, [clearMessagesAlert]);
+
   return (
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">
@@ -23,30 +23,14 @@ export default function CustomerNotifications() {
           Notifications
         </h1>
 
-        <div className="surface-card p-6 border-l-[var(--border-accent)] border-l-accent">
-          <div className="text-base font-semibold text-text">No notifications yet</div>
-          <div className="mt-1 text-sm text-muted">
-            When you book a pro or get messages, you’ll see updates here.
-          </div>
-          <div className="mt-4">
-            <Link href="/services" className="text-sm font-medium text-text hover:underline">
-              Browse services →
-            </Link>
-          </div>
+        <NotificationList basePath="/customer" />
+
+        <div className="mt-6">
+          <Link href="/services" className="text-sm font-medium text-text hover:underline">
+            Browse services →
+          </Link>
         </div>
       </div>
     </AppLayout>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-

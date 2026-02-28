@@ -4,18 +4,18 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
 import { useEffect } from 'react';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
+import { NotificationList } from '@/components/notifications/NotificationList';
 
 /**
- * Pro Notifications - Screen 20
- * Notifications focused on bookings, job changes, payouts
+ * Pro Notifications - Durable list with unread styling, timestamps, deep links
  */
 export default function ProNotifications() {
-  const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
+  const { clearMessagesAlert } = useNavAlerts();
 
   useEffect(() => {
     clearMessagesAlert();
-    clearNotificationsAlert();
-  }, [clearMessagesAlert, clearNotificationsAlert]);
+  }, [clearMessagesAlert]);
+
   return (
     <AppLayout mode="pro">
       <div className="max-w-4xl mx-auto px-4 py-6">
@@ -23,30 +23,14 @@ export default function ProNotifications() {
           Notifications
         </h1>
 
-        <div className="surface-card p-6 border-l-[var(--border-accent)] border-l-accent">
-          <div className="text-base font-semibold text-text">No notifications yet</div>
-          <div className="mt-1 text-sm text-muted">
-            When customers message you or send requests, you’ll see updates here.
-          </div>
-          <div className="mt-4">
-            <Link href="/pro/requests" className="text-sm font-medium text-text hover:underline">
-              Go to requests →
-            </Link>
-          </div>
+        <NotificationList basePath="/pro" />
+
+        <div className="mt-6">
+          <Link href="/pro/requests" className="text-sm font-medium text-text hover:underline">
+            Go to requests →
+          </Link>
         </div>
       </div>
     </AppLayout>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-

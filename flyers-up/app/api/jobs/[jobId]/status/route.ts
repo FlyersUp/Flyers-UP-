@@ -26,6 +26,7 @@ import {
   isValidTransition,
   type NextStatusAction,
 } from '@/components/jobs/jobStatus';
+import { createNotification, bookingDeepLinkCustomer, bookingDeepLinkPro } from '@/lib/notifications';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -119,7 +120,7 @@ export async function PATCH(
     const { data: booking, error: fetchErr } = await supabase
       .from('bookings')
       .select(
-        'id, status, status_history, pro_id, payment_intent_id, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, status_updated_at, status_updated_by'
+        'id, status, status_history, pro_id, customer_id, payment_intent_id, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, status_updated_at, status_updated_by'
       )
       .eq('id', id)
       .single();
@@ -185,6 +186,27 @@ export async function PATCH(
       );
     }
 
+    // Notify Customer on status changes (optional for on_the_way/start; required for complete)
+    const customerId = (booking as { customer_id?: string }).customer_id;
+    if (customerId) {
+      const statusMessages: Record<string, { title: string; body: string }> = {
+        pro_en_route: { title: 'Pro is on the way', body: 'Your pro is heading to your location.' },
+        in_progress: { title: 'Job started', body: 'Your pro has started the job.' },
+        completed_pending_payment: { title: 'Job complete', body: 'Your pro marked the job complete. Payment will be processed.' },
+      };
+      const msg = statusMessages[nextDbStatus];
+      if (msg) {
+        void createNotification({
+          user_id: customerId,
+          type: 'booking_status',
+          title: msg.title,
+          body: msg.body,
+          booking_id: id,
+          deep_link: bookingDeepLinkCustomer(id),
+        });
+      }
+    }
+
     if (nextDbStatus === 'completed_pending_payment') {
       const piId = (booking as { payment_intent_id?: string }).payment_intent_id;
       if (piId && stripe) {
@@ -204,6 +226,30 @@ export async function PATCH(
               })
               .eq('id', id);
             const { data: final } = await admin.from('bookings').select('id, status, status_history, completed_at, paid_at').eq('id', id).single();
+            // Notify BOTH customer and pro: Payment completed
+            const custId = (booking as { customer_id?: string }).customer_id;
+            if (custId) {
+              void createNotification({
+                user_id: custId,
+                type: 'payment_captured',
+                title: 'Payment completed',
+                body: 'Your payment has been processed successfully.',
+                booking_id: id,
+                deep_link: bookingDeepLinkCustomer(id),
+              });
+            }
+            const { data: proRow } = await admin.from('service_pros').select('user_id').eq('id', booking.pro_id).maybeSingle();
+            const proUserId = (proRow as { user_id?: string } | null)?.user_id;
+            if (proUserId) {
+              void createNotification({
+                user_id: proUserId,
+                type: 'payment_captured',
+                title: 'Payment completed',
+                body: 'Payment for this booking has been captured.',
+                booking_id: id,
+                deep_link: bookingDeepLinkPro(id),
+              });
+            }
             return NextResponse.json(
               {
                 job: {

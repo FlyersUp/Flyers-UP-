@@ -11,6 +11,7 @@ import { stripe } from '@/lib/stripe';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { getOrCreateStripeCustomer } from '@/lib/stripeCustomer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
+import { createNotification, bookingDeepLinkCustomer } from '@/lib/notifications';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -166,6 +167,16 @@ export async function POST(
     console.error('Accept: booking update failed', updateErr);
     return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 });
   }
+
+  // Notify Customer: Booking accepted (card authorized)
+  void createNotification({
+    user_id: booking.customer_id,
+    type: 'booking_accepted',
+    title: 'Booking accepted',
+    body: 'Your booking was accepted. Card has been authorized for payment.',
+    booking_id: id,
+    deep_link: bookingDeepLinkCustomer(id),
+  });
 
   return NextResponse.json({
     booking: {

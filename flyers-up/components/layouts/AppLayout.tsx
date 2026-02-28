@@ -5,6 +5,8 @@ import { Rail } from '@/components/ui/Rail';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useAccentDensity } from '@/contexts/AccentDensityContext';
 import { NavAlertsProvider } from '@/contexts/NavAlertsContext';
+import { NotificationProvider } from '@/contexts/NotificationContext';
+import { NotificationToast } from '@/components/ui/NotificationToast';
 import BottomNav from '@/components/BottomNav';
 
 interface AppLayoutProps {
@@ -56,9 +58,12 @@ export function AppLayout({
   return (
     <ThemeProvider defaultMode={mode}>
       <NavAlertsProvider>
-        <LayoutContent showRail={showRail} mode={mode} accentDensity={accentDensity}>
-          {children}
-        </LayoutContent>
+        <NotificationProvider>
+          <LayoutContent showRail={showRail} mode={mode} accentDensity={accentDensity}>
+            {children}
+          </LayoutContent>
+          <NotificationToast />
+        </NotificationProvider>
       </NavAlertsProvider>
     </ThemeProvider>
   );

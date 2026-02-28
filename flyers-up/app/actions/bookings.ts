@@ -9,6 +9,7 @@
 
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { recordServerErrorEvent } from '@/lib/serverError';
+import { createNotification, bookingDeepLinkPro } from '@/lib/notifications';
 
 type BookingStatus = 'requested' | 'accepted' | 'declined' | 'completed' | 'cancelled';
 
@@ -160,7 +161,20 @@ export async function createBookingWithPayment(
       return { success: false, error: 'Failed to create request. Please try again.' };
     }
 
-    // 6) Snapshot selected add-ons (best-effort)
+    // 6) Notify Pro: New booking request (ONLY on explicit Request Booking - never on profile view/message open)
+    const proUserId = (proRow as { user_id?: string }).user_id;
+    if (proUserId) {
+      void createNotification({
+        user_id: proUserId,
+        type: 'booking_request',
+        title: 'New booking request',
+        body: `A customer requested a booking for ${date} at ${time}.`,
+        booking_id: booking.id,
+        deep_link: bookingDeepLinkPro(booking.id),
+      });
+    }
+
+    // 7) Snapshot selected add-ons (best-effort)
     if (selectedAddonIds.length > 0) {
       const { data: addonsData } = await supabase
         .from('service_addons')
