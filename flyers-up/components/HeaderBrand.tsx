@@ -29,11 +29,11 @@ export function HeaderBrand({ showIcon = true, showDivider = true }: HeaderBrand
       {showIcon && (
         <Link
           href="/"
-          className="flex items-center justify-center w-9 h-9 rounded-full bg-[#B2FBA5] text-[#1A1A1A] shrink-0 transition-transform duration-150 ease-out hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5] focus:ring-offset-2 focus:ring-offset-[#F2F2F0]"
+          className="flex items-center justify-center w-9 h-9 rounded-full bg-[#F2F2F0] border border-[#D9D5D2] shrink-0 transition-transform duration-150 ease-out hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5] focus:ring-offset-2 focus:ring-offset-[#F2F2F0]"
           style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
           aria-label="Flyers Up home"
         >
-          <LogoIcon className="w-5 h-7 text-[#1A1A1A]" />
+          <LogoIcon className="w-5 h-7 text-[#B2FBA5]" />
         </Link>
       )}
     </div>

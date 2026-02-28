@@ -27,13 +27,16 @@ function LayoutContent({
   mode: 'customer' | 'pro';
   accentDensity: 'default' | 'focus';
 }) {
+  // Rail + "PRO MODE" label: only for Pro. Customer gets clean layout with no vertical edge text.
+  const showRailForMode = showRail && mode === 'pro';
+
   return (
     <div
       data-role={mode}
       data-accent={accentDensity}
       className="min-h-screen bg-bg text-text flex pb-20"
     >
-      {showRail && <Rail className="h-screen" showLabel />}
+      {showRailForMode && <Rail className="h-screen" showLabel />}
       <div className="flex-1">
         {children}
       </div>

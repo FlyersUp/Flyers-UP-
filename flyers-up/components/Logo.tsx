@@ -71,7 +71,6 @@ export default function Logo({
       className={[
         'inline-flex items-center justify-center',
         gapClass,
-        'text-[#058954]',
         'shrink-0',
         className,
       ].join(' ')}
@@ -80,8 +79,7 @@ export default function Logo({
     >
       <div
         className={[
-          'uppercase font-bold leading-[0.88] tracking-tight text-center',
-          'select-none',
+          'uppercase font-bold leading-[0.88] tracking-tight text-center select-none',
           textClass,
         ].join(' ')}
         style={{
@@ -89,10 +87,10 @@ export default function Logo({
             'var(--font-oswald), var(--font-montserrat), system-ui, -apple-system, Segoe UI, sans-serif',
         }}
       >
-        <div>FLYERS</div>
-        <div>UP</div>
+        <div className="text-[#1A1A1A]">FLYERS</div>
+        <div className="text-[#B2FBA5]">UP</div>
       </div>
-      <LogoIcon className={['flex-none', iconClass].join(' ')} />
+      <LogoIcon className={['flex-none text-[#B2FBA5]', iconClass].join(' ')} />
     </div>
   );
 
