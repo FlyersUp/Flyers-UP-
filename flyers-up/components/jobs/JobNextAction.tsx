@@ -10,6 +10,7 @@ const NEXT_ACTION_LABELS: Record<Exclude<Status, 'BOOKED'>, string> = {
   ON_THE_WAY: 'Start work',
   IN_PROGRESS: 'Mark as complete',
   COMPLETED: '',
+  PAID: '',
 };
 
 interface JobNextActionProps {
