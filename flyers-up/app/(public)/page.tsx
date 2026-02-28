@@ -10,24 +10,32 @@ export const dynamic = 'force-static';
 
 import Link from 'next/link';
 import Logo from '@/components/Logo';
+import { HeaderBrand } from '@/components/HeaderBrand';
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-bg" style={{ '--accent-customer': '111 91% 82%' } as React.CSSProperties}>
-      {/* Header */}
-      <header className="px-4 py-5 bg-surface/95 backdrop-blur-sm sticky top-0 z-50 border-b border-[var(--hairline)]">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Logo size="md" linkToHome={false} />
+      {/* Header: premium civic feel - #F2F2F0, #D9D5D2, 25% accent max */}
+      <header
+        className="sticky top-0 z-50 flex items-center justify-between h-16 md:h-[72px] px-6 md:px-6 border-b transition-opacity duration-150 ease-out"
+        style={{
+          backgroundColor: '#F2F2F0',
+          borderColor: '#D9D5D2',
+          boxShadow: '0 1px 0 rgba(0,0,0,0.04)',
+        }}
+      >
+        <div className="max-w-[1200px] w-full mx-auto flex items-center justify-between px-6">
+          <HeaderBrand showIcon showDivider />
           <div className="flex items-center gap-3">
-            <Link 
-              href="/signin" 
-              className="px-4 py-2 text-sm font-medium text-text hover:text-accent transition-colors"
+            <Link
+              href="/signin"
+              className="px-4 py-2 text-sm font-medium text-[#1A1A1A] hover:opacity-90 transition-opacity duration-150"
             >
               Sign In
             </Link>
-            <Link 
+            <Link
               href="/signup?role=customer"
-              className="px-4 py-2 text-sm font-medium bg-surface hover:bg-surface2 text-text rounded-lg transition-colors border border-border"
+              className="px-4 py-2 text-sm font-medium bg-surface hover:bg-surface2 text-[#1A1A1A] rounded-lg transition-colors duration-150 border border-[#D9D5D2]"
             >
               Book a Pro
             </Link>

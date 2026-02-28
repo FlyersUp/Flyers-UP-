@@ -1,13 +1,13 @@
 'use client';
 
 /**
- * Navbar component
- * NOTE: No mock users/tokens. Presentational header only.
+ * Navbar component - premium civic header.
+ * Matches Flyers Up design system: #F2F2F0, #D9D5D2, #B2FBA5, #1A1A1A
  */
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import Logo from './Logo';
+import { HeaderBrand } from './HeaderBrand';
 
 interface NavbarProps {
   title?: string;
@@ -18,13 +18,20 @@ export default function Navbar({ title = 'Flyers Up', showBackButton = false }: 
   const router = useRouter();
 
   return (
-    <nav className="bg-[var(--surface-solid)] border-b border-[var(--surface-border)] px-[var(--page-pad-x)] py-3 shadow-card">
-      <div className="max-w-6xl mx-auto flex items-center justify-between">
+    <nav
+      className="sticky top-0 z-50 flex items-center h-16 md:h-[72px] border-b"
+      style={{
+        backgroundColor: '#F2F2F0',
+        borderColor: '#D9D5D2',
+        boxShadow: '0 1px 0 rgba(0,0,0,0.04)',
+      }}
+    >
+      <div className="max-w-[1200px] w-full mx-auto flex items-center justify-between px-6">
         <div className="flex items-center gap-4">
           {showBackButton && (
             <button
               onClick={() => router.back()}
-              className="text-muted hover:text-text transition-colors"
+              className="text-[#1A1A1A]/70 hover:text-[#1A1A1A] text-sm font-medium transition-opacity duration-150"
               aria-label="Go back"
             >
               ← Back
@@ -32,12 +39,12 @@ export default function Navbar({ title = 'Flyers Up', showBackButton = false }: 
           )}
 
           {title === 'Flyers Up' ? (
-            <Logo size="sm" />
+            <HeaderBrand showIcon showDivider />
           ) : (
             <div className="flex items-center gap-3">
-              <Logo size="sm" />
-              <span className="text-muted/60">|</span>
-              <span className="font-semibold text-text">{title}</span>
+              <HeaderBrand showIcon showDivider />
+              <span className="w-px h-6 bg-[#D9D5D2]" style={{ margin: '0 12px' }} aria-hidden />
+              <span className="font-semibold text-[#1A1A1A] text-base">{title}</span>
             </div>
           )}
         </div>
@@ -45,13 +52,13 @@ export default function Navbar({ title = 'Flyers Up', showBackButton = false }: 
         <div className="flex items-center gap-4">
           <Link
             href="/"
-            className="text-sm text-muted hover:text-text font-medium transition-colors"
+            className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] font-medium transition-opacity duration-150"
           >
             Home
           </Link>
           <Link
             href="/signin"
-            className="text-sm bg-accent hover:bg-accent text-accentContrast px-4 py-1.5 rounded-lg transition-colors"
+            className="text-sm font-medium px-4 py-2 rounded-lg transition-all duration-150 bg-[#B2FBA5] hover:opacity-90 text-[#1A1A1A]"
           >
             Sign In
           </Link>

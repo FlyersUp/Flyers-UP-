@@ -1,6 +1,7 @@
 /**
  * Flyers Up Logo Component
- * Reusable logo with different size variants
+ * Reusable logo with different size variants.
+ * variant="header": horizontal one-line layout for header (premium civic feel).
  */
 
 import Link from 'next/link';
@@ -9,23 +10,62 @@ interface LogoProps {
   size?: 'sm' | 'md' | 'lg';
   linkToHome?: boolean;
   className?: string;
+  /** header = horizontal "FLYERS UP" with accent on UP; default = stacked legacy */
+  variant?: 'default' | 'header';
 }
 
 const sizeConfig = {
-  // Keep a stable box size to prevent auth-page flicker/CLS when fonts swap.
-  // (These match the previous Image dimensions to preserve layout.)
   sm: { boxW: 100, boxH: 30, textClass: 'text-[14px]', iconClass: 'w-6 h-10', gapClass: 'gap-2' },
   md: { boxW: 140, boxH: 42, textClass: 'text-[18px]', iconClass: 'w-7 h-12', gapClass: 'gap-3' },
   lg: { boxW: 200, boxH: 60, textClass: 'text-[24px]', iconClass: 'w-9 h-14', gapClass: 'gap-3.5' },
 };
 
-export default function Logo({ 
-  size = 'md', 
+const headerSizeConfig = {
+  sm: { textClass: 'text-base sm:text-lg' },
+  md: { textClass: 'text-lg sm:text-xl' },
+  lg: { textClass: 'text-xl sm:text-2xl' },
+};
+
+export default function Logo({
+  size = 'md',
   linkToHome = true,
-  className = '' 
+  className = '',
+  variant = 'default',
 }: LogoProps) {
+  if (variant === 'header') {
+    const { textClass } = headerSizeConfig[size];
+    const logoElement = (
+      <span
+        className={[
+          'inline-flex items-baseline select-none whitespace-nowrap',
+          'uppercase font-extrabold tracking-[0.5px]',
+          textClass,
+          'text-[#1A1A1A]',
+          'transition-opacity duration-150 ease-out hover:opacity-100 opacity-[0.97]',
+          className,
+        ].join(' ')}
+        style={{
+          fontFamily:
+            'var(--font-oswald), var(--font-montserrat), system-ui, -apple-system, Segoe UI, sans-serif',
+        }}
+        aria-label="Flyers Up"
+      >
+        FLYERS{' '}
+        <span className="border-b-2 border-[#B2FBA5]">UP</span>
+      </span>
+    );
+    if (linkToHome) {
+      return (
+        <Link href="/" className="flex items-center">
+          {logoElement}
+        </Link>
+      );
+    }
+    return logoElement;
+  }
+
   const { boxW, boxH, textClass, iconClass, gapClass } = sizeConfig[size];
-  
+
   const logoElement = (
     <div
       className={[
