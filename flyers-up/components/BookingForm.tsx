@@ -12,10 +12,18 @@
  * - Add address autocomplete
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser, type ServicePro } from '@/lib/api';
 import { createBookingWithPayment } from '@/app/actions/bookings';
+
+interface Subcategory {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string | null;
+  sort_order?: number;
+}
 
 interface BookingFormProps {
   pro: ServicePro;
@@ -25,14 +33,27 @@ export default function BookingForm({ pro }: BookingFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+
   // Form state
   const [formData, setFormData] = useState({
     date: '',
     time: '',
     address: '',
     notes: '',
+    subcategoryId: '' as string,
   });
+
+  useEffect(() => {
+    fetch(`/api/pro/${encodeURIComponent(pro.id)}/subcategories`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.ok && Array.isArray(data.subcategories)) {
+          setSubcategories(data.subcategories);
+        }
+      })
+      .catch(() => {});
+  }, [pro.id]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -68,7 +89,8 @@ export default function BookingForm({ pro }: BookingFormProps) {
         formData.time,
         formData.address,
         formData.notes,
-        []
+        [],
+        formData.subcategoryId || null
       );
       if (!result.success) {
         setError(result.error || 'Failed to create booking. Please try again.');
@@ -101,6 +123,36 @@ export default function BookingForm({ pro }: BookingFormProps) {
       {error && (
         <div className="bg-danger/10 text-text px-4 py-3 rounded-lg text-sm">
           {error}
+        </div>
+      )}
+
+      {/* Subcategory field (optional - only if pro offers subcategories) */}
+      {subcategories.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-text mb-1">
+            Service type
+          </label>
+          <div className="space-y-2">
+            {subcategories.map((sub) => (
+              <label
+                key={sub.id}
+                className="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface2/50 transition-colors has-[:checked]:border-accent has-[:checked]:bg-surface2"
+              >
+                <input
+                  type="radio"
+                  name="subcategoryId"
+                  value={sub.id}
+                  checked={formData.subcategoryId === sub.id}
+                  onChange={() => setFormData((prev) => ({ ...prev, subcategoryId: sub.id }))}
+                  className="w-4 h-4 text-accent border-border focus:ring-accent"
+                />
+                <span className="text-text font-medium">{sub.name}</span>
+                {sub.description && (
+                  <span className="text-sm text-muted">— {sub.description}</span>
+                )}
+              </label>
+            ))}
+          </div>
         </div>
       )}
 

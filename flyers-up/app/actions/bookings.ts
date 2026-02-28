@@ -33,7 +33,8 @@ export async function createBookingWithPayment(
   time: string,
   address: string,
   notes: string,
-  selectedAddonIds: string[]
+  selectedAddonIds: string[],
+  subcategoryId?: string | null
 ): Promise<{ success: boolean; bookingId?: string; error?: string }> {
   try {
     const supabase = await createServerSupabaseClient();
@@ -70,6 +71,20 @@ export async function createBookingWithPayment(
 
     if (!(proRow as any).available) {
       return { success: false, error: 'Service pro not available.' };
+    }
+
+    // Validate subcategoryId if provided (must be one this pro offers)
+    let validatedSubcategoryId: string | null = null;
+    if (subcategoryId?.trim()) {
+      const { data: link } = await supabase
+        .from('pro_service_subcategories')
+        .select('subcategory_id')
+        .eq('pro_id', proId)
+        .eq('subcategory_id', subcategoryId.trim())
+        .maybeSingle();
+      if (link?.subcategory_id) {
+        validatedSubcategoryId = link.subcategory_id;
+      }
     }
 
     let categorySlug: string | undefined;
@@ -141,6 +156,7 @@ export async function createBookingWithPayment(
         status: 'requested' satisfies BookingStatus,
         status_history: initialStatusHistory,
         price: totalDollars,
+        subcategory_id: validatedSubcategoryId,
       })
       .select('id')
       .single();
