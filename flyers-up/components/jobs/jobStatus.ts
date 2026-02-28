@@ -150,7 +150,8 @@ export function buildTimestampsFromBooking(
   const out: Partial<Record<Status, string>> = {};
   out.BOOKED = createdAt;
   if (dedicated?.acceptedAt) out.ACCEPTED = dedicated.acceptedAt;
-  if (dedicated?.enRouteAt ?? dedicated?.onTheWayAt) out.ON_THE_WAY = dedicated?.enRouteAt ?? dedicated?.onTheWayAt ?? null;
+  const enRoute = dedicated?.enRouteAt ?? dedicated?.onTheWayAt;
+  if (enRoute) out.ON_THE_WAY = enRoute;
   if (dedicated?.startedAt) out.IN_PROGRESS = dedicated.startedAt;
   if (dedicated?.completedAt) out.COMPLETED = dedicated.completedAt;
   if (dedicated?.paidAt) out.PAID = dedicated.paidAt;
