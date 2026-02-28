@@ -27,9 +27,11 @@ interface Subcategory {
 
 interface BookingFormProps {
   pro: ServicePro;
+  /** Pre-select subcategory when coming from marketplace (e.g. ?subcategorySlug=30-min-walk) */
+  initialSubcategorySlug?: string;
 }
 
-export default function BookingForm({ pro }: BookingFormProps) {
+export default function BookingForm({ pro, initialSubcategorySlug }: BookingFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,11 +51,19 @@ export default function BookingForm({ pro }: BookingFormProps) {
       .then((res) => res.json())
       .then((data) => {
         if (data?.ok && Array.isArray(data.subcategories)) {
-          setSubcategories(data.subcategories);
+          const subs = data.subcategories as Subcategory[];
+          setSubcategories(subs);
+          // Pre-select from URL when coming from marketplace (e.g. pet-care 30-min-walk)
+          if (initialSubcategorySlug && subs.length > 0) {
+            const match = subs.find((s) => s.slug === initialSubcategorySlug);
+            if (match) {
+              setFormData((prev) => ({ ...prev, subcategoryId: match.id }));
+            }
+          }
         }
       })
       .catch(() => {});
-  }, [pro.id]);
+  }, [pro.id, initialSubcategorySlug]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -78,6 +88,11 @@ export default function BookingForm({ pro }: BookingFormProps) {
       // Validate form
       if (!formData.date || !formData.time || !formData.address) {
         setError('Please fill in all required fields');
+        setIsSubmitting(false);
+        return;
+      }
+      if (subcategories.length > 0 && !formData.subcategoryId) {
+        setError('Please select a service type');
         setIsSubmitting(false);
         return;
       }
@@ -126,11 +141,11 @@ export default function BookingForm({ pro }: BookingFormProps) {
         </div>
       )}
 
-      {/* Subcategory field (optional - only if pro offers subcategories) */}
+      {/* Subcategory field - required when pro offers subcategories (all 5 main services) */}
       {subcategories.length > 0 && (
         <div>
           <label className="block text-sm font-medium text-text mb-1">
-            Service type
+            Service type *
           </label>
           <div className="space-y-2">
             {subcategories.map((sub) => (

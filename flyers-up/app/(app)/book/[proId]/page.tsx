@@ -6,10 +6,11 @@
  * 
  * Protected route - redirects to /auth if not logged in.
  * Uses Supabase for data fetching.
+ * Supports ?subcategorySlug=xxx to pre-select when coming from marketplace.
  */
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Layout from '@/components/Layout';
 import BookingForm from '@/components/BookingForm';
 import { getProById, getCurrentUser, type ServicePro } from '@/lib/api';
@@ -17,7 +18,9 @@ import { getProById, getCurrentUser, type ServicePro } from '@/lib/api';
 export default function BookingPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const proId = params.proId as string;
+  const subcategorySlug = searchParams.get('subcategorySlug')?.trim() ?? undefined;
   
   const [pro, setPro] = useState<ServicePro | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -104,7 +107,7 @@ export default function BookingPage() {
           <h2 className="font-semibold text-text mb-4">
             Booking Details
           </h2>
-          <BookingForm pro={pro} />
+          <BookingForm pro={pro} initialSubcategorySlug={subcategorySlug} />
         </div>
       </div>
     </Layout>

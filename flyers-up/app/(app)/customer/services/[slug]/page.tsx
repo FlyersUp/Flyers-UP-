@@ -161,7 +161,12 @@ export default function ServiceProListPage({ params }: { params: Promise<{ slug:
           <FlyerWall
             pros={pros}
             categoryName={serviceName}
-            getBookHref={(proId) => `/book/${encodeURIComponent(proId)}`}
+            getBookHref={(proId) => {
+              const base = `/book/${encodeURIComponent(proId)}`;
+              return selectedSubcategorySlug
+                ? `${base}?subcategorySlug=${encodeURIComponent(selectedSubcategorySlug)}`
+                : base;
+            }}
             getMessageHref={(proId) => `/customer/pros/${encodeURIComponent(proId)}`}
           />
         )}
