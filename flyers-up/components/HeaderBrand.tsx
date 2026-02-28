@@ -33,7 +33,7 @@ export function HeaderBrand({ showIcon = true, showDivider = true }: HeaderBrand
           style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
           aria-label="Flyers Up home"
         >
-          <LogoIcon className="w-5 h-7" style={{ color: '#1A1A1A' }} />
+          <LogoIcon className="w-5 h-7 text-[#1A1A1A]" />
         </Link>
       )}
     </div>
