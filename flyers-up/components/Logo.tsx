@@ -50,8 +50,7 @@ export default function Logo({
         }}
         aria-label="Flyers Up"
       >
-        FLYERS{' '}
-        <span className="border-b-2 border-[#B2FBA5]">UP</span>
+        FLYER<span className="border-b-2 border-[#B2FBA5]">SUP</span>
       </span>
     );
     if (linkToHome) {
@@ -77,9 +76,10 @@ export default function Logo({
       style={{ width: boxW, height: boxH }}
       aria-label="Flyers Up"
     >
-      <div
+      <span
         className={[
           'uppercase font-bold leading-[0.88] tracking-tight text-center select-none',
+          'text-[#1A1A1A]',
           textClass,
         ].join(' ')}
         style={{
@@ -87,9 +87,8 @@ export default function Logo({
             'var(--font-oswald), var(--font-montserrat), system-ui, -apple-system, Segoe UI, sans-serif',
         }}
       >
-        <div className="text-[#1A1A1A]">FLYERS</div>
-        <div className="text-[#B2FBA5]">UP</div>
-      </div>
+        FLYER<span className="border-b-2 border-[#B2FBA5]">SUP</span>
+      </span>
       <LogoIcon className={['flex-none text-[#B2FBA5]', iconClass].join(' ')} />
     </div>
   );
