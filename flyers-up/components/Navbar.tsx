@@ -12,9 +12,11 @@ import { HeaderBrand } from './HeaderBrand';
 interface NavbarProps {
   title?: string;
   showBackButton?: boolean;
+  /** Hide Home and Sign In links (e.g. on booking flow when user is already authenticated) */
+  hideRightLinks?: boolean;
 }
 
-export default function Navbar({ title = 'Flyers Up', showBackButton = false }: NavbarProps) {
+export default function Navbar({ title = 'Flyers Up', showBackButton = false, hideRightLinks = false }: NavbarProps) {
   const router = useRouter();
 
   return (
@@ -49,20 +51,22 @@ export default function Navbar({ title = 'Flyers Up', showBackButton = false }: 
           )}
         </div>
 
-        <div className="flex items-center gap-4">
-          <Link
-            href="/"
-            className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] font-medium transition-opacity duration-150"
-          >
-            Home
-          </Link>
-          <Link
-            href="/signin"
-            className="text-sm font-medium px-4 py-2 rounded-lg transition-all duration-150 bg-[#B2FBA5] hover:opacity-90 text-[#1A1A1A]"
-          >
-            Sign In
-          </Link>
-        </div>
+        {!hideRightLinks && (
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] font-medium transition-opacity duration-150"
+            >
+              Home
+            </Link>
+            <Link
+              href="/signin"
+              className="text-sm font-medium px-4 py-2 rounded-lg transition-all duration-150 bg-[#B2FBA5] hover:opacity-90 text-[#1A1A1A]"
+            >
+              Sign In
+            </Link>
+          </div>
+        )}
       </div>
     </nav>
   );

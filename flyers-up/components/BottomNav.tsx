@@ -26,7 +26,7 @@ function NotificationBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
     <span
-      className="absolute -top-0.5 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full bg-danger border-2 border-[var(--nav-solid)] shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
+      className="absolute -top-0.5 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full bg-danger border-2 border-[var(--nav-solid)] shrink-0 flex items-center justify-center text-[10px] font-bold text-[#B71C1C]"
       aria-label={`${count} unread notifications`}
     >
       {count > 99 ? '99+' : count}

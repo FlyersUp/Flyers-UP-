@@ -42,7 +42,7 @@ export default function BookingPage() {
 
   if (isLoading) {
     return (
-      <Layout title="Flyers Up" showBackButton>
+      <Layout title="Flyers Up" showBackButton hideNavLinks>
         <div className="flex items-center justify-center py-12">
           <p className="text-muted/70">Loading...</p>
         </div>
@@ -52,7 +52,7 @@ export default function BookingPage() {
 
   if (!pro) {
     return (
-      <Layout title="Flyers Up" showBackButton>
+      <Layout title="Flyers Up" showBackButton hideNavLinks>
         <div className="text-center py-12">
           <h1 className="text-2xl font-bold text-text mb-4">
             Professional Not Found
@@ -66,7 +66,7 @@ export default function BookingPage() {
   }
 
   return (
-    <Layout title="Flyers Up" showBackButton>
+    <Layout title="Flyers Up" showBackButton hideNavLinks>
       <div className="max-w-2xl mx-auto">
         {/* Page header */}
         <div className="mb-8">
