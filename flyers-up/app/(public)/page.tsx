@@ -25,7 +25,7 @@ export default function HomePage() {
         }}
       >
         <div className="max-w-[1200px] w-full mx-auto flex items-center justify-between px-6">
-          <HeaderBrand showIcon showDivider />
+          <HeaderBrand />
           <div className="flex items-center gap-3">
             <Link
               href="/signin"

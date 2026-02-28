@@ -50,7 +50,7 @@ export default function Logo({
         }}
         aria-label="Flyers Up"
       >
-        FLYER<span className="border-b-2 border-[#B2FBA5]">SUP</span>
+        FLYERS<span className="border-b-2 border-[#B2FBA5]">UP</span>
       </span>
     );
     if (linkToHome) {
@@ -63,17 +63,15 @@ export default function Logo({
     return logoElement;
   }
 
-  const { boxW, boxH, textClass, iconClass, gapClass } = sizeConfig[size];
+  const { textClass } = sizeConfig[size];
 
   const logoElement = (
     <div
       className={[
         'inline-flex items-center justify-center',
-        gapClass,
         'shrink-0',
         className,
       ].join(' ')}
-      style={{ width: boxW, height: boxH }}
       aria-label="Flyers Up"
     >
       <span
@@ -87,9 +85,8 @@ export default function Logo({
             'var(--font-oswald), var(--font-montserrat), system-ui, -apple-system, Segoe UI, sans-serif',
         }}
       >
-        FLYER<span className="border-b-2 border-[#B2FBA5]">SUP</span>
+        FLYERS<span className="border-b-2 border-[#B2FBA5]">UP</span>
       </span>
-      <LogoIcon className={['flex-none text-[#B2FBA5]', iconClass].join(' ')} />
     </div>
   );
 

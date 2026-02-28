@@ -39,10 +39,10 @@ export default function Navbar({ title = 'Flyers Up', showBackButton = false }: 
           )}
 
           {title === 'Flyers Up' ? (
-            <HeaderBrand showIcon showDivider />
+            <HeaderBrand />
           ) : (
             <div className="flex items-center gap-3">
-              <HeaderBrand showIcon showDivider />
+              <HeaderBrand />
               <span className="w-px h-6 bg-[#D9D5D2]" style={{ margin: '0 12px' }} aria-hidden />
               <span className="font-semibold text-[#1A1A1A] text-base">{title}</span>
             </div>
