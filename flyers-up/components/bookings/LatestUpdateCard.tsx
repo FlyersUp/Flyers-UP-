@@ -8,6 +8,7 @@ const LATEST_UPDATE_COPY: Record<Status, string> = {
   ON_THE_WAY: 'On the way.',
   IN_PROGRESS: 'Work started.',
   COMPLETED: 'Completed.',
+  PAID: 'Paid. Thank you!',
 };
 
 interface LatestUpdateCardProps {
