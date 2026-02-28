@@ -19,7 +19,7 @@ export default function ProNotifications() {
   return (
     <AppLayout mode="pro">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-semibold text-text mb-6">
+        <h1 className="text-2xl font-semibold text-[#2C2C2C] tracking-[0.2px] mb-6">
           Notifications
         </h1>
 

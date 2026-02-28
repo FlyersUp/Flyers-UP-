@@ -26,7 +26,7 @@ function NotificationBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
     <span
-      className="absolute -top-0.5 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full bg-danger border-2 border-[var(--nav-solid)] shrink-0 flex items-center justify-center text-[10px] font-bold text-[#B71C1C]"
+      className="absolute -top-0.5 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full bg-[#FF6B6B] shrink-0 flex items-center justify-center text-[10px] font-bold text-white shadow-[0_0_0_3px_#F2F2F0]"
       aria-label={`${count} unread notifications`}
     >
       {count > 99 ? '99+' : count}
@@ -87,12 +87,16 @@ export default function BottomNav() {
 
           <Link
             href={notificationsHref}
-            className={`relative flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+            className={`group relative flex flex-col items-center justify-center flex-1 h-full transition-colors ${
               isActive(notificationsHref) ? `${activeLink} ${activeIndicator}` : inactiveLink
             }`}
           >
             <span className="mb-1 relative inline-block">
-              <AppIcon name="bell" size={22} className="" alt="Notifications" />
+              <span className="inline-flex items-center justify-center w-[46px] h-[46px] rounded-full bg-[#F2F2F0] border border-[#E7E5E2] shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-all duration-[180ms] ease-[ease] group-hover:bg-[#EDEBE8] group-hover:-translate-y-px">
+                <span className="text-[#2C2C2C] drop-shadow-[0_1px_1px_rgba(0,0,0,0.06)]">
+                  <AppIcon name="bell" size={22} className="" alt="Notifications" />
+                </span>
+              </span>
               <NotificationBadge count={unreadCount} />
             </span>
             <span className="text-xs font-medium">Notifications</span>
