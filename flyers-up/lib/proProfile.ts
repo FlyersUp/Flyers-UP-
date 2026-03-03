@@ -68,7 +68,7 @@ export async function getProProfile(userId: string): Promise<ProProfile | null> 
     .eq('user_id', userId)
     .maybeSingle();
   if (error) {
-    console.error('[proProfile] getProProfile error:', error.status, error.message);
+    console.error('[proProfile] getProProfile error:', error.message);
     return null;
   }
   return data as ProProfile | null;
@@ -114,7 +114,7 @@ export async function updateProProfile(
 
   const { error } = await supabase.from('pro_profiles').upsert(payload, { onConflict: 'user_id' });
   if (error) {
-    console.error('[proProfile] updateProProfile error:', error.status, error.message);
+    console.error('[proProfile] updateProProfile error:', error.message);
     return { success: false, error: error.message };
   }
   return { success: true };
@@ -134,7 +134,7 @@ export async function uploadProfilePhoto(
     contentType: file.type || undefined,
   });
   if (uploadErr) {
-    console.error('[proProfile] uploadProfilePhoto storage error:', uploadErr.status, uploadErr.message);
+    console.error('[proProfile] uploadProfilePhoto storage error:', uploadErr.message);
     return { success: false, error: uploadErr.message };
   }
 
@@ -163,7 +163,7 @@ export async function uploadBusinessLogo(
     contentType: file.type || undefined,
   });
   if (uploadErr) {
-    console.error('[proProfile] uploadBusinessLogo storage error:', uploadErr.status, uploadErr.message);
+    console.error('[proProfile] uploadBusinessLogo storage error:', uploadErr.message);
     return { success: false, error: uploadErr.message };
   }
 
@@ -210,7 +210,7 @@ export async function listProCertifications(userId: string): Promise<ProCertific
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
   if (error) {
-    console.error('[proProfile] listProCertifications error:', error.status, error.message);
+    console.error('[proProfile] listProCertifications error:', error.message);
     return [];
   }
   return (data ?? []) as ProCertification[];
@@ -251,7 +251,7 @@ export async function addProCertification(
     .select()
     .single();
   if (error) {
-    console.error('[proProfile] addProCertification insert error:', error.status, error.message);
+    console.error('[proProfile] addProCertification insert error:', error.message);
     return { success: false, error: error.message };
   }
   return { success: true, cert: data as ProCertification };
