@@ -34,7 +34,7 @@ export default function CustomerMessagesPage() {
 
       const { data: bookings } = await supabase
         .from('bookings')
-        .select('id, status, address, notes, service_date, service_time, created_at, service_pros(display_name)')
+        .select('id, status, address, notes, service_date, service_time, created_at, service_pros(display_name, user_id)')
         .eq('customer_id', user.id)
         .order('created_at', { ascending: false })
         .limit(25);
@@ -47,8 +47,26 @@ export default function CustomerMessagesPage() {
         service_date: string;
         service_time: string;
         created_at: string;
-        service_pros?: { display_name: string | null } | { display_name: string | null }[] | null;
+        service_pros?: { display_name: string | null; user_id: string } | { display_name: string | null; user_id: string }[] | null;
       }>;
+
+      const proUserIds = [...new Set(b.map((x) => {
+        const raw = x.service_pros;
+        const pro = Array.isArray(raw) ? raw[0] : raw;
+        return pro?.user_id;
+      }).filter(Boolean))] as string[];
+      const proProfileByName = new Map<string, string>();
+      if (proUserIds.length > 0) {
+        const { data: proProfiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, full_name')
+          .in('id', proUserIds);
+        (proProfiles ?? []).forEach((p: { id: string; first_name?: string | null; last_name?: string | null; full_name?: string | null }) => {
+          const name = p.full_name?.trim()
+            || [p.first_name?.trim(), p.last_name?.trim()].filter(Boolean).join(' ');
+          if (name) proProfileByName.set(p.id, name);
+        });
+      }
 
       for (const booking of b) {
         const { data: last } = await supabase
@@ -61,7 +79,9 @@ export default function CustomerMessagesPage() {
         const lastRow = (last && last[0]) as { message: string; created_at: string } | undefined;
         const raw = booking.service_pros;
         const pro = Array.isArray(raw) ? raw[0] : raw;
-        const proName = pro?.display_name?.trim() || 'Pro';
+        const proName = pro?.display_name?.trim()
+          || (pro?.user_id ? proProfileByName.get(pro.user_id) : null)
+          || 'Pro';
         const isInquiry =
           booking.address === 'To be confirmed' &&
           (booking.notes?.includes('Contact request') ?? false);
@@ -81,7 +101,7 @@ export default function CustomerMessagesPage() {
 
       const { data: conversations } = await supabase
         .from('conversations')
-        .select('id, created_at, service_pros(display_name)')
+        .select('id, created_at, service_pros(display_name, user_id)')
         .eq('customer_id', user.id)
         .order('created_at', { ascending: false })
         .limit(25);
@@ -89,8 +109,26 @@ export default function CustomerMessagesPage() {
       const convs = (conversations || []) as Array<{
         id: string;
         created_at: string;
-        service_pros?: { display_name: string | null } | { display_name: string | null }[] | null;
+        service_pros?: { display_name: string | null; user_id: string } | { display_name: string | null; user_id: string }[] | null;
       }>;
+
+      const convProUserIds = [...new Set(convs.map((c) => {
+        const raw = c.service_pros;
+        const pro = Array.isArray(raw) ? raw[0] : raw;
+        return pro?.user_id;
+      }).filter(Boolean))] as string[];
+      const convProProfileByName = new Map<string, string>();
+      if (convProUserIds.length > 0) {
+        const { data: convProProfiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, full_name')
+          .in('id', convProUserIds);
+        (convProProfiles ?? []).forEach((p: { id: string; first_name?: string | null; last_name?: string | null; full_name?: string | null }) => {
+          const name = p.full_name?.trim()
+            || [p.first_name?.trim(), p.last_name?.trim()].filter(Boolean).join(' ');
+          if (name) convProProfileByName.set(p.id, name);
+        });
+      }
 
       for (const conv of convs) {
         const { data: last } = await supabase
@@ -103,7 +141,9 @@ export default function CustomerMessagesPage() {
         const lastRow = (last && last[0]) as { message: string; created_at: string } | undefined;
         const raw = conv.service_pros;
         const pro = Array.isArray(raw) ? raw[0] : raw;
-        const proName = pro?.display_name?.trim() || 'Pro';
+        const proName = pro?.display_name?.trim()
+          || (pro?.user_id ? convProProfileByName.get(pro.user_id) : null)
+          || 'Pro';
         const d = new Date(conv.created_at);
         rows.push({
           id: conv.id,

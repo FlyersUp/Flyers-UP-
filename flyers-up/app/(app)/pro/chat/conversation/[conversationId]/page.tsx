@@ -36,14 +36,14 @@ export default function ProConversationChat({ params }: { params: Promise<{ conv
     if (custId) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('first_name, last_name, full_name')
+        .select('first_name, last_name, full_name, email')
         .eq('id', custId)
         .maybeSingle();
-      const p = profile as { first_name?: string | null; last_name?: string | null; full_name?: string | null } | null;
+      const p = profile as { first_name?: string | null; last_name?: string | null; full_name?: string | null; email?: string | null } | null;
       const name = p?.full_name?.trim()
         || [p?.first_name?.trim(), p?.last_name?.trim()].filter(Boolean).join(' ')
-        || 'Customer';
-      setCustomerName(name);
+        || (p?.email ? (p.email.split('@')[0] || p.email) : null);
+      setCustomerName(name?.trim() || 'Customer');
     }
 
     const { data } = await supabase

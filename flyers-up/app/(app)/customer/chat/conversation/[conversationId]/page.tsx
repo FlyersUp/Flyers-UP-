@@ -29,12 +29,23 @@ export default function CustomerConversationChat({ params }: { params: Promise<{
     setLoading(true);
     const { data: conv } = await supabase
       .from('conversations')
-      .select('pro_id, service_pros(display_name)')
+      .select('pro_id, service_pros(display_name, user_id)')
       .eq('id', conversationId)
       .maybeSingle();
-    const raw = (conv as { service_pros?: { display_name: string | null } | { display_name: string | null }[] | null })?.service_pros;
+    const raw = (conv as { service_pros?: { display_name: string | null; user_id?: string } | { display_name: string | null; user_id?: string }[] | null })?.service_pros;
     const pro = Array.isArray(raw) ? raw[0] : raw;
-    setProName(pro?.display_name?.trim() || 'Pro');
+    let name = pro?.display_name?.trim();
+    if (!name && pro?.user_id) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, full_name')
+        .eq('id', pro.user_id)
+        .maybeSingle();
+      const p = prof as { first_name?: string | null; last_name?: string | null; full_name?: string | null } | null;
+      name = p?.full_name?.trim()
+        || [p?.first_name?.trim(), p?.last_name?.trim()].filter(Boolean).join(' ') || undefined;
+    }
+    setProName(name || 'Pro');
 
     const { data } = await supabase
       .from('conversation_messages')

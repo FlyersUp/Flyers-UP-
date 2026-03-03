@@ -33,7 +33,7 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
     setLoading(true);
     const { data: booking } = await supabase
       .from('bookings')
-      .select('status, address, notes, service_pros(display_name)')
+      .select('status, address, notes, service_pros(display_name, user_id)')
       .eq('id', bookingId)
       .maybeSingle();
     if (booking?.status) setStatus(booking.status);
@@ -42,9 +42,20 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
       b?.address === 'To be confirmed' &&
       (b?.notes?.includes('Contact request') ?? false)
     );
-    const raw = (booking as { service_pros?: { display_name: string | null } | { display_name: string | null }[] | null })?.service_pros;
+    const raw = (booking as { service_pros?: { display_name: string | null; user_id?: string } | { display_name: string | null; user_id?: string }[] | null })?.service_pros;
     const pro = Array.isArray(raw) ? raw[0] : raw;
-    setProName(pro?.display_name?.trim() || 'Pro');
+    let name = pro?.display_name?.trim();
+    if (!name && pro?.user_id) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, full_name')
+        .eq('id', pro.user_id)
+        .maybeSingle();
+      const p = prof as { first_name?: string | null; last_name?: string | null; full_name?: string | null } | null;
+      name = p?.full_name?.trim()
+        || [p?.first_name?.trim(), p?.last_name?.trim()].filter(Boolean).join(' ') || undefined;
+    }
+    setProName(name || 'Pro');
 
     const { data } = await supabase
       .from('booking_messages')

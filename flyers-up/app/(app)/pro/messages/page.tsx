@@ -83,11 +83,12 @@ export default function ProMessagesPage() {
       if (customerIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name, full_name')
+          .select('id, first_name, last_name, full_name, email')
           .in('id', customerIds);
-        (profiles ?? []).forEach((p: { id: string; first_name?: string | null; last_name?: string | null; full_name?: string | null }) => {
+        (profiles ?? []).forEach((p: { id: string; first_name?: string | null; last_name?: string | null; full_name?: string | null; email?: string | null }) => {
           const name = p.full_name?.trim()
             || [p.first_name?.trim(), p.last_name?.trim()].filter(Boolean).join(' ')
+            || (p.email ? (p.email.split('@')[0] || p.email) : null)
             || 'Customer';
           profileById.set(p.id, name);
         });
