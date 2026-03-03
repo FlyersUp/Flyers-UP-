@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { getCurrentUser, getMyServicePro } from '@/lib/api';
-import { getProProfile, updateProProfile, type PricingModel } from '@/lib/proProfile';
+import { getProProfile, updateProProfile } from '@/lib/proProfile';
 import { updateMyServiceProAction } from '@/app/actions/servicePro';
 import { ProAccessNotice } from '@/components/ui/ProAccessNotice';
 import { supabase } from '@/lib/supabaseClient';
