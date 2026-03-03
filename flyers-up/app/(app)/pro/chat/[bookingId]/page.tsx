@@ -1,8 +1,8 @@
 'use client';
 
 import { AppLayout } from '@/components/layouts/AppLayout';
-import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/messages/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { use, useEffect, useMemo, useState } from 'react';
@@ -98,14 +98,18 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 bg-[#FAF8F6]">
           {loading ? (
             <p className="text-sm text-muted/70">Loading…</p>
           ) : rows.length === 0 ? (
-            <div className="text-center">
-              <Label className="bg-surface2">NO MESSAGES YET</Label>
-              <div className="text-xs text-muted/70 mt-1">Send the first message to coordinate details.</div>
-            </div>
+            <EmptyState
+              variant="thread"
+              title="No messages yet"
+              subtitle="Send the first message to coordinate details."
+              ctaLabel="Message customer"
+              ctaDisabled
+              ctaTooltip="Use the input below to send a message"
+            />
           ) : (
             rows.map((msg) => {
               const mine = msg.sender_role === 'pro';

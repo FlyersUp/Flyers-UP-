@@ -3,11 +3,12 @@
 /**
  * Bottom Navigation Footer
  * Intentionally NOT tied to any mock token/user id.
+ * Unified active state: soft pill with subtle accent for all tabs.
  */
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, ReactNode } from 'react';
 import { AppIcon } from '@/components/ui/AppIcon';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { useNotifications } from '@/contexts/NotificationContext';
@@ -16,7 +17,7 @@ function NavAlertDot({ show }: { show: boolean }) {
   if (!show) return null;
   return (
     <span
-      className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-danger border-2 border-[var(--nav-solid)] shrink-0"
+      className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-danger border-2 border-[#FAF8F6] shrink-0"
       aria-label="New"
     />
   );
@@ -26,11 +27,39 @@ function NotificationBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
     <span
-      className="absolute -top-0.5 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full bg-[#FF6B6B] shrink-0 flex items-center justify-center text-[10px] font-bold text-white shadow-[0_0_0_3px_#F2F2F0]"
+      className="absolute -top-0.5 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full bg-[#FF6B6B] shrink-0 flex items-center justify-center text-[10px] font-bold text-white shadow-[0_0_0_3px_#FAF8F6]"
       aria-label={`${count} unread notifications`}
     >
       {count > 99 ? '99+' : count}
     </span>
+  );
+}
+
+const TAB_BASE =
+  'flex-1 flex flex-col items-center justify-center px-3 py-2 rounded-full min-h-[44px] gap-0.5 transition-colors focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus:outline-none';
+const TAB_ACTIVE = 'bg-accent/10 text-accent';
+const TAB_INACTIVE = 'text-black/50 hover:text-black/70';
+
+interface TabItemProps {
+  href: string;
+  isActive: boolean;
+  label: string;
+  iconName: 'home' | 'bell' | 'chat' | 'settings';
+  badge?: ReactNode;
+}
+
+function TabItem({ href, isActive, label, iconName, badge }: TabItemProps) {
+  return (
+    <Link
+      href={href}
+      className={`${TAB_BASE} ${isActive ? TAB_ACTIVE : TAB_INACTIVE}`}
+    >
+      <span className="relative inline-block">
+        <AppIcon name={iconName} size={22} className="" alt={label} />
+        {badge}
+      </span>
+      <span className="text-[11px] font-medium">{label}</span>
+    </Link>
   );
 }
 
@@ -41,7 +70,6 @@ export default function BottomNav() {
   const mode: 'customer' | 'pro' = (() => {
     if (pathname?.startsWith('/pro') || pathname?.startsWith('/dashboard/pro')) return 'pro';
     if (pathname?.startsWith('/customer') || pathname?.startsWith('/dashboard/customer')) return 'customer';
-    // For shared/public routes (e.g. /services, /browse), stick with last-used role.
     try {
       const last = window.localStorage.getItem('flyersup:lastRole');
       if (last === 'pro' || last === 'customer') return last;
@@ -52,7 +80,6 @@ export default function BottomNav() {
   })();
   const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/');
 
-  // Ensure role theme tokens apply even on pages not wrapped in ThemeProvider.
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle('theme-pro', mode === 'pro');
@@ -63,69 +90,37 @@ export default function BottomNav() {
   const notificationsHref = mode === 'pro' ? '/pro/notifications' : '/customer/notifications';
   const messagesHref = mode === 'pro' ? '/pro/messages' : '/customer/messages';
   const settingsHref = mode === 'pro' ? '/pro/settings' : '/customer/settings';
-  const activeLink = 'text-accent';
-  const inactiveLink = 'text-muted/70 hover:text-text';
-  // Make the active state more noticeable without adding background color.
-  const activeIndicator =
-    "after:content-[''] after:absolute after:-bottom-0.5 after:left-1/2 after:h-1 after:w-8 after:-translate-x-1/2 after:rounded-full after:bg-accent";
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[var(--nav-solid)] border-t border-[var(--surface-border)] z-50 shadow-card safe-area-bottom opacity-100">
+    <nav className="fixed bottom-0 left-0 right-0 bg-[#FAF8F6] border-t border-black/5 z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.04)] safe-area-bottom opacity-100">
       <div className="max-w-7xl mx-auto px-2">
         <div className="flex items-center justify-around h-16">
-          <Link
+          <TabItem
             href={homeHref}
-            className={`relative flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-              isActive(homeHref) ? `${activeLink} ${activeIndicator}` : inactiveLink
-            }`}
-          >
-            <span className="mb-1">
-              <AppIcon name="home" size={22} className="" alt="Home" />
-            </span>
-            <span className="text-xs font-medium">Home</span>
-          </Link>
-
-          <Link
+            isActive={isActive(homeHref)}
+            label="Home"
+            iconName="home"
+          />
+          <TabItem
             href={notificationsHref}
-            className={`group relative flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-              isActive(notificationsHref) ? `${activeLink} ${activeIndicator}` : inactiveLink
-            }`}
-          >
-            <span className="mb-1 relative inline-block">
-              <span className="inline-flex items-center justify-center w-[46px] h-[46px] rounded-full bg-[#F2F2F0] border border-[#E7E5E2] shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-all duration-[180ms] ease-[ease] group-hover:bg-[#EDEBE8] group-hover:-translate-y-px">
-                <span className="text-[#2C2C2C] drop-shadow-[0_1px_1px_rgba(0,0,0,0.06)]">
-                  <AppIcon name="bell" size={22} className="" alt="Notifications" />
-                </span>
-              </span>
-              <NotificationBadge count={unreadCount} />
-            </span>
-            <span className="text-xs font-medium">Notifications</span>
-          </Link>
-
-          <Link
+            isActive={isActive(notificationsHref)}
+            label="Notifications"
+            iconName="bell"
+            badge={<NotificationBadge count={unreadCount} />}
+          />
+          <TabItem
             href={messagesHref}
-            className={`relative flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-              isActive(messagesHref) ? `${activeLink} ${activeIndicator}` : inactiveLink
-            }`}
-          >
-            <span className="mb-1 relative inline-block">
-              <AppIcon name="chat" size={22} className="" alt="Messages" />
-              <NavAlertDot show={hasNewMessages} />
-            </span>
-            <span className="text-xs font-medium">Messages</span>
-          </Link>
-
-          <Link
+            isActive={isActive(messagesHref)}
+            label="Messages"
+            iconName="chat"
+            badge={<NavAlertDot show={hasNewMessages} />}
+          />
+          <TabItem
             href={settingsHref}
-            className={`relative flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-              isActive(settingsHref) ? `${activeLink} ${activeIndicator}` : inactiveLink
-            }`}
-          >
-            <span className="mb-1">
-              <AppIcon name="settings" size={22} className="" alt="Settings" />
-            </span>
-            <span className="text-xs font-medium">Settings</span>
-          </Link>
+            isActive={isActive(settingsHref)}
+            label="Settings"
+            iconName="settings"
+          />
         </div>
       </div>
     </nav>

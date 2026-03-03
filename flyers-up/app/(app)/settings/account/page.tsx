@@ -2,27 +2,40 @@
 
 /**
  * Account Settings Page
- * Allows users to update their profile information
+ * Profile, email, password, and photo management.
  */
 
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { changeEmail } from '@/lib/api';
+import { changeEmail, changePassword } from '@/lib/api';
 import { TrustRow } from '@/components/ui/TrustRow';
 import { loadCustomerProfile, saveCustomerProfile } from '@/lib/profileStore';
+
+const MIN_PASSWORD_LENGTH = 8;
 
 export default function AccountSettingsPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [newEmail, setNewEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Email change: inline form visibility + fields
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [newEmailConfirm, setNewEmailConfirm] = useState('');
+  const [emailLoading, setEmailLoading] = useState(false);
+
+  // Password change: inline form
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -61,7 +74,6 @@ export default function AccountSettingsPage() {
 
       if (result.success) {
         setSuccess('Profile updated successfully');
-        // Read-after-write: refresh UI from Supabase source of truth.
         if (result.profile) {
           setFullName(result.profile.fullName || '');
           setPhone(result.profile.phone || '');
@@ -81,29 +93,76 @@ export default function AccountSettingsPage() {
 
   async function handleChangeEmail(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
+    setEmailLoading(true);
     setSuccess(null);
     setError(null);
 
-    if (!newEmail || newEmail === email) {
-      setError('Please enter a new email address');
-      setLoading(false);
+    const n = newEmail.trim();
+    const c = newEmailConfirm.trim();
+    if (!n || n !== c) {
+      setError('Emails must match.');
+      setEmailLoading(false);
+      return;
+    }
+    if (n === email) {
+      setError('Enter a different email address.');
+      setEmailLoading(false);
       return;
     }
 
     try {
-      const result = await changeEmail(newEmail);
+      const result = await changeEmail(n);
       if (result.success) {
-        setSuccess('Email change request sent. Please check your inbox.');
-        setEmail(newEmail);
+        setSuccess('Verify the new email from your inbox.');
         setNewEmail('');
+        setNewEmailConfirm('');
+        setShowEmailForm(false);
       } else {
-        setError(result.error || 'Failed to change email');
+        const msg = result.error || '';
+        if (msg.toLowerCase().includes('re-auth') || msg.toLowerCase().includes('reauthenticate')) {
+          setError('For security, please sign out and sign back in, then try again.');
+        } else {
+          setError(msg || 'Failed to change email');
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred');
     } finally {
-      setLoading(false);
+      setEmailLoading(false);
+    }
+  }
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPasswordLoading(true);
+    setSuccess(null);
+    setError(null);
+
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      setPasswordLoading(false);
+      return;
+    }
+    if (newPassword !== newPasswordConfirm) {
+      setError('Passwords do not match.');
+      setPasswordLoading(false);
+      return;
+    }
+
+    try {
+      const result = await changePassword(currentPassword, newPassword);
+      if (result.success) {
+        setSuccess('Password updated successfully.');
+        setCurrentPassword('');
+        setNewPassword('');
+        setNewPasswordConfirm('');
+      } else {
+        setError(result.error || 'Failed to update password');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setPasswordLoading(false);
     }
   }
 
@@ -235,49 +294,131 @@ export default function AccountSettingsPage() {
         </button>
       </form>
 
-      {/* Email Change */}
-      <form onSubmit={handleChangeEmail} className="space-y-4 border-t border-border pt-6">
-        <div>
-          <h2 className="text-lg font-semibold text-text mb-4">Email Address</h2>
-          
-          <div className="space-y-4">
+      {/* Card 1: Email */}
+      <div className="rounded-2xl border border-black/5 bg-white shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-text mb-1">Email</h2>
+        <p className="text-sm text-black/60 mb-4">Your account email address</p>
+        <p className="text-sm font-medium text-text">{email || '—'}</p>
+        {!showEmailForm ? (
+          <button
+            type="button"
+            onClick={() => setShowEmailForm(true)}
+            className="mt-4 px-4 py-2 rounded-xl border border-black/10 bg-surface hover:bg-surface2 text-sm font-medium text-text transition-colors"
+          >
+            Change email
+          </button>
+        ) : (
+          <form onSubmit={handleChangeEmail} className="mt-4 space-y-4">
             <div>
-              <label htmlFor="currentEmail" className="block text-sm font-medium text-muted mb-1">
-                Current Email
+              <label htmlFor="newEmail" className="block text-sm font-medium text-text mb-1.5">
+                New email
               </label>
               <input
-                type="email"
-                id="currentEmail"
-                value={email}
-                disabled
-                className="w-full px-3 py-2 border border-border rounded-lg bg-surface2 text-muted/70"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="newEmail" className="block text-sm font-medium text-muted mb-1">
-                New Email
-              </label>
-              <input
-                type="email"
                 id="newEmail"
+                type="email"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
-                placeholder="Enter new email address"
+                placeholder="you@example.com"
+                className="w-full px-4 py-3 rounded-xl border border-black/10 bg-surface text-text placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-accent/40"
               />
             </div>
-          </div>
-        </div>
+            <div>
+              <label htmlFor="newEmailConfirm" className="block text-sm font-medium text-text mb-1.5">
+                Confirm new email
+              </label>
+              <input
+                id="newEmailConfirm"
+                type="email"
+                value={newEmailConfirm}
+                onChange={(e) => setNewEmailConfirm(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full px-4 py-3 rounded-xl border border-black/10 bg-surface text-text placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-accent/40"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={emailLoading}
+                className="px-4 py-2 rounded-xl bg-accent text-accentContrast text-sm font-medium hover:opacity-95 disabled:opacity-50"
+              >
+                {emailLoading ? 'Sending…' : 'Update email'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEmailForm(false);
+                  setNewEmail('');
+                  setNewEmailConfirm('');
+                  setError(null);
+                }}
+                className="px-4 py-2 rounded-xl border border-black/10 bg-surface hover:bg-surface2 text-sm font-medium text-text"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {loading ? 'Sending...' : 'Change Email'}
-        </button>
-      </form>
+      {/* Card 2: Password */}
+      <div className="rounded-2xl border border-black/5 bg-white shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-text mb-1">Password</h2>
+        <p className="text-sm text-black/60 mb-4">Change your password. Requires current password.</p>
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <div>
+            <label htmlFor="currentPassword" className="block text-sm font-medium text-text mb-1.5">
+              Current password
+            </label>
+            <input
+              id="currentPassword"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              className="w-full px-4 py-3 rounded-xl border border-black/10 bg-surface text-text placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-accent/40"
+            />
+          </div>
+          <div>
+            <label htmlFor="newPassword" className="block text-sm font-medium text-text mb-1.5">
+              New password
+            </label>
+            <input
+              id="newPassword"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              minLength={MIN_PASSWORD_LENGTH}
+              className="w-full px-4 py-3 rounded-xl border border-black/10 bg-surface text-text placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-accent/40"
+            />
+            <p className="text-xs text-black/60 mt-1">At least 8 characters</p>
+          </div>
+          <div>
+            <label htmlFor="newPasswordConfirm" className="block text-sm font-medium text-text mb-1.5">
+              Confirm new password
+            </label>
+            <input
+              id="newPasswordConfirm"
+              type="password"
+              value={newPasswordConfirm}
+              onChange={(e) => setNewPasswordConfirm(e.target.value)}
+              placeholder="••••••••"
+              required
+              minLength={MIN_PASSWORD_LENGTH}
+              className="w-full px-4 py-3 rounded-xl border border-black/10 bg-surface text-text placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-accent/40"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={passwordLoading || !currentPassword || newPassword.length < MIN_PASSWORD_LENGTH || newPassword !== newPasswordConfirm}
+            className="px-4 py-2 rounded-xl bg-accent text-accentContrast text-sm font-medium hover:opacity-95 disabled:opacity-50"
+          >
+            {passwordLoading ? 'Updating…' : 'Update password'}
+          </button>
+        </form>
+      </div>
 
       {/* Profile Photo / Logo */}
       <div className="border-t border-border pt-6">

@@ -70,7 +70,7 @@ export default function ServiceProListPage({ params }: { params: Promise<{ slug:
           raw.map((p: Record<string, unknown>) => ({
             id: p.id as string,
             displayName: (p.display_name as string) ?? 'Pro',
-            photoUrl: (p.logo_url as string) ?? null,
+            photoUrl: (p.profile_photo_url as string) ?? (p.logo_url as string) ?? null,
             primaryCategory: (p.category_name as string) ?? '',
             rating: Number(p.rating) ?? 0,
             reviewsCount: Number(p.review_count) ?? 0,

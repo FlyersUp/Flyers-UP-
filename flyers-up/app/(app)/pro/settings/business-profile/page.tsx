@@ -15,6 +15,19 @@ import { supabase } from '@/lib/supabaseClient';
 import { ProAccessNotice } from '@/components/ui/ProAccessNotice';
 import { updateMyServiceProAction } from '@/app/actions/servicePro';
 import { updateMyProfileAction } from '@/app/actions/profile';
+import {
+  getProfilePhotoUrl,
+  getBusinessLogoUrl,
+  getStoragePublicUrl,
+  uploadProfilePhoto,
+  uploadBusinessLogo,
+  removeProfilePhoto,
+  removeBusinessLogo,
+  listProCertifications,
+  addProCertification,
+  deleteProCertification,
+  type ProCertification,
+} from '@/lib/proProfile';
 
 export default function ProBusinessProfileSettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -39,10 +52,11 @@ export default function ProBusinessProfileSettingsPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingWorkPhotos, setUploadingWorkPhotos] = useState(false);
 
-  type Certification = { name: string; url: string };
-  const [certifications, setCertifications] = useState<Certification[]>([]);
-  const [newCertName, setNewCertName] = useState('');
-  const [newCertUrl, setNewCertUrl] = useState('');
+  const [certifications, setCertifications] = useState<ProCertification[]>([]);
+  const [newCertTitle, setNewCertTitle] = useState('');
+  const [newCertIssuer, setNewCertIssuer] = useState('');
+  const [newCertFile, setNewCertFile] = useState<File | null>(null);
+  const certFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [categorySlug, setCategorySlug] = useState<string | null>(null);
@@ -101,22 +115,20 @@ export default function ProBusinessProfileSettingsPage() {
     return 'png';
   }
 
-  async function uploadImageToProfileBucket(args: { userId: string; file: File; folder: 'avatar' | 'logo' | 'work' }) {
-    const ext = safeExtFromFile(args.file);
+  async function uploadWorkPhoto(userId: string, file: File): Promise<string> {
+    const ext = safeExtFromFile(file);
     const safeName = `${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
-    const path = `${args.userId}/${args.folder}/${safeName}`;
-    const { data, error: uploadErr } = await supabase.storage.from('profile-images').upload(path, args.file, {
+    const path = `${userId}/work/${safeName}`;
+    const { data, error: uploadErr } = await supabase.storage.from('profile-images').upload(path, file, {
       cacheControl: '3600',
       upsert: false,
-      contentType: args.file.type || undefined,
+      contentType: file.type || undefined,
     });
     if (uploadErr || !data?.path) {
-      throw new Error(uploadErr?.message || 'Upload failed. Ensure the `profile-images` bucket exists and policies are applied.');
+      throw new Error(uploadErr?.message || 'Upload failed.');
     }
     const pub = supabase.storage.from('profile-images').getPublicUrl(data.path);
-    const url = pub.data.publicUrl;
-    if (!url) throw new Error('Upload succeeded but could not resolve a public URL.');
-    return url;
+    return pub.data.publicUrl;
   }
 
   useEffect(() => {
@@ -141,13 +153,19 @@ export default function ProBusinessProfileSettingsPage() {
       setAccess('pro');
       setUserId(user.id);
 
-      const { data: prof } = await supabase.from('profiles').select('avatar_url').eq('id', user.id).maybeSingle();
-      setAvatarUrl(typeof (prof as any)?.avatar_url === 'string' ? String((prof as any).avatar_url) : '');
+      const [avatar, logo, certs] = await Promise.all([
+        getProfilePhotoUrl(user.id),
+        getBusinessLogoUrl(user.id),
+        listProCertifications(user.id),
+      ]);
+      setAvatarUrl(avatar ?? '');
+      setLogoUrl(logo ?? '');
+      setCertifications(certs);
 
       const { data, error: e } = await supabase
         .from('service_pros')
         .select(
-          'bio, service_descriptions, service_area_zip, service_radius, years_experience, before_after_photos, certifications, services_offered, category_id, logo_url'
+          'bio, service_descriptions, service_area_zip, service_radius, years_experience, before_after_photos, services_offered, category_id'
         )
         .eq('user_id', user.id)
         .single();
@@ -163,25 +181,17 @@ export default function ProBusinessProfileSettingsPage() {
       setServiceAreaZip(data?.service_area_zip || '');
       setServiceRadius(data?.service_radius != null ? String(data.service_radius) : '');
       setYearsExperience(data?.years_experience != null ? String(data.years_experience) : '');
-      setLogoUrl(typeof (data as any)?.logo_url === 'string' ? String((data as any).logo_url) : '');
 
       const offered = Array.isArray(data?.services_offered) ? (data.services_offered as string[]) : [];
       setServicesSelected(new Set(offered.filter((s) => typeof s === 'string' && s.trim() !== '')));
 
-      const catId = (data as any)?.category_id;
+      const catId = (data as { category_id?: string })?.category_id;
       if (typeof catId === 'string' && catId.trim() !== '') {
         const { data: cat } = await supabase.from('service_categories').select('slug').eq('id', catId).maybeSingle();
-        setCategorySlug(typeof (cat as any)?.slug === 'string' ? String((cat as any).slug) : null);
+        setCategorySlug(typeof (cat as { slug?: string })?.slug === 'string' ? String((cat as { slug?: string }).slug) : null);
       } else {
         setCategorySlug(null);
       }
-
-      const loadedCerts = Array.isArray(data?.certifications) ? (data.certifications as Certification[]) : [];
-      setCertifications(
-        loadedCerts
-          .filter((c) => typeof c?.name === 'string' && typeof c?.url === 'string')
-          .map((c) => ({ name: c.name, url: c.url }))
-      );
 
       const loadedPhotos = Array.isArray(data?.before_after_photos) ? (data.before_after_photos as string[]) : [];
       setPhotos(loadedPhotos.filter((p) => typeof p === 'string'));
@@ -194,17 +204,46 @@ export default function ProBusinessProfileSettingsPage() {
 
   const canEdit = !loading && Boolean(userId);
 
-  function addCertification() {
-    const name = newCertName.trim();
-    const url = newCertUrl.trim();
-    if (!name || !url) return;
-    setCertifications((prev) => [...prev, { name, url }]);
-    setNewCertName('');
-    setNewCertUrl('');
+  async function addCertification() {
+    const title = newCertTitle.trim();
+    if (!title) return;
+    if (!userId) return;
+    setError(null);
+    try {
+      const res = await addProCertification(userId, {
+        title,
+        issuer: newCertIssuer.trim() || undefined,
+        file: newCertFile ?? undefined,
+      });
+      if (res.success && res.cert) {
+        setCertifications((prev) => [res.cert!, ...prev]);
+        setNewCertTitle('');
+        setNewCertIssuer('');
+        setNewCertFile(null);
+        if (certFileInputRef.current) certFileInputRef.current.value = '';
+        setSuccess('Certification added.');
+      } else {
+        setError(res.error || 'Failed to add certification.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add certification.');
+    }
   }
 
-  function removeCertification(idx: number) {
-    setCertifications((prev) => prev.filter((_, i) => i !== idx));
+  async function removeCertification(certId: string) {
+    if (!userId) return;
+    setError(null);
+    try {
+      const res = await deleteProCertification(userId, certId);
+      if (res.success) {
+        setCertifications((prev) => prev.filter((c) => c.id !== certId));
+        setSuccess('Certification removed.');
+      } else {
+        setError(res.error || 'Failed to remove certification.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove certification.');
+    }
   }
 
   function removePhoto(idx: number) {
@@ -243,7 +282,6 @@ export default function ProBusinessProfileSettingsPage() {
       years_experience: years === null ? undefined : years,
       before_after_photos: photos,
       services_offered: servicesOffered,
-      certifications,
       logo_url: logoUrl.trim() ? logoUrl.trim() : null,
     }, session?.access_token ?? undefined);
 
@@ -267,28 +305,29 @@ export default function ProBusinessProfileSettingsPage() {
     const { data, error: e } = await supabase
       .from('service_pros')
       .select(
-        'bio, service_descriptions, service_area_zip, service_radius, years_experience, before_after_photos, certifications, services_offered, logo_url, category_id'
+        'bio, service_descriptions, service_area_zip, service_radius, years_experience, before_after_photos, services_offered, category_id'
       )
       .eq('user_id', userId)
       .single();
     if (e) setError(e.message || 'Saved, but failed to reload.');
-    else {
-      setBio(data?.bio || '');
-      setServiceDescriptions(data?.service_descriptions || '');
-      setServiceAreaZip(data?.service_area_zip || '');
-      setServiceRadius(data?.service_radius != null ? String(data.service_radius) : '');
-      setYearsExperience(data?.years_experience != null ? String(data.years_experience) : '');
-      const offered = Array.isArray(data?.services_offered) ? (data.services_offered as string[]) : [];
+    else if (data) {
+      setBio(data.bio || '');
+      setServiceDescriptions(data.service_descriptions || '');
+      setServiceAreaZip(data.service_area_zip || '');
+      setServiceRadius(data.service_radius != null ? String(data.service_radius) : '');
+      setYearsExperience(data.years_experience != null ? String(data.years_experience) : '');
+      const offered = Array.isArray(data.services_offered) ? (data.services_offered as string[]) : [];
       setServicesSelected(new Set(offered.filter((s) => typeof s === 'string' && s.trim() !== '')));
-      const loadedCerts = Array.isArray(data?.certifications) ? (data.certifications as Certification[]) : [];
-      setCertifications(
-        loadedCerts
-          .filter((c) => typeof c?.name === 'string' && typeof c?.url === 'string')
-          .map((c) => ({ name: c.name, url: c.url }))
-      );
-      const loadedPhotos = Array.isArray(data?.before_after_photos) ? (data.before_after_photos as string[]) : [];
+      const loadedPhotos = Array.isArray(data.before_after_photos) ? (data.before_after_photos as string[]) : [];
       setPhotos(loadedPhotos.filter((p) => typeof p === 'string'));
-      setLogoUrl(typeof (data as any)?.logo_url === 'string' ? String((data as any).logo_url) : '');
+      const [logo, avatar] = await Promise.all([
+        getBusinessLogoUrl(userId),
+        getProfilePhotoUrl(userId),
+      ]);
+      setLogoUrl(logo ?? '');
+      setAvatarUrl(avatar ?? '');
+      const certs = await listProCertifications(userId);
+      setCertifications(certs);
       setSuccess('Business profile saved.');
     }
     setSaving(false);
@@ -351,8 +390,13 @@ export default function ProBusinessProfileSettingsPage() {
                             setError(null);
                             setUploadingAvatar(true);
                             try {
-                              const url = await uploadImageToProfileBucket({ userId, file: f, folder: 'avatar' });
-                              setAvatarUrl(url);
+                              const res = await uploadProfilePhoto(userId, f);
+                              if (res.success && res.url) {
+                                setAvatarUrl(res.url);
+                                setSuccess('Profile photo uploaded and saved.');
+                              } else {
+                                setError(res.error || 'Failed to upload profile photo.');
+                              }
                             } catch (err) {
                               setError(err instanceof Error ? err.message : 'Failed to upload profile photo.');
                             } finally {
@@ -375,7 +419,20 @@ export default function ProBusinessProfileSettingsPage() {
                           <button
                             type="button"
                             className="ml-3 text-sm text-muted hover:text-text"
-                            onClick={() => setAvatarUrl('')}
+                            onClick={async () => {
+                              if (!userId) return;
+                              setError(null);
+                              setUploadingAvatar(true);
+                              try {
+                                const res = await removeProfilePhoto(userId);
+                                if (res.success) {
+                                  setAvatarUrl('');
+                                  setSuccess('Profile photo removed.');
+                                } else setError(res.error || 'Failed to remove.');
+                              } finally {
+                                setUploadingAvatar(false);
+                              }
+                            }}
                             disabled={!canEdit || uploadingAvatar}
                           >
                             Remove
@@ -408,8 +465,13 @@ export default function ProBusinessProfileSettingsPage() {
                             setError(null);
                             setUploadingLogo(true);
                             try {
-                              const url = await uploadImageToProfileBucket({ userId, file: f, folder: 'logo' });
-                              setLogoUrl(url);
+                              const res = await uploadBusinessLogo(userId, f);
+                              if (res.success && res.url) {
+                                setLogoUrl(res.url);
+                                setSuccess('Logo uploaded and saved.');
+                              } else {
+                                setError(res.error || 'Failed to upload logo.');
+                              }
                             } catch (err) {
                               setError(err instanceof Error ? err.message : 'Failed to upload logo.');
                             } finally {
@@ -432,7 +494,20 @@ export default function ProBusinessProfileSettingsPage() {
                           <button
                             type="button"
                             className="ml-3 text-sm text-muted hover:text-text"
-                            onClick={() => setLogoUrl('')}
+                            onClick={async () => {
+                              if (!userId) return;
+                              setError(null);
+                              setUploadingLogo(true);
+                              try {
+                                const res = await removeBusinessLogo(userId);
+                                if (res.success) {
+                                  setLogoUrl('');
+                                  setSuccess('Logo removed.');
+                                } else setError(res.error || 'Failed to remove.');
+                              } finally {
+                                setUploadingLogo(false);
+                              }
+                            }}
                             disabled={!canEdit || uploadingLogo}
                           >
                             Remove
@@ -443,7 +518,7 @@ export default function ProBusinessProfileSettingsPage() {
                   </div>
                 </div>
                 <p className="text-xs text-muted/70">
-                  Uploads are stored in Supabase Storage (`profile-images`). If uploads fail in production, apply migration `016_add_profile_image_storage.sql`.
+                  Profile photo and logo use avatars/logos buckets. Work photos use profile-images. Apply migration `037_pro_profiles_and_certifications.sql` if uploads fail.
                 </p>
               </div>
 
@@ -540,46 +615,67 @@ export default function ProBusinessProfileSettingsPage() {
                 <div className="text-sm font-medium text-text">Certifications / licenses</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Input
-                    label="Name"
-                    value={newCertName}
-                    onChange={(e) => setNewCertName(e.target.value)}
+                    label="Title"
+                    value={newCertTitle}
+                    onChange={(e) => setNewCertTitle(e.target.value)}
                     placeholder="e.g., EPA Certified"
                   />
                   <Input
-                    label="Document URL"
-                    value={newCertUrl}
-                    onChange={(e) => setNewCertUrl(e.target.value)}
-                    placeholder="https://..."
+                    label="Issuer"
+                    value={newCertIssuer}
+                    onChange={(e) => setNewCertIssuer(e.target.value)}
+                    placeholder="e.g., EPA"
                   />
                 </div>
-                <div className="flex justify-end">
-                  <Button type="button" variant="secondary" onClick={addCertification} disabled={!canEdit}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    ref={certFileInputRef}
+                    type="file"
+                    accept="image/*,.pdf"
+                    className="hidden"
+                    onChange={(e) => setNewCertFile(e.target.files?.[0] ?? null)}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => certFileInputRef.current?.click()}
+                    showArrow={false}
+                    className="text-sm"
+                  >
+                    {newCertFile ? newCertFile.name : 'Attach file'}
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => void addCertification()} disabled={!canEdit || !newCertTitle.trim()}>
                     Add certification →
                   </Button>
                 </div>
 
                 {certifications.length > 0 && (
                   <div className="space-y-2">
-                    {certifications.map((c, idx) => (
+                    {certifications.map((c) => (
                       <div
-                        key={`${c.name}-${idx}`}
+                        key={c.id}
                         className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-surface"
                       >
                         <div className="min-w-0">
-                          <div className="text-sm font-medium text-text truncate">{c.name}</div>
-                          <a
-                            className="text-sm text-text underline underline-offset-4 decoration-border hover:decoration-text truncate block"
-                            href={c.url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {c.url}
-                          </a>
+                          <div className="text-sm font-medium text-text truncate">{c.title}</div>
+                          {c.issuer && (
+                            <div className="text-xs text-muted">Issuer: {c.issuer}</div>
+                          )}
+                          {c.file_path && (
+                            <a
+                              className="text-sm text-accent hover:underline truncate block mt-0.5"
+                              href={getStoragePublicUrl('certifications', c.file_path)}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              View document
+                            </a>
+                          )}
                         </div>
                         <button
                           type="button"
                           className="text-sm text-muted hover:text-text"
-                          onClick={() => removeCertification(idx)}
+                          onClick={() => void removeCertification(c.id)}
                         >
                           Remove
                         </button>
@@ -605,7 +701,7 @@ export default function ProBusinessProfileSettingsPage() {
                     try {
                       const urls: string[] = [];
                       for (const f of files) {
-                        const url = await uploadImageToProfileBucket({ userId, file: f, folder: 'work' });
+                        const url = await uploadWorkPhoto(userId, f);
                         urls.push(url);
                       }
                       setPhotos((prev) => [...prev, ...urls]);

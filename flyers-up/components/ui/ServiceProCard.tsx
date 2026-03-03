@@ -3,6 +3,16 @@
 import { Card } from './Card';
 import { OfficialBadge } from './OfficialBadge';
 
+function getInitials(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((s) => s[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || '?';
+}
+
 interface ServiceProCardProps {
   name: string;
   rating: number;
@@ -39,8 +49,8 @@ export function ServiceProCard({
           {photo ? (
             <img src={photo} alt={name} className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-2xl">
-              👤
+            <div className="w-full h-full flex items-center justify-center text-base font-semibold text-muted">
+              {getInitials(name)}
             </div>
           )}
         </div>

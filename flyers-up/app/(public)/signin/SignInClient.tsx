@@ -293,6 +293,14 @@ export function SignInClient() {
                 minLength={6}
                 className="w-full px-4 py-3 border border-border rounded-lg bg-surface text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
               />
+              <div className="mt-1.5 text-right">
+                <Link
+                  href={nextParam ? `/auth/forgot-password?next=${encodeURIComponent(nextParam)}` : '/auth/forgot-password'}
+                  className="text-sm text-muted hover:text-accent transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             <button

@@ -35,6 +35,8 @@ export interface MarketplacePro {
   starting_price: number;
   location: string | null;
   logo_url: string | null;
+  /** Pro's profile photo (person) - prefer over logo for display */
+  profile_photo_url: string | null;
   business_hours: string | null;
   service_radius: number | null;
   category_slug: string;
@@ -163,7 +165,9 @@ export async function getMarketplacePros(
       return [];
     }
 
-    return (pros ?? []).map((p: Record<string, unknown>) => ({
+    const prosList = (pros ?? []) as Record<string, unknown>[];
+    const profilePhotoUrls = await getProfilePhotoUrlsForPros(supabase, prosList);
+    return prosList.map((p) => ({
       id: p.id,
       user_id: p.user_id,
       display_name: p.display_name ?? 'Pro',
@@ -173,6 +177,7 @@ export async function getMarketplacePros(
       starting_price: Number(p.starting_price) ?? 0,
       location: p.location ?? null,
       logo_url: p.logo_url ?? null,
+      profile_photo_url: profilePhotoUrls.get(String(p.user_id)) ?? null,
       business_hours: p.business_hours ?? null,
       service_radius: p.service_radius ?? null,
       category_slug: service.slug,
@@ -198,7 +203,9 @@ export async function getMarketplacePros(
     return [];
   }
 
-  return (prosData ?? []).map((p: Record<string, unknown>) => ({
+  const prosList = (prosData ?? []) as Record<string, unknown>[];
+  const profilePhotoUrls = await getProfilePhotoUrlsForPros(supabase, prosList);
+  return prosList.map((p) => ({
     id: p.id,
     user_id: p.user_id,
     display_name: p.display_name ?? 'Pro',
@@ -208,9 +215,44 @@ export async function getMarketplacePros(
     starting_price: Number(p.starting_price) ?? 0,
     location: p.location ?? null,
     logo_url: p.logo_url ?? null,
+    profile_photo_url: profilePhotoUrls.get(String(p.user_id)) ?? null,
     business_hours: p.business_hours ?? null,
     service_radius: p.service_radius ?? null,
     category_slug: service.slug,
     category_name: service.name,
   })) as MarketplacePro[];
+}
+
+/** Resolve profile photo URLs for pros (prefer pro_profiles path, else profiles.avatar_url) */
+async function getProfilePhotoUrlsForPros(
+  supabase: SupabaseClient,
+  pros: Array<Record<string, unknown>>
+): Promise<Map<string, string>> {
+  const userIds = [...new Set(pros.map((p) => String(p.user_id)).filter(Boolean))];
+  if (userIds.length === 0) return new Map();
+
+  const result = new Map<string, string>();
+
+  const { data: proProfiles } = await supabase
+    .from('pro_profiles')
+    .select('user_id, profile_photo_path')
+    .in('user_id', userIds);
+  for (const row of proProfiles ?? []) {
+    const path = (row as { profile_photo_path?: string }).profile_photo_path;
+    const uid = (row as { user_id: string }).user_id;
+    if (path && typeof path === 'string' && uid) {
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+      result.set(uid, data.publicUrl);
+    }
+  }
+
+  const { data: profiles } = await supabase.from('profiles').select('id, avatar_url').in('id', userIds);
+  for (const row of profiles ?? []) {
+    const uid = (row as { id: string }).id;
+    const url = (row as { avatar_url?: string }).avatar_url;
+    if (uid && url && typeof url === 'string' && !result.has(uid)) {
+      result.set(uid, url);
+    }
+  }
+  return result;
 }

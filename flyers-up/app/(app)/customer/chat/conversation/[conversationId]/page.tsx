@@ -4,8 +4,8 @@
  * Customer Conversation Chat - messaging with pro without a booking.
  */
 import { AppLayout } from '@/components/layouts/AppLayout';
-import { Label } from '@/components/ui/Label';
 import { Input } from '@/components/ui/Input';
+import { EmptyState } from '@/components/messages/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -69,16 +69,18 @@ export default function CustomerConversationChat({ params }: { params: Promise<{
           You&apos;re just asking questions. When you&apos;re ready to book, click &quot;Request Booking&quot; on the pro&apos;s profile.
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 bg-[#FAF8F6]">
           {loading ? (
             <p className="text-sm text-muted/70">Loading…</p>
           ) : rows.length === 0 ? (
-            <div className="text-center">
-              <Label className="bg-surface2">ASK A QUESTION</Label>
-              <div className="text-xs text-muted/70 mt-1">
-                Send a message to ask questions – no commitment to book.
-              </div>
-            </div>
+            <EmptyState
+              variant="thread"
+              title="Ask a question"
+              subtitle="Send a message to ask questions – no commitment to book."
+              ctaLabel="Send message"
+              ctaDisabled
+              ctaTooltip="Use the input below to send a message"
+            />
           ) : (
             rows.map((msg) => {
               const mine = msg.sender_role === 'customer';

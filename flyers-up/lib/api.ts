@@ -72,6 +72,8 @@ export interface ServicePro {
   location: string;
   available: boolean;
   logoUrl?: string | null;
+  /** Pro's profile photo (person) - prefer over logo for display */
+  profilePhotoUrl?: string | null;
   businessHours?: string | null;
   serviceRadius?: number | null;
 }
@@ -639,7 +641,8 @@ export async function getProsByCategory(
     return [];
   }
 
-  return data.map(pro => ({
+  const profilePhotoUrls = await getProfilePhotoUrlsForUserIds(data.map((p) => p.user_id));
+  return data.map((pro) => ({
     id: pro.id,
     userId: pro.user_id,
     name: pro.display_name,
@@ -652,9 +655,33 @@ export async function getProsByCategory(
     location: pro.location || 'Not specified',
     available: pro.available,
     logoUrl: pro.logo_url || null,
+    profilePhotoUrl: profilePhotoUrls.get(pro.user_id) ?? null,
     businessHours: pro.business_hours || null,
     serviceRadius: pro.service_radius ?? null,
   }));
+}
+
+/** Resolve profile photo URLs for user IDs (pro_profiles first, then profiles.avatar_url) */
+async function getProfilePhotoUrlsForUserIds(userIds: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(userIds.filter(Boolean))];
+  if (unique.length === 0) return new Map();
+  const result = new Map<string, string>();
+  const { data: proProfiles } = await supabase.from('pro_profiles').select('user_id, profile_photo_path').in('user_id', unique);
+  for (const row of proProfiles ?? []) {
+    const path = (row as { profile_photo_path?: string }).profile_photo_path;
+    const uid = (row as { user_id: string }).user_id;
+    if (path && typeof path === 'string' && uid) {
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+      result.set(uid, data.publicUrl);
+    }
+  }
+  const { data: profiles } = await supabase.from('profiles').select('id, avatar_url').in('id', unique);
+  for (const row of profiles ?? []) {
+    const uid = (row as { id: string }).id;
+    const url = (row as { avatar_url?: string }).avatar_url;
+    if (uid && url && typeof url === 'string' && !result.has(uid)) result.set(uid, url);
+  }
+  return result;
 }
 
 /**

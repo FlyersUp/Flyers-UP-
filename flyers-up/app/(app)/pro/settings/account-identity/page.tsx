@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Card } from '@/components/ui/Card';
 import { Label } from '@/components/ui/Label';
@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { TrustRow } from '@/components/ui/TrustRow';
 import { ProAccessNotice } from '@/components/ui/ProAccessNotice';
 import { updateMyServiceProAction } from '@/app/actions/servicePro';
+import { getBusinessLogoUrl, uploadBusinessLogo, removeBusinessLogo } from '@/lib/proProfile';
 
 export default function ProAccountIdentityPage() {
   const [loading, setLoading] = useState(true);
@@ -27,35 +28,10 @@ export default function ProAccountIdentityPage() {
   const logoInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  function safeExtFromFile(file: File): string {
-    const n = (file.name || '').toLowerCase();
-    const m = n.match(/\.([a-z0-9]+)$/i);
-    const ext = m?.[1] ?? '';
-    if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'heic'].includes(ext)) return ext === 'jpeg' ? 'jpg' : ext;
-    if (file.type === 'image/png') return 'png';
-    if (file.type === 'image/webp') return 'webp';
-    if (file.type === 'image/gif') return 'gif';
-    if (file.type === 'image/jpeg') return 'jpg';
-    return 'png';
-  }
-
-  async function uploadLogo(userId: string, file: File): Promise<string> {
-    const ext = safeExtFromFile(file);
-    const safeName = `${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
-    const path = `${userId}/logo/${safeName}`;
-    const { data, error: uploadErr } = await supabase.storage.from('profile-images').upload(path, file, {
-      cacheControl: '3600',
-      upsert: false,
-      contentType: file.type || undefined,
-    });
-    if (uploadErr || !data?.path) {
-      throw new Error(uploadErr?.message || 'Upload failed. Ensure the `profile-images` bucket exists and policies are applied.');
-    }
-    const pub = supabase.storage.from('profile-images').getPublicUrl(data.path);
-    const url = pub.data.publicUrl;
-    if (!url) throw new Error('Upload succeeded but could not resolve a public URL.');
-    return url;
-  }
+  const loadLogo = useCallback(async (uid: string) => {
+    const url = await getBusinessLogoUrl(uid);
+    setLogoUrl(url ?? '');
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -79,18 +55,54 @@ export default function ProAccountIdentityPage() {
 
       const { data } = await supabase
         .from('service_pros')
-        .select('display_name, logo_url')
+        .select('display_name')
         .eq('user_id', user.id)
         .single();
-      if (data) {
-        setBusinessName(data.display_name || '');
-        setLogoUrl(data.logo_url || '');
-      }
+      if (data) setBusinessName(data.display_name || '');
 
+      await loadLogo(user.id);
       setLoading(false);
     };
     void load();
-  }, []);
+  }, [loadLogo]);
+
+  async function handleLogoUpload(file: File) {
+    if (!userId) return;
+    setError(null);
+    setUploadingLogo(true);
+    try {
+      const res = await uploadBusinessLogo(userId, file);
+      if (res.success && res.url) {
+        setLogoUrl(res.url);
+        setSuccess('Logo uploaded and saved.');
+      } else {
+        setError(res.error || 'Failed to upload logo.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed.');
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
+
+  async function handleLogoRemove() {
+    if (!userId) return;
+    setError(null);
+    setUploadingLogo(true);
+    try {
+      const res = await removeBusinessLogo(userId);
+      if (res.success) {
+        setLogoUrl('');
+        setSuccess('Logo removed.');
+      } else {
+        setError(res.error || 'Failed to remove logo.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Remove failed.');
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
 
   async function save() {
     if (!userId) return;
@@ -110,16 +122,15 @@ export default function ProAccountIdentityPage() {
       return;
     }
 
-    // Read-after-write: confirm from Supabase.
     const { data, error: e } = await supabase
       .from('service_pros')
-      .select('display_name, logo_url')
+      .select('display_name')
       .eq('user_id', userId)
       .single();
     if (e) setError(e.message || 'Saved, but failed to reload.');
     else {
       setBusinessName(data?.display_name || '');
-      setLogoUrl(data?.logo_url || '');
+      await loadLogo(userId);
       setSuccess('Business identity saved.');
     }
     setSaving(false);
@@ -180,17 +191,8 @@ export default function ProAccountIdentityPage() {
                       onChange={async (e) => {
                         const f = e.target.files?.[0] ?? null;
                         if (!f || !userId) return;
-                        setError(null);
-                        setUploadingLogo(true);
-                        try {
-                          const url = await uploadLogo(userId, f);
-                          setLogoUrl(url);
-                        } catch (err) {
-                          setError(err instanceof Error ? err.message : 'Failed to upload logo.');
-                        } finally {
-                          setUploadingLogo(false);
-                          e.target.value = '';
-                        }
+                        await handleLogoUpload(f);
+                        e.target.value = '';
                       }}
                     />
                     <div className="flex items-center gap-2">
@@ -216,7 +218,7 @@ export default function ProAccountIdentityPage() {
                       ) : null}
                     </div>
                     <div className="mt-2 text-xs text-muted/70">
-                      Uses Supabase Storage (`profile-images`). If uploads fail, apply migration `016_add_profile_image_storage.sql`.
+                      Uploads are saved immediately to the logos bucket. Apply migration `037_pro_profiles_and_certifications.sql` if needed.
                     </div>
                   </div>
                 </div>

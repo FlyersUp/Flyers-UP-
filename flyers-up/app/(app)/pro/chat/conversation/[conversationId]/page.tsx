@@ -4,8 +4,8 @@
  * Pro Conversation Chat - messaging with customer without a booking.
  */
 import { AppLayout } from '@/components/layouts/AppLayout';
-import { Label } from '@/components/ui/Label';
 import { Input } from '@/components/ui/Input';
+import { EmptyState } from '@/components/messages/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -79,16 +79,18 @@ export default function ProConversationChat({ params }: { params: Promise<{ conv
           Customer is asking questions. They can start a booking when they&apos;re ready.
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 bg-[#FAF8F6]">
           {loading ? (
             <p className="text-sm text-muted/70">Loading…</p>
           ) : rows.length === 0 ? (
-            <div className="text-center">
-              <Label className="bg-surface2">NO MESSAGES YET</Label>
-              <div className="text-xs text-muted/70 mt-1">
-                Send a message to respond to the customer&apos;s inquiry.
-              </div>
-            </div>
+            <EmptyState
+              variant="thread"
+              title="No messages yet"
+              subtitle="Send a message to respond to the customer's inquiry."
+              ctaLabel="Send message"
+              ctaDisabled
+              ctaTooltip="Use the input below to send a message"
+            />
           ) : (
             rows.map((msg) => {
               const mine = msg.sender_role === 'pro';

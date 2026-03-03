@@ -1,27 +1,13 @@
 'use client';
 
-import Link from 'next/link';
 import { AppLayout } from '@/components/layouts/AppLayout';
-import { Card } from '@/components/ui/Card';
-import { Label } from '@/components/ui/Label';
-import { StatusBadge } from '@/components/ui/Badge';
 import { supabase } from '@/lib/supabaseClient';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { useEffect, useState } from 'react';
+import { ConversationCard, type ConversationCardItem } from '@/components/messages/ConversationCard';
+import { EmptyState } from '@/components/messages/EmptyState';
 
-type ThreadRow = {
-  id: string;
-  type: 'booking' | 'conversation';
-  bookingId?: string;
-  conversationId?: string;
-  status: string;
-  date: string;
-  time: string;
-  lastMessage: string;
-  lastAt: string | null;
-  otherPartyName: string;
-  isInquiry: boolean;
-};
+type ThreadRow = ConversationCardItem;
 
 export default function ProMessagesPage() {
   const [threads, setThreads] = useState<ThreadRow[]>([]);
@@ -177,52 +163,32 @@ export default function ProMessagesPage() {
 
   return (
     <AppLayout mode="pro">
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="mb-6">
-          <Label className="mb-2 block">Messages</Label>
+      <div className="min-h-screen bg-[#FAF8F6] max-w-4xl mx-auto px-4 py-6 pb-24">
+        <header className="mb-6">
           <h1 className="text-2xl font-semibold text-text">Messages</h1>
-          <p className="text-muted mt-1">Your conversations with customers will show up here.</p>
-        </div>
+          <p className="text-sm text-muted mt-1">Your conversations with customers will show up here.</p>
+        </header>
 
         {loading ? (
           <p className="text-sm text-muted/70">Loading…</p>
+        ) : threads.length === 0 ? (
+          <EmptyState
+            variant="list"
+            title="Start the conversation"
+            subtitle="When a customer requests service or sends an inquiry, your thread will appear here."
+            ctaLabel="Send a message"
+            ctaDisabled
+            ctaTooltip="Select a booking to message"
+          />
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {threads.map((t) => (
-              <Link
+              <ConversationCard
                 key={t.id}
+                item={t}
                 href={t.type === 'conversation' ? `/pro/chat/conversation/${t.conversationId}` : `/pro/chat/${t.bookingId}`}
-                className="block"
-              >
-                <Card withRail>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="font-semibold text-text">{t.otherPartyName}</div>
-                      <div className="text-sm text-muted mt-0.5 truncate">{t.lastMessage}</div>
-                      <div className="mt-2">
-                        {t.isInquiry ? (
-                          <span className="inline-flex h-6 px-2.5 rounded-full border border-badgeBorder bg-badgeFill text-muted text-[11px] uppercase tracking-wide font-medium">
-                            Inquiry
-                          </span>
-                        ) : (
-                          <StatusBadge status={t.status} />
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted/70 whitespace-nowrap text-right">
-                      <div>{new Date(t.date).toLocaleDateString()}</div>
-                      <div>{t.time}</div>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
+              />
             ))}
-            {threads.length === 0 ? (
-              <Card className="p-5">
-                <div className="text-sm font-semibold text-text">No messages yet</div>
-                <div className="text-sm text-muted mt-1">When a customer requests service, your thread will appear here.</div>
-              </Card>
-            ) : null}
           </div>
         )}
       </div>

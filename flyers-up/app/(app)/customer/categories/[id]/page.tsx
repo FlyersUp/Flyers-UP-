@@ -62,7 +62,7 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
             data.map((p) => ({
               id: p.id,
               displayName: p.name,
-              photoUrl: p.logoUrl ?? null,
+              photoUrl: p.profilePhotoUrl ?? p.logoUrl ?? null,
               primaryCategory: p.categoryName,
               rating: p.rating,
               reviewsCount: p.reviewCount,
