@@ -233,7 +233,7 @@ export async function addProCertification(
       contentType: params.file.type || undefined,
     });
     if (uploadErr) {
-      console.error('[proProfile] addProCertification upload error:', uploadErr.status, uploadErr.message);
+      console.error('[proProfile] addProCertification upload error:', uploadErr.message);
       return { success: false, error: uploadErr.message };
     }
   }
