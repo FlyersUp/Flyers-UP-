@@ -1,8 +1,8 @@
 /**
  * POST /api/bookings/[bookingId]/pay
  * Creates or retrieves PaymentIntent for booking checkout.
- * Returns { clientSecret, paymentIntentId } for Stripe Elements confirmPayment.
- * Uses destination charges: 15% platform fee + transfer to Pro Connect account.
+ * Returns { clientSecret, paymentIntentId, quote } for Stripe Elements confirmPayment.
+ * Uses destination charges: platform fee + transfer to Pro Connect account.
  * Webhook payment_intent.succeeded updates payment_status=PAID, paid_at.
  */
 
@@ -12,15 +12,16 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { getOrCreateStripeCustomer } from '@/lib/stripeCustomer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
+import { computeQuote } from '@/lib/bookingQuote';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
-const PLATFORM_FEE_RATE = 0.15;
+const ELIGIBLE_STATUSES = ['accepted', 'pro_en_route', 'in_progress', 'completed_pending_payment', 'awaiting_payment'];
 
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ bookingId: string }> }
 ) {
   if (!stripe) {
@@ -56,7 +57,7 @@ export async function POST(
 
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, price, payment_intent_id, payment_status')
+    .select('id, customer_id, pro_id, status, price, payment_intent_id, payment_status, service_date, service_time, address')
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();
@@ -68,35 +69,73 @@ export async function POST(
   const status = String(booking.status);
   const paymentStatus = String(booking.payment_status ?? 'UNPAID');
 
-  if (status !== 'completed_pending_payment' && status !== 'awaiting_payment') {
+  if (!ELIGIBLE_STATUSES.includes(status)) {
     return NextResponse.json(
       { error: `Booking is not ready for payment (status: ${status})` },
-      { status: 400 }
+      { status: 409 }
     );
   }
 
   if (paymentStatus === 'PAID') {
     return NextResponse.json(
       { error: 'Booking is already paid' },
-      { status: 400 }
+      { status: 409 }
     );
-  }
-
-  const amountCents = Math.round(Number(booking.price ?? 0) * 100);
-  if (!Number.isFinite(amountCents) || amountCents <= 0) {
-    return NextResponse.json({ error: 'Booking total is not set' }, { status: 400 });
   }
 
   const { data: proRow } = await admin
     .from('service_pros')
-    .select('stripe_account_id, stripe_charges_enabled')
+    .select('id, user_id, display_name, stripe_account_id, stripe_charges_enabled, service_categories(name)')
     .eq('id', booking.pro_id)
     .maybeSingle();
+
+  if (!proRow) {
+    return NextResponse.json({ error: 'Pro not found' }, { status: 404 });
+  }
 
   const connectedAccountId =
     proRow?.stripe_account_id && proRow?.stripe_charges_enabled === true
       ? proRow.stripe_account_id
       : null;
+
+  if (!connectedAccountId) {
+    return NextResponse.json(
+      { error: 'Pro is not ready to receive payments yet.' },
+      { status: 409 }
+    );
+  }
+
+  const { data: proPricing } = await admin
+    .from('pro_profiles')
+    .select('pricing_model, starting_price, starting_rate, hourly_rate, min_hours, travel_fee_enabled, travel_fee_base, travel_free_within_miles, travel_extra_per_mile')
+    .eq('user_id', proRow.user_id)
+    .maybeSingle();
+
+  const cat = proRow.service_categories as { name?: string } | null;
+  const serviceName = (cat?.name ?? 'Service').trim();
+  const proName = (proRow.display_name ?? 'Pro').trim();
+
+  const quoteResult = computeQuote(
+    {
+      id: booking.id,
+      customer_id: booking.customer_id,
+      pro_id: booking.pro_id,
+      service_date: booking.service_date,
+      service_time: booking.service_time,
+      address: booking.address,
+      price: booking.price,
+      status: booking.status,
+    },
+    proPricing,
+    serviceName,
+    proName
+  );
+
+  const { quote } = quoteResult;
+  const amountCents = quote.amountTotal;
+  if (!Number.isFinite(amountCents) || amountCents <= 0) {
+    return NextResponse.json({ error: 'Booking total is not set' }, { status: 400 });
+  }
 
   const customerResult = await getOrCreateStripeCustomer(user.id, user.email ?? null);
   if ('error' in customerResult) {
@@ -112,20 +151,19 @@ export async function POST(
     try {
       const pi = await stripe.paymentIntents.retrieve(existingPiId);
       if (pi.status === 'succeeded') {
-        return NextResponse.json({ error: 'Payment already completed' }, { status: 400 });
+        return NextResponse.json({ error: 'Payment already completed' }, { status: 409 });
       }
-      if (pi.client_secret) {
+      if (pi.amount === amountCents && pi.client_secret) {
         return NextResponse.json({
           clientSecret: pi.client_secret,
           paymentIntentId: pi.id,
+          quote: quoteResult,
         });
       }
     } catch {
       // Fall through to create new
     }
   }
-
-  const applicationFeeAmount = Math.round(amountCents * PLATFORM_FEE_RATE);
 
   const paymentIntentData: {
     amount: number;
@@ -137,7 +175,7 @@ export async function POST(
     transfer_data?: { destination: string };
   } = {
     amount: amountCents,
-    currency: 'usd',
+    currency: quote.currency,
     automatic_payment_methods: { enabled: true },
     customer: customerResult.stripeCustomerId,
     metadata: {
@@ -147,10 +185,8 @@ export async function POST(
     },
   };
 
-  if (connectedAccountId) {
-    paymentIntentData.application_fee_amount = applicationFeeAmount;
-    paymentIntentData.transfer_data = { destination: connectedAccountId };
-  }
+  paymentIntentData.application_fee_amount = quote.amountPlatformFee;
+  paymentIntentData.transfer_data = { destination: connectedAccountId };
 
   const paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
 
@@ -173,5 +209,6 @@ export async function POST(
   return NextResponse.json({
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,
+    quote: quoteResult,
   });
 }

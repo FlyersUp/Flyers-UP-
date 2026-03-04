@@ -163,6 +163,24 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case 'payment_intent.processing': {
+        const piProcessing = event.data.object as Stripe.PaymentIntent;
+        const bidProcessing = (piProcessing.metadata as { booking_id?: string; bookingId?: string })?.booking_id
+          ?? (piProcessing.metadata as { booking_id?: string; bookingId?: string })?.bookingId;
+        if (bidProcessing) {
+          try {
+            const admin = createAdminSupabaseClient();
+            await admin
+              .from('bookings')
+              .update({ payment_status: 'PROCESSING' })
+              .eq('id', bidProcessing);
+          } catch (e) {
+            console.warn('Webhook: failed to update booking to PROCESSING', e);
+          }
+        }
+        break;
+      }
+
       case 'payment_intent.payment_failed': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         const bookingId = (paymentIntent.metadata as { booking_id?: string; bookingId?: string })?.booking_id

@@ -237,9 +237,17 @@ export function BookingDetailContent({
                       </Link>
                     )}
                     {(booking.status === 'completed_pending_payment' || booking.status === 'awaiting_payment') && paymentStatus === 'UNPAID' && (
-                      <p className="text-sm text-muted mt-2">
-                        Payment will be captured automatically when the pro marks the job complete.
-                      </p>
+                      <>
+                        <p className="text-sm text-muted mt-2">
+                          Pay now to complete your booking.
+                        </p>
+                        <Link
+                          href={`/bookings/${bookingId}/checkout`}
+                          className="inline-flex items-center justify-center h-11 px-6 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all mt-3"
+                        >
+                          Pay now →
+                        </Link>
+                      </>
                     )}
                   </div>
                 ) : (
