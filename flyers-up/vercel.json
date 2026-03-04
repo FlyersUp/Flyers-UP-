@@ -2,27 +2,27 @@
   "crons": [
     {
       "path": "/api/cron/expire-bookings",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/deposit-timeout",
-      "schedule": "* * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/auto-refunds",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/release-payouts",
-      "schedule": "*/2 * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/reminders",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/auto-confirm",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }

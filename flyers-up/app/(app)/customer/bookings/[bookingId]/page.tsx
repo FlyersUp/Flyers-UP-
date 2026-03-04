@@ -102,11 +102,16 @@ async function getCustomerBooking(bookingId: string) {
     final_payment_status?: string;
     fully_paid_at?: string | null;
     payment_due_at?: string | null;
+    remaining_due_at?: string | null;
+    auto_confirm_at?: string | null;
     payout_status?: string | null;
     refund_status?: string | null;
+    platform_fee_cents?: number | null;
+    refunded_total_cents?: number | null;
     amount_deposit?: number | null;
     amount_remaining?: number | null;
     amount_total?: number | null;
+    total_amount_cents?: number | null;
     en_route_at?: string | null;
     on_the_way_at?: string | null;
     cancelled_at?: string | null;
