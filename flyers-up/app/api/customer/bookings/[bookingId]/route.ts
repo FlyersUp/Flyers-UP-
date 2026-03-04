@@ -45,53 +45,11 @@ export async function GET(
 
     const admin = createAdminSupabaseClient();
 
-    // Customer: fetch only their bookings. Pro: fetch only bookings assigned to them.
+    // Fetch booking without join (avoids service_pros/service_categories join failures)
     let q = admin
       .from('bookings')
       .select(
-        `
-        id,
-        customer_id,
-        pro_id,
-        payment_status,
-        paid_at,
-        final_payment_status,
-        fully_paid_at,
-        payment_due_at,
-        remaining_due_at,
-        auto_confirm_at,
-        paid_deposit_at,
-        paid_remaining_at,
-        payout_status,
-        refund_status,
-        platform_fee_cents,
-        refunded_total_cents,
-        total_amount_cents,
-        amount_deposit,
-        amount_remaining,
-        amount_total,
-        service_date,
-        service_time,
-        address,
-        notes,
-        status,
-        price,
-        created_at,
-        accepted_at,
-        en_route_at,
-        on_the_way_at,
-        started_at,
-        completed_at,
-        cancelled_at,
-        status_history,
-        service_pros (
-          id,
-          display_name,
-          service_categories (
-            name
-          )
-        )
-      `
+        'id, customer_id, pro_id, payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_deposit, amount_remaining, amount_total, service_date, service_time, address, notes, status, price, created_at, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, cancelled_at, status_history'
       )
       .eq('id', id);
 
@@ -122,10 +80,34 @@ export async function GET(
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    const sp = booking.service_pros as { display_name?: string; service_categories?: { name?: string } | null } | null;
-    const cat = sp?.service_categories;
-    const serviceName = (cat && typeof cat === 'object' && 'name' in cat && cat.name) || 'Service';
-    const proName = sp?.display_name?.trim() || 'Pro';
+    // Fetch pro info separately (same pattern as list API)
+    let serviceName = 'Service';
+    let proName = 'Pro';
+    let categoryName: string | undefined;
+    let proPhotoUrl: string | null = null;
+    if (booking.pro_id) {
+      const { data: pro } = await admin
+        .from('service_pros')
+        .select('display_name, logo_url, category_id')
+        .eq('id', booking.pro_id)
+        .maybeSingle();
+      if (pro) {
+        proName = (pro as { display_name?: string }).display_name?.trim() || 'Pro';
+        proPhotoUrl = (pro as { logo_url?: string | null }).logo_url ?? null;
+        const catId = (pro as { category_id?: string }).category_id;
+        if (catId) {
+          const { data: cat } = await admin
+            .from('service_categories')
+            .select('name')
+            .eq('id', catId)
+            .maybeSingle();
+          if (cat) {
+            serviceName = (cat as { name?: string }).name || 'Service';
+            categoryName = (cat as { name?: string }).name;
+          }
+        }
+      }
+    }
 
     const b = booking as {
       payment_status?: string;
@@ -188,6 +170,8 @@ export async function GET(
           statusHistory: booking.status_history,
           serviceName,
           proName,
+          categoryName,
+          proPhotoUrl,
         },
       },
       { status: 200, headers: { 'Cache-Control': 'no-store' } }

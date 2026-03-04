@@ -1,26 +1,13 @@
 /**
  * Customer Booking Details Page (Track Booking)
  *
- * SECTIONS (top to bottom):
- * A) Top bar: Back, title, status badge
- * B) Header card: Service name, Pro name, date/time, status
- * C) Progress: Vertical timeline (BookingTimeline)
- * D) Latest update card
- * E) Payment: Total, status, Pay now link if unpaid
- * F) Service details: Collapsible (address, notes, booking ID)
- * G) Actions: Message pro, Leave review (if completed)
- *
- * DATA: Fetched server-side via getCustomerBooking(). Ownership enforced:
- * booking.customer_id must equal auth user.
- * If auth missing => show inline "Please sign in" (same URL, no redirect).
- * If not found or not owner => 404.
+ * Server tries to fetch; if null (session/cookie edge case), client fetches from API
+ * (client fetch includes cookies). This ensures View details works when server
+ * doesn't receive session.
  */
-import { notFound } from 'next/navigation';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
-import { BookingDetailContent } from './BookingDetailContent';
-import { BookingSignInPrompt } from '@/components/bookings/customer/BookingSignInPrompt';
-import { AppLayout } from '@/components/layouts/AppLayout';
+import { CustomerBookingPageClient } from './CustomerBookingPageClient';
 
 async function getCustomerBooking(bookingId: string) {
   const id = normalizeUuidOrNull(bookingId);
@@ -152,6 +139,8 @@ async function getCustomerBooking(bookingId: string) {
   };
 }
 
+export const dynamic = 'force-dynamic';
+
 export default async function CustomerBookingDetailPage({
   params,
 }: {
@@ -160,27 +149,17 @@ export default async function CustomerBookingDetailPage({
   const { bookingId } = await params;
   const result = await getCustomerBooking(bookingId);
 
-  if (result === null) {
-    notFound();
-  }
-  if (result && 'error' in result) {
-    if (result.error === 'unauthorized') {
-      return (
-        <AppLayout mode="customer">
-          <div className="max-w-4xl mx-auto px-4 py-6">
-            <BookingSignInPrompt bookingId={bookingId} />
-          </div>
-        </AppLayout>
-      );
-    }
-    notFound();
-  }
+  const serverBooking = result && !('error' in result) ? result : null;
+  const serverError =
+    result && 'error' in result
+      ? (result.error === 'unauthorized' ? 'unauthorized' : 'forbidden')
+      : null;
 
   return (
-    <AppLayout mode="customer">
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <BookingDetailContent booking={result} bookingId={bookingId} />
-      </div>
-    </AppLayout>
+    <CustomerBookingPageClient
+      bookingId={bookingId}
+      serverBooking={serverBooking}
+      serverError={serverError}
+    />
   );
 }
