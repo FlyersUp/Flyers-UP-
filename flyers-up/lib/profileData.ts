@@ -218,7 +218,7 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
   const pp = proProfile as Record<string, unknown> | null;
   const ss = safetySettings as Record<string, unknown> | null;
   const serviceRadius =
-    typeof (pp?.service_radius_miles as number) === 'number'
+    pp != null && typeof (pp.service_radius_miles as number) === 'number'
       ? (pp.service_radius_miles as number)
       : typeof (pro as any).service_radius === 'number'
         ? (pro as any).service_radius
