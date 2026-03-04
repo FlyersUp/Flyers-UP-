@@ -18,7 +18,6 @@
  */
 
 import { NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import {
@@ -168,9 +167,17 @@ export async function PATCH(
     if (nextDbStatus === 'accepted') update.accepted_at = now;
     else if (nextDbStatus === 'pro_en_route') update.en_route_at = now;
     else if (nextDbStatus === 'in_progress') update.started_at = now;
-    else if (nextDbStatus === 'completed_pending_payment') update.completed_at = now;
+    else if (nextDbStatus === 'awaiting_remaining_payment') {
+      const nowDate = new Date();
+      const in24h = new Date(nowDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
+      update.completed_at = now;
+      update.completed_by_pro_at = now;
+      update.remaining_due_at = in24h;
+      update.auto_confirm_at = in24h;
+    }
 
-    const { data: updated, error: updateErr } = await supabase
+    const admin = createAdminSupabaseClient();
+    const { data: updated, error: updateErr } = await admin
       .from('bookings')
       .update(update)
       .eq('id', id)
@@ -192,7 +199,7 @@ export async function PATCH(
       const statusMessages: Record<string, { title: string; body: string }> = {
         pro_en_route: { title: 'Pro is on the way', body: 'Your pro is heading to your location.' },
         in_progress: { title: 'Job started', body: 'Your pro has started the job.' },
-        completed_pending_payment: { title: 'Job complete', body: 'Your pro marked the job complete. Payment will be processed.' },
+        awaiting_remaining_payment: { title: 'Pro finished', body: 'Pro finished — pay remaining to confirm' },
       };
       const msg = statusMessages[nextDbStatus];
       if (msg) {
@@ -207,70 +214,23 @@ export async function PATCH(
       }
     }
 
-    if (nextDbStatus === 'completed_pending_payment') {
-      const piId = (booking as { payment_intent_id?: string }).payment_intent_id;
-      if (piId && stripe) {
-        try {
-          const pi = await stripe.paymentIntents.capture(piId);
-          if (pi.status === 'succeeded') {
-            const admin = createAdminSupabaseClient();
-            const paidNow = new Date().toISOString();
-            const paidHistory = [...newHistory, { status: 'paid', at: paidNow }];
-            await admin
-              .from('bookings')
-              .update({
-                status: 'paid',
-                status_history: paidHistory,
-                paid_at: paidNow,
-                payment_status: 'PAID',
-              })
-              .eq('id', id);
-            const { data: final } = await admin.from('bookings').select('id, status, status_history, completed_at, paid_at').eq('id', id).single();
-            // Notify BOTH customer and pro: Payment completed
-            const custId = (booking as { customer_id?: string }).customer_id;
-            if (custId) {
-              void createNotification({
-                user_id: custId,
-                type: 'payment_captured',
-                title: 'Payment completed',
-                body: 'Your payment has been processed successfully.',
-                booking_id: id,
-                deep_link: bookingDeepLinkCustomer(id),
-              });
-            }
-            const { data: proRow } = await admin.from('service_pros').select('user_id').eq('id', booking.pro_id).maybeSingle();
-            const proUserId = (proRow as { user_id?: string } | null)?.user_id;
-            if (proUserId) {
-              void createNotification({
-                user_id: proUserId,
-                type: 'payment_captured',
-                title: 'Payment completed',
-                body: 'Payment for this booking has been captured.',
-                booking_id: id,
-                deep_link: bookingDeepLinkPro(id),
-              });
-            }
-            return NextResponse.json(
-              {
-                job: {
-                  id: final?.id ?? updated.id,
-                  status: final?.status ?? 'paid',
-                  status_history: final?.status_history ?? paidHistory,
-                  accepted_at: updated.accepted_at,
-                  en_route_at: updated.en_route_at ?? updated.on_the_way_at,
-                  started_at: updated.started_at,
-                  completed_at: final?.completed_at ?? updated.completed_at,
-                  paid_at: final?.paid_at ?? paidNow,
-                  status_updated_at: updated.status_updated_at,
-                  status_updated_by: updated.status_updated_by,
-                },
-              },
-              { status: 200 }
-            );
-          }
-        } catch (captureErr) {
-          console.error('Job status: Payment capture failed', captureErr);
-        }
+    if (nextDbStatus === 'awaiting_remaining_payment') {
+      await admin.from('booking_events').insert({
+        booking_id: id,
+        type: 'WORK_COMPLETED_BY_PRO',
+        data: {},
+      });
+      const { data: proRow } = await admin.from('service_pros').select('user_id').eq('id', booking.pro_id).maybeSingle();
+      const proUserId = (proRow as { user_id?: string } | null)?.user_id;
+      if (proUserId) {
+        void createNotification({
+          user_id: proUserId,
+          type: 'booking_status',
+          title: 'Marked complete',
+          body: 'Marked complete — awaiting customer payment/confirmation',
+          booking_id: id,
+          deep_link: bookingDeepLinkPro(id),
+        });
       }
     }
 

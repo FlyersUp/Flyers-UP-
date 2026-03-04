@@ -13,7 +13,7 @@ export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
-const ELIGIBLE_STATUSES = ['accepted', 'pro_en_route', 'in_progress', 'completed_pending_payment', 'awaiting_payment'];
+const ELIGIBLE_STATUSES = ['accepted', 'payment_required', 'pro_en_route', 'in_progress', 'completed_pending_payment', 'awaiting_payment'];
 
 export async function GET(
   _req: Request,
@@ -45,7 +45,7 @@ export async function GET(
 
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, service_date, service_time, address, price, status')
+    .select('id, customer_id, pro_id, service_date, service_time, address, price, status, payment_due_at')
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();
@@ -83,7 +83,7 @@ export async function GET(
 
   const { data: proPricing } = await admin
     .from('pro_profiles')
-    .select('pricing_model, starting_price, starting_rate, hourly_rate, min_hours, travel_fee_enabled, travel_fee_base, travel_free_within_miles, travel_extra_per_mile, profile_photo_path')
+    .select('pricing_model, starting_price, starting_rate, hourly_rate, min_hours, travel_fee_enabled, travel_fee_base, travel_free_within_miles, travel_extra_per_mile, profile_photo_path, deposit_percent_default, deposit_percent_min, deposit_percent_max')
     .eq('user_id', proRow.user_id)
     .maybeSingle();
 
@@ -107,6 +107,7 @@ export async function GET(
       ? admin.storage.from('avatars').getPublicUrl(profilePhotoPath).data.publicUrl
       : null;
 
+  const paymentDueAt = (booking as { payment_due_at?: string | null }).payment_due_at;
   const quoteResult = computeQuote(
     {
       id: booking.id,
@@ -120,7 +121,8 @@ export async function GET(
     },
     proPricing,
     serviceName,
-    proName
+    proName,
+    { paymentDueAt }
   );
 
   const { quote } = quoteResult;
@@ -132,7 +134,7 @@ export async function GET(
   }
 
   return NextResponse.json(
-    { quote: { ...quoteResult, proPhotoUrl } },
+    { quote: { ...quoteResult, proPhotoUrl, status } },
     { headers: { 'Cache-Control': 'no-store' } }
   );
 }

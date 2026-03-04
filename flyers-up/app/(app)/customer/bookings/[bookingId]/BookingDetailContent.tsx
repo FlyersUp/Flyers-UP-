@@ -2,10 +2,14 @@
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { BookingTimeline } from '@/components/bookings/BookingTimeline';
 import { BookingStatusBadge } from '@/components/bookings/BookingStatusBadge';
 import { LatestUpdateCard } from '@/components/bookings/LatestUpdateCard';
 import { TrackBookingRealtime, type TrackBookingData } from '@/components/bookings/TrackBookingRealtime';
+import { PaymentStatusModule } from '@/components/booking/PaymentStatusModule';
+import { BookingPaymentStatusCard } from '@/components/bookings/BookingPaymentStatusCard';
+import { BookingEventsAccordion } from '@/components/bookings/BookingEventsAccordion';
 import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 
 export interface BookingDetailData {
@@ -13,6 +17,18 @@ export interface BookingDetailData {
   status: string;
   paymentStatus?: string;
   paidAt?: string | null;
+  paidDepositAt?: string | null;
+  paidRemainingAt?: string | null;
+  finalPaymentStatus?: string | null;
+  fullyPaidAt?: string | null;
+  paymentDueAt?: string | null;
+  remainingDueAt?: string | null;
+  autoConfirmAt?: string | null;
+  platformFeeCents?: number | null;
+  refundedTotalCents?: number | null;
+  amountDeposit?: number | null;
+  amountRemaining?: number | null;
+  amountTotal?: number | null;
   price?: number;
   createdAt: string;
   acceptedAt?: string | null;
@@ -74,6 +90,18 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     status: b.status,
     paymentStatus: b.paymentStatus,
     paidAt: b.paidAt,
+    paidDepositAt: b.paidDepositAt,
+    paidRemainingAt: b.paidRemainingAt,
+    finalPaymentStatus: b.finalPaymentStatus,
+    fullyPaidAt: b.fullyPaidAt,
+    paymentDueAt: b.paymentDueAt,
+    remainingDueAt: (b as { remainingDueAt?: string | null }).remainingDueAt,
+    autoConfirmAt: (b as { autoConfirmAt?: string | null }).autoConfirmAt,
+    platformFeeCents: (b as { platformFeeCents?: number | null }).platformFeeCents,
+    refundedTotalCents: (b as { refundedTotalCents?: number | null }).refundedTotalCents,
+    amountDeposit: b.amountDeposit,
+    amountRemaining: b.amountRemaining,
+    amountTotal: b.amountTotal,
     price: b.price,
     createdAt: b.createdAt,
     acceptedAt: b.acceptedAt,
@@ -97,6 +125,7 @@ export function BookingDetailContent({
   booking: BookingDetailData;
   bookingId: string;
 }) {
+  const router = useRouter();
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const fetchBooking = useCallback(async (): Promise<TrackBookingData | null> => {
@@ -195,64 +224,67 @@ export function BookingDetailContent({
             {/* E) Payment section */}
             <section className="mb-6">
               <h2 className="text-base font-semibold text-text mb-4">Payment</h2>
-              <div className="rounded-2xl border border-black/10 bg-[#F2F2F0] p-6 shadow-sm">
-                {paymentStatus !== undefined ? (
-                  <div className="space-y-3">
-                    {price != null && (
-                      <p className="text-sm font-medium text-text">
-                        Total: {formatPrice(price)}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
-                          paymentStatus === 'PAID' ? 'bg-[#B2FBA5]' : 'bg-white border border-black/10'
-                        }`}
-                      >
-                        {paymentStatus === 'PAID' ? 'Paid' : paymentStatus === 'UNPAID' ? 'Unpaid' : paymentStatus}
-                      </span>
-                      {paidAt && (
-                        <span className="text-xs text-muted">
-                          Paid at {new Date(paidAt).toLocaleString(undefined, {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      )}
-                    </div>
-                    {(booking.status === 'accepted' || booking.status === 'pro_en_route' || booking.status === 'in_progress') && paymentStatus === 'UNPAID' && (
-                      <p className="text-sm text-muted mt-2">
-                        Your card will be authorized when you add a payment method. You will only be charged after job completion.
-                      </p>
-                    )}
-                    {(booking.status === 'accepted' || booking.status === 'pro_en_route' || booking.status === 'in_progress') && paymentStatus === 'UNPAID' && (
+              <div className="space-y-4">
+                <BookingPaymentStatusCard
+                  status={booking.status}
+                  paymentDueAt={booking.paymentDueAt}
+                  remainingDueAt={(fullBooking as { remainingDueAt?: string | null }).remainingDueAt}
+                  autoConfirmAt={(fullBooking as { autoConfirmAt?: string | null }).autoConfirmAt}
+                  paidDepositAt={booking.paidDepositAt ?? booking.paidAt}
+                  paidRemainingAt={booking.paidRemainingAt ?? booking.fullyPaidAt}
+                  amountDeposit={booking.amountDeposit}
+                  amountRemaining={booking.amountRemaining}
+                  amountTotal={booking.amountTotal}
+                  view="customer"
+                  payDepositSlot={
+                    (booking.status === 'awaiting_deposit_payment' || booking.status === 'payment_required' || booking.status === 'accepted') &&
+                    !booking.paidAt ? (
                       <Link
-                        href={`/customer/bookings/${bookingId}/authorize`}
-                        className="inline-flex items-center justify-center h-11 px-6 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all mt-3"
+                        href={`/bookings/${bookingId}/checkout`}
+                        className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95"
                       >
-                        Authorize payment method →
+                        Pay deposit {booking.amountDeposit != null ? `$${(booking.amountDeposit / 100).toFixed(2)}` : ''}
                       </Link>
-                    )}
-                    {(booking.status === 'completed_pending_payment' || booking.status === 'awaiting_payment') && paymentStatus === 'UNPAID' && (
-                      <>
-                        <p className="text-sm text-muted mt-2">
-                          Pay now to complete your booking.
-                        </p>
-                        <Link
-                          href={`/bookings/${bookingId}/checkout`}
-                          className="inline-flex items-center justify-center h-11 px-6 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all mt-3"
-                        >
-                          Pay now →
-                        </Link>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted">No payment information available for this booking yet.</p>
-                )}
+                    ) : undefined
+                  }
+                  payRemainingSlot={
+                    booking.status === 'awaiting_remaining_payment' && !booking.paidRemainingAt ? (
+                      <Link
+                        href={`/bookings/${bookingId}/checkout?phase=final`}
+                        className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95"
+                      >
+                        Pay remaining {booking.amountRemaining != null ? `$${(booking.amountRemaining / 100).toFixed(2)}` : ''}
+                      </Link>
+                    ) : undefined
+                  }
+                  confirmSlot={
+                    booking.status === 'awaiting_customer_confirmation' ? (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const res = await fetch(`/api/bookings/${bookingId}/confirm`, { method: 'POST' });
+                          if (res.ok) router.refresh();
+                        }}
+                        className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95"
+                      >
+                        Confirm completion
+                      </button>
+                    ) : undefined
+                  }
+                />
+                <PaymentStatusModule
+                  bookingId={bookingId}
+                  status={booking.status}
+                  paymentStatus={booking.paymentStatus}
+                  finalPaymentStatus={booking.finalPaymentStatus}
+                  paymentDueAt={booking.paymentDueAt}
+                  amountDeposit={booking.amountDeposit}
+                  amountRemaining={booking.amountRemaining}
+                  amountTotal={booking.amountTotal}
+                  paidAt={booking.paidAt}
+                  fullyPaidAt={booking.fullyPaidAt}
+                  view="customer"
+                />
               </div>
             </section>
 
@@ -301,6 +333,11 @@ export function BookingDetailContent({
                 </div>
               </section>
             )}
+
+            {/* F.5) Events accordion (debug) */}
+            <div className="mb-6">
+              <BookingEventsAccordion bookingId={bookingId} />
+            </div>
 
             {/* G) Actions section */}
             <section className="mb-6">

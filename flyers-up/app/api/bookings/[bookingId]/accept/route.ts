@@ -1,15 +1,11 @@
 /**
  * POST /api/bookings/[bookingId]/accept
  * Pro accepts a pending booking.
- * 1. Creates Stripe PaymentIntent (capture_method: manual, 15% fee, transfer to Pro)
- * 2. Saves payment_intent_id to booking
- * 3. Updates status = accepted, accepted_at
- * Customer must authorize card separately (clientSecret from GET /api/bookings/[id]/authorize).
+ * Sets status = payment_required, payment_due_at = now + 30 min.
+ * Customer must pay deposit within 30 min via /bookings/[id]/checkout.
  */
 import { NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
-import { getOrCreateStripeCustomer } from '@/lib/stripeCustomer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { createNotification, bookingDeepLinkCustomer } from '@/lib/notifications';
 
@@ -17,16 +13,10 @@ export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
-const PLATFORM_FEE_RATE = 0.15;
-
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ bookingId: string }> }
 ) {
-  if (!stripe) {
-    return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
-  }
-
   const { bookingId } = await params;
   const id = normalizeUuidOrNull(bookingId);
   if (!id) {
@@ -57,7 +47,7 @@ export async function POST(
   const admin = createAdminSupabaseClient();
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, price, payment_intent_id')
+    .select('id, customer_id, pro_id, status, price')
     .eq('id', id)
     .single();
 
@@ -90,72 +80,27 @@ export async function POST(
       ? proStripe.stripe_account_id
       : null;
 
-  const { data: customerProfile } = await admin
-    .from('profiles')
-    .select('id, email')
-    .eq('id', booking.customer_id)
-    .maybeSingle();
-
-  const customerResult = await getOrCreateStripeCustomer(
-    booking.customer_id,
-    (customerProfile as { email?: string } | null)?.email ?? null
-  );
-  if ('error' in customerResult) {
-    return NextResponse.json({ error: customerResult.error }, { status: 500 });
-  }
-
-  const applicationFeeAmount = Math.round(amountCents * PLATFORM_FEE_RATE);
-
-  const paymentIntentData: {
-    amount: number;
-    currency: string;
-    capture_method: 'manual';
-    automatic_payment_methods: { enabled: boolean };
-    customer: string;
-    metadata: { bookingId: string; customerId: string; proId: string };
-    application_fee_amount?: number;
-    transfer_data?: { destination: string };
-  } = {
-    amount: amountCents,
-    currency: 'usd',
-    capture_method: 'manual',
-    automatic_payment_methods: { enabled: true },
-    customer: customerResult.stripeCustomerId,
-    metadata: {
-      bookingId: id,
-      customerId: booking.customer_id,
-      proId: booking.pro_id,
-    },
-  };
-
-  if (connectedAccountId) {
-    paymentIntentData.application_fee_amount = applicationFeeAmount;
-    paymentIntentData.transfer_data = { destination: connectedAccountId };
-  }
-
-  let paymentIntent;
-  try {
-    paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
-  } catch (err) {
-    console.error('Accept: PaymentIntent create failed', err);
+  if (!connectedAccountId) {
     return NextResponse.json(
-      { error: 'Failed to create payment authorization' },
-      { status: 500 }
+      { error: 'Complete Stripe Connect onboarding before accepting bookings.' },
+      { status: 409 }
     );
   }
 
-  const now = new Date().toISOString();
+  const now = new Date();
+  const paymentDueAt = new Date(now.getTime() + 30 * 60 * 1000).toISOString();
   const history = ((booking as { status_history?: { status: string; at: string }[] }).status_history ?? []) as { status: string; at: string }[];
-  const newHistory = [...history, { status: 'accepted', at: now }];
+  const newHistory = [...history, { status: 'awaiting_deposit_payment', at: now.toISOString() }];
 
   const { data: updated, error: updateErr } = await admin
     .from('bookings')
     .update({
-      status: 'accepted',
+      status: 'awaiting_deposit_payment',
       status_history: newHistory,
-      accepted_at: now,
-      payment_intent_id: paymentIntent.id,
-      status_updated_at: now,
+      accepted_at: now.toISOString(),
+      payment_due_at: paymentDueAt,
+      payment_status: 'UNPAID',
+      status_updated_at: now.toISOString(),
       status_updated_by: user.id,
     })
     .eq('id', id)
@@ -168,12 +113,11 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 });
   }
 
-  // Notify Customer: Booking accepted (card authorized)
   void createNotification({
     user_id: booking.customer_id,
     type: 'booking_accepted',
     title: 'Booking accepted',
-    body: 'Your booking was accepted. Card has been authorized for payment.',
+    body: 'Your booking was accepted. Pay the deposit within 30 minutes to lock your time.',
     booking_id: id,
     deep_link: bookingDeepLinkCustomer(id),
   });
@@ -184,7 +128,7 @@ export async function POST(
       status: updated.status,
       status_history: updated.status_history,
       accepted_at: updated.accepted_at,
-      payment_intent_id: paymentIntent.id,
+      payment_due_at: paymentDueAt,
     },
   }, { status: 200 });
 }

@@ -63,6 +63,7 @@ export default function ProPricingAvailabilitySettingsPage() {
   const [weekly, setWeekly] = useState<WeeklyHours>(defaultBusinessHoursModel().weekly);
   const [sameDayBookings, setSameDayBookings] = useState(false);
   const [emergencyAvailable, setEmergencyAvailable] = useState(false);
+  const [depositPercent, setDepositPercent] = useState(50);
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -117,6 +118,7 @@ export default function ProPricingAvailabilitySettingsPage() {
       setWeekly(parseBusinessHoursModel(proData?.businessHours ?? '').weekly);
       setSameDayBookings(Boolean(prof?.same_day_bookings));
       setEmergencyAvailable(Boolean(prof?.emergency_available));
+      setDepositPercent(prof?.deposit_percent_default ?? 50);
 
       setLoading(false);
     };
@@ -175,6 +177,7 @@ export default function ProPricingAvailabilitySettingsPage() {
       return;
     }
 
+    const dp = Math.max(20, Math.min(80, Math.round(depositPercent)));
     const profilePayload = {
       pricing_model: model,
       starting_price: hasFlat ? safeNum(rates.startingPrice) ?? undefined : null,
@@ -190,6 +193,9 @@ export default function ProPricingAvailabilitySettingsPage() {
       travel_extra_per_mile: safeNum(travelRules.travelExtraPerMile) ?? undefined,
       same_day_bookings: sameDayBookings,
       emergency_available: emergencyAvailable,
+      deposit_percent_default: dp,
+      deposit_percent_min: 20,
+      deposit_percent_max: 80,
       starting_rate: hasFlat ? safeNum(rates.startingPrice) ?? undefined : null,
       rate_unit: 'hour' as const,
     };
@@ -261,7 +267,27 @@ export default function ProPricingAvailabilitySettingsPage() {
                 />
               </section>
 
-              {/* Section C: Travel & Service Area */}
+              {/* Section C: Deposit */}
+              <section className="rounded-2xl border border-black/5 bg-white shadow-sm p-5">
+                <h2 className="text-sm font-medium text-black mb-3">Deposit</h2>
+                <p className="text-sm text-black/60 mb-3">
+                  Customers pay this deposit to lock your time. Remainder is due after you mark the job complete.
+                </p>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min={20}
+                    max={80}
+                    value={depositPercent}
+                    onChange={(e) => setDepositPercent(Number(e.target.value))}
+                    disabled={!canEdit}
+                    className="flex-1 h-2 rounded-full"
+                  />
+                  <span className="text-sm font-medium text-black w-12">{depositPercent}%</span>
+                </div>
+              </section>
+
+              {/* Section D: Travel & Service Area */}
               <section className="rounded-2xl border border-black/5 bg-white shadow-sm p-5">
                 <h2 className="text-sm font-medium text-black mb-3">Travel &amp; Service Area</h2>
                 <TravelRulesForm
@@ -272,7 +298,7 @@ export default function ProPricingAvailabilitySettingsPage() {
                 />
               </section>
 
-              {/* Section D: Availability */}
+              {/* Section E: Availability */}
               <section className="rounded-2xl border border-black/5 bg-white shadow-sm p-5">
                 <h2 className="text-sm font-medium text-black mb-3">Availability</h2>
                 <WeeklyAvailabilityEditor
@@ -286,7 +312,7 @@ export default function ProPricingAvailabilitySettingsPage() {
                 />
               </section>
 
-              {/* Section E: Save */}
+              {/* Section F: Save */}
               <section>
                 <SaveBar
                   onSave={() => void save()}

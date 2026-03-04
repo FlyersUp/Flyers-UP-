@@ -12,6 +12,9 @@ export interface QuoteBreakdown {
   amountPlatformFee: number; // cents
   amountTravelFee: number; // cents
   amountTotal: number; // cents
+  amountDeposit: number; // cents
+  amountRemaining: number; // cents
+  depositPercent: number; // 10-100
   currency: string;
 }
 
@@ -24,6 +27,7 @@ export interface QuoteResult {
   serviceTime: string;
   address?: string;
   durationHours?: number;
+  paymentDueAt?: string | null;
 }
 
 export interface BookingForQuote {
@@ -51,20 +55,41 @@ export interface ProPricingForQuote {
   travel_fee_base?: number | null;
   travel_free_within_miles?: number | null;
   travel_extra_per_mile?: number | null;
+  deposit_percent_default?: number | null;
+  deposit_percent_min?: number | null;
+  deposit_percent_max?: number | null;
+}
+
+const DEPOSIT_PERCENT_DEFAULT = 50;
+const DEPOSIT_PERCENT_MIN = 20;
+const DEPOSIT_PERCENT_MAX = 80;
+
+/**
+ * Clamp deposit percent within pro limits.
+ */
+function clampDepositPercent(
+  percent: number,
+  proPricing: ProPricingForQuote | null
+): number {
+  const min = Math.max(DEPOSIT_PERCENT_MIN, proPricing?.deposit_percent_min ?? DEPOSIT_PERCENT_MIN);
+  const max = Math.min(DEPOSIT_PERCENT_MAX, proPricing?.deposit_percent_max ?? DEPOSIT_PERCENT_MAX);
+  return Math.max(min, Math.min(max, Math.round(percent)));
 }
 
 /**
  * Compute quote from booking + pro pricing.
- * - If booking.price is set: use it as total, derive breakdown (platform fee = total * rate / (1 + rate), subtotal = total - platform_fee).
+ * - If booking.price is set: use it as total, derive breakdown.
  * - Otherwise: compute from pro_profiles (base + travel).
+ * - Adds deposit/remaining from deposit_percent (pro default or 50).
  */
 export function computeQuote(
   booking: BookingForQuote,
   proPricing: ProPricingForQuote | null,
   serviceName: string,
-  proName: string
+  proName: string,
+  options?: { paymentDueAt?: string | null; depositPercentOverride?: number | null }
 ): QuoteResult {
-  const quote = computeQuoteBreakdown(booking, proPricing);
+  const quote = computeQuoteBreakdown(booking, proPricing, options?.depositPercentOverride);
   return {
     bookingId: booking.id,
     quote,
@@ -74,29 +99,44 @@ export function computeQuote(
     serviceTime: booking.service_time,
     address: booking.address ?? undefined,
     durationHours: booking.duration_hours ?? undefined,
+    paymentDueAt: options?.paymentDueAt ?? undefined,
   };
 }
 
 function computeQuoteBreakdown(
   booking: BookingForQuote,
-  proPricing: ProPricingForQuote | null
+  proPricing: ProPricingForQuote | null,
+  depositPercentOverride?: number | null
 ): QuoteBreakdown {
   const currency = 'usd';
+
+  const addDepositToBreakdown = (base: Omit<QuoteBreakdown, 'amountDeposit' | 'amountRemaining' | 'depositPercent'>): QuoteBreakdown => {
+    const depositPercent = depositPercentOverride != null
+      ? clampDepositPercent(depositPercentOverride, proPricing)
+      : clampDepositPercent(proPricing?.deposit_percent_default ?? DEPOSIT_PERCENT_DEFAULT, proPricing);
+    const amountDeposit = Math.round((base.amountTotal * depositPercent) / 100);
+    const amountRemaining = base.amountTotal - amountDeposit;
+    return {
+      ...base,
+      amountDeposit,
+      amountRemaining,
+      depositPercent,
+    };
+  };
 
   // If booking has price (numeric, dollars): use as total and derive breakdown
   const bookingPriceDollars = Number(booking.price ?? 0);
   if (Number.isFinite(bookingPriceDollars) && bookingPriceDollars > 0) {
     const amountTotalCents = Math.round(bookingPriceDollars * 100);
-    // platform_fee = total * rate / (1 + rate), subtotal = total - platform_fee
     const platformFeeCents = Math.round(amountTotalCents * PLATFORM_FEE_RATE / (1 + PLATFORM_FEE_RATE));
     const subtotalCents = amountTotalCents - platformFeeCents;
-    return {
+    return addDepositToBreakdown({
       amountSubtotal: subtotalCents,
       amountPlatformFee: platformFeeCents,
       amountTravelFee: 0,
       amountTotal: amountTotalCents,
       currency,
-    };
+    });
   }
 
   // Compute from pro pricing
@@ -115,7 +155,6 @@ function computeQuoteBreakdown(
     const hours = Math.max(durationHours ?? 0, minHours > 0 ? minHours : 0);
     baseCents = Math.round(hours * hourlyRate * 100);
   } else if (model === 'hybrid') {
-    // Prefer flat for <=2h, hourly for >2h (only if duration exists)
     if (durationHours > 0 && durationHours > 2 && hourlyRate > 0) {
       const hours = Math.max(durationHours, minHours > 0 ? minHours : 0);
       baseCents = Math.round(hours * hourlyRate * 100);
@@ -142,11 +181,11 @@ function computeQuoteBreakdown(
   const amountPlatformFee = Math.round(amountSubtotal * PLATFORM_FEE_RATE);
   const amountTotal = amountSubtotal + amountPlatformFee;
 
-  return {
+  return addDepositToBreakdown({
     amountSubtotal,
     amountPlatformFee,
     amountTravelFee: travelCents,
     amountTotal,
     currency,
-  };
+  });
 }

@@ -29,6 +29,9 @@ export interface ProProfile {
   travel_extra_per_mile?: number | null;
   same_day_bookings?: boolean | null;
   emergency_available?: boolean | null;
+  deposit_percent_default?: number | null;
+  deposit_percent_min?: number | null;
+  deposit_percent_max?: number | null;
 }
 
 export interface ProCertification {
@@ -92,7 +95,10 @@ type ProProfileUpdateKeys =
   | 'service_radius_miles'
   | 'travel_extra_per_mile'
   | 'same_day_bookings'
-  | 'emergency_available';
+  | 'emergency_available'
+  | 'deposit_percent_default'
+  | 'deposit_percent_min'
+  | 'deposit_percent_max';
 
 /** Upsert pro_profiles (rates, paths, pricing, travel, availability) */
 export async function updateProProfile(
@@ -105,6 +111,7 @@ export async function updateProProfile(
     'pricing_model', 'starting_price', 'min_job_price', 'what_included', 'min_hours', 'overtime_rate',
     'travel_fee_enabled', 'travel_fee_base', 'travel_free_within_miles', 'service_radius_miles',
     'travel_extra_per_mile', 'same_day_bookings', 'emergency_available',
+    'deposit_percent_default', 'deposit_percent_min', 'deposit_percent_max',
   ];
   for (const k of keys) {
     if ((params as Record<string, unknown>)[k] !== undefined) {

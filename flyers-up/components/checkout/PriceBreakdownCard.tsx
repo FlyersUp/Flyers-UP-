@@ -5,6 +5,9 @@ export interface QuoteBreakdown {
   amountPlatformFee: number;
   amountTravelFee: number;
   amountTotal: number;
+  amountDeposit?: number;
+  amountRemaining?: number;
+  depositPercent?: number;
   currency: string;
 }
 
@@ -18,8 +21,9 @@ function formatCents(cents: number): string {
 /**
  * Price breakdown card for checkout.
  */
-export function PriceBreakdownCard({ quote }: { quote: QuoteBreakdown }) {
+export function PriceBreakdownCard({ quote, showDeposit = true }: { quote: QuoteBreakdown; showDeposit?: boolean }) {
   const baseAmount = quote.amountSubtotal - quote.amountTravelFee;
+  const hasDeposit = showDeposit && quote.amountDeposit != null && quote.amountDeposit > 0;
 
   return (
     <div
@@ -52,6 +56,18 @@ export function PriceBreakdownCard({ quote }: { quote: QuoteBreakdown }) {
           <span className="text-[#111111]">Total</span>
           <span className="text-[#111111]">{formatCents(quote.amountTotal)}</span>
         </div>
+        {hasDeposit && (
+          <>
+            <div className="flex justify-between pt-2">
+              <span className="text-[#3A3A3A]">Deposit ({quote.depositPercent ?? 50}%)</span>
+              <span className="text-[#111111]">{formatCents(quote.amountDeposit!)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#3A3A3A]">Remaining (due after job)</span>
+              <span className="text-[#111111]">{formatCents(quote.amountRemaining ?? 0)}</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

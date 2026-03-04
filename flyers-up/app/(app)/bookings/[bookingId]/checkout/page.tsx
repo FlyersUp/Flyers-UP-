@@ -3,6 +3,36 @@
 import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+
+function CountdownTimer({ paymentDueAt }: { paymentDueAt: string }) {
+  const [remaining, setRemaining] = useState<string>('');
+
+  useEffect(() => {
+    const update = () => {
+      const due = new Date(paymentDueAt).getTime();
+      const now = Date.now();
+      const diff = Math.max(0, due - now);
+      if (diff <= 0) {
+        setRemaining('Expired');
+        return;
+      }
+      const m = Math.floor(diff / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setRemaining(`${m}:${s.toString().padStart(2, '0')}`);
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, [paymentDueAt]);
+
+  if (!remaining) return null;
+  return (
+    <p className="text-sm text-amber-700 mt-2">
+      Time to pay: {remaining}
+    </p>
+  );
+}
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
 import { ProSummaryCard } from '@/components/checkout/ProSummaryCard';
@@ -22,6 +52,9 @@ type QuoteData = {
     amountPlatformFee: number;
     amountTravelFee: number;
     amountTotal: number;
+    amountDeposit?: number;
+    amountRemaining?: number;
+    depositPercent?: number;
     currency: string;
   };
   serviceName: string;
@@ -31,6 +64,7 @@ type QuoteData = {
   address?: string;
   durationHours?: number;
   proPhotoUrl?: string | null;
+  paymentDueAt?: string | null;
 };
 
 function CheckoutForm({
@@ -38,11 +72,13 @@ function CheckoutForm({
   quoteData,
   clientSecret,
   onSuccess,
+  isFinalPayment,
 }: {
   bookingId: string;
   quoteData: QuoteData;
   clientSecret: string;
   onSuccess: () => void;
+  isFinalPayment: boolean;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -93,11 +129,12 @@ function CheckoutForm({
         </div>
       )}
       <StickyPayBar
-        amountTotal={quoteData.quote.amountTotal}
+        amountTotal={quoteData.quote.amountDeposit ?? quoteData.quote.amountRemaining ?? quoteData.quote.amountTotal}
         currency={quoteData.quote.currency}
         disabled={!stripe || !elements}
         loading={loading}
         onSubmit={handleSubmit}
+        label={isFinalPayment ? 'Pay remaining' : (quoteData.quote.amountDeposit ?? 0) > 0 ? 'Pay Deposit' : 'Confirm & Pay'}
       />
     </>
   );
@@ -109,6 +146,9 @@ export default function CheckoutPage({
   params: Promise<{ bookingId: string }>;
 }) {
   const { bookingId } = use(params);
+  const searchParams = useSearchParams();
+  const phase = searchParams.get('phase');
+  const isFinalPayment = phase === 'final';
   const [loading, setLoading] = useState(true);
   const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -122,22 +162,58 @@ export default function CheckoutPage({
       setError(null);
       setErrorStatus(null);
       try {
-        const quoteRes = await fetch(`/api/bookings/${bookingId}/quote`, { cache: 'no-store' });
-        const quoteJson = await quoteRes.json();
+        let data: QuoteData;
 
-        if (!mounted) return;
-
-        if (!quoteRes.ok) {
-          setError(quoteJson.error ?? 'Could not load quote');
-          setErrorStatus(quoteRes.status);
-          setLoading(false);
-          return;
+        if (isFinalPayment) {
+          const bookingRes = await fetch(`/api/customer/bookings/${bookingId}`, { cache: 'no-store' });
+          const bookingJson = await bookingRes.json();
+          if (!mounted) return;
+          if (!bookingRes.ok) {
+            setError(bookingJson.error ?? 'Could not load booking');
+            setErrorStatus(bookingRes.status);
+            setLoading(false);
+            return;
+          }
+          const b = bookingJson.booking;
+          data = {
+            bookingId,
+            quote: {
+              amountSubtotal: 0,
+              amountPlatformFee: 0,
+              amountTravelFee: 0,
+              amountTotal: 0,
+              amountRemaining: b.amountRemaining != null ? b.amountRemaining : 0,
+              currency: 'usd',
+            },
+            serviceName: b.serviceName ?? 'Service',
+            proName: b.proName ?? 'Pro',
+            serviceDate: b.serviceDate ?? '',
+            serviceTime: b.serviceTime ?? '',
+          };
+        } else {
+          const quoteRes = await fetch(`/api/bookings/${bookingId}/quote`, { cache: 'no-store' });
+          const quoteJson = await quoteRes.json();
+          if (!mounted) return;
+          if (!quoteRes.ok) {
+            setError(quoteJson.error ?? 'Could not load quote');
+            setErrorStatus(quoteRes.status);
+            setLoading(false);
+            return;
+          }
+          data = quoteJson.quote as QuoteData;
         }
 
-        const data = quoteJson.quote as QuoteData;
         setQuoteData(data);
 
-        const payRes = await fetch(`/api/bookings/${bookingId}/pay`, {
+        const status = (data as { status?: string }).status ?? '';
+        const isDepositFlow = !isFinalPayment && ['payment_required', 'accepted'].includes(status);
+        const payUrl = isFinalPayment
+          ? `/api/bookings/${bookingId}/pay/final`
+          : isDepositFlow
+            ? `/api/bookings/${bookingId}/pay/deposit`
+            : `/api/bookings/${bookingId}/pay`;
+
+        const payRes = await fetch(payUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -153,8 +229,23 @@ export default function CheckoutPage({
         }
 
         setClientSecret(payJson.clientSecret ?? null);
-        if (payJson.quote && !data.proPhotoUrl) {
+        if (payJson.quote) {
           setQuoteData((prev) => prev ? { ...prev, ...payJson.quote } : prev);
+        }
+        if (isFinalPayment && payJson.amountRemaining != null) {
+          setQuoteData((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  quote: {
+                    ...prev.quote,
+                    amountTotal: payJson.amountRemaining,
+                    amountDeposit: 0,
+                    amountRemaining: payJson.amountRemaining,
+                  },
+                }
+              : prev
+          );
         }
       } catch {
         if (mounted) setError('Could not load checkout');
@@ -223,7 +314,13 @@ export default function CheckoutPage({
                 address={quoteData.address}
                 durationHours={quoteData.durationHours}
               />
-              <PriceBreakdownCard quote={quoteData.quote} />
+              <PriceBreakdownCard quote={quoteData.quote} showDeposit={!!quoteData.quote.amountDeposit} />
+
+              {quoteData.paymentDueAt && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <CountdownTimer paymentDueAt={quoteData.paymentDueAt} />
+                </div>
+              )}
 
               <div
                 className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm"
@@ -254,6 +351,7 @@ export default function CheckoutPage({
                   onSuccess={() => {
                     window.location.href = `/bookings/${bookingId}/confirmed`;
                   }}
+                  isFinalPayment={isFinalPayment}
                 />
               </Elements>
             </div>

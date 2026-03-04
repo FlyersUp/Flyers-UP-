@@ -50,6 +50,21 @@ async function getCustomerBooking(bookingId: string) {
       pro_id,
       payment_status,
       paid_at,
+      final_payment_status,
+      fully_paid_at,
+      payment_due_at,
+      remaining_due_at,
+      auto_confirm_at,
+      paid_deposit_at,
+      paid_remaining_at,
+      payout_status,
+      refund_status,
+      platform_fee_cents,
+      refunded_total_cents,
+      total_amount_cents,
+      amount_deposit,
+      amount_remaining,
+      amount_total,
       service_date,
       service_time,
       address,
@@ -79,6 +94,24 @@ async function getCustomerBooking(bookingId: string) {
 
   if (error || !booking) return null;
 
+  const b = booking as {
+    payment_status?: string;
+    paid_at?: string | null;
+    paid_deposit_at?: string | null;
+    paid_remaining_at?: string | null;
+    final_payment_status?: string;
+    fully_paid_at?: string | null;
+    payment_due_at?: string | null;
+    payout_status?: string | null;
+    refund_status?: string | null;
+    amount_deposit?: number | null;
+    amount_remaining?: number | null;
+    amount_total?: number | null;
+    en_route_at?: string | null;
+    on_the_way_at?: string | null;
+    cancelled_at?: string | null;
+  };
+
   const sp = booking.service_pros as { display_name?: string; service_categories?: { name?: string } | null } | null;
   const cat = sp?.service_categories;
   const serviceName = (cat && typeof cat === 'object' && 'name' in cat && cat.name) || 'Service';
@@ -93,15 +126,29 @@ async function getCustomerBooking(bookingId: string) {
     address: booking.address ?? undefined,
     notes: booking.notes ?? undefined,
     status: booking.status,
-    paymentStatus: (booking as { payment_status?: string }).payment_status ?? 'UNPAID',
-    paidAt: (booking as { paid_at?: string | null }).paid_at ?? null,
+    paymentStatus: b.payment_status ?? 'UNPAID',
+    paidAt: b.paid_at ?? null,
+    finalPaymentStatus: b.final_payment_status ?? null,
+    fullyPaidAt: b.fully_paid_at ?? null,
+    paymentDueAt: b.payment_due_at ?? null,
+    remainingDueAt: b.remaining_due_at ?? null,
+    autoConfirmAt: b.auto_confirm_at ?? null,
+    paidDepositAt: b.paid_deposit_at ?? null,
+    paidRemainingAt: b.paid_remaining_at ?? null,
+    payoutStatus: b.payout_status ?? null,
+    refundStatus: b.refund_status ?? null,
+    platformFeeCents: b.platform_fee_cents ?? null,
+    refundedTotalCents: b.refunded_total_cents ?? null,
+    amountDeposit: b.amount_deposit ?? null,
+    amountRemaining: b.amount_remaining ?? null,
+    amountTotal: b.total_amount_cents ?? b.amount_total ?? null,
     price: booking.price ?? undefined,
     createdAt: booking.created_at,
     acceptedAt: booking.accepted_at ?? null,
-    onTheWayAt: (booking as { en_route_at?: string | null }).en_route_at ?? booking.on_the_way_at ?? null,
+    onTheWayAt: b.en_route_at ?? booking.on_the_way_at ?? null,
     startedAt: booking.started_at ?? null,
     completedAt: booking.completed_at ?? null,
-    cancelledAt: (booking as { cancelled_at?: string | null }).cancelled_at ?? null,
+    cancelledAt: b.cancelled_at ?? null,
     statusHistory: (booking.status_history as { status: string; at: string }[]) ?? undefined,
     serviceName,
     proName,

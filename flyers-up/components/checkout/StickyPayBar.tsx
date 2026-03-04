@@ -16,12 +16,14 @@ export function StickyPayBar({
   disabled,
   loading,
   onSubmit,
+  label = 'Confirm & Pay',
 }: {
   amountTotal: number;
   currency: string;
   disabled: boolean;
   loading: boolean;
   onSubmit: () => void;
+  label?: string;
 }) {
   const displayAmount = currency === 'usd' ? formatCents(amountTotal) : `${(amountTotal / 100).toFixed(2)} ${currency.toUpperCase()}`;
 
@@ -37,7 +39,7 @@ export function StickyPayBar({
           disabled={disabled || loading}
           className="w-full h-12 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 disabled:opacity-60 transition-all flex items-center justify-center"
         >
-          {loading ? 'Processing…' : `Confirm & Pay ${displayAmount}`}
+          {loading ? 'Processing…' : `${label} ${displayAmount}`}
         </button>
         <p className="text-xs text-[#6A6A6A] text-center mt-2">
           Payment held until job completion

@@ -118,6 +118,23 @@ export interface BookingDetails {
   startedAt?: string | null;
   completedAt?: string | null;
   statusHistory?: StatusHistoryEntry[];
+  /** Payment state machine */
+  paymentStatus?: string;
+  paidAt?: string | null;
+  finalPaymentStatus?: string | null;
+  fullyPaidAt?: string | null;
+  paymentDueAt?: string | null;
+  remainingDueAt?: string | null;
+  autoConfirmAt?: string | null;
+  paidDepositAt?: string | null;
+  paidRemainingAt?: string | null;
+  payoutStatus?: string | null;
+  refundStatus?: string | null;
+  platformFeeCents?: number | null;
+  refundedTotalCents?: number | null;
+  amountDeposit?: number | null;
+  amountRemaining?: number | null;
+  amountTotal?: number | null;
 }
 
 // Status history entry for tracking booking lifecycle
@@ -921,6 +938,7 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
 
     if (error || !data) return null;
 
+    const d = data as Record<string, unknown>;
     return {
       id: data.id,
       customerId: data.customer_id,
@@ -932,15 +950,29 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       status: data.status as BookingStatus,
       price: data.price ?? null,
       createdAt: data.created_at,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      proName: (data.service_pros as any)?.display_name,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      proUserId: (data.service_pros as any)?.user_id,
+      proName: (data.service_pros as { display_name?: string })?.display_name,
+      proUserId: (data.service_pros as { user_id?: string })?.user_id,
       acceptedAt: data.accepted_at ?? null,
       onTheWayAt: data.on_the_way_at ?? null,
       startedAt: data.started_at ?? null,
       completedAt: data.completed_at ?? null,
       statusHistory: data.status_history as StatusHistoryEntry[] | undefined,
+      paymentStatus: d.payment_status as string | undefined,
+      paidAt: d.paid_at as string | null | undefined,
+      finalPaymentStatus: d.final_payment_status as string | null | undefined,
+      fullyPaidAt: d.fully_paid_at as string | null | undefined,
+      paymentDueAt: d.payment_due_at as string | null | undefined,
+      remainingDueAt: d.remaining_due_at as string | null | undefined,
+      autoConfirmAt: d.auto_confirm_at as string | null | undefined,
+      paidDepositAt: d.paid_deposit_at as string | null | undefined,
+      paidRemainingAt: d.paid_remaining_at as string | null | undefined,
+      payoutStatus: d.payout_status as string | null | undefined,
+      refundStatus: d.refund_status as string | null | undefined,
+      platformFeeCents: d.platform_fee_cents as number | null | undefined,
+      refundedTotalCents: d.refunded_total_cents as number | null | undefined,
+      amountDeposit: d.amount_deposit as number | null | undefined,
+      amountRemaining: d.amount_remaining as number | null | undefined,
+      amountTotal: (d.total_amount_cents ?? d.amount_total) as number | null | undefined,
     };
   } catch {
     return null;

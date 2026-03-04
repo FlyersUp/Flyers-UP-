@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from './supabaseServer';
 import { isValidTransition } from '@/components/jobs/jobStatus';
 
-type AllowedDbStatus = 'accepted' | 'pro_en_route' | 'in_progress' | 'completed_pending_payment';
+type AllowedDbStatus = 'accepted' | 'pro_en_route' | 'in_progress' | 'awaiting_remaining_payment';
 
 export async function transitionBookingStatus(
   bookingId: string,
@@ -103,7 +103,7 @@ export async function transitionBookingStatus(
   if (nextDbStatus === 'accepted') update.accepted_at = now;
   else if (nextDbStatus === 'pro_en_route') update.en_route_at = now;
   else if (nextDbStatus === 'in_progress') update.started_at = now;
-  else if (nextDbStatus === 'completed_pending_payment') update.completed_at = now;
+  else if (nextDbStatus === 'awaiting_remaining_payment') update.completed_at = now;
 
   const { data: updated, error: updateErr } = await supabase
     .from('bookings')

@@ -9,6 +9,18 @@ export interface TrackBookingData {
   status: string;
   paymentStatus?: string;
   paidAt?: string | null;
+  paidDepositAt?: string | null;
+  paidRemainingAt?: string | null;
+  finalPaymentStatus?: string | null;
+  fullyPaidAt?: string | null;
+  paymentDueAt?: string | null;
+  remainingDueAt?: string | null;
+  autoConfirmAt?: string | null;
+  platformFeeCents?: number | null;
+  refundedTotalCents?: number | null;
+  amountDeposit?: number | null;
+  amountRemaining?: number | null;
+  amountTotal?: number | null;
   price?: number;
   createdAt: string;
   acceptedAt?: string | null;

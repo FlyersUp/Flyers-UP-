@@ -5,6 +5,10 @@ import { BookingTimeline } from '@/components/bookings/BookingTimeline';
 import { BookingStatusBadge } from '@/components/bookings/BookingStatusBadge';
 import { JobNextAction } from '@/components/jobs/JobNextAction';
 import { ProBookingRealtime } from '@/components/bookings/ProBookingRealtime';
+import { PaymentStatusModule } from '@/components/booking/PaymentStatusModule';
+import { BookingPaymentStatusCard } from '@/components/bookings/BookingPaymentStatusCard';
+import { PayoutStatusBadge } from '@/components/bookings/PayoutStatusBadge';
+import { BookingEventsAccordion } from '@/components/bookings/BookingEventsAccordion';
 import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 import { getBookingById, getCurrentUser, type BookingDetails } from '@/lib/api';
 import Link from 'next/link';
@@ -168,6 +172,42 @@ export default function ProBookingDetailPage({
                 </div>
 
                 <section className="mb-6">
+                  <h2 className="text-base font-semibold text-text mb-4">Payment</h2>
+                  <div className="flex items-center gap-2 mb-3">
+                    <PayoutStatusBadge payoutStatus={booking.payoutStatus} />
+                  </div>
+                  <div className="space-y-4">
+                    <BookingPaymentStatusCard
+                      status={booking.status}
+                      paymentDueAt={booking.paymentDueAt}
+                      remainingDueAt={booking.remainingDueAt}
+                      autoConfirmAt={booking.autoConfirmAt}
+                      paidDepositAt={booking.paidDepositAt ?? booking.paidAt}
+                      paidRemainingAt={booking.paidRemainingAt ?? booking.fullyPaidAt}
+                      amountDeposit={booking.amountDeposit}
+                      amountRemaining={booking.amountRemaining}
+                      amountTotal={booking.amountTotal}
+                      platformFeeCents={booking.platformFeeCents}
+                      refundedTotalCents={booking.refundedTotalCents}
+                      view="pro"
+                    />
+                    <PaymentStatusModule
+                      bookingId={bookingId}
+                      status={booking.status}
+                      paymentStatus={booking.paymentStatus}
+                      finalPaymentStatus={booking.finalPaymentStatus}
+                      paymentDueAt={booking.paymentDueAt}
+                      amountDeposit={booking.amountDeposit}
+                      amountRemaining={booking.amountRemaining}
+                      amountTotal={booking.amountTotal}
+                      paidAt={booking.paidAt}
+                      fullyPaidAt={booking.fullyPaidAt}
+                      view="pro"
+                    />
+                  </div>
+                </section>
+
+                <section className="mb-6">
                   <h2 className="text-base font-semibold text-text mb-4">Status timeline</h2>
                   <div
                     className="rounded-2xl border border-[var(--hairline)] overflow-hidden"
@@ -206,6 +246,10 @@ export default function ProBookingDetailPage({
                   >
                     Message customer
                   </Link>
+                </div>
+
+                <div className="mt-6">
+                  <BookingEventsAccordion bookingId={bookingId} />
                 </div>
 
                 {process.env.NODE_ENV === 'development' && (

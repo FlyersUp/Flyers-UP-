@@ -1,0 +1,28 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/expire-bookings",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/deposit-timeout",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/auto-refunds",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/release-payouts",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/auto-confirm",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

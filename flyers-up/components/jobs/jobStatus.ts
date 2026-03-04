@@ -22,7 +22,7 @@ export const DB_STATUS_ORDER: string[] = [
   'accepted',
   'pro_en_route',
   'in_progress',
-  'completed_pending_payment',
+  'awaiting_remaining_payment',
 ];
 
 /** Ordered list of stages for the timeline (left-to-right flow). */
@@ -86,7 +86,7 @@ export function apiNextStatusToDb(apiStatus: NextStatusAction): string {
     ACCEPTED: 'accepted',
     ON_THE_WAY: 'pro_en_route',
     IN_PROGRESS: 'in_progress',
-    COMPLETED: 'completed_pending_payment',
+    COMPLETED: 'awaiting_remaining_payment',
   };
   return map[apiStatus];
 }
@@ -121,6 +121,8 @@ export function mapDbStatusToTimeline(dbStatus: string): Status {
       return 'IN_PROGRESS';
     case 'completed_pending_payment':
     case 'awaiting_payment':
+    case 'awaiting_remaining_payment':
+    case 'awaiting_customer_confirmation':
     case 'completed':
     case 'paid':
       return 'COMPLETED';
