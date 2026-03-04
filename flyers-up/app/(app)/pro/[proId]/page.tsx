@@ -62,6 +62,7 @@ export default async function PublicProProfilePage({ params }: { params: Promise
           messageHref={messageHref}
           messageTitle={messageTitle}
           callHref={callHref}
+          aboveBottomNav={false}
         />
       </div>
     </ProfilePageShell>

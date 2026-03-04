@@ -37,6 +37,7 @@ export interface NotificationItem {
   booking_id: string | null;
   deep_link: string | null;
   read: boolean;
+  read_at?: string | null;
   created_at: string;
 }
 
@@ -100,7 +101,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       .from('notifications')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
-      .eq('read', false);
+      .is('read_at', null);
     if (error) {
       console.warn('NotificationContext: failed to fetch unread count', error);
       return;
@@ -130,7 +131,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (!user) return;
     await supabase
       .from('notifications')
-      .update({ read: true })
+      .update({ read: true, read_at: new Date().toISOString() })
       .eq('id', id)
       .eq('user_id', user.id);
     await refreshUnreadCount();

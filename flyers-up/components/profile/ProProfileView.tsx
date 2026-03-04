@@ -2,8 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import type { PublicProProfileModel } from '@/lib/profileData';
-import { ProfileHeader } from '@/components/profile/ProfileHeader';
-import { ActionButtons } from '@/components/profile/ActionButtons';
+import { ProHeaderCard } from '@/components/pro-profile/ProHeaderCard';
+import { TrustBadgesRow } from '@/components/pro-profile/TrustBadgesRow';
+import { PricingCard } from '@/components/pro-profile/PricingCard';
+import { ServiceAreaCard } from '@/components/pro-profile/ServiceAreaCard';
+import { AvailabilityCard } from '@/components/pro-profile/AvailabilityCard';
+import { StickyBookingBar } from '@/components/pro-profile/StickyBookingBar';
 import { Tabs, type TabKey } from '@/components/profile/Tabs';
 import { PhotoGrid } from '@/components/profile/PhotoGrid';
 import { ServicesList } from '@/components/profile/ServicesList';
@@ -11,50 +15,25 @@ import { ReviewsList } from '@/components/profile/ReviewsList';
 import { AboutPanel } from '@/components/profile/AboutPanel';
 import { parseBusinessHoursModel, summarizeBusinessHours } from '@/lib/utils/businessHours';
 
-function computeBadges(p: PublicProProfileModel) {
-  const labels: string[] = [];
-  // We only have certifications JSON; treat presence as informational.
-  // If you later add structured credential types (licensed/insured/background), map them here.
-  if (p.credentials.length) labels.push('Credentials listed');
-  return labels.map((label) => ({ label }));
-}
-
 export function ProProfileView({
   profile,
   bookHref,
   messageHref,
   messageTitle,
   callHref,
+  shareUrl,
+  aboveBottomNav = true,
 }: {
   profile: PublicProProfileModel;
   bookHref: string;
   messageHref: string | null;
-  /** When message links to booking (no existing chat), e.g. "Start a booking to message this pro" */
   messageTitle?: string | null;
   callHref: string | null;
+  shareUrl?: string | null;
+  /** When true, StickyBookingBar sits above BottomNav */
+  aboveBottomNav?: boolean;
 }) {
   const [tab, setTab] = useState<TabKey>('work');
-
-  const stats = useMemo(() => {
-    const items = [
-      { label: 'Jobs', value: profile.stats.jobsCompleted != null ? String(profile.stats.jobsCompleted) : '—' },
-      {
-        label: 'Rating',
-        value: profile.stats.avgRating != null ? Number(profile.stats.avgRating).toFixed(1) : '—',
-      },
-      { label: 'Reviews', value: profile.stats.reviewCount != null ? String(profile.stats.reviewCount) : '—' },
-    ];
-    if (profile.stats.responseTimeMedian) items.push({ label: 'Response', value: profile.stats.responseTimeMedian });
-    if (profile.yearsActive != null) items.push({ label: 'Years', value: String(profile.yearsActive) });
-    const trimmed = items.slice(0, 5);
-
-    // Micro-accent rule: highlight ONE key stat with orange number only.
-    const pick = (label: string) => trimmed.findIndex((x) => x.label === label && x.value !== '—');
-    const idx = pick('Rating') >= 0 ? pick('Rating') : pick('Years');
-    if (idx >= 0) (trimmed[idx] as any).accent = true;
-
-    return trimmed as any;
-  }, [profile]);
 
   const businessHoursSummary = useMemo(() => {
     try {
@@ -74,57 +53,47 @@ export function ProProfileView({
     []
   );
 
+  const messageDisabled = !messageHref;
+
   return (
-    <div className="space-y-5">
-      <section className="rounded-2xl border border-hairline bg-white shadow-sm p-5">
-        <ProfileHeader
-          avatarUrl={profile.logoUrl || profile.avatarUrl}
-          name={profile.businessName}
-          badges={computeBadges(profile)}
-          stats={stats}
-        />
-
+    <div className="space-y-5 pb-28">
+      {/* B) Header Trust Card */}
+      <section className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm">
+        <ProHeaderCard profile={profile} />
         <div className="mt-4">
-          <ActionButtons
-            primaryHref={bookHref}
-            primaryLabel="Book"
-            secondaryHref={messageHref}
-            secondaryLabel="Message"
-            secondaryTitle={messageTitle ?? undefined}
-            secondaryDisabledText="Messaging becomes available after you start a booking."
-            tertiaryHref={callHref}
-            tertiaryLabel="Call"
-            tertiaryDisabledText="Call is available only when the pro chooses to share it."
-          />
+          <TrustBadgesRow trust={profile.trust} />
         </div>
-
-        <div className="mt-4 space-y-2">
-          {profile.bio ? <div className="text-sm text-text/90 line-clamp-4 whitespace-pre-line">{profile.bio}</div> : null}
-          <div className="text-sm text-muted">
-            {profile.locationLabel ? (
-              <span>
-                Serves: {profile.locationLabel}
-                {profile.serviceRadiusMiles != null ? ` • ${profile.serviceRadiusMiles} mi radius` : null}
-              </span>
-            ) : (
-              <span>Service area available on request.</span>
-            )}
+        {profile.bio && (
+          <div className="mt-4 text-sm text-text/90 line-clamp-4 whitespace-pre-line">
+            {profile.bio}
           </div>
-          {profile.categoryName ? (
-            <div className="text-sm text-muted">Specialty: {profile.categoryName}</div>
-          ) : null}
-        </div>
+        )}
       </section>
 
-      <section className="rounded-2xl border border-hairline bg-white shadow-sm overflow-hidden">
+      {/* D) Pricing Card */}
+      <PricingCard pricing={profile.pricing} />
+
+      {/* E) Service Area + Availability */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ServiceAreaCard serviceRadiusMiles={profile.serviceRadiusMiles} />
+        <AvailabilityCard businessHours={profile.businessHours} />
+      </div>
+
+      {/* G) Tabs */}
+      <section className="rounded-2xl border border-black/5 bg-white overflow-hidden shadow-sm">
         <Tabs tabs={tabs} active={tab} onChange={setTab} />
         <div className="p-4">
-          {tab === 'work' ? <PhotoGrid photos={profile.photos} /> : null}
-          {tab === 'services' ? <ServicesList proId={profile.id} services={profile.services} /> : null}
-          {tab === 'reviews' ? (
-            <ReviewsList avgRating={profile.stats.avgRating} reviewCount={profile.stats.reviewCount} reviews={profile.reviews} />
-          ) : null}
-          {tab === 'about' ? (
+          {tab === 'work' ? (
+            <PhotoGrid photos={profile.photos} />
+          ) : tab === 'services' ? (
+            <ServicesList proId={profile.id} services={profile.services} />
+          ) : tab === 'reviews' ? (
+            <ReviewsList
+              avgRating={profile.stats.avgRating}
+              reviewCount={profile.stats.reviewCount}
+              reviews={profile.reviews}
+            />
+          ) : (
             <AboutPanel
               aboutLong={profile.aboutLong}
               bio={profile.bio}
@@ -132,10 +101,19 @@ export function ProProfileView({
               serviceRadiusMiles={profile.serviceRadiusMiles}
               businessHoursSummary={businessHoursSummary}
             />
-          ) : null}
+          )}
         </div>
       </section>
+
+      {/* F) Sticky Booking Bar */}
+      <StickyBookingBar
+        bookHref={bookHref}
+        messageHref={messageHref}
+        messageDisabled={messageDisabled}
+        proName={profile.businessName}
+        shareUrl={shareUrl}
+        aboveBottomNav={aboveBottomNav}
+      />
     </div>
   );
 }
-

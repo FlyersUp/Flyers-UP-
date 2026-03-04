@@ -16,6 +16,8 @@ export {
   useProEarningsRealtime 
 } from './useProEarningsRealtime';
 
+export { useUnreadNotifications } from './useUnreadNotifications';
+
 
 
 

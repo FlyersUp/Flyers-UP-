@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useNotifications, type NotificationItem } from '@/contexts/NotificationContext';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
+import { SignInNotice } from '@/components/ui/SignInNotice';
 
 /** Skip realtime when proxy is used */
 function shouldSkipRealtime(): boolean {
@@ -28,19 +29,21 @@ interface NotificationListProps {
 export function NotificationList({ basePath }: NotificationListProps) {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null | undefined>(undefined);
   const { markAsRead, refreshUnreadCount } = useNotifications();
 
   const fetchNotifications = useCallback(async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    setUserId(user?.id ?? null);
     if (!user) {
       setLoading(false);
       return;
     }
     const { data, error } = await supabase
       .from('notifications')
-      .select('id, user_id, type, title, body, booking_id, deep_link, read, created_at')
+      .select('id, user_id, type, title, body, booking_id, deep_link, read, read_at, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(50);
@@ -95,8 +98,11 @@ export function NotificationList({ basePath }: NotificationListProps) {
     };
   }, []);
 
+  const isUnread = (item: NotificationItem) =>
+    item.read_at == null && !item.read;
+
   const handleClick = async (item: NotificationItem) => {
-    if (!item.read) {
+    if (isUnread(item)) {
       await markAsRead(item.id);
       await refreshUnreadCount();
     }
@@ -116,6 +122,10 @@ export function NotificationList({ basePath }: NotificationListProps) {
         ))}
       </div>
     );
+  }
+
+  if (!loading && userId === null) {
+    return <SignInNotice nextHref={basePath === '/pro' ? '/pro/notifications' : '/customer/notifications'} />;
   }
 
   if (items.length === 0) {
@@ -144,14 +154,14 @@ export function NotificationList({ basePath }: NotificationListProps) {
             href={href}
             onClick={() => handleClick(item)}
             className={`block rounded-xl border border-black/10 p-4 shadow-sm transition-colors hover:opacity-90 ${
-              item.read
-                ? 'bg-[#F2F2F0]'
-                : 'bg-[#F2F2F0] border-l-4 border-l-[#FFC067]'
+              isUnread(item)
+                ? 'bg-[#F2F2F0] border-l-4 border-l-[#FFC067]'
+                : 'bg-[#F2F2F0]'
             }`}
-            style={!item.read ? { borderLeftColor: 'var(--role-accent, #FFC067)' } : undefined}
+            style={isUnread(item) ? { borderLeftColor: 'var(--role-accent, #FFC067)' } : undefined}
           >
             <div className="flex items-start gap-3">
-              {!item.read && (
+              {isUnread(item) && (
                 <span
                   className="mt-1.5 w-2 h-2 rounded-full bg-[#FFC067] shrink-0"
                   style={{ backgroundColor: 'var(--role-accent, #FFC067)' }}
@@ -160,7 +170,7 @@ export function NotificationList({ basePath }: NotificationListProps) {
               )}
               <div className="flex-1 min-w-0">
                 <div
-                  className={`text-base ${item.read ? 'font-normal' : 'font-semibold'} text-text`}
+                  className={`text-base ${isUnread(item) ? 'font-semibold' : 'font-normal'} text-text`}
                 >
                   {item.title}
                 </div>

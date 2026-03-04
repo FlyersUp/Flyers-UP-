@@ -2,16 +2,19 @@
 
 /**
  * Bottom Navigation Footer
- * Intentionally NOT tied to any mock token/user id.
+ * Uses lucide-react icons for consistent outline style across all tabs.
  * Unified active state: soft pill with subtle accent for all tabs.
  */
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, ReactNode } from 'react';
-import { AppIcon } from '@/components/ui/AppIcon';
+import { Home, Bell, MessageCircle, Settings } from 'lucide-react';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
-import { useNotifications } from '@/contexts/NotificationContext';
+import { useUnreadNotifications } from '@/hooks/useUnreadNotifications';
+
+const ICON_SIZE = 24;
+const ICON_STROKE = 1.5;
 
 function NavAlertDot({ show }: { show: boolean }) {
   if (!show) return null;
@@ -25,12 +28,29 @@ function NavAlertDot({ show }: { show: boolean }) {
 
 function NotificationBadge({ count }: { count: number }) {
   if (count <= 0) return null;
+  const display = count > 99 ? '99+' : count;
   return (
     <span
-      className="absolute -top-0.5 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full bg-[#FF6B6B] shrink-0 flex items-center justify-center text-[10px] font-bold text-white shadow-[0_0_0_3px_#FAF8F6]"
+      className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-semibold leading-[18px] text-center flex items-center justify-center shrink-0 border-2 border-[#FAF8F6]"
       aria-label={`${count} unread notifications`}
     >
-      {count > 99 ? '99+' : count}
+      {display}
+    </span>
+  );
+}
+
+/** Wrapper for nav icon + optional badge. Badge positioned top-right, iOS-style. */
+function NavIconWithBadge({
+  icon,
+  badge,
+}: {
+  icon: ReactNode;
+  badge?: ReactNode;
+}) {
+  return (
+    <span className="relative inline-flex">
+      {icon}
+      {badge}
     </span>
   );
 }
@@ -44,20 +64,19 @@ interface TabItemProps {
   href: string;
   isActive: boolean;
   label: string;
-  iconName: 'home' | 'bell' | 'chat' | 'settings';
+  icon: ReactNode;
   badge?: ReactNode;
+  ariaLabel?: string;
 }
 
-function TabItem({ href, isActive, label, iconName, badge }: TabItemProps) {
+function TabItem({ href, isActive, label, icon, badge, ariaLabel }: TabItemProps) {
   return (
     <Link
       href={href}
       className={`${TAB_BASE} ${isActive ? TAB_ACTIVE : TAB_INACTIVE}`}
+      aria-label={ariaLabel ?? label}
     >
-      <span className="relative inline-block">
-        <AppIcon name={iconName} size={22} className="" alt={label} />
-        {badge}
-      </span>
+      <NavIconWithBadge icon={icon} badge={badge} />
       <span className="text-[11px] font-medium">{label}</span>
     </Link>
   );
@@ -66,7 +85,7 @@ function TabItem({ href, isActive, label, iconName, badge }: TabItemProps) {
 export default function BottomNav() {
   const pathname = usePathname();
   const { hasNewMessages } = useNavAlerts();
-  const { unreadCount } = useNotifications();
+  const { unreadCount } = useUnreadNotifications();
   const mode: 'customer' | 'pro' = (() => {
     if (pathname?.startsWith('/pro') || pathname?.startsWith('/dashboard/pro')) return 'pro';
     if (pathname?.startsWith('/customer') || pathname?.startsWith('/dashboard/customer')) return 'customer';
@@ -91,6 +110,10 @@ export default function BottomNav() {
   const messagesHref = mode === 'pro' ? '/pro/messages' : '/customer/messages';
   const settingsHref = mode === 'pro' ? '/pro/settings' : '/customer/settings';
 
+  const iconClass = 'shrink-0';
+  const notificationsAriaLabel =
+    unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications';
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-[#FAF8F6] border-t border-black/5 z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.04)] safe-area-bottom opacity-100">
       <div className="max-w-7xl mx-auto px-2">
@@ -99,36 +122,31 @@ export default function BottomNav() {
             href={homeHref}
             isActive={isActive(homeHref)}
             label="Home"
-            iconName="home"
+            icon={<Home size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
           />
           <TabItem
             href={notificationsHref}
             isActive={isActive(notificationsHref)}
             label="Notifications"
-            iconName="bell"
+            icon={<Bell size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
             badge={<NotificationBadge count={unreadCount} />}
+            ariaLabel={notificationsAriaLabel}
           />
           <TabItem
             href={messagesHref}
             isActive={isActive(messagesHref)}
             label="Messages"
-            iconName="chat"
+            icon={<MessageCircle size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
             badge={<NavAlertDot show={hasNewMessages} />}
           />
           <TabItem
             href={settingsHref}
             isActive={isActive(settingsHref)}
             label="Settings"
-            iconName="settings"
+            icon={<Settings size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
           />
         </div>
       </div>
     </nav>
   );
 }
-
-
-
-
-
-

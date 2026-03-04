@@ -37,6 +37,21 @@ export type ProReview = {
   verifiedBooking: boolean;
 };
 
+export type ProPricingInfo = {
+  startingPrice: number | null;
+  hourlyRate: number | null;
+  minHours: number | null;
+  travelFeeEnabled: boolean;
+  travelFeeBase: number | null;
+  travelFreeWithinMiles: number | null;
+};
+
+export type ProTrustInfo = {
+  guidelinesAccepted: boolean;
+  insuranceDocPath: string | null;
+  backgroundCheckStatus: string;
+};
+
 export type PublicProProfileModel = {
   id: string; // service_pros.id
   userId: string; // profiles.id
@@ -62,6 +77,8 @@ export type PublicProProfileModel = {
   services: Array<{ name: string; startingFromPrice: number | null; durationRange: string | null }>;
   credentials: ProCredential[];
   reviews: ProReview[];
+  pricing: ProPricingInfo;
+  trust: ProTrustInfo;
 };
 
 export type CustomerPublicModel = {
@@ -173,15 +190,18 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
 
   const userId = String((pro as any).user_id);
 
-  const [{ data: prof }, { data: cat }, { count: jobsCompletedCount }] = await Promise.all([
-    admin.from('profiles').select('id, phone, avatar_url').eq('id', userId).maybeSingle(),
-    admin.from('service_categories').select('name').eq('id', (pro as any).category_id).maybeSingle(),
-    admin
-      .from('bookings')
-      .select('id', { count: 'exact', head: true })
-      .eq('pro_id', String((pro as any).id))
-      .eq('status', 'completed'),
-  ]);
+  const [{ data: prof }, { data: cat }, { count: jobsCompletedCount }, { data: proProfile }, { data: safetySettings }] =
+    await Promise.all([
+      admin.from('profiles').select('id, phone, avatar_url').eq('id', userId).maybeSingle(),
+      admin.from('service_categories').select('name').eq('id', (pro as any).category_id).maybeSingle(),
+      admin
+        .from('bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('pro_id', String((pro as any).id))
+        .eq('status', 'completed'),
+      admin.from('pro_profiles').select('starting_price, hourly_rate, min_hours, travel_fee_enabled, travel_fee_base, travel_free_within_miles, service_radius_miles').eq('user_id', userId).maybeSingle(),
+      admin.from('pro_safety_compliance_settings').select('guidelines_accepted_at, guidelines_acknowledged, insurance_doc_path, background_check_status').eq('pro_user_id', userId).maybeSingle(),
+    ]);
 
   const businessName = safeText((pro as any).display_name) ?? 'Service Pro';
   const locationLabel = safeText((pro as any).location) ?? safeText((pro as any).service_area_zip) ?? null;
@@ -195,6 +215,15 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
   // When you add a `phone_public` column to `service_pros`, set this from DB.
   const phonePublic = false;
 
+  const pp = proProfile as Record<string, unknown> | null;
+  const ss = safetySettings as Record<string, unknown> | null;
+  const serviceRadius =
+    typeof (pp?.service_radius_miles as number) === 'number'
+      ? (pp.service_radius_miles as number)
+      : typeof (pro as any).service_radius === 'number'
+        ? (pro as any).service_radius
+        : null;
+
   const model: PublicProProfileModel = {
     id: String((pro as any).id),
     userId,
@@ -205,7 +234,7 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
     phonePublic,
     categoryName: safeText((cat as any)?.name),
     locationLabel,
-    serviceRadiusMiles: typeof (pro as any).service_radius === 'number' ? (pro as any).service_radius : null,
+    serviceRadiusMiles: serviceRadius,
     bio: safeText((pro as any).bio),
     aboutLong: safeText((pro as any).service_descriptions),
     yearsActive: typeof (pro as any).years_experience === 'number' ? (pro as any).years_experience : null,
@@ -220,6 +249,30 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
     services,
     credentials: parseCredentials((pro as any).certifications),
     reviews: [],
+    pricing: {
+      startingPrice:
+        typeof (pp?.starting_price as number) === 'number' ? Number(pp?.starting_price) : null,
+      hourlyRate:
+        typeof (pp?.hourly_rate as number) === 'number' ? Number(pp?.hourly_rate) : null,
+      minHours:
+        typeof (pp?.min_hours as number) === 'number' ? Number(pp?.min_hours) : null,
+      travelFeeEnabled: Boolean(pp?.travel_fee_enabled),
+      travelFeeBase:
+        typeof (pp?.travel_fee_base as number) === 'number' ? Number(pp?.travel_fee_base) : null,
+      travelFreeWithinMiles:
+        typeof (pp?.travel_free_within_miles as number) === 'number'
+          ? Number(pp?.travel_free_within_miles)
+          : null,
+    },
+    trust: {
+      guidelinesAccepted:
+        Boolean(ss?.guidelines_accepted_at) || Boolean(ss?.guidelines_acknowledged),
+      insuranceDocPath: safeText(ss?.insurance_doc_path as string),
+      backgroundCheckStatus:
+        typeof ss?.background_check_status === 'string'
+          ? (ss.background_check_status as string)
+          : 'not_started',
+    },
   };
 
   if (isDev()) {
