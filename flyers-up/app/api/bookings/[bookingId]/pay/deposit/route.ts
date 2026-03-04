@@ -143,6 +143,11 @@ export async function POST(
     return NextResponse.json({ error: 'Deposit amount could not be calculated' }, { status: 400 });
   }
 
+  const breakdown = computeMoneyBreakdown(
+    quote.amountTotal,
+    quote.depositPercent
+  );
+
   const customerResult = await getOrCreateStripeCustomer(user.id, user.email ?? null);
   if ('error' in customerResult) {
     return NextResponse.json({ error: customerResult.error }, { status: 500 });
