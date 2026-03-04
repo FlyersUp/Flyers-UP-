@@ -10,6 +10,7 @@ import { TrackBookingRealtime, type TrackBookingData } from '@/components/bookin
 import { PaymentStatusModule } from '@/components/booking/PaymentStatusModule';
 import { BookingPaymentStatusCard } from '@/components/bookings/BookingPaymentStatusCard';
 import { BookingEventsAccordion } from '@/components/bookings/BookingEventsAccordion';
+import { BookingRulesAccordion } from '@/components/booking/BookingRulesAccordion';
 import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 
 export interface BookingDetailData {
@@ -223,7 +224,15 @@ export function BookingDetailContent({
 
             {/* E) Payment section */}
             <section className="mb-6">
-              <h2 className="text-base font-semibold text-text mb-4">Payment</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-text">Payment</h2>
+                <Link
+                  href="/booking-rules"
+                  className="text-xs text-muted hover:text-text hover:underline"
+                >
+                  Booking Rules
+                </Link>
+              </div>
               <div className="space-y-4">
                 <BookingPaymentStatusCard
                   status={booking.status}
@@ -285,6 +294,9 @@ export function BookingDetailContent({
                   fullyPaidAt={booking.fullyPaidAt}
                   view="customer"
                 />
+                <div className="mt-4">
+                  <BookingRulesAccordion />
+                </div>
               </div>
             </section>
 

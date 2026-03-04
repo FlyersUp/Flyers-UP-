@@ -208,7 +208,15 @@ export default function ProBookingDetailPage({
                 </section>
 
                 <section className="mb-6">
-                  <h2 className="text-base font-semibold text-text mb-4">Status timeline</h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-base font-semibold text-text">Status timeline</h2>
+                    <Link
+                      href="/booking-rules"
+                      className="text-xs text-muted hover:text-text hover:underline"
+                    >
+                      Booking Rules
+                    </Link>
+                  </div>
                   <div
                     className="rounded-2xl border border-[var(--hairline)] overflow-hidden"
                     style={{ backgroundColor: '#F2F2F0' }}

@@ -5,6 +5,7 @@
  * Handles the booking request submission
  * 
  * Uses Supabase for creating bookings.
+ * Shows Quick Rules sheet on first booking request.
  * 
  * FUTURE IMPROVEMENTS:
  * - Add form validation library (e.g., react-hook-form + zod)
@@ -12,10 +13,11 @@
  * - Add address autocomplete
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser, type ServicePro } from '@/lib/api';
 import { createBookingWithPayment } from '@/app/actions/bookings';
+import { QuickRulesSheet, hasSeenQuickRules } from '@/components/booking/QuickRulesSheet';
 
 interface Subcategory {
   id: string;
@@ -29,13 +31,17 @@ interface BookingFormProps {
   pro: ServicePro;
   /** Pre-select subcategory when coming from marketplace (e.g. ?subcategorySlug=30-min-walk) */
   initialSubcategorySlug?: string;
+  /** Force Quick Rules sheet to show (for testing) */
+  forceQuickRules?: boolean;
 }
 
-export default function BookingForm({ pro, initialSubcategorySlug }: BookingFormProps) {
+export default function BookingForm({ pro, initialSubcategorySlug, forceQuickRules }: BookingFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [quickRulesOpen, setQuickRulesOpen] = useState(false);
+  const pendingSubmitRef = useRef(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -72,20 +78,17 @@ export default function BookingForm({ pro, initialSubcategorySlug }: BookingForm
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
 
     try {
-      // Get current user from Supabase
       const user = await getCurrentUser();
       if (!user) {
         router.push(`/auth?role=customer&next=${encodeURIComponent(`/book/${pro.id}`)}`);
         return;
       }
 
-      // Validate form
       if (!formData.date || !formData.time || !formData.address) {
         setError('Please fill in all required fields');
         setIsSubmitting(false);
@@ -97,7 +100,6 @@ export default function BookingForm({ pro, initialSubcategorySlug }: BookingForm
         return;
       }
 
-      // Create booking (server action enforces: authenticated customer only)
       const result = await createBookingWithPayment(
         pro.id,
         formData.date,
@@ -112,18 +114,45 @@ export default function BookingForm({ pro, initialSubcategorySlug }: BookingForm
         return;
       }
 
-      // Store success message for dashboard
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('booking_success', 'true');
       }
 
-      // Redirect to customer home
       router.push('/customer');
     } catch (err) {
       setError('Failed to create booking. Please try again.');
       console.error('Booking error:', err);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate before showing rules sheet
+    if (!formData.date || !formData.time || !formData.address) {
+      setError('Please fill in all required fields');
+      return;
+    }
+    if (subcategories.length > 0 && !formData.subcategoryId) {
+      setError('Please select a service type');
+      return;
+    }
+
+    if (forceQuickRules || !hasSeenQuickRules()) {
+      pendingSubmitRef.current = true;
+      setQuickRulesOpen(true);
+      return;
+    }
+
+    await doSubmit();
+  };
+
+  const handleQuickRulesContinue = () => {
+    if (pendingSubmitRef.current) {
+      pendingSubmitRef.current = false;
+      void doSubmit();
     }
   };
 
@@ -250,6 +279,12 @@ export default function BookingForm({ pro, initialSubcategorySlug }: BookingForm
       <p className="text-xs text-muted/70 text-center">
         By submitting, you agree to the service terms. The pro will confirm your booking shortly.
       </p>
+
+      <QuickRulesSheet
+        open={quickRulesOpen}
+        onContinue={handleQuickRulesContinue}
+        onClose={() => setQuickRulesOpen(false)}
+      />
     </form>
   );
 }

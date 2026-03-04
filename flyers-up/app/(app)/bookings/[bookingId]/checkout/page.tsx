@@ -40,6 +40,8 @@ import { ServiceDetailsCard } from '@/components/checkout/ServiceDetailsCard';
 import { PriceBreakdownCard } from '@/components/checkout/PriceBreakdownCard';
 import { PaymentCard } from '@/components/checkout/PaymentCard';
 import { StickyPayBar } from '@/components/checkout/StickyPayBar';
+import { BookingRulesAccordion } from '@/components/booking/BookingRulesAccordion';
+import { QuickRulesSheet } from '@/components/booking/QuickRulesSheet';
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -84,8 +86,9 @@ function CheckoutForm({
   const elements = useElements();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quickRulesOpen, setQuickRulesOpen] = useState(false);
 
-  const handleSubmit = async () => {
+  const doSubmit = async () => {
     if (!stripe || !elements) return;
 
     setLoading(true);
@@ -112,6 +115,20 @@ function CheckoutForm({
     onSuccess();
   };
 
+  const handleSubmit = async () => {
+    const { hasSeenQuickRules } = await import('@/components/booking/QuickRulesSheet');
+    if (!hasSeenQuickRules()) {
+      setQuickRulesOpen(true);
+      return;
+    }
+    await doSubmit();
+  };
+
+  const handleQuickRulesContinue = () => {
+    setQuickRulesOpen(false);
+    void doSubmit();
+  };
+
   return (
     <>
       <form
@@ -135,6 +152,12 @@ function CheckoutForm({
         loading={loading}
         onSubmit={handleSubmit}
         label={isFinalPayment ? 'Pay remaining' : (quoteData.quote.amountDeposit ?? 0) > 0 ? 'Pay Deposit' : 'Confirm & Pay'}
+        showBookingRulesLink
+      />
+      <QuickRulesSheet
+        open={quickRulesOpen}
+        onContinue={handleQuickRulesContinue}
+        onClose={() => setQuickRulesOpen(false)}
       />
     </>
   );
@@ -332,7 +355,15 @@ export default function CheckoutPage({
                   <li>• Payment held until job completion</li>
                   <li>• Dispute resolution available</li>
                 </ul>
+                <Link
+                  href="/booking-rules"
+                  className="mt-3 inline-block text-xs text-[#6A6A6A] hover:text-[#111111] hover:underline"
+                >
+                  Booking Rules
+                </Link>
               </div>
+
+              <BookingRulesAccordion />
 
               <Elements
                 stripe={stripePromise}

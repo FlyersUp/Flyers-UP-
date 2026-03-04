@@ -82,6 +82,7 @@ function getProMenu(): MenuSection[] {
       title: 'Work & Operations',
       items: [
         { label: 'Bookings', href: '/pro/bookings' },
+        { label: 'Booking Rules', href: '/booking-rules' },
         { label: 'Jobs', href: '/pro' },
         { label: 'Requests', href: '/pro/requests' },
         { label: 'Today (Detailed View)', href: '/pro/today' },
@@ -122,6 +123,7 @@ function getProMenu(): MenuSection[] {
       items: [
         { label: 'Help Center', href: '/pro/settings/help-support' },
         { label: 'Contact Support', href: '/pro/settings/help-support' },
+        { label: 'Booking Rules', href: '/booking-rules' },
         { label: 'Announcements / System Updates', href: '/pro/notifications' },
         { label: 'Legal & Terms', href: '/pro/settings/support-legal' },
       ],
@@ -160,6 +162,7 @@ function getCustomerMenu(): MenuSection[] {
       items: [
         { label: 'Bookings', href: '/customer/bookings' },
         { label: 'Saved Pros', href: '/customer/categories' },
+        { label: 'Booking Rules', href: '/booking-rules' },
       ],
     },
     {
@@ -190,6 +193,7 @@ function getCustomerMenu(): MenuSection[] {
       items: [
         { label: 'Help Center', href: '/customer/settings/help-support' },
         { label: 'Contact Support', href: '/customer/settings/help-support' },
+        { label: 'Booking Rules', href: '/booking-rules' },
         { label: 'Safety & Policies', href: '/customer/settings/support-legal' },
       ],
     },

@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -17,6 +19,7 @@ export function StickyPayBar({
   loading,
   onSubmit,
   label = 'Confirm & Pay',
+  showBookingRulesLink,
 }: {
   amountTotal: number;
   currency: string;
@@ -24,6 +27,8 @@ export function StickyPayBar({
   loading: boolean;
   onSubmit: () => void;
   label?: string;
+  /** Show "Booking Rules" link under the button */
+  showBookingRulesLink?: boolean;
 }) {
   const displayAmount = currency === 'usd' ? formatCents(amountTotal) : `${(amountTotal / 100).toFixed(2)} ${currency.toUpperCase()}`;
 
@@ -44,6 +49,14 @@ export function StickyPayBar({
         <p className="text-xs text-[#6A6A6A] text-center mt-2">
           Payment held until job completion
         </p>
+        {showBookingRulesLink && (
+          <Link
+            href="/booking-rules"
+            className="block text-center text-xs text-[#6A6A6A] hover:text-[#111111] hover:underline mt-1"
+          >
+            Booking Rules
+          </Link>
+        )}
       </div>
     </div>
   );

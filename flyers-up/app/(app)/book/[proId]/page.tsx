@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Layout from '@/components/Layout';
 import BookingForm from '@/components/BookingForm';
+import { BookingRulesAccordion } from '@/components/booking/BookingRulesAccordion';
 import { getProById, getCurrentUser, type ServicePro } from '@/lib/api';
 
 export default function BookingPage() {
@@ -108,6 +109,11 @@ export default function BookingPage() {
             Booking Details
           </h2>
           <BookingForm pro={pro} initialSubcategorySlug={subcategorySlug} />
+        </div>
+
+        {/* Rules accordion */}
+        <div className="mt-6">
+          <BookingRulesAccordion />
         </div>
       </div>
     </Layout>

@@ -2,6 +2,7 @@
 
 import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
+import { BookingRulesAccordion } from '@/components/booking/BookingRulesAccordion';
 import { use, useEffect, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -224,6 +225,16 @@ export default function CheckoutPage({
                 }}
               />
             </Elements>
+
+            <div className="mt-4 space-y-2">
+              <Link
+                href="/booking-rules"
+                className="inline-block text-xs text-muted hover:text-text hover:underline"
+              >
+                Booking Rules
+              </Link>
+              <BookingRulesAccordion />
+            </div>
           </div>
         ) : (
           <p className="text-sm text-muted">Stripe is not configured.</p>
