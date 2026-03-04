@@ -107,7 +107,7 @@ export function PaymentStatusModule({
             Time remaining: <CountdownDisplay paymentDueAt={paymentDueAt} />
           </p>
           <Link
-            href={`/bookings/${bookingId}/checkout`}
+            href={`/customer/bookings/${bookingId}/checkout`}
             className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 mt-3"
           >
             Pay deposit {amountDeposit != null ? formatCents(amountDeposit) : ''}
@@ -141,7 +141,7 @@ export function PaymentStatusModule({
           <h3 className="text-sm font-medium text-[#6A6A6A] mb-2">Payment &amp; status</h3>
           <p className="text-sm font-medium text-[#111111]">Pay remaining balance</p>
           <Link
-            href={`/bookings/${bookingId}/checkout?phase=final`}
+            href={`/customer/bookings/${bookingId}/checkout?phase=final`}
             className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 mt-3"
           >
             Pay remaining {amountRemaining != null ? formatCents(amountRemaining) : ''}

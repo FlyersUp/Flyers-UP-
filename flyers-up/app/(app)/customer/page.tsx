@@ -64,7 +64,7 @@ export default function CustomerHome() {
         const todayISO = new Date().toISOString().slice(0, 10);
         const res = await fetch(
           `/api/customer/bookings?from=${encodeURIComponent(todayISO)}&limit=20&statuses=${encodeURIComponent(
-            ['requested', 'accepted', 'on_the_way', 'in_progress', 'awaiting_payment'].join(',')
+            ['requested', 'accepted', 'payment_required', 'pro_en_route', 'on_the_way', 'in_progress', 'completed_pending_payment', 'awaiting_payment'].join(',')
           )}`,
           { cache: 'no-store' }
         );

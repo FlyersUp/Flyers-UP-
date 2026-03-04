@@ -16,7 +16,6 @@
  */
 import { redirect, notFound } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
-import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { BookingDetailContent } from './BookingDetailContent';
 import { AppLayout } from '@/components/layouts/AppLayout';
@@ -40,8 +39,8 @@ async function getCustomerBooking(bookingId: string) {
 
   if (!profile || profile.role !== 'customer') return { error: 'forbidden' as const };
 
-  const admin = createAdminSupabaseClient();
-  const { data: booking, error } = await admin
+  // Use server client (RLS) so session/cookies are respected; fallback to admin if needed
+  const { data: booking, error } = await supabase
     .from('bookings')
     .select(
       `
@@ -82,6 +81,7 @@ async function getCustomerBooking(bookingId: string) {
       service_pros (
         id,
         display_name,
+        logo_url,
         service_categories (
           name
         )
@@ -92,7 +92,11 @@ async function getCustomerBooking(bookingId: string) {
     .eq('customer_id', user.id)
     .maybeSingle();
 
-  if (error || !booking) return null;
+  if (error) {
+    console.error('[getCustomerBooking] Supabase error:', error.message, { bookingId: id });
+    return null;
+  }
+  if (!booking) return null;
 
   const b = booking as {
     payment_status?: string;
@@ -117,10 +121,16 @@ async function getCustomerBooking(bookingId: string) {
     cancelled_at?: string | null;
   };
 
-  const sp = booking.service_pros as { display_name?: string; service_categories?: { name?: string } | null } | null;
+  const sp = booking.service_pros as {
+    display_name?: string;
+    logo_url?: string | null;
+    service_categories?: { name?: string } | null;
+  } | null;
   const cat = sp?.service_categories;
   const serviceName = (cat && typeof cat === 'object' && 'name' in cat && cat.name) || 'Service';
   const proName = sp?.display_name?.trim() || 'Pro';
+  const categoryName = (cat && typeof cat === 'object' && 'name' in cat && cat.name) || undefined;
+  const proPhotoUrl = sp?.logo_url ?? null;
 
   return {
     id: booking.id,
@@ -157,6 +167,8 @@ async function getCustomerBooking(bookingId: string) {
     statusHistory: (booking.status_history as { status: string; at: string }[]) ?? undefined,
     serviceName,
     proName,
+    categoryName,
+    proPhotoUrl,
   };
 }
 
