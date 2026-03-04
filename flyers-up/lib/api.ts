@@ -2785,11 +2785,28 @@ export async function updateProPayoutPreferences(
 
 export type ProSafetyComplianceSettings = {
   guidelinesAcknowledged: boolean;
+  guidelinesAcceptedAt: string | null;
   insuranceDocumentUrl: string;
+  insuranceDocPath: string | null;
+  insuranceExpiresAt: string | null;
+  insuranceProvider: string | null;
+  backgroundCheckStatus: string;
+  warningCount: number;
+  strikeCount: number;
 };
 
 export async function getProSafetyComplianceSettings(userId: string): Promise<ProSafetyComplianceSettings> {
-  const fallback: ProSafetyComplianceSettings = { guidelinesAcknowledged: false, insuranceDocumentUrl: '' };
+  const fallback: ProSafetyComplianceSettings = {
+    guidelinesAcknowledged: false,
+    guidelinesAcceptedAt: null,
+    insuranceDocumentUrl: '',
+    insuranceDocPath: null,
+    insuranceExpiresAt: null,
+    insuranceProvider: null,
+    backgroundCheckStatus: 'not_started',
+    warningCount: 0,
+    strikeCount: 0,
+  };
   try {
     const { data, error } = await supabase
       .from('pro_safety_compliance_settings')
@@ -2797,9 +2814,17 @@ export async function getProSafetyComplianceSettings(userId: string): Promise<Pr
       .eq('pro_user_id', userId)
       .single();
     if (error || !data) return fallback;
+    const d = data as Record<string, unknown>;
     return {
-      guidelinesAcknowledged: Boolean(data.guidelines_acknowledged),
-      insuranceDocumentUrl: data.insurance_document_url || '',
+      guidelinesAcknowledged: Boolean(d.guidelines_acknowledged),
+      guidelinesAcceptedAt: (d.guidelines_accepted_at as string) ?? null,
+      insuranceDocumentUrl: (d.insurance_document_url as string) || '',
+      insuranceDocPath: (d.insurance_doc_path as string) ?? null,
+      insuranceExpiresAt: (d.insurance_expires_at as string) ?? null,
+      insuranceProvider: (d.insurance_provider as string) ?? null,
+      backgroundCheckStatus: (d.background_check_status as string) || 'not_started',
+      warningCount: Number(d.warning_count) || 0,
+      strikeCount: Number(d.strike_count) || 0,
     };
   } catch {
     return fallback;
@@ -2813,7 +2838,14 @@ export async function updateProSafetyComplianceSettings(
   try {
     const payload: Record<string, unknown> = { pro_user_id: userId };
     if (settings.guidelinesAcknowledged !== undefined) payload.guidelines_acknowledged = settings.guidelinesAcknowledged;
+    if (settings.guidelinesAcceptedAt !== undefined) payload.guidelines_accepted_at = settings.guidelinesAcceptedAt;
     if (settings.insuranceDocumentUrl !== undefined) payload.insurance_document_url = settings.insuranceDocumentUrl;
+    if (settings.insuranceDocPath !== undefined) payload.insurance_doc_path = settings.insuranceDocPath;
+    if (settings.insuranceExpiresAt !== undefined) payload.insurance_expires_at = settings.insuranceExpiresAt;
+    if (settings.insuranceProvider !== undefined) payload.insurance_provider = settings.insuranceProvider;
+    if (settings.backgroundCheckStatus !== undefined) payload.background_check_status = settings.backgroundCheckStatus;
+    if (settings.warningCount !== undefined) payload.warning_count = settings.warningCount;
+    if (settings.strikeCount !== undefined) payload.strike_count = settings.strikeCount;
 
     const { error } = await supabase
       .from('pro_safety_compliance_settings')

@@ -1,107 +1,104 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
-import { Card } from '@/components/ui/Card';
-import { Label } from '@/components/ui/Label';
-import { PlacardHeader } from '@/components/ui/PlacardHeader';
-import { TrustRow } from '@/components/ui/TrustRow';
-import { Textarea } from '@/components/ui/Textarea';
-import { Button } from '@/components/ui/Button';
+import { SettingsCard } from '@/components/settings/SettingsCard';
+import { SectionHeader } from '@/components/settings/SectionHeader';
+import { LegalLinksList } from '@/components/settings/LegalLinksList';
+import { SupportMessageForm } from '@/components/settings/SupportMessageForm';
+import { Mail, HelpCircle, AlertCircle } from 'lucide-react';
 
-export default function ProSupportLegalSettingsPage() {
-  const [message, setMessage] = useState('');
+export default function ProSupportLegalPage() {
+  const messageFormRef = useRef<HTMLDivElement>(null);
+
+  function scrollToForm() {
+    messageFormRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }
+
   return (
     <AppLayout mode="pro">
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        <div>
+      <div className="min-h-screen" style={{ backgroundColor: '#FAF8F6' }}>
+        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
           <Link href="/pro/settings" className="text-sm text-muted hover:text-text">
             ← Back to Settings
           </Link>
-          <div className="mt-3">
-            <PlacardHeader title="Support & Legal" subtitle="Help, policies, and account paperwork." tone="info" />
-          </div>
-          <div className="mt-3">
-            <TrustRow />
-          </div>
-        </div>
 
-        <Card withRail>
-          <Label>HELP + PAPERWORK</Label>
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <a
-              className="block p-4 border border-border rounded-lg bg-surface hover:bg-surface2 transition-colors"
-              href={`mailto:support@flyersup.app?subject=${encodeURIComponent('Flyers Up Support (Pro)')}&body=${encodeURIComponent(message)}`}
-            >
-              <div className="font-medium text-text">Contact support</div>
-              <div className="text-sm text-muted">Email support@flyersup.app</div>
-            </a>
-            <Link
-              href="/pro/settings/help-support"
-              className="block p-4 border border-border rounded-lg bg-surface hover:bg-surface2 transition-colors"
-            >
-              <div className="font-medium text-text">Help center</div>
-              <div className="text-sm text-muted">FAQs + common fixes</div>
-            </Link>
-            <Link
-              className="block p-4 border border-border rounded-lg bg-surface hover:bg-surface2 transition-colors"
-              href="/terms"
-            >
-              <div className="font-medium text-text">Terms of service</div>
-              <div className="text-sm text-muted">View terms</div>
-            </Link>
-            <Link
-              className="block p-4 border border-border rounded-lg bg-surface hover:bg-surface2 transition-colors"
-              href="/privacy"
-            >
-              <div className="font-medium text-text">Privacy policy</div>
-              <div className="text-sm text-muted">View privacy</div>
-            </Link>
+          <div>
+            <h1 className="text-2xl font-semibold text-text">Support & Legal</h1>
+            <p className="mt-1 text-sm text-muted">Help, policies, and account paperwork.</p>
           </div>
 
-          <div className="mt-4 space-y-3">
-            <Textarea
-              label="Message to support (optional)"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              rows={5}
-              placeholder="Tell us what you’re trying to do and what’s going wrong..."
-            />
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  try {
-                    void navigator.clipboard.writeText(message);
-                  } catch {
-                    // ignore
-                  }
-                }}
+          {/* B1) Quick help */}
+          <SettingsCard>
+            <SectionHeader label="Quick help" />
+            <div className="space-y-2">
+              <a
+                href="mailto:support@flyersup.app?subject=Flyers%20Up%20Support%20(Pro)"
+                className="flex items-center gap-3 p-4 rounded-xl border border-black/5 hover:bg-black/[0.02] hover:border-black/10 transition-colors"
               >
-                Copy message →
-              </Button>
+                <Mail size={20} className="text-muted shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-text">Contact support</div>
+                  <div className="text-xs text-muted">support@flyersup.app</div>
+                </div>
+                <span className="text-muted text-xs">→</span>
+              </a>
+              <Link
+                href="/pro/settings/help-support"
+                className="flex items-center gap-3 p-4 rounded-xl border border-black/5 hover:bg-black/[0.02] hover:border-black/10 transition-colors"
+              >
+                <HelpCircle size={20} className="text-muted shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-text">Help center</div>
+                  <div className="text-xs text-muted">FAQs + common fixes</div>
+                </div>
+                <span className="text-muted text-xs">→</span>
+              </Link>
+              <button
+                type="button"
+                onClick={scrollToForm}
+                className="w-full flex items-center gap-3 p-4 rounded-xl border border-black/5 hover:bg-black/[0.02] hover:border-black/10 transition-colors text-left"
+              >
+                <AlertCircle size={20} className="text-muted shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-text">Report a problem</div>
+                  <div className="text-xs text-muted">Send a message to support</div>
+                </div>
+                <span className="text-muted text-xs">→</span>
+              </button>
             </div>
-          </div>
-        </Card>
+          </SettingsCard>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Link href="/pro/settings/help-support" className="block">
-            <Card withRail>
-              <Label>HELP CENTER</Label>
-              <p className="mt-3 text-sm text-muted">FAQs + contact (current UI).</p>
-            </Card>
-          </Link>
-          <Link href="/pro/settings/privacy-security" className="block">
-            <Card withRail>
-              <Label>PRIVACY &amp; SECURITY</Label>
-              <p className="mt-3 text-sm text-muted">Password + account controls (current UI).</p>
-            </Card>
-          </Link>
+          {/* B2) Legal documents */}
+          <SettingsCard>
+            <SectionHeader label="Legal documents" />
+            <LegalLinksList />
+          </SettingsCard>
+
+          {/* B3) Support contact */}
+          <SettingsCard>
+            <SectionHeader label="Support contact" />
+            <div className="space-y-2 text-sm">
+              <p>
+                <span className="font-medium text-text">Email:</span>{' '}
+                <a href="mailto:support@flyersup.app" className="text-accent hover:underline">
+                  support@flyersup.app
+                </a>
+              </p>
+              <p className="text-muted">Typically within 24 hours</p>
+            </div>
+          </SettingsCard>
+
+          {/* B4) Message form */}
+          <div ref={messageFormRef}>
+          <SettingsCard>
+            <SectionHeader label="Message support" />
+            <SupportMessageForm role="pro" />
+          </SettingsCard>
+          </div>
         </div>
       </div>
     </AppLayout>
   );
 }
-
