@@ -1,5 +1,6 @@
 'use client';
 
+import { useId } from 'react';
 import { Switch } from '@/components/ui/Switch';
 
 export function ToggleRow({
@@ -17,18 +18,24 @@ export function ToggleRow({
   disabled?: boolean;
   switchAriaLabel?: string;
 }) {
+  const id = useId();
   return (
-    <div className="flex items-center justify-between gap-4 p-4 border border-border rounded-lg bg-surface">
-      <div className="min-w-0">
-        <h3 className="font-medium text-text">{title}</h3>
-        <p className="text-sm text-muted">{description}</p>
+    <div className="flex min-h-[56px] items-center justify-between gap-4 py-4">
+      <div className="min-w-0 flex-1">
+        <label htmlFor={id} className="block cursor-default">
+          <span className="text-sm font-medium text-text">{title}</span>
+          {description && <span className="mt-0.5 block text-sm text-black/60">{description}</span>}
+        </label>
       </div>
-      <Switch
-        checked={checked}
-        onCheckedChange={onChange}
-        disabled={disabled}
-        aria-label={switchAriaLabel ?? title}
-      />
+      <div className="flex h-10 shrink-0 items-center">
+        <Switch
+          id={id}
+          checked={checked}
+          onCheckedChange={onChange}
+          disabled={disabled}
+          aria-label={switchAriaLabel ?? title}
+        />
+      </div>
     </div>
   );
 }

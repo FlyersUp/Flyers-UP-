@@ -12,10 +12,8 @@ export type SwitchProps = {
 };
 
 /**
- * Role-aware switch:
- * - Uses `bg-accent` for the active track (accent is set by `.theme-customer` / `.theme-pro`).
- * - Keeps inactive + disabled states neutral.
- * - Focus ring stays subtle/neutral.
+ * Centered switch with subtle theme tints.
+ * Track: h-6 w-11. Thumb: h-5 w-5. Unchecked: translate-x-1, checked: translate-x-5.
  */
 export function Switch({
   checked,
@@ -29,20 +27,18 @@ export function Switch({
   const resolvedId = id ?? `switch-${autoId}`;
 
   const trackBase =
-    'relative inline-flex h-6 w-11 items-center rounded-full border-2 transition-colors duration-200';
-  const trackInactive = 'bg-surface2 border-[var(--hairline)]';
-  const trackActive = 'bg-[hsl(var(--switch-accent,var(--accent)))] border-[hsl(var(--switch-accent,var(--accent)))] shadow-[0_0_0_1px_hsl(var(--switch-accent,var(--accent)))] hover:brightness-110';
-  const trackDisabled = 'bg-surface2 border-[var(--hairline)] opacity-70 cursor-not-allowed';
+    'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200';
+  const trackInactive = 'bg-black/10 border border-black/10';
+  const trackActive = 'bg-accent/80 border border-accent/60';
+  const trackDisabled = 'bg-black/5 border border-black/5 opacity-70 cursor-not-allowed';
 
   const thumbBase =
-    'inline-block h-5 w-5 transform rounded-full transition-transform duration-200 shadow-md';
-  const thumbOn = 'translate-x-[20px] bg-white';
-  const thumbOff = 'translate-x-[2px]';
-  const thumbEnabled = 'bg-surface';
-  const thumbDisabled = 'bg-surface2';
+    'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200';
+  const thumbOn = 'translate-x-[22px]';
+  const thumbOff = 'translate-x-1';
 
   const focus =
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text/20 focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[#FAF8F6]';
 
   const trackClass = [
     trackBase,
@@ -52,12 +48,6 @@ export function Switch({
   ]
     .filter(Boolean)
     .join(' ');
-
-  const thumbClass = [
-    thumbBase,
-    checked ? thumbOn : thumbOff,
-    disabled ? thumbDisabled : thumbEnabled,
-  ].join(' ');
 
   return (
     <button
@@ -73,7 +63,7 @@ export function Switch({
       }}
       className={trackClass}
     >
-      <span className={thumbClass} aria-hidden />
+      <span className={`${thumbBase} ${checked ? thumbOn : thumbOff}`} aria-hidden />
     </button>
   );
 }

@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
-import { Card } from '@/components/ui/Card';
-import { Label } from '@/components/ui/Label';
 import { PlacardHeader } from '@/components/ui/PlacardHeader';
 import { TrustRow } from '@/components/ui/TrustRow';
-import { Button } from '@/components/ui/Button';
+import { ToggleRow } from '@/components/ui/ToggleRow';
+import { SettingsSelectRow } from '@/components/ui/SettingsSelectRow';
+import { ProAccessNotice } from '@/components/ui/ProAccessNotice';
 import {
   getCurrentUser,
   getUserAppPreferences,
@@ -17,9 +17,7 @@ import {
 } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { TOP_LANGUAGES } from '@/lib/languages';
-import { ProAccessNotice } from '@/components/ui/ProAccessNotice';
 import { useTheme } from '@/contexts/ThemeContext';
-import { ToggleRow } from '@/components/ui/ToggleRow';
 
 export default function ProPreferencesSettingsPage() {
   return (
@@ -34,10 +32,9 @@ function ProPreferencesSettingsInner() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [access, setAccess] = useState<'signed_out' | 'not_pro' | 'pro'>('signed_out');
-
   const [language, setLanguage] = useState('en');
   const [prefs, setPrefs] = useState<UserAppPreferences>({
     darkMode: false,
@@ -45,6 +42,7 @@ function ProPreferencesSettingsInner() {
     defaultMapView: 'map',
     locationEnabled: true,
   });
+  const skipNextSave = useRef(true);
 
   useEffect(() => {
     const load = async () => {
@@ -65,32 +63,42 @@ function ProPreferencesSettingsInner() {
       }
       setAccess('pro');
       setUserId(user.id);
-
       const p = await getUserAppPreferences(user.id);
       setPrefs(p);
-
       const { data } = await supabase.from('profiles').select('language_preference').eq('id', user.id).single();
       if (data?.language_preference) setLanguage(String(data.language_preference));
-
       setLoading(false);
     };
     void load();
   }, []);
 
-  async function save() {
+  async function persist() {
     if (!userId) return;
     setSaving(true);
     setError(null);
-    setSuccess(null);
-
     const resPrefs = await updateUserAppPreferences(userId, prefs);
     const resLang = await updateLanguage(userId, language);
-
     const msg = [resPrefs.success ? null : resPrefs.error, resLang.success ? null : resLang.error].filter(Boolean).join(' / ');
-    if (msg) setError(msg || 'Failed to save preferences.');
-    else setSuccess('Preferences saved.');
+    if (msg) setError(msg);
+    else {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
     setSaving(false);
   }
+
+  function handlePrefChange(partial: Partial<UserAppPreferences>) {
+    setPrefs((p) => ({ ...p, ...partial }));
+  }
+
+  useEffect(() => {
+    if (!userId || loading) return;
+    if (skipNextSave.current) {
+      skipNextSave.current = false;
+      return;
+    }
+    void persist();
+  }, [prefs, language, userId, loading]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
@@ -106,88 +114,86 @@ function ProPreferencesSettingsInner() {
         </div>
       </div>
 
-      {error && <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">{error}</div>}
-      {success && (
-        <div className="p-4 bg-surface2 border border-[var(--surface-border)] border-l-[3px] border-l-accent rounded-lg text-text">
-          {success}
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
         </div>
       )}
 
-      <Card withRail>
-        <Label>QUALITY OF LIFE</Label>
+      <div className="rounded-2xl border border-black/5 bg-white shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-black/5">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted">Quality of Life</span>
+        </div>
         {loading ? (
-          <p className="mt-4 text-sm text-muted/70">Loading…</p>
+          <div className="px-4 py-8 text-sm text-muted">Loading…</div>
         ) : !userId ? (
-          <ProAccessNotice nextHref="/pro/settings/preferences" signedIn={access !== 'signed_out'} />
-        ) : (
-          <div className="mt-4 space-y-3">
-            <ToggleRow
-              title="Dark mode"
-              description="Store your preference."
-              checked={prefs.darkMode}
-              onChange={(next) => {
-                setPrefs((p) => ({ ...p, darkMode: next }));
-                setDarkMode(next);
-              }}
-            />
-            <ToggleRow
-              title="Location enabled"
-              description="Allow location-based suggestions and map features."
-              checked={prefs.locationEnabled}
-              onChange={(next) => setPrefs((p) => ({ ...p, locationEnabled: next }))}
-            />
-
-            <div className="p-4 border border-border rounded-lg bg-surface">
-              <h3 className="font-medium text-text">Language</h3>
-              <p className="text-sm text-muted">Choose your default language.</p>
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="mt-3 w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
-              >
-                {TOP_LANGUAGES.map((lang) => (
-                  <option key={lang.code} value={lang.code}>
-                    {lang.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="p-4 border border-border rounded-lg bg-surface">
-              <h3 className="font-medium text-text">Distance units</h3>
-              <p className="text-sm text-muted">Choose miles or kilometers.</p>
-              <select
-                value={prefs.distanceUnits}
-                onChange={(e) => setPrefs((p) => ({ ...p, distanceUnits: e.target.value as any }))}
-                className="mt-3 w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
-              >
-                <option value="miles">Miles</option>
-                <option value="km">Kilometers</option>
-              </select>
-            </div>
-
-            <div className="p-4 border border-border rounded-lg bg-surface">
-              <h3 className="font-medium text-text">Default map view</h3>
-              <p className="text-sm text-muted">Choose the default view when browsing.</p>
-              <select
-                value={prefs.defaultMapView}
-                onChange={(e) => setPrefs((p) => ({ ...p, defaultMapView: e.target.value as any }))}
-                className="mt-3 w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
-              >
-                <option value="map">Map</option>
-                <option value="list">List</option>
-              </select>
-            </div>
+          <div className="px-4 py-6">
+            <ProAccessNotice nextHref="/pro/settings/preferences" signedIn={access !== 'signed_out'} />
           </div>
+        ) : (
+          <>
+            <div className="divide-y divide-black/5">
+              <div className="px-4">
+                <ToggleRow
+                  title="Dark mode"
+                  description="Store your preference."
+                  checked={prefs.darkMode}
+                  onChange={(next) => {
+                    handlePrefChange({ darkMode: next });
+                    setDarkMode(next);
+                  }}
+                />
+              </div>
+              <div className="px-4">
+                <ToggleRow
+                  title="Location enabled"
+                  description="Allow location-based suggestions and map features."
+                  checked={prefs.locationEnabled}
+                  onChange={(next) => handlePrefChange({ locationEnabled: next })}
+                />
+              </div>
+              <div className="px-4">
+                <SettingsSelectRow
+                  title="Language"
+                  description="Choose your default language."
+                  value={language}
+                  options={TOP_LANGUAGES.map((l) => ({ value: l.code, label: l.name }))}
+                  onChange={(v) => setLanguage(v)}
+                />
+              </div>
+              <div className="px-4">
+                <SettingsSelectRow
+                  title="Distance units"
+                  description="Choose miles or kilometers."
+                  value={prefs.distanceUnits}
+                  options={[
+                    { value: 'miles', label: 'Miles' },
+                    { value: 'km', label: 'Kilometers' },
+                  ]}
+                  onChange={(v) => handlePrefChange({ distanceUnits: v as 'miles' | 'km' })}
+                />
+              </div>
+              <div className="px-4">
+                <SettingsSelectRow
+                  title="Default map view"
+                  description="Choose the default view when browsing."
+                  value={prefs.defaultMapView}
+                  options={[
+                    { value: 'map', label: 'Map' },
+                    { value: 'list', label: 'List' },
+                  ]}
+                  onChange={(v) => handlePrefChange({ defaultMapView: v as 'map' | 'list' })}
+                />
+              </div>
+            </div>
+            {(saved || saving) && (
+              <div className="border-t border-black/5 px-4 py-2 text-xs text-muted">
+                {saving ? 'Saving…' : 'Saved'}
+              </div>
+            )}
+          </>
         )}
-      </Card>
-
-      <div className="flex justify-end">
-        <Button type="button" onClick={() => void save()} disabled={!userId || saving || loading} showArrow={false}>
-          {saving ? 'Saving…' : 'Save Changes'}
-        </Button>
       </div>
     </div>
   );
 }
-

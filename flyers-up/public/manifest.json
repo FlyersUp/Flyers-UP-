@@ -9,9 +9,9 @@
   "background_color": "#FAF9F6",
   "icons": [
     {
-      "src": "/logo.svg",
+      "src": "/icons/flyer-icon.png",
       "sizes": "any",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
