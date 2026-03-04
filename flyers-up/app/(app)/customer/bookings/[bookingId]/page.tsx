@@ -15,7 +15,7 @@
  * 404 if not found or not owner.
  */
 import { redirect, notFound } from 'next/navigation';
-import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { BookingDetailContent } from './BookingDetailContent';
 import { AppLayout } from '@/components/layouts/AppLayout';
@@ -39,8 +39,9 @@ async function getCustomerBooking(bookingId: string) {
 
   if (!profile || profile.role !== 'customer') return { error: 'forbidden' as const };
 
-  // Use server client (RLS) so session/cookies are respected; fallback to admin if needed
-  const { data: booking, error } = await supabase
+  // Use admin client for booking query (same as list API) to avoid RLS/session edge cases
+  const admin = createAdminSupabaseClient();
+  const { data: booking, error } = await admin
     .from('bookings')
     .select(
       `
