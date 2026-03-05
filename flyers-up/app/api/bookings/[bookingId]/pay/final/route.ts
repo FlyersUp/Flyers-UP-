@@ -8,6 +8,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { getOrCreateStripeCustomer } from '@/lib/stripeCustomer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
+import { computeQuote } from '@/lib/bookingQuote';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -49,7 +50,7 @@ export async function POST(
 
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price')
+    .select('id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address')
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();
@@ -84,15 +85,57 @@ export async function POST(
     );
   }
 
-  const amountTotal = Number(booking.amount_total ?? booking.total_amount_cents ?? 0);
-  const priceCents = Math.round(Number((booking as { price?: number }).price ?? 0) * 100);
-  const amountRemaining = Number(
+  let amountTotal = Number(booking.amount_total ?? booking.total_amount_cents ?? 0);
+  const rawPrice = Number((booking as { price?: number }).price ?? 0);
+  // price is typically in dollars; if < 1000 treat as dollars (convert to cents)
+  const priceCents = rawPrice > 0 && rawPrice < 10000
+    ? Math.round(rawPrice * 100)
+    : Math.round(rawPrice);
+  let amountRemaining = Number(
     booking.amount_remaining ??
     booking.remaining_amount_cents ??
-    (amountTotal > 0 ? Math.max(0, amountTotal - amountDeposit) : priceCents - amountDeposit)
+    (amountTotal > 0 ? Math.max(0, amountTotal - amountDeposit) : Math.max(0, priceCents - amountDeposit))
   );
+
+  // Fallback: compute from quote when DB columns are empty
   if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
-    return NextResponse.json({ error: 'No remaining balance to pay' }, { status: 400 });
+    const { data: proRowForQuote } = await admin
+      .from('service_pros')
+      .select('user_id, display_name, service_categories(name)')
+      .eq('id', booking.pro_id)
+      .maybeSingle();
+    const { data: proPricing } = await admin
+      .from('pro_profiles')
+      .select('pricing_model, starting_price, starting_rate, hourly_rate, min_hours, travel_fee_enabled, travel_fee_base, travel_free_within_miles, travel_extra_per_mile, deposit_percent_default')
+      .eq('user_id', proRowForQuote?.user_id ?? '')
+      .maybeSingle();
+    const cat = proRowForQuote?.service_categories as { name?: string } | null;
+    const serviceName = (cat?.name ?? 'Service').trim();
+    const proName = ((proRowForQuote as { display_name?: string })?.display_name ?? 'Pro').trim();
+    const quoteResult = computeQuote(
+      {
+        id: booking.id,
+        customer_id: booking.customer_id,
+        pro_id: booking.pro_id,
+        service_date: booking.service_date,
+        service_time: booking.service_time,
+        address: booking.address,
+        price: booking.price,
+        status: booking.status,
+      },
+      proPricing,
+      serviceName,
+      proName
+    );
+    amountRemaining = quoteResult.quote.amountRemaining;
+    if (amountTotal <= 0) amountTotal = quoteResult.quote.amountTotal;
+  }
+
+  if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
+    return NextResponse.json(
+      { error: 'No remaining balance to pay' },
+      { status: 400 }
+    );
   }
 
   const { data: proRow } = await admin
