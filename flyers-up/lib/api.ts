@@ -1959,8 +1959,8 @@ export type UserBookingPreferences = {
 };
 
 export async function getUserBookingPreferences(userId: string): Promise<UserBookingPreferences> {
-  const { data, error } = await supabase.from('user_booking_preferences').select('*').eq('user_id', userId).single();
-  if (error) {
+  const { data, error } = await supabase.from('user_booking_preferences').select('*').eq('user_id', userId).maybeSingle();
+  if (error || !data) {
     // If missing row, return defaults
     return {
       preferredServiceSlugs: [],
@@ -2018,8 +2018,8 @@ export type UserSafetyPreferences = {
 };
 
 export async function getUserSafetyPreferences(userId: string): Promise<UserSafetyPreferences> {
-  const { data, error } = await supabase.from('user_safety_preferences').select('*').eq('user_id', userId).single();
-  if (error) {
+  const { data, error } = await supabase.from('user_safety_preferences').select('*').eq('user_id', userId).maybeSingle();
+  if (error || !data) {
     return { noContactService: false, petPresent: false, genderPreference: 'no_preference' };
   }
   return {
@@ -2059,8 +2059,8 @@ export type UserAppPreferences = {
 };
 
 export async function getUserAppPreferences(userId: string): Promise<UserAppPreferences> {
-  const { data, error } = await supabase.from('user_app_preferences').select('*').eq('user_id', userId).single();
-  if (error) {
+  const { data, error } = await supabase.from('user_app_preferences').select('*').eq('user_id', userId).maybeSingle();
+  if (error || !data) {
     return { darkMode: false, distanceUnits: 'miles', defaultMapView: 'map', locationEnabled: true };
   }
   return {

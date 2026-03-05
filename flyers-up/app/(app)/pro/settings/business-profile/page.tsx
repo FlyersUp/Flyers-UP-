@@ -61,31 +61,16 @@ export default function ProBusinessProfileSettingsPage() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [categorySlug, setCategorySlug] = useState<string | null>(null);
 
+  const [subcategories, setSubcategories] = useState<{ id: string; name: string }[]>([]);
+  const [subcategoriesLoading, setSubcategoriesLoading] = useState(false);
+
   const [servicesSelected, setServicesSelected] = useState<Set<string>>(new Set());
   const [customService, setCustomService] = useState('');
   const servicesOffered = useMemo(() => Array.from(servicesSelected.values()).sort((a, b) => a.localeCompare(b)), [servicesSelected]);
 
   const serviceOptions = useMemo((): string[] => {
-    const base: Record<string, string[]> = {
-      cleaning: ['Standard clean', 'Deep clean', 'Move-out clean', 'Carpet cleaning', 'Window cleaning', 'Laundry', 'Organizing'],
-      plumbing: ['Leak repair', 'Drain clog', 'Toilet repair', 'Faucet install', 'Water heater', 'Pipe replacement'],
-      handyman: ['Furniture assembly', 'TV mounting', 'Drywall patch', 'Door repair', 'Shelf install', 'Minor repairs'],
-      electrical: ['Outlet install', 'Light fixture', 'Ceiling fan', 'Breaker issue', 'Switch replacement'],
-      'lawn-care': ['Mowing', 'Edging', 'Weeding', 'Leaf cleanup', 'Hedge trimming', 'Mulch'],
-      painting: ['Interior paint', 'Exterior paint', 'Touch-ups', 'Cabinets'],
-      moving: ['Small move', 'Packing help', 'Furniture delivery', 'Haul away'],
-      barber: ['Haircut', 'Beard trim', 'Line-up'],
-      hvac: ['Maintenance', 'Repair', 'Filter replacement'],
-      roofing: ['Inspection', 'Repair', 'Gutter cleaning'],
-      landscaping: ['Planting', 'Design consult', 'Hardscape'],
-      'pest-control': ['Inspection', 'Treatment', 'Prevention plan'],
-      'carpet-cleaning': ['Room cleaning', 'Stain removal', 'Deodorize'],
-    };
-    const key = (categorySlug ?? '').trim().toLowerCase();
-    const opts = base[key];
-    if (opts && opts.length) return opts;
-    return ['Consultation', 'Standard service', 'Deep service', 'Repair', 'Install', 'Maintenance'];
-  }, [categorySlug]);
+    return subcategories.map((s) => s.name);
+  }, [subcategories]);
 
   function addCustomService() {
     const v = customService.trim();
@@ -201,6 +186,32 @@ export default function ProBusinessProfileSettingsPage() {
 
     void load();
   }, []);
+
+  useEffect(() => {
+    if (!categorySlug?.trim()) {
+      setSubcategories([]);
+      setSubcategoriesLoading(false);
+      return;
+    }
+    let mounted = true;
+    setSubcategoriesLoading(true);
+    fetch(`/api/marketplace/subcategories?serviceSlug=${encodeURIComponent(categorySlug.trim())}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!mounted) return;
+        const subs = Array.isArray(data?.subcategories) ? data.subcategories : [];
+        setSubcategories(subs.map((s: { id?: string; name?: string }) => ({ id: String(s?.id ?? ''), name: String(s?.name ?? '') })).filter((s) => s.name));
+      })
+      .catch(() => {
+        if (mounted) setSubcategories([]);
+      })
+      .finally(() => {
+        if (mounted) setSubcategoriesLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [categorySlug]);
 
   const canEdit = !loading && Boolean(userId);
 
@@ -525,8 +536,13 @@ export default function ProBusinessProfileSettingsPage() {
               <div className="space-y-3">
                 <div className="text-sm font-medium text-text">Services offered</div>
                 <div className="text-xs text-muted">
-                  Choose from a list based on your category{categorySlug ? ` (${categorySlug})` : ''}. You can also add a custom service.
+                  Choose from subcategories in your category{categorySlug ? ` (${categorySlug})` : ''}. You can also add a custom service.
                 </div>
+                {subcategoriesLoading ? (
+                  <p className="text-sm text-muted/70">Loading subcategories…</p>
+                ) : serviceOptions.length === 0 && !categorySlug ? (
+                  <p className="text-sm text-muted/70">Save your primary service category in the Public profile tab first, then subcategories will appear here.</p>
+                ) : null}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {serviceOptions.map((name) => {
                     const on = servicesSelected.has(name);
