@@ -2445,20 +2445,19 @@ export async function getNotificationSettings(userId: string): Promise<Notificat
       .from('user_notification_settings')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
-      // If no settings exist, return defaults
-      if (error.code === 'PGRST116') {
-        return {
-          new_booking: true,
-          job_status_updates: true,
-          messages: true,
-          marketing_emails: false,
-        };
-      }
       console.error('Error fetching notification settings:', error);
       return null;
+    }
+    if (!data) {
+      return {
+        new_booking: true,
+        job_status_updates: true,
+        messages: true,
+        marketing_emails: false,
+      };
     }
 
     return {
@@ -2488,10 +2487,9 @@ export async function getNotificationSettingsV2(userId: string): Promise<Notific
       .from('user_notification_settings')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
-    if (error) {
-      // Missing row => defaults
+    if (error || !data) {
       return fallback;
     }
 
@@ -2528,7 +2526,7 @@ export async function updateNotificationSettings(
       .from('user_notification_settings')
       .select('id')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       // Update existing
@@ -2591,7 +2589,7 @@ export async function updateNotificationSettingsV2(
       .from('user_notification_settings')
       .select('id')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (selectErr || !row) {
       const { error } = await supabase.from('user_notification_settings').insert({
