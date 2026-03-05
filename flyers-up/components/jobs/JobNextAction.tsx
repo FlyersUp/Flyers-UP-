@@ -6,9 +6,10 @@ import { getBookingById, type BookingDetails } from '@/lib/api';
 
 /** Next action button labels by current status */
 const NEXT_ACTION_LABELS: Record<Exclude<Status, 'BOOKED'>, string> = {
-  ACCEPTED: "I'm on my way",
-  ON_THE_WAY: 'Start work',
-  IN_PROGRESS: 'Mark as complete',
+  ACCEPTED: 'On My Way',
+  ON_THE_WAY: 'Arrived',
+  ARRIVED: 'Start Job',
+  IN_PROGRESS: 'Complete Job',
   COMPLETED: '',
   PAID: '',
 };

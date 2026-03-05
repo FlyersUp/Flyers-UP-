@@ -1,6 +1,6 @@
 'use client';
 
-import { Shield, FileCheck, Search, CreditCard } from 'lucide-react';
+import { Shield, FileCheck, Search, CreditCard, CheckCircle2, BadgeCheck } from 'lucide-react';
 import type { ProTrustInfo } from '@/lib/profileData';
 
 interface TrustBadgesRowProps {
@@ -35,34 +35,29 @@ export function TrustBadgesRow({ trust }: TrustBadgesRowProps) {
   const guidelinesStatus: BadgeStatus = trust.guidelinesAccepted ? 'verified' : 'not_started';
   const insuranceStatus: BadgeStatus = trust.insuranceDocPath ? 'verified' : 'not_started';
   const bgCheckStatus: BadgeStatus =
-    trust.backgroundCheckStatus === 'verified'
+    trust.backgroundChecked ?? (trust.backgroundCheckStatus === 'verified')
       ? 'verified'
       : trust.backgroundCheckStatus === 'pending'
         ? 'pending'
         : 'not_started';
 
-  const badges = [
-    {
+  const verifiedBadges = [
+    trust.identityVerified && { icon: CheckCircle2, label: 'Verified', status: 'verified' as BadgeStatus },
+    trust.backgroundChecked && { icon: Search, label: 'Background Checked', status: 'verified' as BadgeStatus },
+    trust.licensed && { icon: BadgeCheck, label: 'Licensed', status: 'verified' as BadgeStatus },
+    typeof trust.jobsCompleted === 'number' && trust.jobsCompleted >= 100 && {
       icon: Shield,
-      label: 'Guidelines accepted',
-      status: guidelinesStatus,
-    },
-    {
-      icon: FileCheck,
-      label: 'Insurance on file',
-      status: insuranceStatus,
-    },
-    {
-      icon: Search,
-      label: 'Background check',
-      status: bgCheckStatus,
-    },
-    {
-      icon: CreditCard,
-      label: 'Payments protected',
+      label: `${trust.jobsCompleted}+ Jobs`,
       status: 'verified' as BadgeStatus,
     },
+  ].filter(Boolean);
+  const standardBadges = [
+    { icon: Shield, label: 'Guidelines accepted', status: guidelinesStatus },
+    { icon: FileCheck, label: 'Insurance on file', status: insuranceStatus },
+    ...(!trust.backgroundChecked ? [{ icon: Search, label: 'Background check', status: bgCheckStatus }] : []),
+    { icon: CreditCard, label: 'Payments protected', status: 'verified' as BadgeStatus },
   ];
+  const badges = [...verifiedBadges, ...standardBadges] as Array<{ icon: typeof Shield; label: string; status: BadgeStatus }>;
 
   return (
     <div className="flex flex-wrap gap-3">

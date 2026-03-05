@@ -177,7 +177,7 @@ function getCustomerMenu(): MenuSection[] {
       items: [
         { label: 'Browse Services', href: '/customer/categories' },
         { label: 'Nearby Pros', href: '/customer/categories' },
-        { label: 'Favorites', href: '/customer/settings/booking-preferences' },
+        { label: 'Favorites', href: '/customer/favorites' },
       ],
     },
     {

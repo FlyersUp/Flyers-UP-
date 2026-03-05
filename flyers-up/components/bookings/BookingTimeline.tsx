@@ -17,6 +17,7 @@ export interface BookingTimelineProps {
     booked?: string;
     accepted?: string;
     onTheWay?: string;
+    arrived?: string;
     started?: string;
     completed?: string;
     paid?: string;
@@ -44,6 +45,7 @@ export function BookingTimeline({ status, timestamps, compact = false }: Booking
     BOOKED: timestamps.booked ?? timestamps.BOOKED,
     ACCEPTED: timestamps.accepted ?? timestamps.ACCEPTED,
     ON_THE_WAY: timestamps.onTheWay ?? timestamps.ON_THE_WAY,
+    ARRIVED: timestamps.arrived ?? timestamps.ARRIVED,
     IN_PROGRESS: timestamps.started ?? timestamps.IN_PROGRESS,
     COMPLETED: timestamps.completed ?? timestamps.COMPLETED,
     PAID: timestamps.paid ?? timestamps.PAID,

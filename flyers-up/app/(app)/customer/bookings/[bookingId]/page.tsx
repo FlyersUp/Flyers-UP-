@@ -128,6 +128,7 @@ async function getCustomerBooking(bookingId: string) {
     createdAt: booking.created_at,
     acceptedAt: booking.accepted_at ?? null,
     onTheWayAt: b.en_route_at ?? booking.on_the_way_at ?? null,
+    arrivedAt: (booking as { arrived_at?: string | null }).arrived_at ?? null,
     startedAt: booking.started_at ?? null,
     completedAt: booking.completed_at ?? null,
     cancelledAt: b.cancelled_at ?? null,

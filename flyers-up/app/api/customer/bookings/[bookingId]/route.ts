@@ -56,7 +56,7 @@ export async function GET(
       'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at, accepted_at, on_the_way_at, started_at, completed_at, cancelled_at, status_history';
     // Extended columns (migrations 031+) - may not exist if migrations not applied
     const EXTENDED_COLUMNS =
-      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_deposit, amount_remaining, amount_total, en_route_at';
+      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_deposit, amount_remaining, amount_total, en_route_at, arrived_at';
 
     let proIdForQuery: string | null = null;
     if (role === 'pro') {
@@ -168,6 +168,7 @@ export async function GET(
       amount_total?: number | null;
       en_route_at?: string | null;
       on_the_way_at?: string | null;
+      arrived_at?: string | null;
       cancelled_at?: string | null;
     };
 
@@ -203,6 +204,7 @@ export async function GET(
           acceptedAt: booking.accepted_at,
           onTheWayAt: b.en_route_at ?? booking.on_the_way_at,
           enRouteAt: b.en_route_at ?? booking.on_the_way_at,
+          arrivedAt: b.arrived_at ?? null,
           startedAt: booking.started_at,
           completedAt: booking.completed_at,
           cancelledAt: b.cancelled_at ?? null,

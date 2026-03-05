@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
   const categorySlug = searchParams.get('categorySlug') ?? '';
   const zip = searchParams.get('zip')?.trim() ?? '';
   const radiusMiles = Math.min(50, Math.max(0, parseInt(searchParams.get('radiusMiles') ?? '0', 10) || 0));
+  const availableToday = searchParams.get('availableToday') === '1' || searchParams.get('availableToday') === 'true';
 
   if (!categorySlug) {
     return Response.json({ ok: false, pros: [], error: 'categorySlug required' }, { status: 400 });
@@ -38,11 +39,15 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from('service_pros')
-    .select('id, user_id, display_name, bio, category_id, service_area_zip, rating, review_count, starting_price, location')
+    .select('id, user_id, display_name, bio, category_id, service_area_zip, rating, review_count, starting_price, location, same_day_available')
     .eq('category_id', category.id)
     .eq('available', true)
     .order('rating', { ascending: false })
     .limit(limit);
+
+  if (availableToday) {
+    query = query.eq('same_day_available', true);
+  }
 
   if (zip) {
     if (radiusMiles === 0) {
@@ -77,6 +82,7 @@ export async function GET(request: NextRequest) {
     startingPrice: Number(p.starting_price) ?? 0,
     location: p.location || p.service_area_zip || '',
     serviceAreaZip: p.service_area_zip ?? null,
+    sameDayAvailable: Boolean(p.same_day_available),
   }));
 
   return Response.json({ ok: true, pros, categoryName: category.name });

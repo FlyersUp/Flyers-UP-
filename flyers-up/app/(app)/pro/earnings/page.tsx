@@ -25,7 +25,7 @@ export default function Earnings() {
     if (typeof window === 'undefined') return null;
     return new URLSearchParams(window.location.search).get('connect');
   });
-  const [summary, setSummary] = useState<{ totalEarnings: number; thisMonth: number; completedJobs: number; pendingPayments: number } | null>(null);
+  const [summary, setSummary] = useState<{ totalEarnings: number; thisMonth: number; thisWeek: number; completedJobs: number; pendingPayments: number; avgRating: number | null } | null>(null);
   const [recent, setRecent] = useState<RecentEarning[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -85,23 +85,59 @@ export default function Earnings() {
         ) : null}
 
         {/* Summary */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <Card withRail>
+            <div className="text-center py-6">
+              {loading ? (
+                <div className="text-muted">Loading…</div>
+              ) : (
+                <>
+                  <div className="text-3xl font-bold text-text mb-1">
+                    {summary ? formatMoney(summary.thisWeek) : '$0'}
+                  </div>
+                  <div className="text-sm text-muted">This Week</div>
+                </>
+              )}
+            </div>
+          </Card>
+          <Card withRail>
+            <div className="text-center py-6">
+              {loading ? (
+                <div className="text-muted">Loading…</div>
+              ) : (
+                <>
+                  <div className="text-3xl font-bold text-text mb-1">
+                    {summary ? formatMoney(summary.thisMonth) : '$0'}
+                  </div>
+                  <div className="text-sm text-muted">This Month</div>
+                </>
+              )}
+            </div>
+          </Card>
+        </div>
         <Card withRail className="mb-6">
-          <div className="text-center py-6">
+          <div className="py-6 px-4">
             {loading ? (
               <div className="text-muted">Loading…</div>
             ) : (
-              <>
-                <div className="text-4xl font-bold text-text mb-2">
-                  {summary ? formatMoney(summary.thisMonth) : '$0'}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-text">{summary ? formatMoney(summary.totalEarnings) : '$0'}</div>
+                  <div className="text-xs text-muted">Total Earned</div>
                 </div>
-                <div className="text-muted mb-4">Total Earnings (This Month)</div>
-                <div className="text-sm text-muted/70 space-y-1">
-                  {summary && summary.pendingPayments > 0 && (
-                    <div>Pending (awaiting customer payment): <span className="font-semibold text-text">{formatMoney(summary.pendingPayments)}</span></div>
-                  )}
-                  <div>Total earned (all time): <span className="font-semibold text-accent">{summary ? formatMoney(summary.totalEarnings) : '$0'}</span></div>
+                <div>
+                  <div className="text-2xl font-bold text-text">{summary?.completedJobs ?? 0}</div>
+                  <div className="text-xs text-muted">Completed Jobs</div>
                 </div>
-              </>
+                <div>
+                  <div className="text-2xl font-bold text-text">{summary?.avgRating != null ? summary.avgRating.toFixed(1) : '—'}</div>
+                  <div className="text-xs text-muted">Avg Rating</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-text">{summary && summary.pendingPayments > 0 ? formatMoney(summary.pendingPayments) : '$0'}</div>
+                  <div className="text-xs text-muted">Pending</div>
+                </div>
+              </div>
             )}
           </div>
         </Card>

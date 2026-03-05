@@ -31,11 +31,15 @@ interface BookingFormProps {
   pro: ServicePro;
   /** Pre-select subcategory when coming from marketplace (e.g. ?subcategorySlug=30-min-walk) */
   initialSubcategorySlug?: string;
+  /** Pre-fill address (e.g. from Rebook Same Pro) */
+  initialAddress?: string;
+  /** Pre-fill notes (e.g. from Rebook Same Pro) */
+  initialNotes?: string;
   /** Force Quick Rules sheet to show (for testing) */
   forceQuickRules?: boolean;
 }
 
-export default function BookingForm({ pro, initialSubcategorySlug, forceQuickRules }: BookingFormProps) {
+export default function BookingForm({ pro, initialSubcategorySlug, initialAddress, initialNotes, forceQuickRules }: BookingFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,8 +51,8 @@ export default function BookingForm({ pro, initialSubcategorySlug, forceQuickRul
   const [formData, setFormData] = useState({
     date: '',
     time: '',
-    address: '',
-    notes: '',
+    address: initialAddress ?? '',
+    notes: initialNotes ?? '',
     subcategoryId: '' as string,
   });
 

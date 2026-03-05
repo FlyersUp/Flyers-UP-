@@ -12,6 +12,7 @@ export type Status =
   | 'BOOKED'
   | 'ACCEPTED'
   | 'ON_THE_WAY'
+  | 'ARRIVED'
   | 'IN_PROGRESS'
   | 'COMPLETED'
   | 'PAID';
@@ -21,6 +22,7 @@ export const DB_STATUS_ORDER: string[] = [
   'requested',
   'accepted',
   'pro_en_route',
+  'arrived',
   'in_progress',
   'awaiting_remaining_payment',
 ];
@@ -30,32 +32,34 @@ export const STATUS_ORDER: Status[] = [
   'BOOKED',
   'ACCEPTED',
   'ON_THE_WAY',
+  'ARRIVED',
   'IN_PROGRESS',
   'COMPLETED',
   'PAID',
 ];
 
-/** Human-readable labels per stage. */
+/** Human-readable labels per stage (customer-facing). */
 export const STATUS_LABELS: Record<Status, string> = {
-  BOOKED: 'Booked',
+  BOOKED: 'Requested',
   ACCEPTED: 'Accepted',
   ON_THE_WAY: 'On the Way',
-  IN_PROGRESS: 'In Progress',
+  ARRIVED: 'Arrived',
+  IN_PROGRESS: 'Working',
   COMPLETED: 'Completed',
   PAID: 'Paid',
 };
 
 export type StageState = 'done' | 'active' | 'upcoming';
 
-/** Next status in API format (ACCEPTED | ON_THE_WAY | IN_PROGRESS | COMPLETED). */
-export type NextStatusAction = 'ACCEPTED' | 'ON_THE_WAY' | 'IN_PROGRESS' | 'COMPLETED';
+/** Next status in API format (ACCEPTED | ON_THE_WAY | ARRIVED | IN_PROGRESS | COMPLETED). */
+export type NextStatusAction = 'ACCEPTED' | 'ON_THE_WAY' | 'ARRIVED' | 'IN_PROGRESS' | 'COMPLETED';
 
 /**
  * Returns the next DB status in the progression, or null if at end.
- * Treats 'pending' as equivalent to 'requested'.
+ * Treats 'pending' as equivalent to 'requested'. Maps on_the_way -> pro_en_route.
  */
 export function getNextDbStatus(currentDbStatus: string): string | null {
-  const s = currentDbStatus === 'pending' ? 'requested' : currentDbStatus;
+  const s = currentDbStatus === 'pending' ? 'requested' : currentDbStatus === 'on_the_way' ? 'pro_en_route' : currentDbStatus;
   const idx = DB_STATUS_ORDER.indexOf(s);
   if (idx < 0 || idx >= DB_STATUS_ORDER.length - 1) return null;
   return DB_STATUS_ORDER[idx + 1];
@@ -79,12 +83,13 @@ export function isValidTransition(currentDbStatus: string, nextDbStatus: string)
 }
 
 /**
- * Maps API nextStatus (ACCEPTED|ON_THE_WAY|IN_PROGRESS|COMPLETED) to DB status.
+ * Maps API nextStatus (ACCEPTED|ON_THE_WAY|ARRIVED|IN_PROGRESS|COMPLETED) to DB status.
  */
 export function apiNextStatusToDb(apiStatus: NextStatusAction): string {
   const map: Record<NextStatusAction, string> = {
     ACCEPTED: 'accepted',
     ON_THE_WAY: 'pro_en_route',
+    ARRIVED: 'arrived',
     IN_PROGRESS: 'in_progress',
     COMPLETED: 'awaiting_remaining_payment',
   };
@@ -117,6 +122,8 @@ export function mapDbStatusToTimeline(dbStatus: string): Status {
     case 'pro_en_route':
     case 'on_the_way':
       return 'ON_THE_WAY';
+    case 'arrived':
+      return 'ARRIVED';
     case 'in_progress':
       return 'IN_PROGRESS';
     case 'completed_pending_payment':
@@ -124,6 +131,7 @@ export function mapDbStatusToTimeline(dbStatus: string): Status {
     case 'awaiting_remaining_payment':
     case 'awaiting_customer_confirmation':
     case 'completed':
+    case 'review_pending':
     case 'paid':
       return 'COMPLETED';
     default:
@@ -137,6 +145,7 @@ export interface BookingTimestamps {
   acceptedAt?: string | null;
   onTheWayAt?: string | null;
   enRouteAt?: string | null;
+  arrivedAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
   paidAt?: string | null;
@@ -147,17 +156,18 @@ export interface BookingTimestamps {
 export function buildTimestampsFromBooking(
   createdAt: string,
   statusHistory?: { status: string; at: string }[],
-  dedicated?: { acceptedAt?: string | null; onTheWayAt?: string | null; enRouteAt?: string | null; startedAt?: string | null; completedAt?: string | null; paidAt?: string | null }
+  dedicated?: { acceptedAt?: string | null; onTheWayAt?: string | null; enRouteAt?: string | null; arrivedAt?: string | null; startedAt?: string | null; completedAt?: string | null; paidAt?: string | null }
 ): Partial<Record<Status, string>> {
   const out: Partial<Record<Status, string>> = {};
   out.BOOKED = createdAt;
   if (dedicated?.acceptedAt) out.ACCEPTED = dedicated.acceptedAt;
   const enRoute = dedicated?.enRouteAt ?? dedicated?.onTheWayAt;
   if (enRoute) out.ON_THE_WAY = enRoute;
+  if (dedicated?.arrivedAt) out.ARRIVED = dedicated.arrivedAt;
   if (dedicated?.startedAt) out.IN_PROGRESS = dedicated.startedAt;
   if (dedicated?.completedAt) out.COMPLETED = dedicated.completedAt;
   if (dedicated?.paidAt) out.PAID = dedicated.paidAt;
-  if (statusHistory?.length && Object.keys(out).length < 5) {
+  if (statusHistory?.length && Object.keys(out).length < 6) {
     for (const { status, at } of statusHistory) {
       const s = mapDbStatusToTimeline(status);
       if (!out[s]) out[s] = at;

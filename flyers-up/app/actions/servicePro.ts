@@ -41,6 +41,7 @@ export async function updateMyServiceProAction(
     if (params.services_offered !== undefined) updateData.services_offered = params.services_offered;
     if (params.certifications !== undefined) updateData.certifications = params.certifications;
     if (params.service_types !== undefined) updateData.service_types = params.service_types;
+    if (params.same_day_available !== undefined) updateData.same_day_available = params.same_day_available;
 
     // Prefer admin client (service role). Fall back to authed client (RLS) when missing.
     const writer =

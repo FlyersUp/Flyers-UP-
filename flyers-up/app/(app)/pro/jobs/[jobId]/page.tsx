@@ -141,6 +141,7 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
                 {
                   acceptedAt: booking.acceptedAt,
                   onTheWayAt: booking.onTheWayAt,
+                  arrivedAt: booking.arrivedAt,
                   startedAt: booking.startedAt,
                   completedAt: booking.completedAt,
                 }

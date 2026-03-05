@@ -11,6 +11,7 @@ export interface BookingProgressTimelineProps {
   acceptedAt?: string | null;
   onTheWayAt?: string | null;
   enRouteAt?: string | null;
+  arrivedAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
   paidAt?: string | null;
@@ -23,6 +24,7 @@ export function BookingProgressTimeline({
   acceptedAt,
   onTheWayAt,
   enRouteAt,
+  arrivedAt,
   startedAt,
   completedAt,
   paidAt,
@@ -32,6 +34,7 @@ export function BookingProgressTimeline({
     acceptedAt,
     onTheWayAt: onTheWayAt ?? enRouteAt,
     enRouteAt: enRouteAt ?? onTheWayAt,
+    arrivedAt,
     startedAt,
     completedAt,
     paidAt,
@@ -45,6 +48,7 @@ export function BookingProgressTimeline({
           booked: timestamps.BOOKED,
           accepted: timestamps.ACCEPTED,
           onTheWay: timestamps.ON_THE_WAY,
+          arrived: timestamps.ARRIVED,
           started: timestamps.IN_PROGRESS,
           completed: timestamps.COMPLETED,
           paid: timestamps.PAID,

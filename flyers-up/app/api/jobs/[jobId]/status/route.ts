@@ -34,6 +34,7 @@ export const dynamic = 'force-dynamic';
 const VALID_NEXT_STATUSES: NextStatusAction[] = [
   'ACCEPTED',
   'ON_THE_WAY',
+  'ARRIVED',
   'IN_PROGRESS',
   'COMPLETED',
 ];
@@ -166,6 +167,7 @@ export async function PATCH(
 
     if (nextDbStatus === 'accepted') update.accepted_at = now;
     else if (nextDbStatus === 'pro_en_route') update.en_route_at = now;
+    else if (nextDbStatus === 'arrived') update.arrived_at = now;
     else if (nextDbStatus === 'in_progress') update.started_at = now;
     else if (nextDbStatus === 'awaiting_remaining_payment') {
       const nowDate = new Date();
@@ -197,7 +199,8 @@ export async function PATCH(
           status_updated_by: update.status_updated_by,
         };
         if (nextDbStatus === 'accepted') minimalUpdate.accepted_at = now;
-        else if (nextDbStatus === 'pro_en_route') minimalUpdate.on_the_way_at = now; // on_the_way_at from migration 028
+        else if (nextDbStatus === 'pro_en_route') minimalUpdate.on_the_way_at = now;
+        else if (nextDbStatus === 'arrived') minimalUpdate.arrived_at = now;
         else if (nextDbStatus === 'in_progress') minimalUpdate.started_at = now;
         else if (nextDbStatus === 'awaiting_remaining_payment') minimalUpdate.completed_at = now;
         result = await admin
@@ -240,6 +243,7 @@ export async function PATCH(
     if (customerId) {
       const statusMessages: Record<string, { title: string; body: string }> = {
         pro_en_route: { title: 'Pro is on the way', body: 'Your pro is heading to your location.' },
+        arrived: { title: 'Pro arrived', body: 'Your pro has arrived at your location.' },
         in_progress: { title: 'Job started', body: 'Your pro has started the job.' },
         awaiting_remaining_payment: { title: 'Pro finished', body: 'Pro finished — pay remaining to confirm' },
       };
@@ -319,8 +323,9 @@ function getAllowedNext(current: string): NextStatusAction | null {
     requested: 'ACCEPTED',
     pending: 'ACCEPTED',
     accepted: 'ON_THE_WAY',
-    pro_en_route: 'IN_PROGRESS',
-    on_the_way: 'IN_PROGRESS',
+    pro_en_route: 'ARRIVED',
+    on_the_way: 'ARRIVED',
+    arrived: 'IN_PROGRESS',
     in_progress: 'COMPLETED',
   };
   return map[current] ?? null;

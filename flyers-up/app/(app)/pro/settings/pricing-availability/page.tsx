@@ -206,6 +206,7 @@ export default function ProPricingAvailabilitySettingsPage() {
         {
           service_radius: sr,
           business_hours: stringifyBusinessHoursModel({ version: 1, weekly }),
+          same_day_available: sameDayBookings,
         },
         accessToken
       ),

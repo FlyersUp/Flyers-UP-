@@ -22,6 +22,9 @@ export default function BookingPage() {
   const searchParams = useSearchParams();
   const proId = params.proId as string;
   const subcategorySlug = searchParams.get('subcategorySlug')?.trim() ?? undefined;
+  const address = searchParams.get('address')?.trim() ?? undefined;
+  const notes = searchParams.get('notes')?.trim() ?? undefined;
+  const service = searchParams.get('service')?.trim() ?? undefined;
   
   const [pro, setPro] = useState<ServicePro | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -108,7 +111,12 @@ export default function BookingPage() {
           <h2 className="font-semibold text-text mb-4">
             Booking Details
           </h2>
-          <BookingForm pro={pro} initialSubcategorySlug={subcategorySlug} />
+          <BookingForm
+            pro={pro}
+            initialSubcategorySlug={subcategorySlug}
+            initialAddress={address}
+            initialNotes={notes}
+          />
         </div>
 
         {/* Rules accordion */}

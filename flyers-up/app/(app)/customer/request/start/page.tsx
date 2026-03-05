@@ -32,6 +32,7 @@ function CustomerRequestStartInner() {
   const [categoryName, setCategoryName] = useState('');
   const [zip, setZip] = useState('');
   const [radiusMiles, setRadiusMiles] = useState(10);
+  const [availableToday, setAvailableToday] = useState(false);
   const [pros, setPros] = useState<ProRow[]>([]);
   const [loadingPros, setLoadingPros] = useState(false);
   const [firstName, setFirstName] = useState('');
@@ -57,14 +58,19 @@ function CustomerRequestStartInner() {
   const canGoToZip = categorySlug.trim().length > 0;
   const canLoadPros = zip.trim().length >= 3;
 
-  async function loadPros() {
+  async function loadPros(overrideAvailableToday?: boolean) {
     if (!canLoadPros || !categorySlug) return;
     setLoadingPros(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/customer/pros?categorySlug=${encodeURIComponent(categorySlug)}&zip=${encodeURIComponent(zip.trim())}&radiusMiles=${radiusMiles}`
-      );
+      const params = new URLSearchParams({
+        categorySlug,
+        zip: zip.trim(),
+        radiusMiles: String(radiusMiles),
+      });
+      const useAvailableToday = overrideAvailableToday ?? availableToday;
+      if (useAvailableToday) params.set('availableToday', '1');
+      const res = await fetch(`/api/customer/pros?${params}`);
       const json = await res.json();
       if (!json.ok) {
         setPros([]);
@@ -205,6 +211,15 @@ function CustomerRequestStartInner() {
               <option value={25}>Within 25 miles</option>
               <option value={50}>Wider search (50+ miles)</option>
             </select>
+            <label className="flex items-center gap-2 mt-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={availableToday}
+                onChange={(e) => setAvailableToday(e.target.checked)}
+                className="rounded border-border accent-[#B2FBA5]"
+              />
+              <span className="text-sm text-text">Available Today</span>
+            </label>
             <button
               type="button"
               disabled={!canLoadPros || loadingPros}
@@ -222,6 +237,20 @@ function CustomerRequestStartInner() {
               <button type="button" onClick={() => setStep('zip')} className="text-sm text-muted hover:text-text">
                 ← Change zip
               </button>
+              <span className="text-muted">|</span>
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={availableToday}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setAvailableToday(checked);
+                    void loadPros(checked);
+                  }}
+                  className="rounded border-border accent-[#B2FBA5]"
+                />
+                <span className="text-muted">Available Today</span>
+              </label>
               <span className="text-muted">|</span>
               <label className="text-sm text-muted">Radius:</label>
               <select

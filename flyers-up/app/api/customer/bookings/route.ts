@@ -79,13 +79,25 @@ export async function GET(req: Request) {
       new Set(rows.map((b) => normalizeUuidOrNull(b.pro_id)).filter((v): v is string => Boolean(v)))
     );
 
-    const proById = new Map<string, { displayName: string | null }>();
+    const proById = new Map<string, { displayName: string | null; logoUrl?: string | null; serviceName?: string | null }>();
     if (proIds.length > 0) {
-      const { data: pros } = await admin.from('service_pros').select('id, display_name').in('id', proIds);
+      const { data: pros } = await admin.from('service_pros').select('id, display_name, logo_url, category_id').in('id', proIds);
+      const catIds = Array.from(new Set((pros ?? []).map((p: any) => p?.category_id).filter(Boolean)));
+      const catById = new Map<string, string>();
+      if (catIds.length > 0) {
+        const { data: cats } = await admin.from('service_categories').select('id, name').in('id', catIds);
+        (cats ?? []).forEach((c: any) => {
+          if (c?.id) catById.set(c.id, c.name || 'Service');
+        });
+      }
       (pros ?? []).forEach((p: any) => {
         const id = normalizeUuidOrNull(p?.id);
         if (!id) return;
-        proById.set(id, { displayName: typeof p.display_name === 'string' ? p.display_name : null });
+        proById.set(id, {
+          displayName: typeof p.display_name === 'string' ? p.display_name : null,
+          logoUrl: p.logo_url ?? null,
+          serviceName: p.category_id ? (catById.get(p.category_id) ?? 'Service') : 'Service',
+        });
       });
     }
 

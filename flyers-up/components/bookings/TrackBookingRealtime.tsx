@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 
 export interface TrackBookingData {
   id: string;
+  proId?: string | null;
   status: string;
   paymentStatus?: string;
   paidAt?: string | null;
@@ -26,6 +27,7 @@ export interface TrackBookingData {
   acceptedAt?: string | null;
   onTheWayAt?: string | null;
   enRouteAt?: string | null;
+  arrivedAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
   statusHistory?: { status: string; at: string }[];

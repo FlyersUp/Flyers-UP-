@@ -115,6 +115,7 @@ export interface BookingDetails {
   /** Job progress timestamps */
   acceptedAt?: string | null;
   onTheWayAt?: string | null;
+  arrivedAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
   statusHistory?: StatusHistoryEntry[];
@@ -184,8 +185,10 @@ export interface CreateBookingPayload {
 export interface EarningsSummary {
   totalEarnings: number;
   thisMonth: number;
+  thisWeek?: number;
   completedJobs: number;
   pendingPayments: number;
+  avgRating?: number | null;
 }
 
 // If the Supabase DB is missing our RPC migrations, calling the RPC will 404.
@@ -955,7 +958,8 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       proName: (data.service_pros as { display_name?: string })?.display_name,
       proUserId: (data.service_pros as { user_id?: string })?.user_id,
       acceptedAt: data.accepted_at ?? null,
-      onTheWayAt: data.on_the_way_at ?? null,
+      onTheWayAt: (d.en_route_at ?? data.on_the_way_at) ?? null,
+      arrivedAt: d.arrived_at ?? null,
       startedAt: data.started_at ?? null,
       completedAt: data.completed_at ?? null,
       statusHistory: data.status_history as StatusHistoryEntry[] | undefined,
@@ -1320,16 +1324,21 @@ export async function getProEarnings(proUserId: string): Promise<EarningsSummary
       .maybeSingle();
 
     if (proErr || !proRow?.id) {
-      return { totalEarnings: 0, thisMonth: 0, completedJobs: 0, pendingPayments: 0 };
+      return { totalEarnings: 0, thisMonth: 0, thisWeek: 0, completedJobs: 0, pendingPayments: 0, avgRating: null };
     }
 
     const proId = proRow.id as string;
     const monthStartIso = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    const weekStartIso = weekStart.toISOString();
 
     // Prefer pro_earnings if available.
-    const [totalEarningsRes, thisMonthRes] = await Promise.all([
+    const [totalEarningsRes, thisMonthRes, thisWeekRes] = await Promise.all([
       supabase.from('pro_earnings').select('amount').eq('pro_id', proId),
       supabase.from('pro_earnings').select('amount').eq('pro_id', proId).gte('created_at', monthStartIso),
+      supabase.from('pro_earnings').select('amount').eq('pro_id', proId).gte('created_at', weekStartIso),
     ]);
 
     const totalEarnings = Array.isArray(totalEarningsRes.data)
@@ -1338,28 +1347,28 @@ export async function getProEarnings(proUserId: string): Promise<EarningsSummary
     const thisMonth = Array.isArray(thisMonthRes.data)
       ? thisMonthRes.data.reduce((sum, row: any) => sum + Number(row.amount ?? 0), 0)
       : 0;
-
-    // Completed jobs and pending payments from bookings (source of truth for status).
-    const { data: completedBookings } = await supabase
-      .from('bookings')
-      .select('id')
-      .eq('pro_id', proId)
-      .eq('status', 'completed');
-
-    const { data: pendingBookings } = await supabase
-      .from('bookings')
-      .select('price')
-      .eq('pro_id', proId)
-      .in('status', ['requested', 'accepted', 'awaiting_payment']);
-
-    const completedJobs = Array.isArray(completedBookings) ? completedBookings.length : 0;
-    const pendingPayments = Array.isArray(pendingBookings)
-      ? pendingBookings.reduce((sum, row: any) => sum + Number(row.price ?? 0), 0)
+    const thisWeek = Array.isArray(thisWeekRes.data)
+      ? thisWeekRes.data.reduce((sum, row: any) => sum + Number(row.amount ?? 0), 0)
       : 0;
 
-    return { totalEarnings, thisMonth, completedJobs, pendingPayments };
+    // Completed jobs, pending payments, and avg rating from bookings/service_pros.
+    const [completedBookingsRes, pendingBookingsRes, proRatingRes] = await Promise.all([
+      supabase.from('bookings').select('id').eq('pro_id', proId).in('status', ['completed', 'paid', 'awaiting_customer_confirmation']),
+      supabase.from('bookings').select('price').eq('pro_id', proId).in('status', ['requested', 'accepted', 'awaiting_payment']),
+      supabase.from('service_pros').select('rating').eq('id', proId).maybeSingle(),
+    ]);
+
+    const completedJobs = Array.isArray(completedBookingsRes.data) ? completedBookingsRes.data.length : 0;
+    const pendingPayments = Array.isArray(pendingBookingsRes.data)
+      ? pendingBookingsRes.data.reduce((sum, row: any) => sum + Number(row.price ?? 0), 0)
+      : 0;
+    const avgRating = typeof (proRatingRes.data as { rating?: number })?.rating === 'number'
+      ? Number((proRatingRes.data as { rating: number }).rating)
+      : null;
+
+    return { totalEarnings, thisMonth, thisWeek, completedJobs, pendingPayments, avgRating };
   } catch {
-    return { totalEarnings: 0, thisMonth: 0, completedJobs: 0, pendingPayments: 0 };
+    return { totalEarnings: 0, thisMonth: 0, thisWeek: 0, completedJobs: 0, pendingPayments: 0, avgRating: null };
   }
 }
 
@@ -2355,6 +2364,7 @@ export interface UpdateServiceProParams {
   services_offered?: string[];
   certifications?: unknown[];
   service_types?: unknown[];
+  same_day_available?: boolean;
 }
 
 export async function updateServicePro(

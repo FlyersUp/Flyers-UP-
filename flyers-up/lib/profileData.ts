@@ -50,6 +50,10 @@ export type ProTrustInfo = {
   guidelinesAccepted: boolean;
   insuranceDocPath: string | null;
   backgroundCheckStatus: string;
+  identityVerified?: boolean;
+  backgroundChecked?: boolean;
+  licensed?: boolean;
+  jobsCompleted?: number;
 };
 
 export type PublicProProfileModel = {
@@ -176,7 +180,7 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
   const { data: pro, error: proErr } = await admin
     .from('service_pros')
     .select(
-      'id, user_id, display_name, bio, category_id, location, service_radius, years_experience, rating, review_count, available, business_hours, logo_url, service_descriptions, before_after_photos, services_offered, certifications, created_at'
+      'id, user_id, display_name, bio, category_id, location, service_radius, years_experience, rating, review_count, available, business_hours, logo_url, service_descriptions, before_after_photos, services_offered, certifications, created_at, identity_verified, background_checked, licensed, jobs_completed'
     )
     .eq('id', proId)
     .maybeSingle();
@@ -224,6 +228,7 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
         ? (pro as any).service_radius
         : null;
 
+  const jobsFromPro = typeof (pro as any).jobs_completed === 'number' ? (pro as any).jobs_completed : null;
   const model: PublicProProfileModel = {
     id: String((pro as any).id),
     userId,
@@ -240,7 +245,7 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
     yearsActive: typeof (pro as any).years_experience === 'number' ? (pro as any).years_experience : null,
     businessHours: safeText((pro as any).business_hours),
     stats: {
-      jobsCompleted: typeof jobsCompletedCount === 'number' ? jobsCompletedCount : null,
+      jobsCompleted: jobsFromPro ?? (typeof jobsCompletedCount === 'number' ? jobsCompletedCount : null),
       avgRating: typeof (pro as any).rating === 'number' ? Number((pro as any).rating) : null,
       reviewCount: typeof (pro as any).review_count === 'number' ? Number((pro as any).review_count) : null,
       responseTimeMedian: null,
@@ -272,6 +277,10 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
         typeof ss?.background_check_status === 'string'
           ? (ss.background_check_status as string)
           : 'not_started',
+      identityVerified: Boolean((pro as any).identity_verified),
+      backgroundChecked: Boolean((pro as any).background_checked),
+      licensed: Boolean((pro as any).licensed),
+      jobsCompleted: jobsFromPro ?? undefined,
     },
   };
 

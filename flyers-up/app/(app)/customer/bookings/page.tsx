@@ -112,12 +112,21 @@ function CustomerBookingsContent() {
                   : 'Cancelled bookings will appear here.'}
             </p>
             {activeTab === 'active' && (
-              <Link
-                href="/customer/categories"
-                className="mt-4 inline-block text-sm font-medium text-text hover:underline"
-              >
-                Browse services
-              </Link>
+              <>
+                <Link
+                  href="/customer/categories"
+                  className="mt-4 inline-block text-sm font-medium text-text hover:underline"
+                >
+                  Browse services
+                </Link>
+                <span className="mx-2 text-muted">·</span>
+                <Link
+                  href="/customer/bookings/history"
+                  className="mt-4 inline-block text-sm font-medium text-text hover:underline"
+                >
+                  View history
+                </Link>
+              </>
             )}
           </div>
         ) : (

@@ -78,7 +78,101 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 3) Remaining: overdue (remaining_due_at < now)
+  // 3) Booking reminders: 24h and 1h before service
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const in1h = new Date(now.getTime() + 60 * 60 * 1000);
+  const in25h = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+  const in2h = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+
+  const { data: upcoming24h } = await admin
+    .from('bookings')
+    .select('id, customer_id, pro_id, service_date, service_time, service_pros(user_id)')
+    .in('status', ['accepted', 'pro_en_route', 'on_the_way', 'arrived', 'in_progress', 'deposit_paid'])
+    .gte('service_date', now.toISOString().slice(0, 10))
+    .lte('service_date', in24h.toISOString().slice(0, 10));
+
+  for (const b of upcoming24h ?? []) {
+    const svcDate = (b as { service_date?: string }).service_date;
+    const svcTime = (b as { service_time?: string }).service_time;
+    const dt = svcDate && svcTime ? new Date(`${svcDate}T${svcTime}`) : null;
+    if (!dt || Number.isNaN(dt.getTime())) continue;
+    const diffHours = (dt.getTime() - now.getTime()) / (60 * 60 * 1000);
+    if (diffHours < 23 || diffHours > 25) continue;
+
+    const { data: recent } = await admin
+      .from('booking_events')
+      .select('id')
+      .eq('booking_id', b.id)
+      .eq('type', 'BOOKING_REMINDER_24H')
+      .limit(1);
+    if (recent?.length) continue;
+
+    await admin.from('booking_events').insert({ booking_id: b.id, type: 'BOOKING_REMINDER_24H', data: {} });
+    await createNotification({
+      userId: (b as { customer_id?: string }).customer_id,
+      bookingId: b.id,
+      type: 'booking_reminder',
+      title: 'Booking tomorrow',
+      body: 'Your booking is scheduled for tomorrow. Get ready!',
+    });
+    const proUserId = (b.service_pros as { user_id?: string })?.user_id;
+    if (proUserId) {
+      await createNotification({
+        userId: proUserId,
+        bookingId: b.id,
+        type: 'booking_reminder',
+        title: 'Job tomorrow',
+        body: 'You have a job scheduled for tomorrow.',
+      });
+    }
+    sent++;
+  }
+
+  const { data: upcoming1h } = await admin
+    .from('bookings')
+    .select('id, customer_id, pro_id, service_pros(user_id)')
+    .in('status', ['accepted', 'pro_en_route', 'on_the_way', 'arrived', 'in_progress', 'deposit_paid'])
+    .gte('service_date', now.toISOString().slice(0, 10))
+    .lte('service_date', in2h.toISOString().slice(0, 10));
+
+  for (const b of upcoming1h ?? []) {
+    const svcDate = (b as { service_date?: string }).service_date;
+    const svcTime = (b as { service_time?: string }).service_time;
+    const dt = svcDate && svcTime ? new Date(`${svcDate}T${svcTime}`) : null;
+    if (!dt || Number.isNaN(dt.getTime())) continue;
+    const diffMins = (dt.getTime() - now.getTime()) / (60 * 1000);
+    if (diffMins < 55 || diffMins > 65) continue;
+
+    const { data: recent } = await admin
+      .from('booking_events')
+      .select('id')
+      .eq('booking_id', b.id)
+      .eq('type', 'BOOKING_REMINDER_1H')
+      .limit(1);
+    if (recent?.length) continue;
+
+    await admin.from('booking_events').insert({ booking_id: b.id, type: 'BOOKING_REMINDER_1H', data: {} });
+    await createNotification({
+      userId: (b as { customer_id?: string }).customer_id,
+      bookingId: b.id,
+      type: 'booking_reminder',
+      title: 'Booking in 1 hour',
+      body: 'Your booking starts in about an hour.',
+    });
+    const proUserId = (b.service_pros as { user_id?: string })?.user_id;
+    if (proUserId) {
+      await createNotification({
+        userId: proUserId,
+        bookingId: b.id,
+        type: 'booking_reminder',
+        title: 'Job in 1 hour',
+        body: 'Your job starts in about an hour.',
+      });
+    }
+    sent++;
+  }
+
+  // 4) Remaining: overdue (remaining_due_at < now)
   const { data: remainingOverdue, error: e3 } = await admin
     .from('bookings')
     .select('id, customer_id')

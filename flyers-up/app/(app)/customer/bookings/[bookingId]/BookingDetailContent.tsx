@@ -16,6 +16,7 @@ import { BookingActionsBar } from '@/components/bookings/customer/BookingActions
 
 export interface BookingDetailData {
   id: string;
+  proId?: string | null;
   status: string;
   paymentStatus?: string;
   paidAt?: string | null;
@@ -36,6 +37,7 @@ export interface BookingDetailData {
   acceptedAt?: string | null;
   onTheWayAt?: string | null;
   enRouteAt?: string | null;
+  arrivedAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
   statusHistory?: { status: string; at: string }[];
@@ -69,6 +71,7 @@ function getLatestTimestamp(status: string, data: TrackBookingData): string | nu
 function toTrackBookingData(b: BookingDetailData): TrackBookingData {
   return {
     id: b.id,
+    proId: b.proId,
     status: b.status,
     paymentStatus: b.paymentStatus,
     paidAt: b.paidAt,
@@ -89,6 +92,7 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     acceptedAt: b.acceptedAt,
     onTheWayAt: b.onTheWayAt ?? b.enRouteAt,
     enRouteAt: b.enRouteAt ?? b.onTheWayAt,
+    arrivedAt: b.arrivedAt,
     startedAt: b.startedAt,
     completedAt: b.completedAt,
     statusHistory: b.statusHistory,
@@ -254,6 +258,7 @@ export function BookingDetailContent({
                 acceptedAt={booking.acceptedAt}
                 onTheWayAt={booking.onTheWayAt}
                 enRouteAt={(booking as { enRouteAt?: string | null }).enRouteAt}
+                arrivedAt={(booking as { arrivedAt?: string | null }).arrivedAt}
                 startedAt={booking.startedAt}
                 completedAt={booking.completedAt}
                 paidAt={booking.paidAt}
@@ -268,7 +273,44 @@ export function BookingDetailContent({
               />
             </section>
 
-            {/* F) Service details (collapsible) */}
+            {/* F) Need Help */}
+            <section className="mb-6">
+              <h2 className="text-base font-semibold text-text mb-4">Need Help</h2>
+              <div className="rounded-2xl border border-black/5 p-4 space-y-2" style={{ backgroundColor: '#FAF8F6' }}>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { type: 'pro_late', label: 'Pro is late' },
+                    { type: 'work_incomplete', label: 'Work incomplete' },
+                    { type: 'wrong_service', label: 'Wrong service' },
+                    { type: 'contact_support', label: 'Contact Support' },
+                  ].map(({ type, label }) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/bookings/${bookingId}/issues`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ issueType: type }),
+                          });
+                          if (res.ok) {
+                            alert('Thanks for reporting. We\'ll look into it.');
+                          }
+                        } catch {
+                          alert('Could not submit. Please try again.');
+                        }
+                      }}
+                      className="px-4 py-2 rounded-lg text-sm font-medium border border-black/10 bg-white hover:bg-black/[0.03] transition-colors"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* G) Service details (collapsible) */}
             {(hasAddressOrNotes || booking.id) && (
               <section className="mb-6">
                 <h2 className="text-base font-semibold text-text mb-4">Service details</h2>
@@ -315,13 +357,17 @@ export function BookingDetailContent({
               <BookingEventsAccordion bookingId={bookingId} />
             </div>
 
-            {/* G) Actions */}
+            {/* H) Actions */}
             <section className="mb-6">
               <h2 className="text-base font-semibold text-text mb-4">Actions</h2>
               <BookingActionsBar
                 bookingId={bookingId}
                 status={booking.status}
                 primaryAction={primaryAction}
+                proId={fullBooking.proId}
+                serviceName={fullBooking.serviceName}
+                address={fullBooking.address}
+                notes={fullBooking.notes}
               />
             </section>
 

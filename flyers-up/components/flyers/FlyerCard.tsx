@@ -18,6 +18,10 @@ export type FlyerPro = {
   serviceRadius?: number | null;
   maxDistanceMinutes?: number | null;
   startingPrice?: number;
+  identityVerified?: boolean;
+  backgroundChecked?: boolean;
+  licensed?: boolean;
+  jobsCompleted?: number;
 };
 
 interface FlyerCardProps {
@@ -87,6 +91,27 @@ export function FlyerCard({ pro, profileHref, bookHref, messageHref }: FlyerCard
             </span>
           </div>
         </div>
+
+        {/* Badges */}
+        {(pro.identityVerified || pro.backgroundChecked || (pro.jobsCompleted != null && pro.jobsCompleted >= 100)) && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {pro.identityVerified && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60 px-2 py-0.5 text-[10px] font-medium">
+                ✓ Verified
+              </span>
+            )}
+            {pro.backgroundChecked && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60 px-2 py-0.5 text-[10px] font-medium">
+                ✓ Background Checked
+              </span>
+            )}
+            {pro.jobsCompleted != null && pro.jobsCompleted >= 100 && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60 px-2 py-0.5 text-[10px] font-medium">
+                ✓ {pro.jobsCompleted}+ Jobs
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Rating row */}
         <div className="flex items-center gap-1.5 mb-2">

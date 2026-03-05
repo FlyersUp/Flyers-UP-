@@ -138,6 +138,37 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
           )}
         </div>
 
+        {/* Quick presets */}
+        {!isInquiry && (
+          <div className="px-4 py-2 flex flex-wrap gap-2 bg-surface border-t border-[var(--surface-border)]">
+            {[
+              'On my way',
+              'Running 10 minutes late',
+              'Need access instructions',
+              'Job finished',
+            ].map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={async () => {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user) return;
+                  await supabase.from('booking_messages').insert({
+                    booking_id: bookingId,
+                    sender_id: user.id,
+                    sender_role: 'pro',
+                    message: preset,
+                  });
+                  await load();
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#FFC067]/30 text-gray-800 border border-amber-200 hover:bg-[#FFC067]/50 transition-colors"
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Input */}
         <div className="bg-surface border-t border-[var(--surface-border)] px-4 py-4">
           <div className="flex gap-2">

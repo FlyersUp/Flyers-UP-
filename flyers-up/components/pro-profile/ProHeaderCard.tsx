@@ -2,12 +2,14 @@
 
 import type { PublicProProfileModel } from '@/lib/profileData';
 import { ProfilePhotoTile } from '@/components/shared/ProfilePhotoTile';
+import { FavoriteButton } from '@/components/profile/FavoriteButton';
 
 interface ProHeaderCardProps {
   profile: PublicProProfileModel;
+  showFavorite?: boolean;
 }
 
-export function ProHeaderCard({ profile }: ProHeaderCardProps) {
+export function ProHeaderCard({ profile, showFavorite = true }: ProHeaderCardProps) {
   const photoUrl = profile.logoUrl || profile.avatarUrl;
   const rating = profile.stats.avgRating;
   const reviewCount = profile.stats.reviewCount ?? 0;
@@ -24,7 +26,10 @@ export function ProHeaderCard({ profile }: ProHeaderCardProps) {
       <ProfilePhotoTile src={photoUrl} alt={profile.businessName} size={88} />
 
       <div className="min-w-0 flex-1">
-        <h1 className="text-xl font-semibold text-text truncate">{profile.businessName}</h1>
+        <div className="flex items-start justify-between gap-2">
+          <h1 className="text-xl font-semibold text-text truncate">{profile.businessName}</h1>
+          {showFavorite && <FavoriteButton proId={profile.id} />}
+        </div>
         {profile.categoryName && (
           <p className="mt-0.5 text-sm text-muted truncate">{profile.categoryName}</p>
         )}
