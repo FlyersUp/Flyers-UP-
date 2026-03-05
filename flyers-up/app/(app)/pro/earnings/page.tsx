@@ -5,7 +5,7 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { getProEarnings, getRecentProEarnings, type RecentEarning } from '@/lib/api';
+import { getProEarnings, getRecentProEarnings, type EarningsSummary, type RecentEarning } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 
 function formatMoney(n: number): string {
@@ -93,7 +93,7 @@ export default function Earnings() {
               ) : (
                 <>
                   <div className="text-3xl font-bold text-text mb-1">
-                    {summary ? formatMoney(summary.thisWeek) : '$0'}
+                    {summary ? formatMoney(summary.thisWeek ?? 0) : '$0'}
                   </div>
                   <div className="text-sm text-muted">This Week</div>
                 </>
