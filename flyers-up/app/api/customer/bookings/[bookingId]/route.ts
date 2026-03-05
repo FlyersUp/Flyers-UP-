@@ -43,19 +43,23 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Treat null/undefined role as customer (incomplete onboarding); ownership enforced by customer_id filter
+    const role = profile.role ?? 'customer';
+
     const admin = createAdminSupabaseClient();
 
-    // Fetch booking without join (avoids service_pros/service_categories join failures)
-    let q = admin
-      .from('bookings')
-      .select(
-        'id, customer_id, pro_id, payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_deposit, amount_remaining, amount_total, service_date, service_time, address, notes, status, price, created_at, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, cancelled_at, status_history'
-      )
-      .eq('id', id);
+    // Minimal columns (base schema + 002) - always exist
+    const MINIMAL_COLUMNS =
+      'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at, status_history';
+    // Core columns (migrations 028-032) - usually exist
+    const CORE_COLUMNS =
+      'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at, accepted_at, on_the_way_at, started_at, completed_at, cancelled_at, status_history';
+    // Extended columns (migrations 031+) - may not exist if migrations not applied
+    const EXTENDED_COLUMNS =
+      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_deposit, amount_remaining, amount_total, en_route_at';
 
-    if (profile.role === 'customer') {
-      q = q.eq('customer_id', user.id);
-    } else if (profile.role === 'pro') {
+    let proIdForQuery: string | null = null;
+    if (role === 'pro') {
       const { data: proRow } = await admin
         .from('service_pros')
         .select('id')
@@ -64,16 +68,51 @@ export async function GET(
       if (!proRow?.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
-      q = q.eq('pro_id', proRow.id);
-    } else {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      proIdForQuery = String(proRow.id);
     }
 
-    const { data: booking, error } = await q.maybeSingle();
+    const runBookingQuery = async (columns: string) => {
+      let q = admin.from('bookings').select(columns).eq('id', id);
+      if (role === 'customer') q = q.eq('customer_id', user.id);
+      else if (role === 'pro' && proIdForQuery) q = q.eq('pro_id', proIdForQuery);
+      return q.maybeSingle();
+    };
+
+    let result = await runBookingQuery(CORE_COLUMNS + EXTENDED_COLUMNS);
+    let booking = result.data as Record<string, unknown> | null;
+    let error = result.error as { code?: string; message?: string } | null;
+
+    // Fallback: if column doesn't exist, retry with fewer columns
+    if (error) {
+      const errMsg = error.message ?? '';
+      const isColumnError = errMsg.includes('does not exist') || error.code === 'PGRST204';
+      if (isColumnError) {
+        result = await runBookingQuery(CORE_COLUMNS);
+        booking = result.data as Record<string, unknown> | null;
+        error = result.error as { code?: string; message?: string } | null;
+        if (error && (error.message?.includes('does not exist') || error.code === 'PGRST204')) {
+          result = await runBookingQuery(MINIMAL_COLUMNS);
+          booking = result.data as Record<string, unknown> | null;
+          error = result.error as { code?: string; message?: string } | null;
+        }
+      }
+    }
 
     if (error) {
-      console.error('Error fetching booking:', error);
-      return NextResponse.json({ error: 'Failed to load booking' }, { status: 500 });
+      const errObj = error;
+      console.error('Error fetching booking:', {
+        code: errObj.code,
+        message: errObj.message,
+        bookingId: id,
+      });
+      return NextResponse.json(
+        {
+          error: 'Failed to load booking',
+          code: errObj.code,
+          message: errObj.message,
+        },
+        { status: 500 }
+      );
     }
 
     if (!booking) {

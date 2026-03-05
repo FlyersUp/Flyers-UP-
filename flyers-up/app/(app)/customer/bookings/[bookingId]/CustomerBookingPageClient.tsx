@@ -31,7 +31,10 @@ export function CustomerBookingPageClient({
       setLoading(true);
       setApiError(null);
       try {
-        const res = await fetch(`/api/customer/bookings/${bookingId}`, { cache: 'no-store' });
+        const res = await fetch(`/api/customer/bookings/${bookingId}`, {
+          cache: 'no-store',
+          credentials: 'include',
+        });
         const json = await res.json();
         if (cancelled) return;
         if (res.ok && json.booking) {

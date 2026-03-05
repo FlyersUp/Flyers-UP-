@@ -177,7 +177,7 @@ export async function PATCH(
     }
 
     const admin = createAdminSupabaseClient();
-    const { data: updated, error: updateErr } = await admin
+    let result = await admin
       .from('bookings')
       .update(update)
       .eq('id', id)
@@ -185,12 +185,54 @@ export async function PATCH(
       .select()
       .single();
 
-    if (updateErr) {
-      console.error('Job status update failed:', updateErr);
+    // Fallback: if update fails due to missing columns, retry with minimal update
+    if (result.error) {
+      const errMsg = (result.error as { message?: string }).message ?? '';
+      const isColumnError = errMsg.includes('does not exist') || (result.error as { code?: string }).code === 'PGRST204';
+      if (isColumnError) {
+        const minimalUpdate: Record<string, unknown> = {
+          status: nextDbStatus,
+          status_history: update.status_history,
+          status_updated_at: update.status_updated_at,
+          status_updated_by: update.status_updated_by,
+        };
+        if (nextDbStatus === 'accepted') minimalUpdate.accepted_at = now;
+        else if (nextDbStatus === 'pro_en_route') minimalUpdate.on_the_way_at = now; // on_the_way_at from migration 028
+        else if (nextDbStatus === 'in_progress') minimalUpdate.started_at = now;
+        else if (nextDbStatus === 'awaiting_remaining_payment') minimalUpdate.completed_at = now;
+        result = await admin
+          .from('bookings')
+          .update(minimalUpdate)
+          .eq('id', id)
+          .eq('pro_id', proId)
+          .select()
+          .single();
+      }
+    }
+
+    if (result.error) {
+      const updateErr = result.error;
+      console.error('Job status update failed:', {
+        code: (updateErr as { code?: string }).code,
+        message: (updateErr as { message?: string }).message,
+        details: (updateErr as { details?: string }).details,
+        jobId: id,
+        nextDbStatus,
+      });
       return NextResponse.json(
-        { error: 'Failed to update status' },
+        {
+          error: 'Failed to update status',
+          code: (updateErr as { code?: string }).code,
+          details: (updateErr as { message?: string }).message,
+        },
         { status: 500 }
       );
+    }
+
+    const updated = result.data;
+    if (!updated) {
+      console.error('Job status update returned no data', { jobId: id });
+      return NextResponse.json({ error: 'Update succeeded but no data returned' }, { status: 500 });
     }
 
     // Notify Customer on status changes (optional for on_the_way/start; required for complete)
@@ -215,22 +257,30 @@ export async function PATCH(
     }
 
     if (nextDbStatus === 'awaiting_remaining_payment') {
-      await admin.from('booking_events').insert({
-        booking_id: id,
-        type: 'WORK_COMPLETED_BY_PRO',
-        data: {},
-      });
-      const { data: proRow } = await admin.from('service_pros').select('user_id').eq('id', booking.pro_id).maybeSingle();
-      const proUserId = (proRow as { user_id?: string } | null)?.user_id;
-      if (proUserId) {
-        void createNotification({
-          user_id: proUserId,
-          type: 'booking_status',
-          title: 'Marked complete',
-          body: 'Marked complete — awaiting customer payment/confirmation',
+      try {
+        const { error: eventsErr } = await admin.from('booking_events').insert({
           booking_id: id,
-          deep_link: bookingDeepLinkPro(id),
+          type: 'WORK_COMPLETED_BY_PRO',
+          data: {},
         });
+        if (eventsErr) {
+          console.error('booking_events insert failed:', eventsErr, { jobId: id });
+        }
+        const { data: proRow } = await admin.from('service_pros').select('user_id').eq('id', booking.pro_id).maybeSingle();
+        const proUserId = (proRow as { user_id?: string } | null)?.user_id;
+        if (proUserId) {
+          void createNotification({
+            user_id: proUserId,
+            type: 'booking_status',
+            title: 'Marked complete',
+            body: 'Marked complete — awaiting customer payment/confirmation',
+            booking_id: id,
+            deep_link: bookingDeepLinkPro(id),
+          });
+        }
+      } catch (postErr) {
+        console.error('Post-update (events/notify) failed:', postErr, { jobId: id });
+        // Main update succeeded; don't fail the request
       }
     }
 
@@ -251,9 +301,14 @@ export async function PATCH(
       { status: 200 }
     );
   } catch (err) {
-    console.error('Job status API error:', err);
+    const msg = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error('Job status API error:', msg, stack ? { stack } : {});
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? msg : undefined,
+      },
       { status: 500 }
     );
   }

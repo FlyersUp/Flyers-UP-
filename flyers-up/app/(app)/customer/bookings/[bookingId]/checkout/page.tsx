@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
 import { BookingRulesAccordion } from '@/components/booking/BookingRulesAccordion';
 import { use, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
@@ -104,6 +105,9 @@ export default function CheckoutPage({
   params: Promise<{ bookingId: string }>;
 }) {
   const { bookingId } = use(params);
+  const searchParams = useSearchParams();
+  const phase = searchParams.get('phase');
+  const isFinalPayment = phase === 'final';
   const [loading, setLoading] = useState(true);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [summary, setSummary] = useState<BookingSummary | null>(null);
@@ -115,7 +119,10 @@ export default function CheckoutPage({
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/bookings/${bookingId}/pay`, {
+        const payUrl = isFinalPayment
+          ? `/api/bookings/${bookingId}/pay/final`
+          : `/api/bookings/${bookingId}/pay`;
+        const res = await fetch(payUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -130,31 +137,36 @@ export default function CheckoutPage({
         }
 
         setClientSecret(json.clientSecret ?? null);
-        if (json.bookingSummary) {
-          setSummary(json.bookingSummary);
+        const detailsRes = await fetch(`/api/customer/bookings/${bookingId}`, { cache: 'no-store' });
+        const detailsJson = await detailsRes.json();
+        const b = detailsJson?.booking;
+        const amountCents = isFinalPayment
+          ? (json.amountRemaining ?? b?.amountRemaining ?? 0)
+          : (json.quote?.amountTotal ?? b?.amountTotal ?? 0);
+        const priceDollars = Number(amountCents) / 100;
+        if (b) {
+          setSummary({
+            id: b.id,
+            serviceName: b.serviceName ?? 'Service',
+            proName: b.proName ?? 'Pro',
+            serviceDate: b.serviceDate ?? '',
+            serviceTime: b.serviceTime ?? '',
+            price: priceDollars,
+          });
+        } else if (json.bookingSummary) {
+          setSummary({
+            ...json.bookingSummary,
+            price: json.bookingSummary.price ?? priceDollars,
+          });
         } else {
-          const detailsRes = await fetch(`/api/customer/bookings/${bookingId}`, { cache: 'no-store' });
-          const detailsJson = await detailsRes.json();
-          const b = detailsJson?.booking;
-          if (b) {
-            setSummary({
-              id: b.id,
-              serviceName: b.serviceName ?? 'Service',
-              proName: b.proName ?? 'Pro',
-              serviceDate: b.serviceDate ?? '',
-              serviceTime: b.serviceTime ?? '',
-              price: Number(b.price ?? 0),
-            });
-          } else {
-            setSummary({
-              id: bookingId,
-              serviceName: 'Service',
-              proName: 'Pro',
-              serviceDate: '',
-              serviceTime: '',
-              price: 0,
-            });
-          }
+          setSummary({
+            id: bookingId,
+            serviceName: 'Service',
+            proName: 'Pro',
+            serviceDate: '',
+            serviceTime: '',
+            price: priceDollars,
+          });
         }
       } catch {
         if (mounted) setError('Could not load checkout');
@@ -163,7 +175,7 @@ export default function CheckoutPage({
       }
     };
     void run();
-  }, [bookingId]);
+  }, [bookingId, isFinalPayment]);
 
   return (
     <AppLayout mode="customer">

@@ -66,7 +66,7 @@ export default function CustomerHome() {
           `/api/customer/bookings?from=${encodeURIComponent(todayISO)}&limit=20&statuses=${encodeURIComponent(
             ['requested', 'accepted', 'payment_required', 'pro_en_route', 'on_the_way', 'in_progress', 'completed_pending_payment', 'awaiting_payment'].join(',')
           )}`,
-          { cache: 'no-store' }
+          { cache: 'no-store', credentials: 'include' }
         );
         const json = (await res.json()) as {
           ok: boolean;

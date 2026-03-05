@@ -36,7 +36,9 @@ export async function GET(req: Request) {
     if (!user) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
 
     const { data: profile } = await authed.from('profiles').select('role').eq('id', user.id).maybeSingle();
-    if (!profile || profile.role !== 'customer') {
+    if (!profile) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
+    // Treat null role as customer (incomplete onboarding); ownership enforced by customer_id filter
+    if ((profile.role ?? 'customer') !== 'customer') {
       return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
     }
 
