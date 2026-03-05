@@ -1,22 +1,37 @@
+'use client';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface LegalPageShellProps {
   children: React.ReactNode;
-  /** Optional back href; defaults to "/" */
+  /** Optional back href; when omitted, uses router.back() to return to previous page */
   backHref?: string;
 }
 
-export function LegalPageShell({ children, backHref = '/' }: LegalPageShellProps) {
+export function LegalPageShell({ children, backHref }: LegalPageShellProps) {
+  const router = useRouter();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text flex flex-col">
       <header className="border-b border-[var(--surface-border)] bg-[var(--surface-solid)] shrink-0">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          <Link
-            href={backHref}
-            className="text-sm font-medium text-muted hover:text-text transition-colors flex items-center gap-1"
-          >
-            ← Back
-          </Link>
+          {backHref ? (
+            <Link
+              href={backHref}
+              className="text-sm font-medium text-muted hover:text-text transition-colors flex items-center gap-1"
+            >
+              ← Back
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="text-sm font-medium text-muted hover:text-text transition-colors flex items-center gap-1"
+            >
+              ← Back
+            </button>
+          )}
           <Link href="/" className="text-sm font-semibold tracking-tight text-text hover:opacity-90">
             Flyers Up
           </Link>

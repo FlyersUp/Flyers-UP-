@@ -1,19 +1,63 @@
 import Link from 'next/link';
 
-type Standing = {
+export type Standing = {
   verifiedStatus: 'Verified' | 'Pending' | 'Needs action';
   insurance: 'On file' | 'Expiring soon' | 'Missing';
   credentials: { complete: number; total: number } | 'Not started';
   llcVerified: boolean | null;
 };
 
-export function computeTrustStanding(_profile: unknown): Standing {
-  // TODO: wire to real profile + credential sources when available.
-  // Keeping this calm + safe by default.
+export type TrustStandingInput = {
+  guidelinesAcknowledged?: boolean;
+  guidelinesAcceptedAt?: string | null;
+  insuranceDocPath?: string | null;
+  insuranceDocumentUrl?: string | null;
+  insuranceExpiresAt?: string | null;
+  backgroundCheckStatus?: string;
+  certifications?: unknown[] | { name?: string; verified?: boolean }[];
+};
+
+const CREDENTIAL_NAMES = ['Insurance', 'Background check', 'ID verification'];
+
+export function computeTrustStanding(input: TrustStandingInput | null | undefined): Standing {
+  if (!input) {
+    return {
+      verifiedStatus: 'Needs action',
+      insurance: 'Missing',
+      credentials: 'Not started',
+      llcVerified: null,
+    };
+  }
+
+  const hasGuidelines = Boolean(input.guidelinesAcknowledged || input.guidelinesAcceptedAt);
+  const bgStatus = (input.backgroundCheckStatus ?? 'not_started').toLowerCase();
+  const verifiedStatus: Standing['verifiedStatus'] =
+    hasGuidelines && bgStatus === 'verified'
+      ? 'Verified'
+      : hasGuidelines || bgStatus !== 'not_started'
+        ? 'Pending'
+        : 'Needs action';
+
+  const hasInsurance = Boolean(input.insuranceDocPath || input.insuranceDocumentUrl);
+  const expiresAt = input.insuranceExpiresAt ? new Date(input.insuranceExpiresAt) : null;
+  const now = new Date();
+  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+  const insurance: Standing['insurance'] = !hasInsurance
+    ? 'Missing'
+    : expiresAt && expiresAt.getTime() - now.getTime() < thirtyDays
+      ? 'Expiring soon'
+      : 'On file';
+
+  const certs = Array.isArray(input.certifications) ? input.certifications : [];
+  const total = Math.max(CREDENTIAL_NAMES.length, certs.length, 1);
+  const complete = certs.filter((c) => (typeof c === 'object' && c && (c as { verified?: boolean }).verified) || (typeof c === 'string' && c)).length;
+  const credentials: Standing['credentials'] =
+    total === 0 ? 'Not started' : { complete: Math.min(complete, total), total };
+
   return {
-    verifiedStatus: 'Verified',
-    insurance: 'On file',
-    credentials: { complete: 2, total: 3 },
+    verifiedStatus,
+    insurance,
+    credentials,
     llcVerified: null,
   };
 }

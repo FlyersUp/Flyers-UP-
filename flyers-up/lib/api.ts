@@ -147,6 +147,8 @@ export interface Booking {
   id: string;
   customerId: string;
   customerName: string;
+  /** Customer phone from profiles (for Call link on Today page). */
+  customerPhone?: string | null;
   proId: string;
   proName: string;
   category: string;
@@ -1202,11 +1204,12 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
     );
 
     const customerNameById = new Map<string, string>();
+    const customerPhoneById = new Map<string, string | null>();
     if (customerIds.length > 0) {
       try {
         const { data: profiles, error: profilesErr } = await supabase
           .from('profiles')
-          .select('id, full_name')
+          .select('id, full_name, phone')
           .in('id', customerIds);
 
         if (profilesErr) {
@@ -1217,8 +1220,12 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
           });
         } else if (Array.isArray(profiles)) {
           profiles.forEach((p: any) => {
-            if (p?.id && typeof p.full_name === 'string' && p.full_name.trim()) {
-              customerNameById.set(String(p.id), p.full_name.trim());
+            const id = p?.id ? String(p.id) : null;
+            if (id) {
+              if (typeof p.full_name === 'string' && p.full_name.trim()) {
+                customerNameById.set(id, p.full_name.trim());
+              }
+              customerPhoneById.set(id, typeof p.phone === 'string' ? p.phone : null);
             }
           });
         }
@@ -1238,6 +1245,7 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
       id: booking.id,
       customerId: booking.customer_id,
       customerName: customerNameById.get(booking.customer_id) || 'Customer',
+      customerPhone: customerPhoneById.get(booking.customer_id) ?? undefined,
       proId: booking.pro_id,
       proName: proProfile?.display_name || 'Service Pro',
       category: categorySlug,
@@ -1572,7 +1580,7 @@ const VALID_TRANSITIONS: Record<string, JobStatusAction[]> = {
  * 1. Validates that the pro owns the booking
  * 2. Validates the status transition is allowed
  * 3. Updates the booking status
- * 4. Creates earnings record on completion (placeholder logic)
+ * 4. Creates earnings record on completion (uses real pricing: total - platform_fee - refunded)
  * 
  * @param params - The update parameters
  * @returns Result object with success status and optional error/booking
@@ -1581,7 +1589,6 @@ const VALID_TRANSITIONS: Record<string, JobStatusAction[]> = {
  * - Add cancellation window logic (e.g., can't cancel within 24 hours)
  * - Add penalty logic for late cancellations
  * - Add notification triggers
- * - Replace placeholder earnings with real pricing logic
  */
 export async function updateBookingStatus(
   params: UpdateBookingStatusParams
@@ -1734,18 +1741,8 @@ export async function updateBookingStatus(
 
 /**
  * Create an earnings record for a completed booking.
- * 
- * PLACEHOLDER LOGIC: Currently uses a simple calculation:
- * - If booking has a price set, use that
- * - Otherwise, use the pro's starting_price as a base
- * - Minimum earnings: $50
- * 
- * FUTURE: Replace with real pricing logic that considers:
- * - Actual service duration
- * - Service type pricing
- * - Platform fees
- * - Promotions/discounts
- * - Tips
+ * Uses real pricing: total - platform_fee - refunded.
+ * Falls back to price - computed platform fee when payment breakdown not yet set.
  */
 async function createEarningsForBooking(
   proId: string,
@@ -1764,38 +1761,41 @@ async function createEarningsForBooking(
     return;
   }
 
-  // Get the booking price if set
   const { data: booking } = await supabase
     .from('bookings')
-    .select('price')
+    .select('price, total_amount_cents, platform_fee_cents, refunded_total_cents')
     .eq('id', bookingId)
     .single();
 
-  // PLACEHOLDER PRICING LOGIC
-  // TODO: Replace with real pricing calculation based on:
-  // - Service type and duration
-  // - Customer-agreed price
-  // - Platform fee deduction
-  let amount = booking?.price || startingPrice || 50;
-  
-  // Ensure minimum earnings (placeholder business rule)
-  amount = Math.max(amount, 50);
+  let amountDollars: number;
+  const totalCents = Number(booking?.total_amount_cents ?? 0);
+  const platformFeeCents = Number(booking?.platform_fee_cents ?? 0);
+  const refundedCents = Number(booking?.refunded_total_cents ?? 0);
 
-  // Insert earnings record
+  if (totalCents > 0) {
+    const netCents = Math.max(0, totalCents - platformFeeCents - refundedCents);
+    amountDollars = netCents / 100;
+  } else {
+    const grossDollars = Number(booking?.price ?? startingPrice ?? 50);
+    const grossCents = Math.round(grossDollars * 100);
+    const feeCents = platformFeeCents > 0 ? platformFeeCents : Math.round(grossCents * 0.15);
+    amountDollars = Math.max(0, (grossCents - feeCents - refundedCents) / 100);
+  }
+
+  amountDollars = Math.max(amountDollars, 0);
+
   const { error: earningsError } = await supabase
     .from('pro_earnings')
     .insert({
       pro_id: proId,
       booking_id: bookingId,
-      amount,
+      amount: amountDollars,
     });
 
   if (earningsError) {
-    // Log but don't fail the status update
-    // Earnings can be reconciled later if needed
     console.error('Failed to create earnings record:', earningsError);
   } else {
-    console.log('Created earnings record:', { proId, bookingId, amount });
+    console.log('Created earnings record:', { proId, bookingId, amount: amountDollars });
   }
 }
 

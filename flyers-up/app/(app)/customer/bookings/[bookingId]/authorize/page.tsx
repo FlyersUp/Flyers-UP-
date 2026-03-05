@@ -166,6 +166,7 @@ export default function AuthorizePage({
       }
     };
     void run();
+    return () => { mounted = false; };
   }, [bookingId]);
 
   return (

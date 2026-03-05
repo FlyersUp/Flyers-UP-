@@ -6,6 +6,7 @@
  * Accessible from sidebar, settings, and checkout footer.
  */
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Card } from '@/components/ui/Card';
 import {
@@ -68,21 +69,30 @@ const RULES = [
   },
 ];
 
+function getModeFromPath(pathname: string | null): 'customer' | 'pro' | null {
+  if (pathname?.startsWith('/pro') || pathname?.startsWith('/dashboard/pro')) return 'pro';
+  if (pathname?.startsWith('/customer') || pathname?.startsWith('/dashboard/customer')) return 'customer';
+  return null;
+}
+
 export default function BookingRulesPage() {
-  const [mode, setMode] = useState<'customer' | 'pro'>('customer');
+  const pathname = usePathname();
+  const pathMode = getModeFromPath(pathname);
+  const [storageMode, setStorageMode] = useState<'customer' | 'pro'>('customer');
+  const mode = pathMode ?? storageMode;
+
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (window.location.pathname?.startsWith('/pro')) {
-      setMode('pro');
-      return;
-    }
-    try {
-      const last = window.localStorage.getItem('flyersup:lastRole');
-      if (last === 'pro' || last === 'customer') setMode(last);
-    } catch {
-      /* ignore */
-    }
-  }, []);
+    if (pathMode != null) return;
+    const id = setTimeout(() => {
+      try {
+        const last = window.localStorage.getItem('flyersup:lastRole');
+        if (last === 'pro' || last === 'customer') setStorageMode(last);
+      } catch {
+        /* ignore */
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [pathMode]);
 
   return (
     <AppLayout mode={mode}>

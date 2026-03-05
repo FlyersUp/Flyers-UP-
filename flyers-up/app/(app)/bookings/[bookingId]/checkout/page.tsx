@@ -278,6 +278,7 @@ export default function CheckoutPage({
       }
     };
     void run();
+    return () => { mounted = false; };
   }, [bookingId]);
 
   const pageBg = '#FAF8F6';

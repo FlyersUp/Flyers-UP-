@@ -10,6 +10,7 @@ import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 import { createNotification } from '@/lib/notify/create-notification';
 import { createTransfer } from '@/lib/stripe/server';
 import { computeNetToPro } from '@/lib/bookings/money';
+import { evaluatePayoutRiskForPro } from '@/lib/payoutRisk';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -44,6 +45,12 @@ export async function GET(req: NextRequest) {
     const totalCents = Number(b.total_amount_cents ?? b.amount_total ?? 0) || 0;
     if (totalCents <= 0) continue;
 
+    const proUser = (b.service_pros as { user_id?: string })?.user_id;
+    if (proUser) {
+      const risk = await evaluatePayoutRiskForPro(proUser);
+      if (risk.payoutsOnHold) continue;
+    }
+
     const destAccount =
       b.stripe_destination_account_id ??
       (b.service_pros as { stripe_account_id?: string })?.stripe_account_id;
@@ -75,8 +82,6 @@ export async function GET(req: NextRequest) {
       destinationAccountId: destAccount,
       bookingId: b.id,
     });
-
-    const proUser = (b.service_pros as { user_id?: string })?.user_id;
 
     if (transferId) {
       await admin

@@ -70,6 +70,7 @@ export default function ConfirmedPage({
       setLoading(false);
     };
     void run();
+    return () => { mounted = false; };
   }, [bookingId]);
 
   // Poll when payment is still processing

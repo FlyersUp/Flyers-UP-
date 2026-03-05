@@ -8,6 +8,7 @@
 import { use, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { StatusBadge } from '@/components/ui/Badge';
 import { createScopeReview, getBookingById, getCurrentUser, getLatestScopeReview, getReviewForBooking, type BookingDetails, type BookingReview, type ScopeReview, type UserWithProfile } from '@/lib/api';
 import { submitReviewAction } from '@/app/actions/reviews';
@@ -19,6 +20,7 @@ interface PageProps {
 
 export default function JobDetailsPage({ params }: PageProps) {
   const { jobId } = use(params);
+  const router = useRouter();
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [bookingLoaded, setBookingLoaded] = useState(false);
 
@@ -131,12 +133,13 @@ export default function JobDetailsPage({ params }: PageProps) {
           <div className="text-5xl mb-4">📋</div>
           <h1 className="text-2xl font-bold text-text mb-2">Job Not Found</h1>
           <p className="text-muted/70 mb-6">This job may have been removed or doesn&apos;t exist.</p>
-          <Link
-            href="/"
+          <button
+            type="button"
+            onClick={() => router.back()}
             className="px-6 py-3 bg-accent hover:opacity-95 text-accentContrast rounded-xl font-medium transition-opacity"
           >
-            Back to Home
-          </Link>
+            ← Back
+          </button>
         </div>
       </div>
     );

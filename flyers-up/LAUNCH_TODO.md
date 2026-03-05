@@ -28,7 +28,7 @@ Pre-launch checklist for www.flyersup.app.
 
 - [ ] **Platform account activated** — Complete [Stripe account onboarding](https://dashboard.stripe.com/account/onboarding) (verify if done)
 - [ ] **Production API keys** — Set live `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` in Vercel
-- [ ] **Production webhook** — Add `https://www.flyersup.app/api/stripe/webhook` in [Stripe Webhooks](https://dashboard.stripe.com/webhooks); events: `payment_intent.succeeded`, `payment_intent.payment_failed`
+- [ ] **Production webhook** — Add `https://www.flyersup.app/api/stripe/webhook` in [Stripe Webhooks](https://dashboard.stripe.com/webhooks); events: `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.dispute.created`, `charge.dispute.closed`
 - [ ] **Webhook secret** — Add `STRIPE_WEBHOOK_SECRET` to Vercel
 - [ ] **Connect flow** — End-to-end test: pro completes Connect, receives payout
 

@@ -12,6 +12,7 @@ export type TodayJob = {
   address: string;
   service_type: string;
   status: TodayJobStatus;
+  dbStatus?: string; // Raw DB booking status for API transitions
   eta_minutes?: number | null;
   risk: TodayRiskLevel;
   bookingId?: string;
@@ -134,10 +135,12 @@ export async function getTodayOverview(proUserId: string): Promise<TodayOverview
         const endAt = new Date(startAt.getTime() + 60 * 60000); // TODO: add duration when available
 
         // Map DB booking status into timeline statuses.
-        // NOTE: The DB currently doesn't track "in_progress"; we infer it for "today" UX.
+        const dbStatus = b.status as string;
         let status: TodayJobStatus = 'upcoming';
-        if (b.status === 'completed') status = 'completed';
-        if (b.status === 'cancelled' || b.status === 'declined') status = 'completed';
+        if (dbStatus === 'completed' || dbStatus === 'paid' || dbStatus === 'cancelled' || dbStatus === 'declined') status = 'completed';
+        if (['awaiting_remaining_payment', 'awaiting_payment', 'completed_pending_payment', 'awaiting_customer_confirmation'].includes(dbStatus)) status = 'completed';
+        if (dbStatus === 'in_progress') status = 'in_progress';
+        if (dbStatus === 'pro_en_route' || dbStatus === 'on_the_way') status = 'upcoming'; // Will be inferred by Start if pro taps it
 
         const eta = null; // TODO: wire from nav/telemetry if introduced
         return {
@@ -145,10 +148,11 @@ export async function getTodayOverview(proUserId: string): Promise<TodayOverview
           start_time: startAt.toISOString(),
           end_time: endAt.toISOString(),
           client_name: b.customerName || 'Customer',
-          client_phone: null, // TODO: add phone to booking join when schema includes it
+          client_phone: b.customerPhone ?? null,
           address: b.address,
           service_type: b.category || 'Service',
           status,
+          dbStatus,
           eta_minutes: eta,
           risk: deriveRisk(startAt, eta),
           bookingId: b.id,

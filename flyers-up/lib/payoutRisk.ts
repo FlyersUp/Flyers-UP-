@@ -19,33 +19,30 @@ export interface PayoutRiskState {
 
 /**
  * Evaluate whether payouts should be held for a pro.
- *
- * TODO: Integrate with Stripe disputes / chargebacks (webhooks) and payout scheduling.
+ * Integrates with stripe_disputes (populated by charge.dispute.created webhook) and pro_tax_profiles.
  */
 export async function evaluatePayoutRiskForPro(proUserId: string): Promise<PayoutRiskState> {
   const admin = createAdminSupabaseClient();
 
-  const { data, error } = await admin
-    .from('pro_tax_profiles')
-    .select('payouts_hold_days, payouts_on_hold')
-    .eq('pro_user_id', proUserId)
-    .maybeSingle();
+  const [taxResult, disputeResult] = await Promise.all([
+    admin.from('pro_tax_profiles').select('payouts_hold_days, payouts_on_hold').eq('pro_user_id', proUserId).maybeSingle(),
+    admin.from('stripe_disputes').select('id').eq('pro_user_id', proUserId).eq('status', 'open').limit(1),
+  ]);
 
-  if (error || !data) {
+  const taxData = taxResult.data;
+  const hasActiveDispute = (disputeResult.data?.length ?? 0) > 0;
+
+  if (taxResult.error || !taxData) {
     return {
       proUserId,
       payoutsHoldDays: 0,
-      payoutsOnHold: false,
-      reason: null,
+      payoutsOnHold: hasActiveDispute,
+      reason: hasActiveDispute ? 'active_dispute' : null,
     };
   }
 
-  // TODO: determine if there is an active dispute for this pro’s payments.
-  // For MVP scaffolding, we do not have a disputes table or Stripe webhook mapping in place.
-  const hasActiveDispute = false;
-
-  const payoutsOnHold = Boolean(data.payouts_on_hold) || hasActiveDispute;
-  const payoutsHoldDays = Number(data.payouts_hold_days || 0);
+  const payoutsOnHold = Boolean(taxData.payouts_on_hold) || hasActiveDispute;
+  const payoutsHoldDays = Number(taxData.payouts_hold_days || 0);
 
   return {
     proUserId,
@@ -56,25 +53,26 @@ export async function evaluatePayoutRiskForPro(proUserId: string): Promise<Payou
 }
 
 /**
- * Apply dispute-based hold (stub).
- *
- * TODO: Wire to Stripe dispute events (Stripe webhook) and map disputes to pro_user_id.
+ * Apply or release dispute-based hold on pro payouts.
+ * Called by Stripe webhook when disputes open/close.
  */
-export async function applyDisputeHoldStub(params: {
+export async function applyDisputeHold(params: {
   proUserId: string;
   hasActiveDispute: boolean;
 }): Promise<{ success: boolean; error?: string }> {
   const { proUserId, hasActiveDispute } = params;
   const admin = createAdminSupabaseClient();
 
-  // Only toggles payouts_on_hold. Does NOT move money.
   const { error } = await admin
     .from('pro_tax_profiles')
-    .update({ payouts_on_hold: hasActiveDispute })
-    .eq('pro_user_id', proUserId);
+    .upsert(
+      { pro_user_id: proUserId, payouts_on_hold: hasActiveDispute },
+      { onConflict: 'pro_user_id' }
+    );
 
   if (error) return { success: false, error: error.message };
   return { success: true };
 }
 
-
+/** @deprecated Use applyDisputeHold */
+export const applyDisputeHoldStub = applyDisputeHold;

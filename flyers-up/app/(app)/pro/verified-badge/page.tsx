@@ -5,14 +5,46 @@ import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
 import { OfficialBadge } from '@/components/ui/OfficialBadge';
 import { Button } from '@/components/ui/Button';
-import { useState } from 'react';
+import { TrustStandingCard, computeTrustStanding } from '@/components/ui/TrustStandingCard';
+import { getProSafetyComplianceSettings } from '@/lib/api';
+import { supabase } from '@/lib/supabaseClient';
+import { useEffect, useState } from 'react';
 
 /**
  * Export Verified Badge Page
- * Service pros can preview/export a shareable profile badge (non-verified placeholder)
+ * Service pros can preview/export a shareable profile badge
  */
 export default function VerifiedBadgePage() {
   const [selectedFormat, setSelectedFormat] = useState<'png' | 'pdf' | 'svg'>('png');
+  const [standing, setStanding] = useState<ReturnType<typeof computeTrustStanding> | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !mounted) return;
+      const [safety, proRow] = await Promise.all([
+        getProSafetyComplianceSettings(user.id),
+        supabase.from('service_pros').select('certifications').eq('user_id', user.id).maybeSingle(),
+      ]);
+      if (!mounted) return;
+      const pro = proRow.data as { certifications?: unknown } | null;
+      const certs = pro?.certifications && Array.isArray(pro.certifications) ? pro.certifications : [];
+      setStanding(
+        computeTrustStanding({
+          guidelinesAcknowledged: safety.guidelinesAcknowledged,
+          guidelinesAcceptedAt: safety.guidelinesAcceptedAt,
+          insuranceDocPath: safety.insuranceDocPath,
+          insuranceDocumentUrl: safety.insuranceDocumentUrl,
+          insuranceExpiresAt: safety.insuranceExpiresAt,
+          backgroundCheckStatus: safety.backgroundCheckStatus,
+          certifications: certs,
+        })
+      );
+    };
+    void load();
+    return () => { mounted = false; };
+  }, []);
 
   return (
     <AppLayout mode="pro">
@@ -47,14 +79,18 @@ export default function VerifiedBadgePage() {
 
         <div className="mb-6">
           <Label className="mb-4 block">PROFILE DETAILS</Label>
-          <Card withRail className="border-l-[3px] border-l-accent">
-            <div className="space-y-2">
-              <div className="font-semibold text-text">No verified items yet</div>
-              <p className="text-sm text-muted">
-                Verification status will display here once your profile and documents are connected.
-              </p>
-            </div>
-          </Card>
+          {standing ? (
+            <TrustStandingCard standing={standing} />
+          ) : (
+            <Card withRail className="border-l-[3px] border-l-accent">
+              <div className="space-y-2">
+                <div className="font-semibold text-text">Loading trust status…</div>
+                <p className="text-sm text-muted">
+                  Verification status will display here once loaded.
+                </p>
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Export Options */}

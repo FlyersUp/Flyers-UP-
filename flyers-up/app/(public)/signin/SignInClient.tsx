@@ -145,9 +145,13 @@ export function SignInClient() {
       <header className="px-4 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Logo size="md" />
-          <Link href="/" className="text-sm text-muted hover:text-text transition-colors">
-            ← Back to Home
-          </Link>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="text-sm text-muted hover:text-text transition-colors"
+          >
+            ← Back
+          </button>
         </div>
       </header>
 

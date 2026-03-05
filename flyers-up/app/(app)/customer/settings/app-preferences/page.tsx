@@ -86,7 +86,8 @@ function CustomerAppPreferencesSettingsInner() {
       skipNextSave.current = false;
       return;
     }
-    void persist();
+    const id = setTimeout(() => void persist(), 0);
+    return () => clearTimeout(id);
   }, [prefs, language, userId, loading]);
 
   return (

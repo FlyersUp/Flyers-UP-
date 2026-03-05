@@ -19,11 +19,75 @@ import {
 import { refundPaymentIntent } from '@/lib/stripe/server';
 import { createNotification } from '@/lib/notify/create-notification';
 import { isCancelled } from '@/lib/bookings/booking-status';
+import { applyDisputeHold } from '@/lib/payoutRisk';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+async function handleDisputeCreated(dispute: Stripe.Dispute): Promise<void> {
+  const admin = createSupabaseAdmin();
+  const paymentIntentId = dispute.payment_intent as string | null;
+  if (!paymentIntentId) return;
+
+  const pi = await stripe!.paymentIntents.retrieve(paymentIntentId);
+  const meta = (pi.metadata || {}) as { booking_id?: string; bookingId?: string };
+  const bookingId = meta.booking_id ?? meta.bookingId;
+  if (!bookingId) return;
+
+  const { data: booking } = await admin
+    .from('bookings')
+    .select('pro_id, service_pros(user_id)')
+    .eq('id', bookingId)
+    .maybeSingle();
+  const proUserId = (booking?.service_pros as { user_id?: string })?.user_id;
+  if (!proUserId) return;
+
+  await admin.from('stripe_disputes').upsert(
+    {
+      stripe_dispute_id: dispute.id,
+      booking_id: bookingId,
+      pro_user_id: proUserId,
+      status: 'open',
+      amount_cents: dispute.amount ?? null,
+    },
+    { onConflict: 'stripe_dispute_id' }
+  );
+  await applyDisputeHold({ proUserId, hasActiveDispute: true });
+}
+
+async function handleDisputeClosed(dispute: Stripe.Dispute): Promise<void> {
+  const admin = createSupabaseAdmin();
+
+  await admin
+    .from('stripe_disputes')
+    .update({ status: dispute.status ?? 'closed', resolved_at: new Date().toISOString() })
+    .eq('stripe_dispute_id', dispute.id);
+
+  const paymentIntentId = dispute.payment_intent as string | null;
+  if (!paymentIntentId) return;
+  const pi = await stripe!.paymentIntents.retrieve(paymentIntentId);
+  const meta = (pi.metadata || {}) as { booking_id?: string; bookingId?: string };
+  const bookingId = meta.booking_id ?? meta.bookingId;
+  if (!bookingId) return;
+  const { data: booking } = await admin
+    .from('bookings')
+    .select('service_pros(user_id)')
+    .eq('id', bookingId)
+    .maybeSingle();
+  const proUserId = (booking?.service_pros as { user_id?: string })?.user_id;
+  if (!proUserId) return;
+
+  const { data: open } = await admin
+    .from('stripe_disputes')
+    .select('id')
+    .eq('pro_user_id', proUserId)
+    .eq('status', 'open')
+    .limit(1);
+  const hasActiveDispute = (open?.length ?? 0) > 0;
+  await applyDisputeHold({ proUserId, hasActiveDispute });
+}
 
 export async function POST(req: NextRequest) {
   if (!stripe || !webhookSecret) {
@@ -393,6 +457,20 @@ export async function POST(req: NextRequest) {
             console.warn('Webhook: failed to update booking payment_status', e);
           }
         }
+        break;
+      }
+
+      case 'charge.dispute.created': {
+        const dispute = event.data.object as Stripe.Dispute;
+        await handleDisputeCreated(dispute);
+        await markStripeEventProcessed(eventId, event.type);
+        break;
+      }
+
+      case 'charge.dispute.closed': {
+        const dispute = event.data.object as Stripe.Dispute;
+        await handleDisputeClosed(dispute);
+        await markStripeEventProcessed(eventId, event.type);
         break;
       }
 

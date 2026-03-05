@@ -175,6 +175,7 @@ export default function CheckoutPage({
       }
     };
     void run();
+    return () => { mounted = false; };
   }, [bookingId, isFinalPayment]);
 
   return (

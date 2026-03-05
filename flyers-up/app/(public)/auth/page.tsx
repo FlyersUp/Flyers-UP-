@@ -344,9 +344,13 @@ function AuthInner() {
         <header className="px-4 py-5">
           <div className="max-w-md mx-auto flex items-center justify-between">
             <Logo size="md" linkToHome />
-            <Link href="/" className="text-sm text-muted hover:text-text transition-colors">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="text-sm text-muted hover:text-text transition-colors"
+            >
               Back
-            </Link>
+            </button>
           </div>
         </header>
 

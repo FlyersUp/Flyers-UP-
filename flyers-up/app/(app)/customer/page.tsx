@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
 import { UpcomingCard, type UpcomingBooking } from '@/components/ui/UpcomingCard';
+import { QuickRequestCard } from '@/components/ui/QuickRequestCard';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
@@ -142,6 +143,7 @@ export default function CustomerHome() {
         {/* Clean slate (no mock data) */}
         <div className="mb-8 space-y-4">
           <UpcomingCard booking={upcoming} browseHref="/customer/categories" />
+          <QuickRequestCard requestHref="/customer/request/start" />
           <Card>
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">

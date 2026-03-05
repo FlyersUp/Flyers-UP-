@@ -1,13 +1,16 @@
 import Link from 'next/link';
 
+const DEFAULT_REQUEST_HREF = '/customer/request/start';
+
 export function QuickRequestCard({
   locationText,
-  requestHref,
+  requestHref = DEFAULT_REQUEST_HREF,
 }: {
   locationText?: string | null;
   requestHref?: string | null;
 }) {
-  const disabled = !requestHref;
+  const href = requestHref ?? DEFAULT_REQUEST_HREF;
+  const disabled = !href;
 
   return (
     <div className="surface-card border-l-[3px] border-l-[#6EE7B7]">
@@ -19,8 +22,8 @@ export function QuickRequestCard({
               type="text"
               placeholder="What do you need help with?"
               className="w-full h-11 px-3 rounded-lg bg-surface2 border border-hairline text-text placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-accent/25"
-              // TODO: wire to a real search/request flow when available.
-              disabled
+              readOnly
+              tabIndex={-1}
             />
             {locationText ? <div className="mt-1 text-xs text-muted">{locationText}</div> : null}
           </div>
@@ -30,13 +33,13 @@ export function QuickRequestCard({
               type="button"
               disabled
               className="h-11 px-4 rounded-lg bg-surface2 text-muted/60 font-medium border border-hairline cursor-not-allowed"
-              title="TODO: wire to request flow"
+              title="Request flow unavailable"
             >
               Request a Pro
             </button>
           ) : (
             <Link
-              href={requestHref}
+              href={href}
               className="h-11 px-4 rounded-lg bg-accent text-accentContrast font-medium hover:opacity-95 transition-opacity inline-flex items-center"
             >
               Request a Pro

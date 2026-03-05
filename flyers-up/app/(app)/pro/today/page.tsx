@@ -107,9 +107,11 @@ function TodayAlerts({ alerts }: { alerts: TodayAlert[] }) {
 function TodayTimeline({
   jobs,
   onUpdateJobStatus,
+  statusUpdating,
 }: {
   jobs: TodayJob[];
-  onUpdateJobStatus: (jobId: string, next: TodayJob['status']) => void;
+  onUpdateJobStatus: (jobId: string, next: TodayJob['status'], dbStatus?: string) => void | Promise<void>;
+  statusUpdating: string | null;
 }) {
   return (
     <div className="space-y-3">
@@ -157,7 +159,7 @@ function TodayTimeline({
                     onClick={(e) => {
                       if (!job.client_phone) e.preventDefault();
                     }}
-                    title={!job.client_phone ? 'TODO: add phone number to booking join' : undefined}
+                    title={!job.client_phone ? 'No phone number on file' : undefined}
                   >
                     Call
                   </a>
@@ -168,7 +170,7 @@ function TodayTimeline({
                     onClick={(e) => {
                       if (!job.bookingId) e.preventDefault();
                     }}
-                    title={!job.bookingId ? 'TODO: wire message thread per booking' : undefined}
+                    title={!job.bookingId ? 'No booking linked' : undefined}
                   >
                     Message
                   </Link>
@@ -176,26 +178,25 @@ function TodayTimeline({
                     variant="primary"
                     showArrow={false}
                     className="px-3 py-2 rounded-lg text-sm"
-                    disabled={!canStart}
-                    onClick={() => onUpdateJobStatus(job.id, 'in_progress')}
+                    disabled={!canStart || statusUpdating === job.id}
+                    onClick={() => void onUpdateJobStatus(job.id, 'in_progress', job.dbStatus)}
                     title={!canStart ? 'Only upcoming jobs can be started' : undefined}
                   >
-                    Start
+                    {statusUpdating === job.id ? '…' : 'Start'}
                   </Button>
                   <Button
                     variant="primary"
                     showArrow={false}
                     className="px-3 py-2 rounded-lg text-sm"
-                    disabled={!canComplete}
-                    onClick={() => onUpdateJobStatus(job.id, 'completed')}
+                    disabled={!canComplete || statusUpdating === job.id}
+                    onClick={() => void onUpdateJobStatus(job.id, 'completed', job.dbStatus)}
                     title={!canComplete ? 'Only in-progress jobs can be completed' : undefined}
                   >
-                    Complete
+                    {statusUpdating === job.id ? '…' : 'Complete'}
                   </Button>
                 </div>
               </div>
             </div>
-            {/* TODO: Persist job status changes to server (bookings.status_history / status) */}
           </Card>
         );
       })}
@@ -311,6 +312,10 @@ export default function ProTodayPage() {
     }>
   >([]);
 
+  const canStartReal = (s: string) =>
+    ['accepted', 'pro_en_route', 'on_the_way', 'pending', 'requested'].includes((s ?? '').toLowerCase());
+  const canCompleteReal = (s: string) => (s ?? '').toLowerCase() === 'in_progress';
+
   useEffect(() => {
     let mounted = true;
     const guardAndLoad = async () => {
@@ -356,7 +361,7 @@ export default function ProTodayPage() {
           const todayISO = new Date().toISOString().slice(0, 10);
           const res = await fetch(
             `/api/pro/bookings?from=${encodeURIComponent(todayISO)}&to=${encodeURIComponent(todayISO)}&limit=50&statuses=${encodeURIComponent(
-              ['requested', 'accepted', 'awaiting_payment', 'completed'].join(',')
+              ['requested', 'accepted', 'pro_en_route', 'on_the_way', 'in_progress', 'awaiting_payment', 'awaiting_remaining_payment', 'completed'].join(',')
             )}`,
             { cache: 'no-store' }
           );
@@ -395,10 +400,71 @@ export default function ProTodayPage() {
 
   const alertCount = useMemo(() => (overview?.alerts?.length ? overview.alerts.length : 0), [overview]);
 
-  const onUpdateJobStatus = (jobId: string, next: TodayJob['status']) => {
-    setJobs((prev) =>
-      prev.map((j) => (j.id === jobId ? { ...j, status: next } : j))
+  const [statusUpdating, setStatusUpdating] = useState<string | null>(null);
+
+  const updateJobStatusViaApi = async (
+    bookingId: string,
+    next: 'in_progress' | 'completed',
+    dbStatus?: string
+  ): Promise<boolean> => {
+    setStatusUpdating(bookingId);
+    try {
+      if (next === 'in_progress') {
+        const s = (dbStatus ?? '').toLowerCase();
+        if (s === 'accepted' || s === 'pending' || s === 'requested') {
+          const r1 = await fetch(`/api/jobs/${bookingId}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nextStatus: 'ON_THE_WAY' }),
+            credentials: 'include',
+          });
+          if (!r1.ok) {
+            const err = await r1.json().catch(() => ({}));
+            console.error('Status update failed:', err);
+            return false;
+          }
+        }
+        const r2 = await fetch(`/api/jobs/${bookingId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nextStatus: 'IN_PROGRESS' }),
+          credentials: 'include',
+        });
+        if (!r2.ok) {
+          const err = await r2.json().catch(() => ({}));
+          console.error('Status update failed:', err);
+          return false;
+        }
+      } else {
+        const r = await fetch(`/api/jobs/${bookingId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nextStatus: 'COMPLETED' }),
+          credentials: 'include',
+        });
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          console.error('Status update failed:', err);
+          return false;
+        }
+      }
+      return true;
+    } finally {
+      setStatusUpdating(null);
+    }
+  };
+
+  const onUpdateJobStatus = async (jobId: string, next: TodayJob['status'], dbStatus?: string) => {
+    const ok = await updateJobStatusViaApi(
+      jobId,
+      next === 'in_progress' ? 'in_progress' : 'completed',
+      dbStatus
     );
+    if (ok) {
+      setJobs((prev) =>
+        prev.map((j) => (j.id === jobId ? { ...j, status: next } : j))
+      );
+    }
   };
 
   const onToggleTask = (id: string) => {
@@ -488,6 +554,33 @@ export default function ProTodayPage() {
                         >
                           Message
                         </Link>
+                        {canStartReal(b.status) ? (
+                          <Button
+                            variant="primary"
+                            showArrow={false}
+                            className="px-3 py-2 rounded-lg text-sm"
+                            disabled={statusUpdating === b.id}
+                            onClick={async () => {
+                              const ok = await updateJobStatusViaApi(b.id, 'in_progress', b.status);
+                              if (ok) setRealBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, status: 'in_progress' } : x)));
+                            }}
+                          >
+                            {statusUpdating === b.id ? '…' : 'Start'}
+                          </Button>
+                        ) : canCompleteReal(b.status) ? (
+                          <Button
+                            variant="primary"
+                            showArrow={false}
+                            className="px-3 py-2 rounded-lg text-sm"
+                            disabled={statusUpdating === b.id}
+                            onClick={async () => {
+                              const ok = await updateJobStatusViaApi(b.id, 'completed', b.status);
+                              if (ok) setRealBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, status: 'awaiting_remaining_payment' } : x)));
+                            }}
+                          >
+                            {statusUpdating === b.id ? '…' : 'Complete'}
+                          </Button>
+                        ) : null}
                         <Button
                           variant="secondary"
                           showArrow={false}
@@ -511,7 +604,7 @@ export default function ProTodayPage() {
                 Back to dashboard
               </Link>
             </div>
-            <TodayTimeline jobs={jobs} onUpdateJobStatus={onUpdateJobStatus} />
+            <TodayTimeline jobs={jobs} onUpdateJobStatus={onUpdateJobStatus} statusUpdating={statusUpdating} />
           </div>
         ) : null}
 
