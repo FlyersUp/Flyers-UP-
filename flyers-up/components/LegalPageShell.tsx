@@ -49,7 +49,7 @@ export function LegalPageShell({ children, backHref = '/' }: LegalPageShellProps
               Trust & Verification
             </Link>
           </nav>
-          <p className="mt-4 text-center text-xs text-muted/70">
+          <p className="mt-4 text-center text-xs text-muted/70" suppressHydrationWarning>
             © {new Date().getFullYear()} Flyers Up LLC
           </p>
         </div>
