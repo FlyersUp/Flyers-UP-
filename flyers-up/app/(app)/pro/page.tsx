@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
-import ProDashboardClient from '@/components/pro/ProDashboardClient';
+import ProDashboard from '@/components/dashboard/ProDashboard';
 
 /**
  * Pro Dashboard (server-gated)
@@ -66,6 +66,6 @@ export default async function ProDashboardPage() {
   const fallbackName = (user.email ? user.email.split('@')[0] : 'Account') || 'Account';
   const userName = [profile.first_name?.trim(), profile.last_name?.trim()].filter(Boolean).join(' ') || fallbackName;
 
-  return <ProDashboardClient userName={userName} />;
+  return <ProDashboard userName={userName} />;
 }
 

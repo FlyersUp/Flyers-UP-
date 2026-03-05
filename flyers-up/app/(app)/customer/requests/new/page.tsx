@@ -1,0 +1,278 @@
+'use client';
+
+import { AppLayout } from '@/components/layouts/AppLayout';
+import { getCurrentUser, getServiceCategories, type ServiceCategory } from '@/lib/api';
+import { supabase } from '@/lib/supabaseClient';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { SideMenu } from '@/components/ui/SideMenu';
+
+export default function NewRequestPage() {
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState('Account');
+  const [categories, setCategories] = useState<ServiceCategory[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [serviceCategory, setServiceCategory] = useState('');
+  const [budgetMin, setBudgetMin] = useState('');
+  const [budgetMax, setBudgetMax] = useState('');
+  const [location, setLocation] = useState('');
+  const [preferredDate, setPreferredDate] = useState('');
+  const [preferredTime, setPreferredTime] = useState('');
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+
+  useEffect(() => {
+    const guard = async () => {
+      const user = await getCurrentUser();
+      if (!user) {
+        router.replace(`/auth?next=${encodeURIComponent('/customer/requests/new')}`);
+        return;
+      }
+      setUserId(user.id);
+      setUserName(user.email?.split('@')[0] ?? 'Account');
+      setReady(true);
+    };
+    void guard();
+  }, [router]);
+
+  useEffect(() => {
+    if (!ready) return;
+    getServiceCategories().then(setCategories);
+  }, [ready]);
+
+  async function uploadPhotos(): Promise<string[]> {
+    if (!userId || photoFiles.length === 0) return [];
+    const urls: string[] = [];
+    for (let i = 0; i < photoFiles.length; i++) {
+      const file = photoFiles[i];
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `${userId}/job-requests/${Date.now()}-${i}.${ext}`;
+      const { error: uploadErr } = await supabase.storage
+        .from('profile-images')
+        .upload(path, file, { upsert: true });
+      if (!uploadErr) {
+        const { data } = supabase.storage.from('profile-images').getPublicUrl(path);
+        urls.push(data.publicUrl);
+      }
+    }
+    return urls;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!userId) return;
+    if (!title.trim()) {
+      setError('Please enter a title.');
+      return;
+    }
+    if (!serviceCategory) {
+      setError('Please select a service category.');
+      return;
+    }
+    if (!location.trim()) {
+      setError('Please enter a location.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const photos = await uploadPhotos();
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+
+      const { error: insertErr } = await supabase.from('job_requests').insert({
+        customer_id: userId,
+        title: title.trim(),
+        description: description.trim() || null,
+        service_category: serviceCategory,
+        budget_min: budgetMin ? parseFloat(budgetMin) : null,
+        budget_max: budgetMax ? parseFloat(budgetMax) : null,
+        location: location.trim(),
+        photos,
+        status: 'open',
+        preferred_date: preferredDate || null,
+        preferred_time: preferredTime || null,
+        expires_at: expiresAt.toISOString(),
+      });
+
+      if (insertErr) throw new Error(insertErr.message);
+      router.push('/customer/requests');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create request.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (!ready) {
+    return (
+      <AppLayout mode="customer">
+        <div className="min-h-[40vh] flex items-center justify-center">
+          <p className="text-sm text-muted/70">Loading…</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  return (
+    <AppLayout mode="customer">
+      <div className="min-h-screen bg-[#D9D5D2]">
+        <div className="sticky top-0 z-20 bg-[#D9D5D2]/95 backdrop-blur-sm border-b border-black/10">
+          <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+            <Link
+              href="/customer/requests"
+              className="text-sm font-medium text-black/70 hover:text-black"
+            >
+              ← Back
+            </Link>
+            <h1 className="text-xl font-semibold text-[#111]">New Request</h1>
+            <div className="w-14" />
+          </div>
+        </div>
+
+        <div className="max-w-2xl mx-auto px-4 py-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-[#111] mb-1">Title *</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Sink leaking"
+                className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[#111] mb-1">Description</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe what you need..."
+                rows={3}
+                className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5] resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[#111] mb-1">Service category *</label>
+              <select
+                value={serviceCategory}
+                onChange={(e) => setServiceCategory(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                required
+              >
+                <option value="">Select category</option>
+                {categories
+                  .filter((c) => c.is_active_phase1 !== false)
+                  .map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-[#111] mb-1">Budget min ($)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={budgetMin}
+                  onChange={(e) => setBudgetMin(e.target.value)}
+                  placeholder="80"
+                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#111] mb-1">Budget max ($)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={budgetMax}
+                  onChange={(e) => setBudgetMax(e.target.value)}
+                  placeholder="120"
+                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[#111] mb-1">Location *</label>
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="e.g. Williamsburg"
+                className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-[#111] mb-1">Preferred date</label>
+                <input
+                  type="date"
+                  value={preferredDate}
+                  onChange={(e) => setPreferredDate(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#111] mb-1">Preferred time</label>
+                <input
+                  type="text"
+                  value={preferredTime}
+                  onChange={(e) => setPreferredTime(e.target.value)}
+                  placeholder="e.g. 2pm or Today"
+                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[#111] mb-1">Photos</label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => setPhotoFiles(Array.from(e.target.files ?? []))}
+                className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#B2FBA5] file:font-semibold file:text-black"
+              />
+              {photoFiles.length > 0 && (
+                <p className="mt-1 text-xs text-black/60">{photoFiles.length} file(s) selected</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full py-3 rounded-xl bg-[#B2FBA5] text-black font-semibold hover:opacity-95 disabled:opacity-60 transition-opacity"
+            >
+              {submitting ? 'Posting…' : 'Post Request'}
+            </button>
+          </form>
+        </div>
+      </div>
+      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} mode="customer" userName={userName} />
+    </AppLayout>
+  );
+}

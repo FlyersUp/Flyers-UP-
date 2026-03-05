@@ -9,7 +9,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, ReactNode } from 'react';
-import { Home, Bell, MessageCircle, Settings } from 'lucide-react';
+import { Home, MessageCircle, Settings, FileText, ClipboardList, Calendar } from 'lucide-react';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { useUnreadNotifications } from '@/hooks/useUnreadNotifications';
 
@@ -84,7 +84,13 @@ function TabItem({ href, isActive, label, icon, badge, ariaLabel }: TabItemProps
 
 function getModeFromPath(pathname: string | null): 'customer' | 'pro' | null {
   if (pathname?.startsWith('/pro') || pathname?.startsWith('/dashboard/pro')) return 'pro';
-  if (pathname?.startsWith('/customer') || pathname?.startsWith('/dashboard/customer')) return 'customer';
+  if (
+    pathname?.startsWith('/customer') ||
+    pathname?.startsWith('/dashboard/customer') ||
+    pathname?.startsWith('/flyer-wall') ||
+    pathname?.startsWith('/requests')
+  )
+    return 'customer';
   return null;
 }
 
@@ -114,7 +120,9 @@ export default function BottomNav() {
   }, [mode]);
 
   const homeHref = mode === 'pro' ? '/pro' : '/customer';
-  const notificationsHref = mode === 'pro' ? '/pro/notifications' : '/customer/notifications';
+  const flyerWallHref = '/flyer-wall';
+  const requestsHref = mode === 'pro' ? '/pro/requests' : '/customer/requests';
+  const bookingsHref = mode === 'pro' ? '/pro/bookings' : '/customer/bookings';
   const messagesHref = mode === 'pro' ? '/pro/messages' : '/customer/messages';
   const settingsHref = mode === 'pro' ? '/pro/settings' : '/customer/settings';
 
@@ -124,8 +132,8 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-[#FAF8F6] border-t border-black/5 z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.04)] safe-area-bottom opacity-100">
-      <div className="max-w-7xl mx-auto px-2">
-        <div className="flex items-center justify-around h-16">
+      <div className="max-w-7xl mx-auto px-1">
+        <div className="flex items-center justify-around h-16 gap-0.5">
           <TabItem
             href={homeHref}
             isActive={isActive(homeHref)}
@@ -133,12 +141,22 @@ export default function BottomNav() {
             icon={<Home size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
           />
           <TabItem
-            href={notificationsHref}
-            isActive={isActive(notificationsHref)}
-            label="Notifications"
-            icon={<Bell size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-            badge={<NotificationBadge count={unreadCount} />}
-            ariaLabel={notificationsAriaLabel}
+            href={flyerWallHref}
+            isActive={isActive(flyerWallHref)}
+            label="Flyer Wall"
+            icon={<FileText size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
+          />
+          <TabItem
+            href={requestsHref}
+            isActive={isActive(requestsHref)}
+            label="Requests"
+            icon={<ClipboardList size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
+          />
+          <TabItem
+            href={bookingsHref}
+            isActive={isActive(bookingsHref)}
+            label="Bookings"
+            icon={<Calendar size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
           />
           <TabItem
             href={messagesHref}
@@ -150,7 +168,7 @@ export default function BottomNav() {
           <TabItem
             href={settingsHref}
             isActive={isActive(settingsHref)}
-            label="Settings"
+            label="Profile"
             icon={<Settings size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
           />
         </div>

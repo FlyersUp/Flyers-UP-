@@ -161,6 +161,7 @@ function getCustomerMenu(): MenuSection[] {
       title: 'Bookings',
       items: [
         { label: 'Bookings', href: '/customer/bookings' },
+        { label: 'Requests', href: '/customer/requests' },
         { label: 'Saved Pros', href: '/customer/categories' },
         { label: 'Booking Rules', href: '/booking-rules' },
       ],
@@ -175,6 +176,7 @@ function getCustomerMenu(): MenuSection[] {
     {
       title: 'Discovery',
       items: [
+        { label: 'Flyer Wall', href: '/flyer-wall' },
         { label: 'Browse Services', href: '/customer/categories' },
         { label: 'Nearby Pros', href: '/customer/categories' },
         { label: 'Favorites', href: '/customer/favorites' },
