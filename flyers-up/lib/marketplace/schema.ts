@@ -34,7 +34,7 @@ export const adminSettingsUpdateSchema = z.object({
       maxMultiplier: z.number().min(1).max(2),
       minMultiplier: z.number().min(1),
       targetRequestsPerPro: z.number().min(0),
-      urgencyBoost: z.record(z.number()),
+      urgencyBoost: z.record(z.string(), z.number()),
     })
     .optional(),
 });
