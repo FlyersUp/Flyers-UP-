@@ -28,6 +28,11 @@ export default function FlyerWallPage() {
         router.replace(`/auth?next=${encodeURIComponent('/flyer-wall')}`);
         return;
       }
+      // Flyer Wall is customer-only; redirect pros to their home
+      if (user.role === 'pro') {
+        router.replace('/pro');
+        return;
+      }
       setUserName(user.email?.split('@')[0] ?? 'Account');
       setReady(true);
     };

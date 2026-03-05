@@ -140,12 +140,14 @@ export default function BottomNav() {
             label="Home"
             icon={<Home size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
           />
-          <TabItem
-            href={flyerWallHref}
-            isActive={isActive(flyerWallHref)}
-            label="Flyer Wall"
-            icon={<FileText size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-          />
+          {mode === 'customer' && (
+            <TabItem
+              href={flyerWallHref}
+              isActive={isActive(flyerWallHref)}
+              label="Flyer Wall"
+              icon={<FileText size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
+            />
+          )}
           <TabItem
             href={requestsHref}
             isActive={isActive(requestsHref)}

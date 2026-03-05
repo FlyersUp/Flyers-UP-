@@ -125,6 +125,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             <div className="text-sm font-semibold text-text">Error logs</div>
             <div className="mt-1 text-sm text-muted">Last 100 error events.</div>
           </Link>
+          <Link href="/admin/marketplace" className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors p-4">
+            <div className="text-sm font-semibold text-text">Marketplace</div>
+            <div className="mt-1 text-sm text-muted">Surge pricing, heatmap, job claims &amp; controls.</div>
+          </Link>
         </div>
       </div>
     </Layout>

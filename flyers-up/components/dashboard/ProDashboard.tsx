@@ -218,7 +218,7 @@ export default function ProDashboard({ userName }: { userName: string }) {
                 <div className="p-4">
                   <div className="text-sm font-medium text-[#111]">No open requests</div>
                   <div className="text-xs text-black/60 mt-1">New requests will appear here.</div>
-                  <Link href="/pro/requests" className="mt-2 inline-block text-sm text-[#111] hover:underline">
+                  <Link href="/demand" className="mt-2 inline-block text-sm text-[#111] hover:underline">
                     View Demand Board →
                   </Link>
                 </div>
