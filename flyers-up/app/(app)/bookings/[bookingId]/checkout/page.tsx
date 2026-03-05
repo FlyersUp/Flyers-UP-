@@ -138,6 +138,7 @@ function CheckoutForm({
           handleSubmit();
         }}
         className="hidden"
+        aria-label="Payment form"
       />
       <PaymentCard />
       {error && (

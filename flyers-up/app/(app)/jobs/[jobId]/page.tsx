@@ -34,7 +34,7 @@ export default function JobDetailsPage({ params }: PageProps) {
 
   // Booking review (customer leaves review for pro)
   const [existingReview, setExistingReview] = useState<BookingReview | null>(null);
-  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
@@ -249,18 +249,19 @@ export default function JobDetailsPage({ params }: PageProps) {
               <h3 className="font-semibold text-text mb-1">Leave a review for {booking.proName || 'your Pro'}</h3>
               <p className="text-sm text-muted/70 mb-4">Help others by sharing your experience.</p>
 
-              <div className="flex gap-1 mb-4">
+              <div className="flex gap-2 mb-4" role="group" aria-label="Star rating">
                 {[1, 2, 3, 4, 5].map((s) => (
                   <button
                     key={s}
                     type="button"
                     onClick={() => setReviewRating(s)}
-                    className={`text-2xl transition-colors ${
-                      s <= reviewRating ? 'text-warning hover:text-warning/80' : 'text-muted/40 hover:text-muted/60'
+                    className={`text-2xl p-1 rounded transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 ${
+                      s <= reviewRating ? 'text-warning hover:text-warning/90' : 'text-muted/40 hover:text-warning/60'
                     }`}
-                    aria-label={`${s} stars`}
+                    aria-label={`${s} star${s === 1 ? '' : 's'}`}
+                    aria-pressed={s <= reviewRating}
                   >
-                    ★
+                    {s <= reviewRating ? '★' : '☆'}
                   </button>
                 ))}
               </div>
@@ -273,6 +274,9 @@ export default function JobDetailsPage({ params }: PageProps) {
                 className="w-full px-4 py-3 bg-surface2 border border-hairline rounded-xl text-text placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-transparent resize-none mb-4"
               />
 
+              {reviewRating === 0 && (
+                <p className="text-sm text-muted/70 mb-2">Tap a star to choose your rating.</p>
+              )}
               {reviewMessage && (
                 <p
                   className={`text-sm mb-4 ${reviewMessage.startsWith('Thank') ? 'text-accent' : 'text-danger'}`}
@@ -299,8 +303,8 @@ export default function JobDetailsPage({ params }: PageProps) {
                   }
                   setReviewSubmitting(false);
                 }}
-                disabled={reviewSubmitting}
-                className="px-4 py-2 rounded-xl bg-accent text-accentContrast font-medium hover:opacity-95 disabled:opacity-70"
+                disabled={reviewSubmitting || reviewRating === 0}
+                className="px-4 py-2 rounded-xl bg-accent text-accentContrast font-medium hover:opacity-95 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {reviewSubmitting ? 'Submitting…' : 'Submit review'}
               </button>

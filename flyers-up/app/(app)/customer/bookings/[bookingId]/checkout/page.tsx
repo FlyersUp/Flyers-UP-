@@ -81,7 +81,7 @@ function CheckoutForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6" aria-label="Payment details">
       <PaymentElement options={{ layout: 'tabs' }} />
       {error && (
         <div className="p-3 rounded-lg bg-danger/10 border border-danger/30 text-sm text-danger">
@@ -208,6 +208,8 @@ export default function CheckoutPage({
           <div
             className="rounded-2xl border border-black/10 p-6 space-y-6"
             style={{ backgroundColor: '#F2F2F0' }}
+            role="region"
+            aria-label="Payment"
           >
             <div>
               <p className="text-sm text-muted">

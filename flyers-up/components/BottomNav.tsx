@@ -8,7 +8,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, ReactNode } from 'react';
+import { useEffect, useState, ReactNode } from 'react';
 import { Home, Bell, MessageCircle, Settings } from 'lucide-react';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { useUnreadNotifications } from '@/hooks/useUnreadNotifications';
@@ -82,22 +82,30 @@ function TabItem({ href, isActive, label, icon, badge, ariaLabel }: TabItemProps
   );
 }
 
+function getModeFromPath(pathname: string | null): 'customer' | 'pro' | null {
+  if (pathname?.startsWith('/pro') || pathname?.startsWith('/dashboard/pro')) return 'pro';
+  if (pathname?.startsWith('/customer') || pathname?.startsWith('/dashboard/customer')) return 'customer';
+  return null;
+}
+
 export default function BottomNav() {
   const pathname = usePathname();
   const { hasNewMessages } = useNavAlerts();
   const { unreadCount } = useUnreadNotifications();
-  const mode: 'customer' | 'pro' = (() => {
-    if (pathname?.startsWith('/pro') || pathname?.startsWith('/dashboard/pro')) return 'pro';
-    if (pathname?.startsWith('/customer') || pathname?.startsWith('/dashboard/customer')) return 'customer';
+  const pathMode = getModeFromPath(pathname);
+  const [storageMode, setStorageMode] = useState<'customer' | 'pro'>('customer');
+  const mode: 'customer' | 'pro' = pathMode ?? storageMode;
+  const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/');
+
+  useEffect(() => {
+    if (pathMode != null) return;
     try {
       const last = window.localStorage.getItem('flyersup:lastRole');
-      if (last === 'pro' || last === 'customer') return last;
+      if (last === 'pro' || last === 'customer') setStorageMode(last);
     } catch {
       // ignore
     }
-    return 'customer';
-  })();
-  const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/');
+  }, [pathMode]);
 
   useEffect(() => {
     const root = document.documentElement;

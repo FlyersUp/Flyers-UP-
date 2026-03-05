@@ -83,7 +83,7 @@ function AuthorizeForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6" aria-label="Card authorization">
       <PaymentElement options={{ layout: 'tabs' }} />
       {error && (
         <div className="p-3 rounded-lg bg-danger/10 border border-danger/30 text-sm text-danger">

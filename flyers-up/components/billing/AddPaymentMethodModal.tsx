@@ -45,7 +45,7 @@ function AddPaymentForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" aria-label="Add payment method">
       <PaymentElement options={{ layout: 'tabs' }} />
       {error && (
         <div className="p-3 rounded-lg bg-danger/10 border border-danger/30 text-sm text-danger">
@@ -112,9 +112,11 @@ export function AddPaymentMethodModal({ clientSecret, onSuccess, onClose }: AddP
       <div
         className="rounded-2xl border border-black/10 p-6 max-w-md w-full max-h-[90vh] overflow-auto"
         style={{ backgroundColor: '#F2F2F0' }}
+        role="dialog"
+        aria-labelledby="add-payment-title"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-text">Add payment method</h3>
+          <h3 id="add-payment-title" className="text-lg font-semibold text-text">Add payment method</h3>
           <button
             type="button"
             onClick={onClose}
