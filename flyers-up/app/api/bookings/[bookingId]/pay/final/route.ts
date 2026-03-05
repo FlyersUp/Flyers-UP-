@@ -68,7 +68,9 @@ export async function POST(
     );
   }
 
-  if (booking.payment_status !== 'PAID') {
+  const amountDeposit = Number(booking.amount_deposit ?? 0);
+  const hadDeposit = amountDeposit > 0;
+  if (hadDeposit && booking.payment_status !== 'PAID') {
     return NextResponse.json(
       { error: 'Deposit must be paid first' },
       { status: 409 }
@@ -82,7 +84,10 @@ export async function POST(
     );
   }
 
-  const amountRemaining = Number(booking.amount_remaining ?? 0);
+  const amountTotal = Number(booking.amount_total ?? booking.total_amount_cents ?? 0);
+  const amountRemaining = Number(
+    booking.amount_remaining ?? booking.remaining_amount_cents ?? Math.max(0, amountTotal - amountDeposit)
+  );
   if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
     return NextResponse.json({ error: 'No remaining balance to pay' }, { status: 400 });
   }
@@ -105,8 +110,6 @@ export async function POST(
     );
   }
 
-  const amountTotal = Number(booking.amount_total ?? booking.total_amount_cents ?? 0);
-  const amountDeposit = Number(booking.amount_deposit ?? 0);
   const amountPlatformFee = Number(booking.amount_platform_fee ?? 0);
   const remainingPlatformFee = amountTotal > 0
     ? Math.round((amountPlatformFee * amountRemaining) / amountTotal)
