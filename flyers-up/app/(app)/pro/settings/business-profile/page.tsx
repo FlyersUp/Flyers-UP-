@@ -200,7 +200,7 @@ export default function ProBusinessProfileSettingsPage() {
       .then((data) => {
         if (!mounted) return;
         const subs = Array.isArray(data?.subcategories) ? data.subcategories : [];
-        setSubcategories(subs.map((s: { id?: string; name?: string }) => ({ id: String(s?.id ?? ''), name: String(s?.name ?? '') })).filter((s) => s.name));
+        setSubcategories(subs.map((s: { id?: string; name?: string }) => ({ id: String(s?.id ?? ''), name: String(s?.name ?? '') })).filter((sub: { id: string; name: string }) => sub.name));
       })
       .catch(() => {
         if (mounted) setSubcategories([]);
