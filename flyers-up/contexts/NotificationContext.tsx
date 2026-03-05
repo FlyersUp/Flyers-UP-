@@ -152,13 +152,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (shouldSkipRealtime()) return;
 
+    let mounted = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const subscribe = async () => {
+      if (!mounted) return;
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!mounted || !user) return;
+
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
 
       channel = supabase
         .channel('notifications-realtime')
@@ -179,14 +187,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           }
         )
         .subscribe((status) => {
-          if (status === 'CHANNEL_ERROR') {
-            console.warn('NotificationContext: realtime subscription error');
+          if (!mounted) return;
+          if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+            if (channel) {
+              supabase.removeChannel(channel);
+              channel = null;
+            }
+            retryTimeout = setTimeout(() => subscribe(), 3000);
           }
         });
     };
 
     void subscribe();
     return () => {
+      mounted = false;
+      if (retryTimeout) clearTimeout(retryTimeout);
       if (channel) supabase.removeChannel(channel);
     };
   }, [showToastFor]);

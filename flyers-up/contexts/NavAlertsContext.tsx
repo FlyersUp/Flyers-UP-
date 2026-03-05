@@ -38,14 +38,19 @@ export function NavAlertsProvider({ children }: { children: React.ReactNode }) {
   const clearNotificationsAlert = useCallback(() => setHasNewNotifications(false), []);
 
   useEffect(() => {
+    let mounted = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const subscribe = async () => {
-      if (isUsingSupabaseHttpProxy()) {
-        return;
-      }
+      if (!mounted || isUsingSupabaseHttpProxy()) return;
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!mounted || !user) return;
+
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
 
       channel = supabase
         .channel('nav-alerts-messages')
@@ -80,17 +85,22 @@ export function NavAlertsProvider({ children }: { children: React.ReactNode }) {
           }
         )
         .subscribe((status) => {
-          if (status === 'CHANNEL_ERROR') {
-            console.warn('NavAlerts: realtime subscription error');
+          if (!mounted) return;
+          if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+            if (channel) {
+              supabase.removeChannel(channel);
+              channel = null;
+            }
+            retryTimeout = setTimeout(() => subscribe(), 3000);
           }
         });
     };
 
-    subscribe();
+    void subscribe();
     return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
+      mounted = false;
+      if (retryTimeout) clearTimeout(retryTimeout);
+      if (channel) supabase.removeChannel(channel);
     };
   }, []);
 
