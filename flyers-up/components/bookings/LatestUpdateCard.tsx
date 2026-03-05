@@ -6,6 +6,7 @@ const LATEST_UPDATE_COPY: Record<Status, string> = {
   BOOKED: 'Booked. Waiting for pro to accept.',
   ACCEPTED: 'Accepted. Pro is preparing to head over.',
   ON_THE_WAY: 'On the way.',
+  ARRIVED: 'Pro has arrived.',
   IN_PROGRESS: 'Work started.',
   COMPLETED: 'Completed.',
   PAID: 'Paid. Thank you!',

@@ -25,7 +25,7 @@ export default function Earnings() {
     if (typeof window === 'undefined') return null;
     return new URLSearchParams(window.location.search).get('connect');
   });
-  const [summary, setSummary] = useState<{ totalEarnings: number; thisMonth: number; thisWeek: number; completedJobs: number; pendingPayments: number; avgRating: number | null } | null>(null);
+  const [summary, setSummary] = useState<EarningsSummary | null>(null);
   const [recent, setRecent] = useState<RecentEarning[]>([]);
   const [loading, setLoading] = useState(true);
 

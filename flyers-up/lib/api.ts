@@ -959,7 +959,7 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       proUserId: (data.service_pros as { user_id?: string })?.user_id,
       acceptedAt: data.accepted_at ?? null,
       onTheWayAt: (d.en_route_at ?? data.on_the_way_at) ?? null,
-      arrivedAt: d.arrived_at ?? null,
+      arrivedAt: typeof d.arrived_at === 'string' ? d.arrived_at : null,
       startedAt: data.started_at ?? null,
       completedAt: data.completed_at ?? null,
       statusHistory: data.status_history as StatusHistoryEntry[] | undefined,

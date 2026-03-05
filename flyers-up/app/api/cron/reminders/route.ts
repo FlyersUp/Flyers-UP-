@@ -108,13 +108,16 @@ export async function GET(req: NextRequest) {
     if (recent?.length) continue;
 
     await admin.from('booking_events').insert({ booking_id: b.id, type: 'BOOKING_REMINDER_24H', data: {} });
-    await createNotification({
-      userId: (b as { customer_id?: string }).customer_id,
-      bookingId: b.id,
-      type: 'booking_reminder',
-      title: 'Booking tomorrow',
-      body: 'Your booking is scheduled for tomorrow. Get ready!',
-    });
+    const customerId = (b as { customer_id?: string }).customer_id;
+    if (customerId) {
+      await createNotification({
+        userId: customerId,
+        bookingId: b.id,
+        type: 'booking_reminder',
+        title: 'Booking tomorrow',
+        body: 'Your booking is scheduled for tomorrow. Get ready!',
+      });
+    }
     const proUserId = (b.service_pros as { user_id?: string })?.user_id;
     if (proUserId) {
       await createNotification({
@@ -152,13 +155,16 @@ export async function GET(req: NextRequest) {
     if (recent?.length) continue;
 
     await admin.from('booking_events').insert({ booking_id: b.id, type: 'BOOKING_REMINDER_1H', data: {} });
-    await createNotification({
-      userId: (b as { customer_id?: string }).customer_id,
-      bookingId: b.id,
-      type: 'booking_reminder',
-      title: 'Booking in 1 hour',
-      body: 'Your booking starts in about an hour.',
-    });
+    const customerId1h = (b as { customer_id?: string }).customer_id;
+    if (customerId1h) {
+      await createNotification({
+        userId: customerId1h,
+        bookingId: b.id,
+        type: 'booking_reminder',
+        title: 'Booking in 1 hour',
+        body: 'Your booking starts in about an hour.',
+      });
+    }
     const proUserId = (b.service_pros as { user_id?: string })?.user_id;
     if (proUserId) {
       await createNotification({
