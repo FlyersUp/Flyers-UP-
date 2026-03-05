@@ -6,6 +6,7 @@
  */
 
 import { use, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { StatusBadge } from '@/components/ui/Badge';
 import { createScopeReview, getBookingById, getCurrentUser, getLatestScopeReview, getReviewForBooking, type BookingDetails, type BookingReview, type ScopeReview, type UserWithProfile } from '@/lib/api';
@@ -84,6 +85,25 @@ export default function JobDetailsPage({ params }: PageProps) {
     };
   }, [booking]);
 
+  useEffect(() => {
+    if (showScopeModal) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      const onEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setShowScopeModal(false);
+          setScopeReason('');
+          setScopeMessage(null);
+        }
+      };
+      document.addEventListener('keydown', onEscape);
+      return () => {
+        document.body.style.overflow = prev;
+        document.removeEventListener('keydown', onEscape);
+      };
+    }
+  }, [showScopeModal]);
+
   const formattedBookingDate = useMemo(() => {
     if (!booking) return null;
     return new Date(booking.serviceDate).toLocaleDateString('en-US', {
@@ -127,7 +147,10 @@ export default function JobDetailsPage({ params }: PageProps) {
       <header className="sticky top-0 z-50 bg-surface border-b border-hairline">
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2 text-muted hover:text-text transition-colors">
+            <Link
+              href={currentUser?.role === 'pro' ? `/pro/bookings/${jobId}` : `/customer/bookings/${jobId}`}
+              className="flex items-center gap-2 text-muted hover:text-text transition-colors"
+            >
               <span>←</span>
               <span className="font-medium">Back</span>
             </Link>
@@ -326,74 +349,92 @@ export default function JobDetailsPage({ params }: PageProps) {
         </section>
       </main>
 
-      {/* Modal */}
-      {showScopeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-surface w-full max-w-lg rounded-[18px] border border-hairline shadow-card p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-lg font-semibold text-text">Request scope review</h4>
-              <button
-                onClick={() => {
-                  setShowScopeModal(false);
-                  setScopeReason('');
-                  setScopeMessage(null);
-                }}
-                className="text-muted/70 hover:text-text"
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-
-            <label className="block text-sm font-medium text-text mb-2">
-              Explain what changed from the original scope…
-            </label>
-            <textarea
-              value={scopeReason}
-              onChange={(e) => setScopeReason(e.target.value)}
-              rows={5}
-              className="w-full px-4 py-3 bg-surface2 border border-hairline rounded-xl text-text placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-transparent resize-none"
-              placeholder="e.g., additional rooms, heavier debris than expected, access issues, etc."
-            />
-
-            <div className="mt-4 flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setShowScopeModal(false);
-                  setScopeReason('');
-                }}
-                className="px-4 py-2 rounded-xl bg-surface2 hover:bg-surface text-text text-sm font-medium"
-                disabled={scopeSubmitting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  setScopeSubmitting(true);
-                  setScopeMessage(null);
-                  const res = await createScopeReview(booking.id, scopeReason);
-                  if (res.success) {
-                    setScopeMessage('Scope review requested.');
-                    const latest = await getLatestScopeReview(booking.id);
-                    setLatestScopeReview(latest);
+      {/* Scope review modal - rendered via portal to escape stacking context */}
+      {showScopeModal &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-[1px] p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="scope-review-title"
+            onClick={() => {
+              setShowScopeModal(false);
+              setScopeReason('');
+              setScopeMessage(null);
+            }}
+          >
+            <div
+              className="fixed left-1/2 top-1/2 z-[10000] w-[min(92vw,520px)] max-h-[80vh] -translate-x-1/2 -translate-y-1/2 flex flex-col rounded-2xl bg-[#FAF8F6] shadow-xl border border-black/10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative shrink-0 p-4 pb-0">
+                <h4 id="scope-review-title" className="text-lg font-semibold text-text pr-8">
+                  Request scope review
+                </h4>
+                <button
+                  onClick={() => {
                     setShowScopeModal(false);
                     setScopeReason('');
-                  } else {
-                    setScopeMessage(res.error || 'Failed to request scope review.');
-                  }
-                  setScopeSubmitting(false);
-                }}
-                className={`px-4 py-2 rounded-xl text-sm font-medium ${
-                  scopeSubmitting ? 'bg-accent/70 text-accentContrast' : 'bg-accent hover:opacity-95 text-accentContrast'
-                }`}
-                disabled={scopeSubmitting || !scopeReason.trim()}
-              >
-                {scopeSubmitting ? 'Submitting…' : 'Submit'}
-              </button>
+                    setScopeMessage(null);
+                  }}
+                  className="absolute top-3 right-3 p-1 text-muted/70 hover:text-text rounded"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="flex-1 min-h-0 overflow-auto p-4 space-y-4">
+                <label className="block text-sm font-medium text-text">
+                  Explain what changed from the original scope…
+                </label>
+                <textarea
+                  value={scopeReason}
+                  onChange={(e) => setScopeReason(e.target.value)}
+                  rows={5}
+                  className="w-full px-4 py-3 bg-surface2 border border-hairline rounded-xl text-text placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-transparent resize-none"
+                  placeholder="e.g., additional rooms, heavier debris than expected, access issues, etc."
+                />
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => {
+                      setShowScopeModal(false);
+                      setScopeReason('');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-surface2 hover:bg-surface text-text text-sm font-medium"
+                    disabled={scopeSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setScopeSubmitting(true);
+                      setScopeMessage(null);
+                      const res = await createScopeReview(booking.id, scopeReason);
+                      if (res.success) {
+                        setScopeMessage('Scope review requested.');
+                        const latest = await getLatestScopeReview(booking.id);
+                        setLatestScopeReview(latest);
+                        setShowScopeModal(false);
+                        setScopeReason('');
+                      } else {
+                        setScopeMessage(res.error || 'Failed to request scope review.');
+                      }
+                      setScopeSubmitting(false);
+                    }}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                      scopeSubmitting ? 'bg-accent/70 text-accentContrast' : 'bg-accent hover:opacity-95 text-accentContrast'
+                    }`}
+                    disabled={scopeSubmitting || !scopeReason.trim()}
+                  >
+                    {scopeSubmitting ? 'Submitting…' : 'Submit'}
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

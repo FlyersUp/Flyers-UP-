@@ -49,7 +49,7 @@ export async function POST(
 
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency')
+    .select('id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price')
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();
@@ -85,8 +85,11 @@ export async function POST(
   }
 
   const amountTotal = Number(booking.amount_total ?? booking.total_amount_cents ?? 0);
+  const priceCents = Math.round(Number((booking as { price?: number }).price ?? 0) * 100);
   const amountRemaining = Number(
-    booking.amount_remaining ?? booking.remaining_amount_cents ?? Math.max(0, amountTotal - amountDeposit)
+    booking.amount_remaining ??
+    booking.remaining_amount_cents ??
+    (amountTotal > 0 ? Math.max(0, amountTotal - amountDeposit) : priceCents - amountDeposit)
   );
   if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
     return NextResponse.json({ error: 'No remaining balance to pay' }, { status: 400 });
