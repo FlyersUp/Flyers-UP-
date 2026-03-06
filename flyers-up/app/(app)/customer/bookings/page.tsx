@@ -155,7 +155,8 @@ function CustomerBookingsContent() {
             ))}
           </div>
         )}
-      </BookingsTabsLayout>
+        </BookingsTabsLayout>
+      </CustomerPageShell>
     </AppLayout>
   );
 }
