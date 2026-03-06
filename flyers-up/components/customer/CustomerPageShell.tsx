@@ -38,12 +38,12 @@ export function CustomerPageShell({ title, children, userName: userNameProp, sub
 
   return (
     <div className="min-h-screen bg-[#F5F5F5]">
-      <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
+        <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-[#E5E5E5]">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
-            className="h-10 w-10 rounded-xl bg-[#F5F5F5] border border-black/10 text-black/70 hover:bg-[#EBEBEB]"
+            className="h-10 w-10 rounded-xl bg-[#F8F8F8] border border-[#E5E5E5] text-[#111111] hover:bg-[#EBEBEB]"
             aria-label="Open menu"
           >
             ☰
@@ -56,7 +56,7 @@ export function CustomerPageShell({ title, children, userName: userNameProp, sub
       <div className="pb-24">
         {subtitle && (
           <div className="max-w-4xl mx-auto px-4 pt-4">
-            <p className="text-sm text-black/60">{subtitle}</p>
+            <p className="text-sm text-[#6B7280]">{subtitle}</p>
           </div>
         )}
         {children}

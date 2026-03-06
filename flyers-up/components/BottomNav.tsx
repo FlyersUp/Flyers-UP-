@@ -135,7 +135,7 @@ export default function BottomNav() {
   const iconClass = 'shrink-0 text-current [&>svg]:transition-colors';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-neutral-200 shadow-[0_-6px_20px_rgba(0,0,0,0.06)] safe-area-bottom">
+    <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-[#E5E5E5] bg-white/95 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 shadow-[0_-6px_20px_rgba(0,0,0,0.06)] safe-area-bottom">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-stretch justify-around min-h-[68px]">
           <TabItem

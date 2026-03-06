@@ -278,12 +278,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
 }
-.dark html {
-  background: #2d2d2d;
-}
-.dark body {
-  background: #2d2d2d;
-}
+/* Light theme only: html/body always use app background */
 
 /* ============================================
    UTILITY CLASSES

@@ -48,15 +48,15 @@ export default function PageLayout({
     <div
       data-role={resolvedMode}
       data-accent={accentDensity}
-      className={`min-h-screen bg-bg text-text pb-20 ${className}`}
+      className={`min-h-screen bg-[#F5F5F5] text-gray-900 pb-20 ${className}`}
     >
       {/* Back Button Header */}
       {showBackButton && (
-        <header className="bg-[var(--surface-solid)] border-b border-[var(--surface-border)] sticky top-0 z-40">
+        <header className="bg-white border-b border-[#E5E5E5] sticky top-0 z-40">
           <div className="max-w-7xl mx-auto px-[var(--page-pad-x)] py-3">
             <button
               onClick={handleBack}
-              className="flex items-center gap-2 text-muted hover:text-text transition-colors text-sm font-medium"
+              className="flex items-center gap-2 text-[#6B7280] hover:text-gray-900 transition-colors text-sm font-medium"
             >
               <span>{backButtonText}</span>
             </button>

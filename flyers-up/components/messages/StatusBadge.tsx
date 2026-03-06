@@ -21,16 +21,16 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }>
   'active': { bg: 'bg-emerald-100', text: 'text-emerald-900', label: 'In Progress' },
   'declined': { bg: 'bg-red-50', text: 'text-red-800', label: 'Declined' },
   'cancelled': { bg: 'bg-red-50', text: 'text-red-800', label: 'Declined' },
-  'inquiry': { bg: 'bg-surface2', text: 'text-muted', label: 'Inquiry' },
-  'requested': { bg: 'bg-surface2', text: 'text-muted', label: 'Requested' },
-  'scheduled': { bg: 'bg-surface2', text: 'text-muted', label: 'Scheduled' },
+  'inquiry': { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Inquiry' },
+  'requested': { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Requested' },
+  'scheduled': { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Scheduled' },
 };
 
 function getConfig(status: string): { bg: string; text: string; label: string } {
   const s = status.toLowerCase().trim();
   return STATUS_CONFIG[s] ?? {
-    bg: 'bg-surface2',
-    text: 'text-muted',
+    bg: 'bg-gray-100',
+    text: 'text-gray-700',
     label: status.replaceAll('_', ' '),
   };
 }
@@ -39,7 +39,7 @@ export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
   const config = getConfig(status);
   return (
     <span
-      className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-medium tracking-wide border border-black/5 ${config.bg} ${config.text} ${className}`}
+      className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-medium tracking-wide border border-[#E5E5E5] ${config.bg} ${config.text} ${className}`}
     >
       {config.label}
     </span>

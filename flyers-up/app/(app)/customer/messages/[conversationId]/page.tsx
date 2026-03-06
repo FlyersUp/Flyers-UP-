@@ -16,18 +16,18 @@ export default function CustomerConversationPage() {
         <div className="flex items-center justify-between">
           <div>
             <Label className="mb-2 block">CUSTOMER CONVERSATION</Label>
-            <h1 className="text-2xl font-semibold text-text">Conversation</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">Conversation</h1>
           </div>
-          <Link href="/customer/messages" className="text-sm text-muted hover:text-text">
+          <Link href="/customer/messages" className="text-sm text-gray-500 hover:text-gray-900">
             Back to Messages →
           </Link>
         </div>
 
         <Card withRail>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-gray-500">
             Conversation ID: <span className="font-mono">{conversationId}</span>
           </p>
-          <p className="text-text mt-3">
+          <p className="text-gray-900 mt-3">
             Chat UI wiring is next. For now this page confirms navigation works and stays in Customer mode.
           </p>
         </Card>

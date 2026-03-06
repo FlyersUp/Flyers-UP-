@@ -169,9 +169,9 @@ export default function ProMessagesPage() {
         title="Messages"
         subtitle="Your conversations with customers will show up here."
       >
-        <div className="max-w-4xl mx-auto px-4 pt-2">
+        <div className="max-w-4xl mx-auto px-4 pt-2 bg-transparent">
           {loading ? (
-            <p className="text-sm text-black/60">Loading…</p>
+            <p className="text-sm text-[#6B7280]">Loading…</p>
           ) : threads.length === 0 ? (
             <EmptyState
               variant="list"

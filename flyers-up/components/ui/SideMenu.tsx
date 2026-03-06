@@ -21,14 +21,7 @@ type MenuSection = {
 function Section({ title, items, onNavigate }: { title: string; items: MenuItem[]; onNavigate: () => void }) {
   return (
     <div className="space-y-2">
-      <div
-        className={[
-          'inline-flex w-full items-center justify-between',
-          'pb-2 mb-1',
-          'text-sm font-semibold tracking-wide text-text uppercase',
-          'border-b border-[var(--surface-border)]',
-        ].join(' ')}
-      >
+      <div className="pb-2 mb-1 text-xs font-semibold tracking-wide text-[#6B7280] uppercase border-b border-[#E5E5E5]">
         <span>{title}</span>
       </div>
       <div className="space-y-1">
@@ -36,15 +29,13 @@ function Section({ title, items, onNavigate }: { title: string; items: MenuItem[
           const disabled = Boolean(it.disabled || !it.href);
           const row = (
             <div
-              className={[
-                'flex items-center justify-between gap-3 rounded-xl px-3 py-2',
-                'transition-colors',
-                disabled ? 'text-muted/50 cursor-not-allowed' : 'text-text hover:bg-surface2',
-              ].join(' ')}
+              className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2 transition-colors ${
+                disabled ? 'text-[#6B7280] cursor-not-allowed opacity-60' : 'text-gray-900 hover:bg-[#F8F8F8]'
+              }`}
               title={disabled ? 'Coming soon' : undefined}
             >
               <span className="text-sm font-medium">{it.label}</span>
-              <span className="text-muted" aria-hidden>
+              <span className="text-[#6B7280]" aria-hidden>
                 ›
               </span>
             </div>
@@ -288,24 +279,24 @@ export function SideMenu({
       style={{ position: 'fixed', inset: 0, zIndex: 60 }}
     >
       <aside
-        className="w-[22rem] max-w-[92vw] bg-[var(--surface-solid)] text-text shadow-card border-r border-[var(--surface-border)]"
+        className="w-[22rem] max-w-[92vw] bg-[#F5F5F5] text-gray-900 shadow-xl border-r border-[#E5E5E5]"
         style={{ position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 61 }}
       >
         <div className="h-full flex flex-col">
-          <div className="px-[var(--panel-pad-x)] py-[var(--panel-pad-y)] border-b border-hairline">
+          <div className="px-5 py-5 border-b border-[#E5E5E5]">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-base font-semibold text-text">{userName}</div>
-                <div className="text-sm text-muted">{roleLabel}</div>
+                <div className="text-base font-semibold text-gray-900">{userName}</div>
+                <div className="text-sm text-[#6B7280]">{roleLabel}</div>
                 {identity.email || identity.idShort ? (
-                  <div className="mt-1 text-xs text-muted/70">
+                  <div className="mt-1 text-xs text-[#6B7280]">
                     {identity.email ?? '—'}{identity.idShort ? ` • ${identity.idShort}` : ''}
                   </div>
                 ) : null}
               </div>
               <button
                 onClick={onClose}
-                className="h-9 w-9 rounded-xl bg-surface2 text-text hover:bg-surface2/80 transition-colors border border-hairline"
+                className="h-9 w-9 rounded-xl bg-[#F8F8F8] text-gray-900 hover:bg-[#EBEBEB] transition-colors border border-[#E5E5E5]"
                 aria-label="Close"
               >
                 ×
@@ -313,26 +304,26 @@ export function SideMenu({
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto px-[var(--panel-pad-x)] py-[var(--panel-pad-y)]">
-            <div className="space-y-[var(--stack-gap)]">
+          <div className="flex-1 overflow-auto px-5 py-5">
+            <div className="space-y-6">
               {sections.map((s) => (
                 <Section key={s.title} title={s.title} items={s.items} onNavigate={onClose} />
               ))}
             </div>
           </div>
 
-          <div className="px-[var(--panel-pad-x)] py-4 border-t border-hairline">
+          <div className="px-5 py-4 border-t border-[#E5E5E5]">
             <div className="flex items-center justify-between gap-3">
               <Link
                 href={mode === 'pro' ? '/pro/messages' : '/customer/messages'}
-                className="text-sm font-medium text-muted hover:text-text transition-colors"
+                className="text-sm font-medium text-[#6B7280] hover:text-gray-900 transition-colors"
                 onClick={onClose}
               >
                 Messages
               </Link>
               <button
                 onClick={() => void handleLogout()}
-                className="text-sm font-semibold text-text hover:opacity-90 transition-opacity"
+                className="text-sm font-semibold text-gray-900 hover:opacity-90 transition-opacity"
               >
                 Logout
               </button>
@@ -341,9 +332,9 @@ export function SideMenu({
         </div>
       </aside>
 
-      {/* Backdrop covers only the area *outside* the panel so it can't block panel clicks. */}
+      {/* Backdrop: light overlay, disappears when closed */}
       <button
-        className="bg-black/35"
+        className="bg-black/25"
         style={{
           position: 'fixed',
           top: 0,

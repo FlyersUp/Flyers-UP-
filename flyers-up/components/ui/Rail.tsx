@@ -17,8 +17,8 @@ export function Rail({ className = '', showLabel = false, label }: RailProps) {
   const displayLabel = label || (mode === 'customer' ? 'CUSTOMER MODE' : 'PRO MODE');
 
   return (
-    <div className={`relative w-[4px] bg-surface ${className}`}>
-      {/* Thin colored stripe */}
+    <div className={`relative w-[4px] bg-[#F5F5F5] border-r border-[#E5E5E5] shrink-0 ${className}`}>
+      {/* Thin colored accent stripe */}
       <div className="absolute left-0 top-0 bottom-0 w-px bg-accent" />
       
       {/* Optional micro-label */}
@@ -27,7 +27,7 @@ export function Rail({ className = '', showLabel = false, label }: RailProps) {
           className="absolute top-4 left-1/2 transform -translate-x-1/2 rotate-90 origin-center whitespace-nowrap"
           style={{ fontSize: '8px', fontFamily: 'var(--font-oswald)' }}
         >
-          <span className="text-muted/70">{displayLabel}</span>
+          <span className="text-[#6B7280]">{displayLabel}</span>
         </div>
       )}
     </div>
