@@ -31,7 +31,7 @@ type ProRequestCardProps = {
 
 function ProRequestCardSkeleton() {
   return (
-    <div className="h-[200px] rounded-xl bg-white/80 animate-pulse border border-black/8" />
+    <div className="h-[200px] rounded-xl bg-gray-200 animate-pulse border border-black/8" />
   );
 }
 

@@ -27,7 +27,7 @@ export type JobRequest = {
 
 function RequestCardSkeleton() {
   return (
-    <div className="h-[180px] rounded-xl bg-[#F5F5F5]/80 animate-pulse border border-black/8" />
+    <div className="h-[180px] rounded-xl bg-gray-200 animate-pulse border border-black/8" />
   );
 }
 

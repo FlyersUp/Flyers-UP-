@@ -218,7 +218,7 @@ export default function RequestOffersPage() {
           {loading ? (
             <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-24 rounded-xl bg-white/80 animate-pulse" />
+                <div key={i} className="h-24 rounded-xl bg-gray-200 animate-pulse" />
               ))}
             </div>
           ) : offers.length === 0 ? (

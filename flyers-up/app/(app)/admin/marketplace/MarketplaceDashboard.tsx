@@ -242,7 +242,7 @@ export function MarketplaceDashboard() {
         {statsLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="rounded-xl border border-border bg-surface p-4 h-24 animate-pulse" />
+              <div key={i} className="rounded-xl border border-border bg-gray-200 p-4 h-24 animate-pulse" />
             ))}
           </div>
         ) : (
@@ -396,7 +396,7 @@ export function MarketplaceDashboard() {
       <section>
         <h2 className="text-lg font-semibold text-text mb-4">Surge Controls</h2>
         {settingsLoading ? (
-          <div className="rounded-xl border border-border bg-surface p-8 animate-pulse" />
+          <div className="rounded-xl border border-border bg-gray-200 p-8 animate-pulse" />
         ) : (
           <div className="rounded-xl border border-border bg-surface p-6 space-y-4">
             {settingsError && (

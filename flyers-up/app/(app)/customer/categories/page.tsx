@@ -80,7 +80,7 @@ export default function ChooseOccupationPage() {
               {[1, 2, 3, 4, 5].map((i) => (
                 <div
                   key={i}
-                  className="rounded-2xl bg-white border border-black/5 p-5 h-24 animate-pulse shadow-[0_10px_25px_rgba(0,0,0,0.06)]"
+                  className="rounded-2xl bg-gray-200 border border-black/5 p-5 h-24 animate-pulse shadow-[0_10px_25px_rgba(0,0,0,0.06)]"
                 />
               ))}
             </div>

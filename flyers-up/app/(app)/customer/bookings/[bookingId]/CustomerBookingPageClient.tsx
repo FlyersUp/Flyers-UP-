@@ -79,7 +79,7 @@ export function CustomerBookingPageClient({
     return (
       <AppLayout mode="customer">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <p className="text-sm text-muted">Loading booking…</p>
+          <p className="text-sm text-gray-500">Loading booking…</p>
         </div>
       </AppLayout>
     );
@@ -89,11 +89,11 @@ export function CustomerBookingPageClient({
     return (
       <AppLayout mode="customer">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="rounded-2xl border border-black/5 p-6 shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
-            <p className="text-sm text-muted">Booking not found or you don&apos;t have access.</p>
+          <div className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm">
+            <p className="text-sm text-gray-500">Booking not found or you don&apos;t have access.</p>
             <Link
               href="/customer/bookings"
-              className="mt-4 inline-block text-sm font-medium text-text hover:underline"
+              className="mt-4 inline-block text-sm font-medium text-gray-900 hover:underline"
             >
               ← Back to bookings
             </Link>
@@ -106,7 +106,7 @@ export function CustomerBookingPageClient({
   return (
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <p className="text-sm text-muted">Loading…</p>
+        <p className="text-sm text-gray-500">Loading…</p>
       </div>
     </AppLayout>
   );

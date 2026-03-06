@@ -115,8 +115,8 @@ export function BookingTimeline({ status, timestamps, compact = false }: Booking
               <div
                 className={
                   state === 'upcoming'
-                    ? 'text-[hsl(var(--text-3))]'
-                    : 'text-[hsl(var(--text))]'
+                    ? 'text-gray-500'
+                    : 'text-gray-900'
                 }
               >
                 <span className={`font-medium ${compact ? 'text-sm' : 'text-sm'}`}>

@@ -92,7 +92,7 @@ export default function ConfirmedPage({
           <h1 className="text-2xl font-semibold text-[#111111] mb-6">Booking confirmed</h1>
 
           {loading ? (
-            <div className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm animate-pulse h-48" />
+            <div className="rounded-2xl border border-black/5 bg-gray-200 p-6 shadow-sm animate-pulse h-48" />
           ) : error ? (
             <div
               className="rounded-2xl border border-black/10 p-6"

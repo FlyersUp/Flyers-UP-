@@ -105,7 +105,7 @@ export default function FlyerWallPage() {
               {Array.from({ length: 10 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-[320px] rounded-lg bg-[#F5F5F5]/80 animate-pulse"
+                  className="h-[320px] rounded-lg bg-gray-200 animate-pulse"
                   style={{ transform: `rotate(${getRotation(i)}deg)` }}
                 />
               ))}

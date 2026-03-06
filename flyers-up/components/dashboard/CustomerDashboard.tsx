@@ -314,7 +314,7 @@ export default function CustomerDashboard() {
             {nearbyProsLoading ? (
               <div className="flex gap-3 overflow-hidden">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-36 w-40 shrink-0 rounded-xl bg-[#F5F5F5]/80 animate-pulse" />
+                  <div key={i} className="h-36 w-40 shrink-0 rounded-xl bg-gray-200 animate-pulse" />
                 ))}
               </div>
             ) : nearbyPros.length > 0 ? (

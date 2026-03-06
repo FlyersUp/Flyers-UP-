@@ -69,14 +69,14 @@ export default function JobTimelineCard({
     >
       {/* Header row */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-base font-semibold text-[hsl(var(--text))]">
+        <h2 className="text-base font-semibold text-gray-900">
           Job timeline
         </h2>
         <span
           className="px-3 py-1 rounded-full text-xs font-medium"
           style={{
             backgroundColor: isCompleted ? GREEN : isActive ? ORANGE : 'hsl(var(--muted))',
-            color: isCompleted || isActive ? 'hsl(var(--text))' : 'hsl(var(--text-3))',
+            color: isCompleted || isActive ? 'rgb(17 24 39)' : 'rgb(107 114 128)',
           }}
         >
           {currentLabel}
@@ -147,8 +147,8 @@ export default function JobTimelineCard({
                 <div
                   className={
                     state === 'upcoming'
-                      ? 'text-[hsl(var(--text-3))]'
-                      : 'text-[hsl(var(--text))]'
+                      ? 'text-gray-500'
+                      : 'text-gray-900'
                   }
                 >
                   <span className="font-medium text-sm">

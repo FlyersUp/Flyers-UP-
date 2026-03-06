@@ -298,9 +298,9 @@ export default function CheckoutPage({
 
           {loading ? (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm animate-pulse h-24" />
-              <div className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm animate-pulse h-32" />
-              <div className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm animate-pulse h-40" />
+              <div className="rounded-2xl border border-black/5 bg-gray-200 p-6 shadow-sm animate-pulse h-24" />
+              <div className="rounded-2xl border border-black/5 bg-gray-200 p-6 shadow-sm animate-pulse h-32" />
+              <div className="rounded-2xl border border-black/5 bg-gray-200 p-6 shadow-sm animate-pulse h-40" />
             </div>
           ) : error ? (
             <div

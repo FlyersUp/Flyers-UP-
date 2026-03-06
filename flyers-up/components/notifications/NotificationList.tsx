@@ -114,7 +114,7 @@ export function NotificationList({ basePath }: NotificationListProps) {
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="rounded-2xl border border-black/5 bg-white p-4 animate-pulse"
+            className="rounded-2xl border border-black/5 bg-gray-200 p-4 animate-pulse"
           >
             <div className="h-4 bg-[#F5F5F5] rounded w-3/4 mb-2" />
             <div className="h-3 bg-[#EBEBEB] rounded w-1/2" />
