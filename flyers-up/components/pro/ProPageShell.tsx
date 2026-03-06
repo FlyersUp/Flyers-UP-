@@ -30,7 +30,7 @@ export function ProPageShell({ title, children, userName: userNameProp, subtitle
     getCurrentUser().then((user) => {
       if (!mounted || !user) return;
       const fallback = user.email?.split('@')[0] ?? 'Account';
-      const full = [user.first_name?.trim(), user.last_name?.trim()].filter(Boolean).join(' ');
+      const full = user.fullName?.trim();
       setUserName(full || fallback);
     });
     return () => { mounted = false; };
