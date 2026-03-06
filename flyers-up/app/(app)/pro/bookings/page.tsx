@@ -2,8 +2,10 @@
 
 import { Suspense } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
+import { ProPageShell } from '@/components/pro/ProPageShell';
 import { BookingsTabsLayout, type BookingsTab } from '@/components/bookings/BookingsTabsLayout';
 import { BookingStatusBadge } from '@/components/bookings/BookingStatusBadge';
+import { DashboardCard } from '@/components/dashboard/DashboardCard';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -79,63 +81,63 @@ function ProBookingsContent() {
 
   return (
     <AppLayout mode="pro">
-      <BookingsTabsLayout
-        title="Bookings"
-        activeTab={activeTab}
-        onTabChange={(t) => {
-          setActiveTab(t);
-          router.replace(`/pro/bookings?tab=${t}`, { scroll: false });
-        }}
-      >
-        {loading ? (
-          <p className="text-sm text-muted">Loading…</p>
-        ) : rows.length === 0 ? (
-          <div
-            className="rounded-2xl border border-[var(--hairline)] p-6"
-            style={{ backgroundColor: '#F5F5F5' }}
-          >
-            <p className="text-sm font-medium text-text">
-              {activeTab === 'active'
-                ? 'No active bookings'
-                : activeTab === 'completed'
-                  ? 'No completed bookings'
-                  : 'No cancelled bookings'}
-            </p>
-            <p className="mt-1 text-sm text-muted">
-              Your bookings will appear here when customers request your services.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {rows.map((b) => (
-              <Link
-                key={b.id}
-                href={`/pro/bookings/${b.id}`}
-                className="block rounded-2xl border border-[var(--hairline)] p-5 hover:shadow-sm transition-shadow"
-                style={{ backgroundColor: '#F5F5F5' }}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="font-medium text-text">
-                      {b.customer?.fullName || 'Customer'}
-                    </div>
-                    <div className="text-sm text-muted mt-0.5">
-                      {b.service_date} at {b.service_time}
-                    </div>
-                    {b.address && (
-                      <div className="text-xs text-muted mt-1 truncate max-w-[200px]">
-                        {b.address}
+      <ProPageShell title="Bookings">
+        <BookingsTabsLayout
+          title="Bookings"
+          activeTab={activeTab}
+          onTabChange={(t) => {
+            setActiveTab(t);
+            router.replace(`/pro/bookings?tab=${t}`, { scroll: false });
+          }}
+        >
+          {loading ? (
+            <p className="text-sm text-black/60">Loading…</p>
+          ) : rows.length === 0 ? (
+            <DashboardCard>
+              <div className="p-4">
+                <p className="font-semibold text-[#111]">
+                  {activeTab === 'active'
+                    ? 'No active bookings'
+                    : activeTab === 'completed'
+                      ? 'No completed bookings'
+                      : 'No cancelled bookings'}
+                </p>
+                <p className="mt-1 text-sm text-black/60">
+                  Your bookings will appear here when customers request your services.
+                </p>
+              </div>
+            </DashboardCard>
+          ) : (
+            <div className="space-y-3">
+              {rows.map((b) => (
+                <Link key={b.id} href={`/pro/bookings/${b.id}`} className="block">
+                  <DashboardCard>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="font-medium text-[#111]">
+                            {b.customer?.fullName || 'Customer'}
+                          </div>
+                          <div className="text-sm text-black/60 mt-0.5">
+                            {b.service_date} at {b.service_time}
+                          </div>
+                          {b.address && (
+                            <div className="text-xs text-black/60 mt-1 truncate max-w-[200px]">
+                              {b.address}
+                            </div>
+                          )}
+                        </div>
+                        <BookingStatusBadge status={b.status} />
                       </div>
-                    )}
-                  </div>
-                  <BookingStatusBadge status={b.status} />
-                </div>
-                <div className="mt-3 text-sm text-muted">View booking →</div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </BookingsTabsLayout>
+                      <div className="mt-3 text-sm text-black/60">View booking →</div>
+                    </div>
+                  </DashboardCard>
+                </Link>
+              ))}
+            </div>
+          )}
+        </BookingsTabsLayout>
+      </ProPageShell>
     </AppLayout>
   );
 }
@@ -145,9 +147,11 @@ export default function ProBookingsPage() {
     <Suspense
       fallback={
         <AppLayout mode="pro">
-          <div className="max-w-4xl mx-auto px-4 py-6">
-            <p className="text-sm text-muted">Loading…</p>
-          </div>
+          <ProPageShell title="Bookings">
+            <div className="max-w-4xl mx-auto px-4 py-6">
+              <p className="text-sm text-black/60">Loading…</p>
+            </div>
+          </ProPageShell>
         </AppLayout>
       }
     >

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
+import { ProPageShell } from '@/components/pro/ProPageShell';
 import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -52,10 +53,9 @@ export default function Earnings() {
 
   return (
     <AppLayout mode="pro">
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-semibold text-text mb-6">
-          Earnings
-        </h1>
+      <ProPageShell title="Earnings">
+        <div className="max-w-4xl mx-auto px-4 pt-2">
+          <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-4">Earnings</h2>
 
         {connect ? (
           <div className="mb-4 rounded-[18px] border border-hairline bg-surface shadow-card px-5 py-4">
@@ -182,7 +182,8 @@ export default function Earnings() {
         >
           Connect with Stripe
         </Button>
-      </div>
+        </div>
+      </ProPageShell>
     </AppLayout>
   );
 }
