@@ -206,7 +206,7 @@ export default function CustomerDashboard() {
   if (!ready) {
     return (
       <AppLayout mode="customer">
-        <div className="min-h-[40vh] flex items-center justify-center bg-[#D9D5D2]">
+        <div className="min-h-[40vh] flex items-center justify-center bg-[#F5F5F5]">
           <p className="text-sm text-black/60">Loading…</p>
         </div>
       </AppLayout>
@@ -215,13 +215,13 @@ export default function CustomerDashboard() {
 
   return (
     <AppLayout mode="customer">
-      <div className="min-h-screen bg-[#D9D5D2]">
-        <div className="sticky top-0 z-20 bg-[#D9D5D2]/95 backdrop-blur-sm border-b border-black/10">
+      <div className="min-h-screen bg-[#F5F5F5]">
+        <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
           <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
-              className="h-10 w-10 rounded-xl bg-[#F2F2F0] border border-black/10 text-black/70 hover:bg-[#F2F2F0]/90"
+              className="h-10 w-10 rounded-xl bg-[#F5F5F5] border border-black/10 text-black/70 hover:bg-[#EBEBEB]"
               aria-label="Open menu"
             >
               ☰
@@ -269,8 +269,8 @@ export default function CustomerDashboard() {
                 <div className="p-4">
                   <div className="font-semibold text-[#111]">No active booking</div>
                   <div className="text-sm text-black/60 mt-1">When you book a pro, it will show here.</div>
-                  <Link href="/customer/categories" className="mt-3 inline-block text-sm font-medium text-[#111] hover:underline">
-                    Browse services →
+                  <Link href="/occupations" className="mt-3 inline-block text-sm font-medium text-[#111] hover:underline">
+                    Browse occupations →
                   </Link>
                 </div>
               </DashboardCard>
@@ -314,7 +314,7 @@ export default function CustomerDashboard() {
             {nearbyProsLoading ? (
               <div className="flex gap-3 overflow-hidden">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-36 w-40 shrink-0 rounded-xl bg-[#F2F2F0]/80 animate-pulse" />
+                  <div key={i} className="h-36 w-40 shrink-0 rounded-xl bg-[#F5F5F5]/80 animate-pulse" />
                 ))}
               </div>
             ) : nearbyPros.length > 0 ? (
@@ -323,7 +323,7 @@ export default function CustomerDashboard() {
                   <Link key={pro.id} href={`/customer/pros/${pro.id}`} className="shrink-0 w-40">
                     <DashboardCard>
                       <div className="p-3">
-                        <div className="w-12 h-12 rounded-full overflow-hidden bg-[#D9D5D2]/50 mx-auto mb-2">
+                        <div className="w-12 h-12 rounded-full overflow-hidden bg-[#F5F5F5]/50 mx-auto mb-2">
                           {pro.profilePhotoUrl ? (
                             <Image src={pro.profilePhotoUrl} alt="" width={48} height={48} className="object-cover w-full h-full" />
                           ) : (
@@ -422,7 +422,7 @@ export default function CustomerDashboard() {
                   <DashboardCard key={f.proId}>
                     <Link href={`/book/${f.proId}`} className="block p-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full overflow-hidden bg-[#D9D5D2]/50 shrink-0">
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-[#F5F5F5]/50 shrink-0">
                           {f.pro?.logoUrl ? (
                             <Image src={f.pro.logoUrl} alt="" width={40} height={40} className="object-cover w-full h-full" />
                           ) : (
@@ -451,8 +451,8 @@ export default function CustomerDashboard() {
                 <div className="p-4">
                   <div className="text-sm font-medium text-[#111]">No favorite pros yet</div>
                   <div className="text-xs text-black/60 mt-1">Save pros for quick rebooking.</div>
-                  <Link href="/customer/categories" className="mt-2 inline-block text-sm text-[#111] hover:underline">
-                    Browse services →
+                  <Link href="/occupations" className="mt-2 inline-block text-sm text-[#111] hover:underline">
+                    Browse occupations →
                   </Link>
                 </div>
               </DashboardCard>

@@ -51,8 +51,8 @@ function BookingServiceContent() {
         </Card>
 
         <div className="flex flex-wrap gap-3">
-          <Button onClick={() => router.push('/customer/categories')} showArrow={false}>
-            Browse categories
+          <Button onClick={() => router.push('/occupations')} showArrow={false}>
+            Browse occupations
           </Button>
           {proId ? (
             <Link

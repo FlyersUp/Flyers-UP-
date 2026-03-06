@@ -153,11 +153,11 @@ function CustomerRequestStartInner() {
     <AppLayout mode="customer">
       <div className="max-w-2xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-semibold text-text mb-2">Request a service</h1>
-        <p className="text-sm text-muted mb-6">Select a service and zip to see pros near you.</p>
+        <p className="text-sm text-muted mb-6">Select an occupation and zip to see pros near you.</p>
 
         {step === 'service' && (
           <div className="space-y-4">
-            <label className="block text-sm font-medium text-muted">Service</label>
+            <label className="block text-sm font-medium text-muted">Occupation</label>
             <select
               value={categorySlug}
               onChange={(e) => {
@@ -167,7 +167,7 @@ function CustomerRequestStartInner() {
               }}
               className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-text"
             >
-              <option value="">Select a service…</option>
+              <option value="">Select an occupation…</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.slug}>
                   {c.name}
@@ -188,7 +188,7 @@ function CustomerRequestStartInner() {
         {step === 'zip' && (
           <div className="space-y-4">
             <button type="button" onClick={() => setStep('service')} className="text-sm text-muted hover:text-text">
-              ← Change service
+              ← Change occupation
             </button>
             <p className="text-sm text-muted">Service: {categoryName || categorySlug}</p>
             <label className="block text-sm font-medium text-muted">Your zip code</label>
@@ -277,7 +277,7 @@ function CustomerRequestStartInner() {
             </p>
             {error && <p className="text-sm text-red-600">{error}</p>}
             {pros.length === 0 && !loadingPros && (
-              <p className="text-muted">No pros found for this search. Try a wider radius, different zip, or category.</p>
+              <p className="text-muted">No pros found for this search. Try a wider radius, different zip, or occupation.</p>
             )}
             <ul className="space-y-3">
               {pros.map((p) => (

@@ -42,8 +42,8 @@ export default function CustomerNotifications() {
         <NotificationList basePath="/customer" />
 
         <div className="mt-6">
-          <Link href="/services" className="text-sm font-medium text-text hover:underline">
-            Browse services →
+          <Link href="/occupations" className="text-sm font-medium text-text hover:underline">
+            Browse occupations →
           </Link>
         </div>
       </div>

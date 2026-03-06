@@ -177,7 +177,7 @@ function getCustomerMenu(): MenuSection[] {
       title: 'Discovery',
       items: [
         { label: 'Flyer Wall', href: '/flyer-wall' },
-        { label: 'Browse Services', href: '/customer/categories' },
+        { label: 'Browse Occupations', href: '/occupations' },
         { label: 'Nearby Pros', href: '/customer/categories' },
         { label: 'Favorites', href: '/customer/favorites' },
       ],

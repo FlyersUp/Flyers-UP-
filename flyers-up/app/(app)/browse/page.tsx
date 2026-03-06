@@ -8,7 +8,7 @@ export default async function BrowsePage() {
     // This reduces time-to-first-browse and makes the next step obvious.
     redirect('/signin?next=/customer/categories');
   }
-  // Canonical browse experience lives under /customer/categories and /services
+  // Canonical browse: /customer/categories (Choose occupation) or /occupations (All occupations)
   redirect('/customer/categories');
 }
 

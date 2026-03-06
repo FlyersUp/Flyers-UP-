@@ -70,8 +70,8 @@ export default function ServicesPage() {
           </h1>
           <Label>BROWSE FIRST, REQUEST WHEN READY</Label>
           <p className="mt-2 text-sm text-muted">
-            <Link href="/customer/categories" className="text-accent hover:underline">
-              ← Browse by category
+            <Link href="/occupations" className="text-accent hover:underline">
+              ← Browse by occupation
             </Link>
           </p>
         </div>
@@ -87,8 +87,8 @@ export default function ServicesPage() {
               Services will appear here once they’re added.
             </div>
             <div className="mt-4">
-              <Link href="/customer/categories" className="text-sm font-medium text-accent hover:underline">
-                Try categories →
+              <Link href="/occupations" className="text-sm font-medium text-accent hover:underline">
+                Try occupations →
               </Link>
             </div>
           </div>

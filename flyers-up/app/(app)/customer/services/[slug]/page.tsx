@@ -152,8 +152,8 @@ export default function ServiceProListPage({ params }: { params: Promise<{ slug:
               Try another subcategory or service.
             </div>
             <div className="mt-4">
-              <Link href="/customer/services" className="text-sm font-medium text-accent hover:underline">
-                Browse services
+              <Link href="/occupations" className="text-sm font-medium text-accent hover:underline">
+                Browse occupations
               </Link>
             </div>
           </div>

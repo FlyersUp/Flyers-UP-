@@ -248,7 +248,7 @@ function ProInner() {
                 </div>
                 <h1 className="text-xl font-semibold tracking-tight">
                   {step === 1 && 'Step 1: Identity'}
-                  {step === 2 && 'Step 2: Primary category'}
+                  {step === 2 && 'Step 2: Choose your occupation'}
                   {step === 3 && 'Step 3: Service area zip'}
                   {step === 4 && 'Step 4: Review & go live'}
                 </h1>
@@ -303,7 +303,7 @@ function ProInner() {
                   {step === 2 && (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-muted mb-1">Primary service</label>
+                        <label className="block text-sm font-medium text-muted mb-1">Your occupation</label>
                         <div className="space-y-2 mt-2">
                           {services.map((s) => (
                             <label
@@ -333,7 +333,7 @@ function ProInner() {
                       {primaryServiceSlug && (
                         <div>
                           <label className="block text-sm font-medium text-muted mb-1">
-                            Subcategories (select at least one)
+                            Select the services you offer (at least one)
                           </label>
                           {subcategoriesLoading ? (
                             <p className="text-sm text-muted">Loading…</p>

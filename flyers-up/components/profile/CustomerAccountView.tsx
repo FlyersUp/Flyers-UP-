@@ -136,7 +136,7 @@ export function CustomerAccountView({
       </section>
 
       <div className="space-y-3">
-        <SectionTitle title="Upcoming bookings" action={{ label: 'Browse services', href: '/customer/categories' }} />
+        <SectionTitle title="Upcoming bookings" action={{ label: 'Browse occupations', href: '/occupations' }} />
         {upcoming.length ? (
           <div className="space-y-3">
             {upcoming.map((b) => (

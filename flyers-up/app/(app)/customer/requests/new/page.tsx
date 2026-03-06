@@ -74,7 +74,7 @@ export default function NewRequestPage() {
       return;
     }
     if (!serviceCategory) {
-      setError('Please select a service category.');
+      setError('Please select an occupation.');
       return;
     }
     if (!location.trim()) {
@@ -123,8 +123,8 @@ export default function NewRequestPage() {
 
   return (
     <AppLayout mode="customer">
-      <div className="min-h-screen bg-[#D9D5D2]">
-        <div className="sticky top-0 z-20 bg-[#D9D5D2]/95 backdrop-blur-sm border-b border-black/10">
+      <div className="min-h-screen bg-[#F5F5F5]">
+        <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
           <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
             <Link
               href="/customer/requests"
@@ -169,14 +169,14 @@ export default function NewRequestPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#111] mb-1">Service category *</label>
+              <label className="block text-sm font-medium text-[#111] mb-1">Occupation *</label>
               <select
                 value={serviceCategory}
                 onChange={(e) => setServiceCategory(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
                 required
               >
-                <option value="">Select category</option>
+                <option value="">Select occupation</option>
                 {categories
                   .filter((c) => c.is_active_phase1 !== false)
                   .map((c) => (

@@ -370,10 +370,10 @@ export default function ProProfilePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text mb-1">Service Category</label>
+                <label className="block text-sm font-medium text-text mb-1">Occupation</label>
                 {showInactiveCategoryBanner ? (
                   <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
-                    This category is temporarily unavailable during platform updates. Please select a new category.
+                    This occupation is temporarily unavailable during platform updates. Please select a new occupation.
                   </div>
                 ) : null}
                 {isEditing ? (
@@ -390,7 +390,7 @@ export default function ProProfilePage() {
                     }}
                     className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent"
                   >
-                    <option value="">Select a category</option>
+                    <option value="">Select your occupation</option>
                     {categories.map(cat => (
                       <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}

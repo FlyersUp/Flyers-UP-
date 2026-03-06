@@ -95,7 +95,7 @@ function CustomerBookingsContent() {
         ) : rows.length === 0 ? (
           <div
             className="rounded-2xl border border-[var(--hairline)] p-6"
-            style={{ backgroundColor: '#F2F2F0' }}
+            style={{ backgroundColor: '#F5F5F5' }}
           >
             <p className="text-sm font-medium text-text">
               {activeTab === 'active'
@@ -114,10 +114,10 @@ function CustomerBookingsContent() {
             {activeTab === 'active' && (
               <>
                 <Link
-                  href="/customer/categories"
+                  href="/occupations"
                   className="mt-4 inline-block text-sm font-medium text-text hover:underline"
                 >
-                  Browse services
+                  Browse occupations
                 </Link>
                 <span className="mx-2 text-muted">·</span>
                 <Link
@@ -136,7 +136,7 @@ function CustomerBookingsContent() {
                 key={b.id}
                 href={`/customer/bookings/${b.id}`}
                 className="block rounded-2xl border border-[var(--hairline)] p-5 hover:shadow-sm transition-shadow"
-                style={{ backgroundColor: '#F2F2F0' }}
+                style={{ backgroundColor: '#F5F5F5' }}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">

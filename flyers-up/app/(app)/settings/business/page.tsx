@@ -458,7 +458,7 @@ export default function BusinessSettingsPage() {
 
             <div>
               <label htmlFor="category" className="block text-sm font-medium text-muted mb-1">
-                Primary service category *
+                Primary occupation *
               </label>
               {primaryCategoryInactive && (
                 <div className="mb-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm text-text">
@@ -473,7 +473,7 @@ export default function BusinessSettingsPage() {
                 disabled={!!categoryId && !primaryCategoryInactive}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                <option value="">{activeCategories.length ? 'Select a category' : 'No categories available yet'}</option>
+                <option value="">{activeCategories.length ? 'Select your occupation' : 'No occupations available yet'}</option>
                 {activeCategories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}

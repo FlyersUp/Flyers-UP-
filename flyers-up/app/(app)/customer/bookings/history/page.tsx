@@ -26,8 +26,7 @@ function BookingHistoryCard({ b }: { b: BookingRow }) {
   return (
     <Link
       href={`/customer/bookings/${b.id}`}
-      className="flex gap-4 rounded-2xl border border-[var(--hairline)] p-5 hover:shadow-sm transition-all"
-      style={{ backgroundColor: '#F2F2F0' }}
+      className="flex gap-4 rounded-2xl border border-[var(--hairline)] p-5 hover:shadow-sm transition-all bg-white"
     >
       <div className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-surface2 border border-hairline flex items-center justify-center">
         {b.pro?.logoUrl ? (
@@ -140,7 +139,7 @@ function CustomerBookingsHistoryContent() {
             ))}
           </div>
         ) : rows.length === 0 ? (
-          <div className="rounded-2xl border border-[var(--hairline)] p-6" style={{ backgroundColor: '#F2F2F0' }}>
+          <div className="rounded-2xl border border-[var(--hairline)] p-6 bg-white">
             <p className="text-sm font-medium text-text">
               {activeTab === 'upcoming' ? 'No upcoming bookings' : activeTab === 'completed' ? 'No completed bookings' : 'No cancelled bookings'}
             </p>
@@ -148,8 +147,8 @@ function CustomerBookingsHistoryContent() {
               {activeTab === 'upcoming' ? 'When you book a pro, it will show up here.' : activeTab === 'completed' ? 'Your completed bookings will appear here.' : 'Cancelled bookings will appear here.'}
             </p>
             {activeTab === 'upcoming' && (
-              <Link href="/customer/categories" className="mt-4 inline-block text-sm font-medium text-text hover:underline">
-                Browse services
+              <Link href="/occupations" className="mt-4 inline-block text-sm font-medium text-text hover:underline">
+                Browse occupations
               </Link>
             )}
           </div>

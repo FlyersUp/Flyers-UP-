@@ -97,8 +97,8 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
     <AppLayout mode="customer">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         <div className="mb-6">
-          <Link href="/customer/categories" className="text-sm text-muted mb-2 inline-block">
-            ← Back to Categories
+          <Link href="/occupations" className="text-sm text-muted mb-2 inline-block">
+            ← Back to occupations
           </Link>
           <h1 className="text-2xl font-semibold text-text mb-2">
             {categoryName}
@@ -112,8 +112,8 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
               Check back soon or browse other categories.
             </div>
             <div className="mt-4">
-              <Link href="/customer/categories" className="text-sm font-medium text-accent hover:underline">
-                ← Back to categories
+              <Link href="/occupations" className="text-sm font-medium text-accent hover:underline">
+                ← Back to occupations
               </Link>
             </div>
           </div>
@@ -127,8 +127,8 @@ export default function CategoryProList({ params }: { params: Promise<{ id: stri
             <div className="mt-1 text-sm text-muted">
               Try expanding your filters or service area.</div>
             <div className="mt-4">
-              <Link href="/customer/categories" className="text-sm font-medium text-accent hover:underline">
-                Browse categories
+              <Link href="/occupations" className="text-sm font-medium text-accent hover:underline">
+                Browse occupations
               </Link>
             </div>
           </div>

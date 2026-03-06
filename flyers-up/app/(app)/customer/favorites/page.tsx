@@ -42,11 +42,11 @@ export default function CustomerFavoritesPage() {
             ))}
           </div>
         ) : favorites.length === 0 ? (
-          <div className="rounded-2xl border border-[var(--hairline)] p-6" style={{ backgroundColor: '#F2F2F0' }}>
+          <div className="rounded-2xl border border-[var(--hairline)] p-6" style={{ backgroundColor: '#F5F5F5' }}>
             <p className="text-sm font-medium text-text">No favorite pros yet</p>
             <p className="mt-1 text-sm text-muted">Tap the star on a pro profile to save them here for quick rebooking.</p>
-            <Link href="/customer/categories" className="mt-4 inline-block text-sm font-medium text-text hover:underline">
-              Browse services
+            <Link href="/occupations" className="mt-4 inline-block text-sm font-medium text-text hover:underline">
+              Browse occupations
             </Link>
           </div>
         ) : (
@@ -56,7 +56,7 @@ export default function CustomerFavoritesPage() {
                 key={f.proId}
                 href={`/pro/${f.proId}`}
                 className="flex gap-4 rounded-2xl border border-[var(--hairline)] p-5 hover:shadow-sm transition-all"
-                style={{ backgroundColor: '#F2F2F0' }}
+                style={{ backgroundColor: '#F5F5F5' }}
               >
                 <div className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-surface2 border border-hairline flex items-center justify-center">
                   {f.pro?.logoUrl ? (
