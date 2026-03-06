@@ -34,7 +34,7 @@ function LayoutContent({
     <div
       data-role={mode}
       data-accent={accentDensity}
-      className="min-h-screen bg-[#F5F5F5] dark:bg-[#131313] text-text flex pb-24"
+      className="min-h-screen bg-[#F5F5F5] dark:bg-[#2d2d2d] text-text flex pb-24"
     >
       {showRailForMode && <Rail className="h-screen" showLabel />}
       <div className="flex-1">
