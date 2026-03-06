@@ -20,7 +20,7 @@ function NavAlertDot({ show }: { show: boolean }) {
   if (!show) return null;
   return (
     <span
-      className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-danger border-2 border-[#F5F5F5] shrink-0"
+      className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-danger border-2 border-[#F0F0F0] shrink-0"
       aria-label="New"
     />
   );
@@ -31,7 +31,7 @@ function NotificationBadge({ count }: { count: number }) {
   const display = count > 99 ? '99+' : count;
   return (
     <span
-      className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-semibold leading-[18px] text-center flex items-center justify-center shrink-0 border-2 border-[#F5F5F5]"
+      className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-semibold leading-[18px] text-center flex items-center justify-center shrink-0 border-2 border-[#F0F0F0]"
       aria-label={`${count} unread notifications`}
     >
       {display}
@@ -131,7 +131,7 @@ export default function BottomNav() {
     unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-black/5 bg-white/90 backdrop-blur-md safe-area-bottom dark:border-white/10 dark:bg-[#2d2d2d]/95">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-black/10 bg-[#F0F0F0] safe-area-bottom dark:border-white/10 dark:bg-[#2d2d2d]/95">
       <div className="max-w-7xl mx-auto px-1">
         <div className="flex items-center justify-around h-16 gap-0.5">
           <TabItem

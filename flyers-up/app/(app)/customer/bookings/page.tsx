@@ -2,6 +2,7 @@
 
 import { Suspense } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
+import { CustomerPageShell } from '@/components/customer/CustomerPageShell';
 import { BookingsTabsLayout, type BookingsTab } from '@/components/bookings/BookingsTabsLayout';
 import { BookingStatusBadge } from '@/components/bookings/BookingStatusBadge';
 import { DashboardCard } from '@/components/dashboard/DashboardCard';
@@ -83,7 +84,8 @@ function CustomerBookingsContent() {
 
   return (
     <AppLayout mode="customer">
-      <BookingsTabsLayout
+      <CustomerPageShell title="Bookings">
+        <BookingsTabsLayout
         title="Bookings"
         activeTab={activeTab}
         onTabChange={(t) => {
@@ -163,9 +165,11 @@ export default function CustomerBookingsPage() {
     <Suspense
       fallback={
         <AppLayout mode="customer">
-          <div className="max-w-4xl mx-auto px-4 py-6">
-            <p className="text-sm text-muted">Loading…</p>
-          </div>
+          <CustomerPageShell title="Bookings">
+            <div className="max-w-4xl mx-auto px-4 py-6">
+              <p className="text-sm text-black/60">Loading…</p>
+            </div>
+          </CustomerPageShell>
         </AppLayout>
       }
     >

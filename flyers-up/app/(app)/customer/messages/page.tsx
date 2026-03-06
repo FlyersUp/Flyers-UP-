@@ -1,6 +1,7 @@
 'use client';
 
 import { AppLayout } from '@/components/layouts/AppLayout';
+import { CustomerPageShell } from '@/components/customer/CustomerPageShell';
 import { supabase } from '@/lib/supabaseClient';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { useEffect, useState } from 'react';
@@ -177,35 +178,35 @@ export default function CustomerMessagesPage() {
 
   return (
     <AppLayout mode="customer">
-      <div className="min-h-screen bg-[#F5F5F5] max-w-4xl mx-auto px-4 py-6 pb-24">
-        <header className="mb-6">
-          <h1 className="text-2xl font-semibold text-text">Messages</h1>
-          <p className="text-sm text-muted mt-1">Your conversations with pros will show up here.</p>
-        </header>
-
-        {loading ? (
-          <p className="text-sm text-muted/70">Loading…</p>
-        ) : threads.length === 0 ? (
-          <EmptyState
+      <CustomerPageShell
+        title="Messages"
+        subtitle="Your conversations with pros will show up here."
+      >
+        <div className="max-w-4xl mx-auto px-4 pt-2">
+          {loading ? (
+            <p className="text-sm text-black/60">Loading…</p>
+          ) : threads.length === 0 ? (
+            <EmptyState
             variant="list"
-            title="Start the conversation"
-            subtitle="When you send a request or inquiry, your thread will appear here."
-            ctaLabel="Send a message"
-            ctaDisabled
-            ctaTooltip="Select a booking to message"
-          />
-        ) : (
-          <div className="space-y-3">
-            {threads.map((t) => (
-              <ConversationCard
-                key={t.id}
-                item={t}
-                href={t.type === 'conversation' ? `/customer/chat/conversation/${t.conversationId}` : `/customer/chat/${t.bookingId}`}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+              title="Start the conversation"
+              subtitle="When you send a request or inquiry, your thread will appear here."
+              ctaLabel="Send a message"
+              ctaDisabled
+              ctaTooltip="Select a booking to message"
+            />
+          ) : (
+            <div className="space-y-3">
+              {threads.map((t) => (
+                <ConversationCard
+                  key={t.id}
+                  item={t}
+                  href={t.type === 'conversation' ? `/customer/chat/conversation/${t.conversationId}` : `/customer/chat/${t.bookingId}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </CustomerPageShell>
     </AppLayout>
   );
 }
