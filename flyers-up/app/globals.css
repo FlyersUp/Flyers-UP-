@@ -265,12 +265,21 @@
 }
 
 /* Typography - Montserrat (Primary) + Oswald (Labels) */
+/* Force edge-to-edge background: html + body in light mode */
+html {
+  background: #F5F5F5;
+  min-height: 100vh;
+}
 body {
   background: #F5F5F5;
   color: hsl(var(--text));
   font-family: var(--font-montserrat), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+.dark html {
+  background: #131313;
 }
 .dark body {
   background: #131313;

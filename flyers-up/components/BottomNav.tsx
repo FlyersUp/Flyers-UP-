@@ -131,7 +131,7 @@ export default function BottomNav() {
     unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#F5F5F5] border-t border-black/5 z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.04)] safe-area-bottom opacity-100">
+    <nav className="fixed bottom-0 left-0 right-0 bg-[#F5F5F5] dark:bg-[#131313] border-t border-black/5 dark:border-white/10 z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.04)] dark:shadow-[0_-2px_10px_rgba(0,0,0,0.3)] safe-area-bottom opacity-100">
       <div className="max-w-7xl mx-auto px-1">
         <div className="flex items-center justify-around h-16 gap-0.5">
           <TabItem
