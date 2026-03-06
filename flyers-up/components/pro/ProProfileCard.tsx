@@ -49,7 +49,7 @@ export default function ProProfileCard({ pro, profileHref, bookHref, messageHref
 
   return (
     <article
-      className="flex h-full flex-col w-full max-w-[480px] justify-self-center overflow-hidden rounded-2xl border border-black/10 bg-[#F2F2F0] shadow-sm"
+      className="flex h-full flex-col w-full max-w-[480px] justify-self-center overflow-hidden rounded-2xl border border-black/5 bg-white shadow-sm"
     >
       <Link href={profileHref} className="block flex-1 p-5 transition-colors hover:bg-black/[0.02]">
         {/* Top row: avatar + identity */}
@@ -104,7 +104,7 @@ export default function ProProfileCard({ pro, profileHref, bookHref, messageHref
       </Link>
 
       {/* Bottom action bar */}
-      <div className="flex gap-3 border-t border-black/10 bg-white/40 px-5 py-4">
+      <div className="flex gap-3 border-t border-black/5 bg-white/40 px-5 py-4">
         <Link
           href={bookHref}
           onClick={(e) => e.stopPropagation()}

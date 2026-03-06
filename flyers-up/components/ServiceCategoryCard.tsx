@@ -15,7 +15,7 @@ interface ServiceCategoryCardProps {
 export default function ServiceCategoryCard({ category }: ServiceCategoryCardProps) {
   return (
     <Link href={`/services/${category.slug}`}>
-      <div className="bg-surface border border-hairline shadow-card rounded-[18px] p-6 hover:shadow-card transition-shadow cursor-pointer">
+      <div className="bg-white border border-black/5 shadow-sm rounded-2xl p-6 hover:shadow-md transition-all cursor-pointer">
         {/* Icon */}
         <div className="text-4xl mb-3">{category.icon}</div>
         

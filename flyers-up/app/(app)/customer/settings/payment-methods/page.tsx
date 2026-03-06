@@ -129,7 +129,7 @@ export default function CustomerPaymentMethodsSettingsPage() {
               {paymentMethods.length === 0 ? (
                 <div
                   className="rounded-2xl border border-black/10 p-6 text-center"
-                  style={{ backgroundColor: '#F2F2F0' }}
+                  style={{ backgroundColor: '#F5F5F5' }}
                 >
                   <p className="text-sm text-muted mb-4">No saved cards yet.</p>
                   <button
@@ -173,7 +173,7 @@ export default function CustomerPaymentMethodsSettingsPage() {
               <h2 className="text-base font-semibold text-text mb-4">Billing history</h2>
               <div
                 className="rounded-2xl border border-black/10 p-6"
-                style={{ backgroundColor: '#F2F2F0' }}
+                style={{ backgroundColor: '#F5F5F5' }}
               >
                 <p className="text-sm text-muted">No billing history yet.</p>
               </div>
@@ -183,7 +183,7 @@ export default function CustomerPaymentMethodsSettingsPage() {
               <h2 className="text-base font-semibold text-text mb-4">Refund history</h2>
               <div
                 className="rounded-2xl border border-black/10 p-6"
-                style={{ backgroundColor: '#F2F2F0' }}
+                style={{ backgroundColor: '#F5F5F5' }}
               >
                 <p className="text-sm text-muted">No refunds yet.</p>
               </div>

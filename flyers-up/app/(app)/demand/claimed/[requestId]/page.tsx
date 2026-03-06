@@ -58,7 +58,7 @@ export default function ClaimedRequestPage() {
   if (loading) {
     return (
       <AppLayout mode="pro">
-        <div className="min-h-[40vh] flex items-center justify-center bg-[#D9D5D2]">
+        <div className="min-h-[40vh] flex items-center justify-center bg-[#F5F5F5]">
           <p className="text-sm text-black/60">Loading…</p>
         </div>
       </AppLayout>
@@ -84,7 +84,7 @@ export default function ClaimedRequestPage() {
 
   return (
     <AppLayout mode="pro">
-      <div className="min-h-screen bg-[#D9D5D2]">
+      <div className="min-h-screen bg-[#F5F5F5]">
         <div className="max-w-2xl mx-auto px-4 py-6">
           <Link href="/demand" className="text-sm text-black/60 hover:text-[#111] mb-4 inline-block">
             ← Back to Demand Board

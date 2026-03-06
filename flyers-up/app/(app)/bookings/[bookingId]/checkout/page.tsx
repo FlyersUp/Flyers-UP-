@@ -281,7 +281,7 @@ export default function CheckoutPage({
     return () => { mounted = false; };
   }, [bookingId]);
 
-  const pageBg = '#FAF8F6';
+  const pageBg = '#F5F5F5';
 
   return (
     <AppLayout mode="customer">
@@ -305,7 +305,7 @@ export default function CheckoutPage({
           ) : error ? (
             <div
               className="rounded-2xl border border-black/10 p-6"
-              style={{ backgroundColor: '#F2F2F0' }}
+              style={{ backgroundColor: '#F5F5F5' }}
             >
               <p className="text-sm text-[#3A3A3A] mb-4">{error}</p>
               {errorStatus === 409 && (

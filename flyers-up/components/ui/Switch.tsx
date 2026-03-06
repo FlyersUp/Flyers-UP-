@@ -38,7 +38,7 @@ export function Switch({
   const thumbOff = 'translate-x-1';
 
   const focus =
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[#FAF8F6]';
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F5F5]';
 
   const trackClass = [
     trackBase,

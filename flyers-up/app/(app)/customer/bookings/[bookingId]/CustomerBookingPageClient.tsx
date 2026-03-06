@@ -89,7 +89,7 @@ export function CustomerBookingPageClient({
     return (
       <AppLayout mode="customer">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="rounded-2xl border border-black/5 p-6 shadow-sm" style={{ backgroundColor: '#FAF8F6' }}>
+          <div className="rounded-2xl border border-black/5 p-6 shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
             <p className="text-sm text-muted">Booking not found or you don&apos;t have access.</p>
             <Link
               href="/customer/bookings"

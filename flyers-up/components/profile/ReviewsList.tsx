@@ -63,7 +63,7 @@ export function ReviewsList({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-hairline bg-white shadow-sm p-5">
+      <div className="rounded-2xl border border-black/5 bg-white shadow-sm shadow-sm p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-3xl font-bold leading-none">{avgRating != null ? avgRating.toFixed(1) : '—'}</div>
@@ -81,14 +81,14 @@ export function ReviewsList({
       </div>
 
       {sorted.length === 0 ? (
-        <div className="rounded-2xl border border-hairline bg-white shadow-sm p-5">
+        <div className="rounded-2xl border border-black/5 bg-white shadow-sm shadow-sm p-5">
           <div className="text-sm font-semibold">No reviews yet</div>
           <div className="mt-1 text-sm text-muted">Reviews will appear after completed bookings.</div>
         </div>
       ) : (
         <div className="space-y-3">
           {sorted.map((r, idx) => (
-            <div key={`${r.createdAt}-${idx}`} className="rounded-2xl border border-hairline bg-white shadow-sm p-4">
+            <div key={`${r.createdAt}-${idx}`} className="rounded-2xl border border-black/5 bg-white shadow-sm shadow-sm p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold">
@@ -102,7 +102,7 @@ export function ReviewsList({
                   </div>
                 </div>
                 {r.verifiedBooking ? (
-                  <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide border border-hairline bg-white shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+                  <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide border border-black/5 bg-white shadow-sm shadow-[0_1px_0_rgba(0,0,0,0.04)]">
                     Verified booking
                   </span>
                 ) : null}

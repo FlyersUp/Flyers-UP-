@@ -62,7 +62,7 @@ export function FlyerCard({ pro, profileHref, bookHref, messageHref }: FlyerCard
 
   return (
     <article
-      className={`w-full max-w-[480px] justify-self-center bg-[#F6F1E8] border border-black/10 rounded-2xl shadow-sm transition-all duration-200 group ${
+      className={`w-full max-w-[480px] justify-self-center bg-white border border-black/5 rounded-2xl shadow-sm transition-all duration-200 group ${
         prefersReducedMotion ? '' : 'hover:shadow-md hover:-translate-y-0.5'
       }`}
     >
@@ -139,7 +139,7 @@ export function FlyerCard({ pro, profileHref, bookHref, messageHref }: FlyerCard
       </Link>
 
       {/* CTAs - compact, stopPropagation */}
-      <div className="flex border-t border-black/10 px-4 py-3 gap-3">
+      <div className="flex border-t border-black/5 px-4 py-3 gap-3">
         <Link
           href={bookHref}
           onClick={(e) => e.stopPropagation()}
@@ -150,7 +150,7 @@ export function FlyerCard({ pro, profileHref, bookHref, messageHref }: FlyerCard
         <Link
           href={messageHref}
           onClick={(e) => e.stopPropagation()}
-          className="flex-1 h-9 flex items-center justify-center rounded-lg text-sm font-semibold border border-black/10 text-[#111] hover:bg-black/[0.04] focus:outline-none focus:ring-2 focus:ring-black/20 focus:ring-offset-2 transition-colors"
+          className="flex-1 h-9 flex items-center justify-center rounded-lg text-sm font-semibold border border-black/5 text-[#111] hover:bg-black/[0.04] focus:outline-none focus:ring-2 focus:ring-black/20 focus:ring-offset-2 transition-colors"
         >
           Message
         </Link>

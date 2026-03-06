@@ -87,7 +87,7 @@ export default function ConfirmedPage({
 
   return (
     <AppLayout mode="customer">
-      <div className="min-h-screen" style={{ backgroundColor: '#FAF8F6' }}>
+      <div className="min-h-screen" style={{ backgroundColor: '#F5F5F5' }}>
         <div className="max-w-lg mx-auto px-4 py-8">
           <h1 className="text-2xl font-semibold text-[#111111] mb-6">Booking confirmed</h1>
 
@@ -96,7 +96,7 @@ export default function ConfirmedPage({
           ) : error ? (
             <div
               className="rounded-2xl border border-black/10 p-6"
-              style={{ backgroundColor: '#F2F2F0' }}
+              style={{ backgroundColor: '#F5F5F5' }}
             >
               <p className="text-sm text-[#3A3A3A] mb-4">{error}</p>
               <Link
@@ -130,7 +130,7 @@ export default function ConfirmedPage({
                           ? 'bg-[#B2FBA5] text-[#111111]'
                           : ['REQUIRES_ACTION', 'UNPAID', 'PROCESSING'].includes(booking.paymentStatus ?? '')
                             ? 'bg-amber-100 text-amber-800'
-                            : 'bg-[#F2F2F0] text-[#3A3A3A]'
+                            : 'bg-[#F5F5F5] text-[#3A3A3A]'
                       }`}
                     >
                       {booking.paymentStatus === 'PAID'

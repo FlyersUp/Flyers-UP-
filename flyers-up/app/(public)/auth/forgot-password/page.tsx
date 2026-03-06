@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF8F6] flex flex-col">
+    <div className="min-h-screen bg-[#F5F5F5] flex flex-col">
       <header className="px-4 py-5">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <Logo size="md" linkToHome />

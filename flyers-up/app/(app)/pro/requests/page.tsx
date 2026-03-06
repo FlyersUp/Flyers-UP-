@@ -31,7 +31,7 @@ type ProRequestCardProps = {
 
 function ProRequestCardSkeleton() {
   return (
-    <div className="h-[200px] rounded-xl bg-[#F2F2F0]/80 animate-pulse border border-black/8" />
+    <div className="h-[200px] rounded-xl bg-white/80 animate-pulse border border-black/8" />
   );
 }
 
@@ -79,7 +79,7 @@ function ProRequestCard({ request, proId, onOfferSent }: ProRequestCardProps) {
 
   return (
     <article
-      className="relative rounded-xl bg-[#F2F2F0] border border-black/8 p-4 shadow-sm transition-all duration-300 hover:shadow-md"
+      className="relative rounded-xl bg-white border border-black/8 p-4 shadow-sm transition-all duration-300 hover:shadow-md"
       style={{
         boxShadow: '0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.5)',
       }}
@@ -94,7 +94,7 @@ function ProRequestCard({ request, proId, onOfferSent }: ProRequestCardProps) {
         <p className="text-sm text-black/70 line-clamp-2 mb-2">{request.description}</p>
       )}
       <div className="flex flex-wrap gap-2 text-xs mb-3">
-        <span className="px-2 py-0.5 rounded-full bg-[#D9D5D2]/60">{request.service_category}</span>
+        <span className="px-2 py-0.5 rounded-full bg-[#F5F5F5]/60">{request.service_category}</span>
         <span className="text-black/70 font-medium">Budget: {budgetStr}</span>
       </div>
       {request.preferred_date && (
@@ -273,13 +273,13 @@ export default function ProRequestsPage() {
 
   return (
     <AppLayout mode="pro">
-      <div className="min-h-screen bg-[#D9D5D2]">
-        <div className="sticky top-0 z-20 bg-[#D9D5D2]/95 backdrop-blur-sm border-b border-black/10">
+      <div className="min-h-screen bg-[#F5F5F5]">
+        <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
           <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
-              className="h-10 w-10 rounded-xl bg-[#F2F2F0] border border-black/10 text-black/70 hover:bg-[#F2F2F0]/90"
+              className="h-10 w-10 rounded-xl bg-white border border-black/10 text-black/70 hover:bg-white/90"
               aria-label="Open menu"
             >
               ☰
@@ -301,7 +301,7 @@ export default function ProRequestsPage() {
               ))}
             </div>
           ) : requests.length === 0 ? (
-            <div className="bg-[#F2F2F0] rounded-xl p-8 text-center border border-black/8">
+            <div className="bg-white rounded-xl p-8 text-center border border-black/8">
               <p className="text-base font-medium text-[#111]">No open requests</p>
               <p className="text-sm text-black/60 mt-1">
                 New requests will appear here. Check back soon!

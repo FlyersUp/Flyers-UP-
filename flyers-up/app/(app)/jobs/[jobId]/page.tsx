@@ -372,7 +372,7 @@ export default function JobDetailsPage({ params }: PageProps) {
             }}
           >
             <div
-              className="fixed left-1/2 top-1/2 z-[10000] w-[min(92vw,520px)] max-h-[80vh] -translate-x-1/2 -translate-y-1/2 flex flex-col rounded-2xl bg-[#FAF8F6] shadow-xl border border-black/10"
+              className="fixed left-1/2 top-1/2 z-[10000] w-[min(92vw,520px)] max-h-[80vh] -translate-x-1/2 -translate-y-1/2 flex flex-col rounded-2xl bg-[#F5F5F5] shadow-xl border border-black/10"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="relative shrink-0 p-4 pb-0">

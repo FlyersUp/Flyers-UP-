@@ -100,7 +100,7 @@ export function QuickRulesSheet({ open, onContinue, onClose }: QuickRulesSheetPr
     >
       <div
         ref={panelRef}
-        className="w-full max-w-lg bg-[#FAF8F6] rounded-t-2xl shadow-xl p-6 pb-[env(safe-area-inset-bottom)]"
+        className="w-full max-w-lg bg-[#F5F5F5] rounded-t-2xl shadow-xl p-6 pb-[env(safe-area-inset-bottom)]"
         style={{ maxHeight: '85vh' }}
         onClick={(e) => e.stopPropagation()}
       >

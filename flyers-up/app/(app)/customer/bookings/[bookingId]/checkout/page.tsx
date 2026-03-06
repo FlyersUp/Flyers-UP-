@@ -195,7 +195,7 @@ export default function CheckoutPage({
         ) : error ? (
           <div
             className="rounded-2xl border border-black/10 p-6"
-            style={{ backgroundColor: '#F2F2F0' }}
+            style={{ backgroundColor: '#F5F5F5' }}
           >
             <p className="text-sm text-muted mb-4">{error}</p>
             <Link
@@ -208,7 +208,7 @@ export default function CheckoutPage({
         ) : clientSecret && summary && stripePromise ? (
           <div
             className="rounded-2xl border border-black/10 p-6 space-y-6"
-            style={{ backgroundColor: '#F2F2F0' }}
+            style={{ backgroundColor: '#F5F5F5' }}
             role="region"
             aria-label="Payment"
           >

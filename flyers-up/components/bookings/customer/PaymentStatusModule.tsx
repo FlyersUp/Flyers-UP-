@@ -81,7 +81,7 @@ export function PaymentStatusModule({
 
   if (isExpired) {
     return (
-      <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FAF8F6' }}>
+      <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
         <h3 className="text-sm font-medium text-[#6A6A6A] mb-2">Payment &amp; status</h3>
         <p className="text-sm font-medium text-[#111111]">Expired — not paid</p>
         <p className="text-xs text-[#6A6A6A] mt-1">The payment window has passed.</p>
@@ -100,7 +100,7 @@ export function PaymentStatusModule({
     const expired = Date.now() >= due;
     if (expired) {
       return (
-        <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FAF8F6' }}>
+        <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
           <h3 className="text-sm font-medium text-[#6A6A6A] mb-2">Payment &amp; status</h3>
           <p className="text-sm font-medium text-[#111111]">Payment window expired</p>
           <Link
@@ -113,7 +113,7 @@ export function PaymentStatusModule({
       );
     }
     return (
-      <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FAF8F6' }}>
+      <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
         <h3 className="text-sm font-medium text-[#6A6A6A] mb-2">Payment &amp; status</h3>
         <p className="text-sm font-medium text-[#111111]">Pay deposit to lock your time</p>
         <p className="text-xs text-[#6A6A6A] mt-1">
@@ -131,7 +131,7 @@ export function PaymentStatusModule({
 
   if (isDepositPaid) {
     return (
-      <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FAF8F6' }}>
+      <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
         <h3 className="text-sm font-medium text-[#6A6A6A] mb-2">Payment &amp; status</h3>
         <p className="text-sm font-medium text-[#111111]">Deposit paid ✓</p>
         <p className="text-xs text-[#6A6A6A] mt-1">
@@ -157,7 +157,7 @@ export function PaymentStatusModule({
 
   if (isReadyForFinal) {
     return (
-      <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FAF8F6' }}>
+      <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
         <h3 className="text-sm font-medium text-[#6A6A6A] mb-2">Payment &amp; status</h3>
         <p className="text-sm font-medium text-[#111111]">Job completed — pay remaining balance</p>
         <Link
@@ -172,7 +172,7 @@ export function PaymentStatusModule({
 
   if (isFullyPaid) {
     return (
-      <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FAF8F6' }}>
+      <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
         <h3 className="text-sm font-medium text-[#6A6A6A] mb-2">Payment &amp; status</h3>
         <p className="text-sm font-medium text-[#111111]">Paid ✓</p>
         {fullyPaidAt && (
@@ -192,7 +192,7 @@ export function PaymentStatusModule({
   }
 
   return (
-    <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FAF8F6' }}>
+    <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
       <h3 className="text-sm font-medium text-[#6A6A6A] mb-2">Payment &amp; status</h3>
       <p className="text-sm text-[#3A3A3A]">
         {paymentStatus === 'PAID' ? 'Paid' : paymentStatus === 'UNPAID' ? 'Unpaid' : paymentStatus}

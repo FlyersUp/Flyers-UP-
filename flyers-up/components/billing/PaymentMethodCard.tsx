@@ -37,8 +37,8 @@ export function PaymentMethodCard({
 
   return (
     <div
-      className="flex items-center justify-between gap-4 p-5 rounded-2xl border border-black/10"
-      style={{ backgroundColor: '#F2F2F0' }}
+      className="flex items-center justify-between gap-4 p-5 rounded-2xl border border-black/5 bg-white shadow-sm"
+      style={{ backgroundColor: '#FFFFFF' }}
     >
       <div className="min-w-0">
         <div className="flex items-center gap-2">

@@ -82,14 +82,14 @@ export default function FlyerWallPage() {
 
   return (
     <AppLayout mode="customer">
-      <div className="min-h-screen bg-[#D9D5D2]">
+      <div className="min-h-screen bg-[#F5F5F5]">
         {/* Bulletin board header */}
-        <div className="sticky top-0 z-20 bg-[#D9D5D2]/95 backdrop-blur-sm border-b border-black/10">
+        <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
           <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
-              className="h-10 w-10 rounded-xl bg-[#F2F2F0] border border-black/10 text-black/70 hover:bg-[#F2F2F0]/90 transition-colors"
+              className="h-10 w-10 rounded-xl bg-[#F5F5F5] border border-black/10 text-black/70 hover:bg-[#F5F5F5]/90 transition-colors"
               aria-label="Open menu"
             >
               ☰
@@ -105,13 +105,13 @@ export default function FlyerWallPage() {
               {Array.from({ length: 10 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-[320px] rounded-lg bg-[#F2F2F0]/80 animate-pulse"
+                  className="h-[320px] rounded-lg bg-[#F5F5F5]/80 animate-pulse"
                   style={{ transform: `rotate(${getRotation(i)}deg)` }}
                 />
               ))}
             </div>
           ) : pros.length === 0 ? (
-            <div className="bg-[#F2F2F0] rounded-xl p-8 text-center border border-black/8 shadow-sm">
+            <div className="bg-[#F5F5F5] rounded-xl p-8 text-center border border-black/8 shadow-sm">
               <p className="text-base font-medium text-[#111]">No flyers yet</p>
               <p className="text-sm text-black/60 mt-1">
                 Pros will appear here as they join. Check back soon!

@@ -2,7 +2,7 @@
 
 /**
  * Navbar component - premium civic header.
- * Matches Flyers Up design system: #F2F2F0, #D9D5D2, #B2FBA5, #1A1A1A
+ * Matches Flyers Up design system: #F5F5F5, #B2FBA5, #1A1A1A
  */
 
 import Link from 'next/link';
@@ -23,8 +23,8 @@ export default function Navbar({ title = 'Flyers Up', showBackButton = false, hi
     <nav
       className="sticky top-0 z-50 flex items-center h-16 md:h-[72px] border-b"
       style={{
-        backgroundColor: '#F2F2F0',
-        borderColor: '#D9D5D2',
+        backgroundColor: '#F5F5F5',
+        borderColor: '#F5F5F5',
         boxShadow: '0 1px 0 rgba(0,0,0,0.04)',
       }}
     >
@@ -45,7 +45,7 @@ export default function Navbar({ title = 'Flyers Up', showBackButton = false, hi
           ) : (
             <div className="flex items-center gap-3">
               <HeaderBrand />
-              <span className="w-px h-6 bg-[#D9D5D2]" style={{ margin: '0 12px' }} aria-hidden />
+              <span className="w-px h-6 bg-[#F5F5F5]" style={{ margin: '0 12px' }} aria-hidden />
               <span className="font-semibold text-[#1A1A1A] text-base">{title}</span>
             </div>
           )}

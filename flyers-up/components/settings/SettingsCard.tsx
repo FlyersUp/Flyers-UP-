@@ -1,9 +1,10 @@
 'use client';
 
 import { ReactNode } from 'react';
+import { Card } from '@/components/ui/Card';
 
 /**
- * Premium settings card: paper bg, rounded-2xl, border-black/5, shadow-sm.
+ * Premium settings card: uses shared Card component.
  */
 interface SettingsCardProps {
   children: ReactNode;
@@ -12,11 +13,8 @@ interface SettingsCardProps {
 
 export function SettingsCard({ children, className = '' }: SettingsCardProps) {
   return (
-    <div
-      className={`rounded-2xl border border-black/5 bg-white shadow-sm p-5 ${className}`}
-      style={{ backgroundColor: '#FFFFFF' }}
-    >
+    <Card className={className} padding="lg">
       {children}
-    </div>
+    </Card>
   );
 }

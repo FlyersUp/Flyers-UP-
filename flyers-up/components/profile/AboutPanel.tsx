@@ -56,14 +56,14 @@ export function AboutPanel({
 }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-hairline bg-white shadow-sm p-5">
+      <div className="rounded-2xl border border-black/5 bg-white shadow-sm shadow-sm p-5">
         <div className="text-sm font-semibold">About this business</div>
         <div className="mt-2 text-sm text-text/90 whitespace-pre-line">
           {aboutLong ?? bio ?? 'No additional details yet.'}
         </div>
       </div>
 
-      <div className="rounded-2xl border border-hairline bg-white shadow-sm p-5">
+      <div className="rounded-2xl border border-black/5 bg-white shadow-sm shadow-sm p-5">
         <div className="text-sm font-semibold">Details</div>
         <div className="mt-2">
           {businessHoursSummary ? <Row label="Hours" value={businessHoursSummary} /> : null}
@@ -72,7 +72,7 @@ export function AboutPanel({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-hairline bg-white shadow-sm p-5">
+      <div className="rounded-2xl border border-black/5 bg-white shadow-sm shadow-sm p-5">
         <div className="text-sm font-semibold">Credentials</div>
         {credentials.length ? (
           <div className="mt-2">

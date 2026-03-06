@@ -11,7 +11,7 @@
      Tailwind uses HSL triplets (no hsl() wrapper) for alpha support
      ============================================ */
   /* Hex for direct var() use; HSL for Tailwind */
-  --bg: 60 9% 95%;        /* #F2F2F0 White Smoke */
+  --bg: 0 0% 96%;         /* #F5F5F5 neutral light gray */
   --surface: 0 0% 100%;   /* #FFFFFF */
   --surface-2: 30 17% 96%;/* #F7F6F4 */
   --muted: 30 10% 83%;    /* #D9D5D2 Dust Grey */
@@ -96,7 +96,7 @@
   --danger: 3 59% 70%;
 
   /* Nav + surfaces */
-  --nav-bg: #F2F4F3;
+  --nav-bg: #F5F5F5;
   --nav-solid: var(--nav-bg);
   --surface-solid: #FFFFFF;
   --surface-border: rgba(0,0,0,0.06);
@@ -266,11 +266,14 @@
 
 /* Typography - Montserrat (Primary) + Oswald (Labels) */
 body {
-  background: hsl(var(--bg));
+  background: #F5F5F5;
   color: hsl(var(--text));
   font-family: var(--font-montserrat), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+.dark body {
+  background: #131313;
 }
 
 /* ============================================

@@ -38,7 +38,7 @@ export function BookingSignInPrompt({ bookingId }: { bookingId: string }) {
       </Link>
       <div
         className="mt-6 rounded-2xl border border-black/5 p-6 shadow-sm"
-        style={{ backgroundColor: '#FAF8F6' }}
+        style={{ backgroundColor: '#FFFFFF' }}
       >
         <h1 className="text-lg font-semibold text-text">Track booking</h1>
         <p className="mt-2 text-sm text-muted">

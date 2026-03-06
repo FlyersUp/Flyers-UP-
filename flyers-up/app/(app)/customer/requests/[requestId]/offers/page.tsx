@@ -187,8 +187,8 @@ export default function RequestOffersPage() {
 
   return (
     <AppLayout mode="customer">
-      <div className="min-h-screen bg-[#D9D5D2]">
-        <div className="sticky top-0 z-20 bg-[#D9D5D2]/95 backdrop-blur-sm border-b border-black/10">
+      <div className="min-h-screen bg-[#F5F5F5]">
+        <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
           <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
             <Link
               href="/customer/requests"
@@ -203,7 +203,7 @@ export default function RequestOffersPage() {
 
         <div className="max-w-2xl mx-auto px-4 py-6">
           {request && (
-            <div className="mb-6 p-4 rounded-xl bg-[#F2F2F0] border border-black/8">
+            <div className="mb-6 p-4 rounded-xl bg-white border border-black/8">
               <h2 className="font-semibold text-[#111]">{request.title}</h2>
               <p className="text-sm text-black/60 mt-1">{request.location}</p>
             </div>
@@ -218,11 +218,11 @@ export default function RequestOffersPage() {
           {loading ? (
             <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-24 rounded-xl bg-[#F2F2F0]/80 animate-pulse" />
+                <div key={i} className="h-24 rounded-xl bg-white/80 animate-pulse" />
               ))}
             </div>
           ) : offers.length === 0 ? (
-            <div className="bg-[#F2F2F0] rounded-xl p-8 text-center border border-black/8">
+            <div className="bg-white rounded-xl p-8 text-center border border-black/8">
               <p className="text-base font-medium text-[#111]">No offers yet</p>
               <p className="text-sm text-black/60 mt-1">
                 Pros will send offers soon. Check back in a few minutes.
@@ -233,10 +233,10 @@ export default function RequestOffersPage() {
               {offers.map((offer) => (
                 <article
                   key={offer.id}
-                  className="rounded-xl bg-[#F2F2F0] border border-black/8 p-4 shadow-sm"
+                  className="rounded-xl bg-white border border-black/8 p-4 shadow-sm"
                 >
                   <div className="flex gap-4">
-                    <div className="relative w-14 h-14 rounded-full overflow-hidden bg-[#D9D5D2]/50 shrink-0">
+                    <div className="relative w-14 h-14 rounded-full overflow-hidden bg-[#F5F5F5]/50 shrink-0">
                       {offer.photoUrl ? (
                         <Image
                           src={offer.photoUrl}

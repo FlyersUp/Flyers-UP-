@@ -11,7 +11,7 @@ export function BookingRulesAccordion() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-black/10 overflow-hidden bg-white">
+    <div className="rounded-2xl border border-black/5 overflow-hidden bg-white shadow-sm">
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -21,7 +21,7 @@ export function BookingRulesAccordion() {
         <span className="text-muted">{open ? '−' : '+'}</span>
       </button>
       {open && (
-        <div className="px-5 pb-5 pt-0 border-t border-black/10">
+        <div className="px-5 pb-5 pt-0 border-t border-black/5">
           <BookingRulesInline />
         </div>
       )}

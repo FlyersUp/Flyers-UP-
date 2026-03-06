@@ -189,7 +189,7 @@ export default function AuthorizePage({
         ) : alreadyAuthorized ? (
           <div
             className="rounded-2xl border border-[#B2FBA5] p-6"
-            style={{ backgroundColor: '#F2F2F0' }}
+            style={{ backgroundColor: '#F5F5F5' }}
           >
             <p className="text-sm font-medium text-text">
               Your card has been authorized. You will only be charged after job completion.
@@ -204,7 +204,7 @@ export default function AuthorizePage({
         ) : error ? (
           <div
             className="rounded-2xl border border-black/10 p-6"
-            style={{ backgroundColor: '#F2F2F0' }}
+            style={{ backgroundColor: '#F5F5F5' }}
           >
             <p className="text-sm text-muted mb-4">{error}</p>
             <Link
@@ -217,7 +217,7 @@ export default function AuthorizePage({
         ) : clientSecret && summary && stripePromise ? (
           <div
             className="rounded-2xl border border-black/10 p-6 space-y-6"
-            style={{ backgroundColor: '#F2F2F0' }}
+            style={{ backgroundColor: '#F5F5F5' }}
           >
             <div>
               <p className="text-sm text-muted">

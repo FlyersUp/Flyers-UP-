@@ -24,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning>
+      <body className="min-h-screen bg-[#F5F5F5] text-[#111111]" suppressHydrationWarning>
         <ErrorReporter />
         {children}
       </body>

@@ -232,7 +232,7 @@ export default function ProPricingAvailabilitySettingsPage() {
 
   return (
     <AppLayout mode="pro">
-      <div className="min-h-screen bg-[#FAF8F6]">
+      <div className="min-h-screen bg-[#F5F5F5]">
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
           <div>
             <Link href="/pro/settings" className="text-sm text-black/60 hover:text-black">

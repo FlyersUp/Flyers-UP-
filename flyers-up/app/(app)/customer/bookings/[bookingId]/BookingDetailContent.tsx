@@ -276,7 +276,7 @@ export function BookingDetailContent({
             {/* F) Need Help */}
             <section className="mb-6">
               <h2 className="text-base font-semibold text-text mb-4">Need Help</h2>
-              <div className="rounded-2xl border border-black/5 p-4 space-y-2" style={{ backgroundColor: '#FAF8F6' }}>
+              <div className="rounded-2xl border border-black/5 p-4 space-y-2" style={{ backgroundColor: '#FFFFFF' }}>
                 <div className="flex flex-wrap gap-2">
                   {[
                     { type: 'pro_late', label: 'Pro is late' },
@@ -314,7 +314,7 @@ export function BookingDetailContent({
             {(hasAddressOrNotes || booking.id) && (
               <section className="mb-6">
                 <h2 className="text-base font-semibold text-text mb-4">Service details</h2>
-                <div className="rounded-2xl border border-black/5 bg-white overflow-hidden shadow-sm" style={{ backgroundColor: '#FAF8F6' }}>
+                <div className="rounded-2xl border border-black/5 bg-white overflow-hidden shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
                   <button
                     type="button"
                     onClick={() => setDetailsOpen(!detailsOpen)}

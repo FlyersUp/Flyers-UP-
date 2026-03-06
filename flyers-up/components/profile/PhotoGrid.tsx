@@ -15,7 +15,7 @@ export function PhotoGrid({ photos }: { photos: ProWorkPhoto[] }) {
 
   if (!photos.length) {
     return (
-      <div className="rounded-2xl border border-hairline bg-white shadow-sm p-5">
+      <div className="rounded-2xl border border-black/5 bg-white shadow-sm shadow-sm p-5">
         <div className="text-sm font-semibold">No work photos yet</div>
         <div className="mt-1 text-sm text-muted">When photos are added, they’ll show here.</div>
       </div>
@@ -24,7 +24,7 @@ export function PhotoGrid({ photos }: { photos: ProWorkPhoto[] }) {
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-[2px] rounded-2xl overflow-hidden border border-hairline bg-white shadow-sm">
+      <div className="grid grid-cols-3 gap-[2px] rounded-2xl overflow-hidden border border-black/5 bg-white shadow-sm shadow-sm">
         {photos.map((p) => {
           const url = 'beforeUrl' in p && p.beforeUrl ? p.beforeUrl : p.imageUrl;
           const tag = firstTag(p);

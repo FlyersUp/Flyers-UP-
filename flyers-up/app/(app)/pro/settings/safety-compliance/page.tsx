@@ -120,7 +120,7 @@ export default function ProTrustSafetyPage() {
 
   return (
     <AppLayout mode="pro">
-      <div className="min-h-screen" style={{ backgroundColor: '#FAF8F6' }}>
+      <div className="min-h-screen" style={{ backgroundColor: '#F5F5F5' }}>
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
           <Link href="/pro/settings" className="text-sm text-muted hover:text-text">
             ← Back to Settings

@@ -37,7 +37,7 @@ export function LatestUpdateCard({ status, timestamp, etaText }: LatestUpdateCar
   const copy = LATEST_UPDATE_COPY[status];
 
   return (
-    <div className="rounded-2xl border border-black/10 bg-[#F2F2F0] p-4 shadow-sm">
+    <div className="rounded-2xl border border-black/5 bg-white p-4 shadow-sm">
       <p className="text-sm font-medium text-[hsl(var(--text))]">{copy}</p>
       {timestamp && (
         <p className="mt-1 text-xs text-[hsl(var(--text-3))]">

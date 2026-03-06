@@ -27,7 +27,7 @@ export type JobRequest = {
 
 function RequestCardSkeleton() {
   return (
-    <div className="h-[180px] rounded-xl bg-[#F2F2F0]/80 animate-pulse border border-black/8" />
+    <div className="h-[180px] rounded-xl bg-[#F5F5F5]/80 animate-pulse border border-black/8" />
   );
 }
 
@@ -53,7 +53,7 @@ function RequestCard({
 
   return (
     <article
-      className="relative rounded-xl bg-[#F2F2F0] border border-black/8 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
+      className="relative rounded-xl bg-white border border-black/8 p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
       style={{
         boxShadow: '0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.5)',
       }}
@@ -70,7 +70,7 @@ function RequestCard({
         <p className="text-sm text-black/70 line-clamp-2 mb-2">{request.description}</p>
       )}
       <div className="flex flex-wrap gap-2 text-xs">
-        <span className="px-2 py-0.5 rounded-full bg-[#D9D5D2]/60">{request.service_category}</span>
+        <span className="px-2 py-0.5 rounded-full bg-[#F5F5F5]/60">{request.service_category}</span>
         <span className="text-black/70">{budgetStr}</span>
       </div>
       {request.preferred_date && (
@@ -181,13 +181,13 @@ export default function CustomerRequestsPage() {
 
   return (
     <AppLayout mode="customer">
-      <div className="min-h-screen bg-[#D9D5D2]">
-        <div className="sticky top-0 z-20 bg-[#D9D5D2]/95 backdrop-blur-sm border-b border-black/10">
+      <div className="min-h-screen bg-[#F5F5F5]">
+        <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
           <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
-              className="h-10 w-10 rounded-xl bg-[#F2F2F0] border border-black/10 text-black/70 hover:bg-[#F2F2F0]/90"
+              className="h-10 w-10 rounded-xl bg-white border border-black/10 text-black/70 hover:bg-[#EBEBEB]"
               aria-label="Open menu"
             >
               ☰
@@ -210,7 +210,7 @@ export default function CustomerRequestsPage() {
               ))}
             </div>
           ) : requests.length === 0 ? (
-            <div className="bg-[#F2F2F0] rounded-xl p-8 text-center border border-black/8">
+            <div className="bg-white rounded-xl p-8 text-center border border-black/8">
               <p className="text-base font-medium text-[#111]">No requests yet</p>
               <p className="text-sm text-black/60 mt-1">
                 Post a job request and pros will send you offers.

@@ -177,7 +177,7 @@ export default function CustomerMessagesPage() {
 
   return (
     <AppLayout mode="customer">
-      <div className="min-h-screen bg-[#FAF8F6] max-w-4xl mx-auto px-4 py-6 pb-24">
+      <div className="min-h-screen bg-[#F5F5F5] max-w-4xl mx-auto px-4 py-6 pb-24">
         <header className="mb-6">
           <h1 className="text-2xl font-semibold text-text">Messages</h1>
           <p className="text-sm text-muted mt-1">Your conversations with pros will show up here.</p>

@@ -23,7 +23,7 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
   return (
-    <div className="min-h-screen bg-bg" style={{ '--accent-customer': '111 91% 82%' } as React.CSSProperties}>
+    <div className="min-h-screen bg-[#F5F5F5]" style={{ '--accent-customer': '111 91% 82%' } as React.CSSProperties}>
       {/* Header: premium civic feel - #F5F5F5, 25% accent max */}
       <header
         className="sticky top-0 z-50 flex items-center justify-between h-16 md:h-[72px] px-6 md:px-6 border-b transition-opacity duration-150 ease-out"

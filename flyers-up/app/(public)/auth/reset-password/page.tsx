@@ -80,14 +80,14 @@ export default function ResetPasswordPage() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen bg-[#FAF8F6] flex flex-col items-center justify-center px-4">
+      <div className="min-h-screen bg-[#F5F5F5] flex flex-col items-center justify-center px-4">
         <p className="text-sm text-black/60">Checking your reset link…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF8F6] flex flex-col">
+    <div className="min-h-screen bg-[#F5F5F5] flex flex-col">
       <header className="px-4 py-5">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <Logo size="md" linkToHome />

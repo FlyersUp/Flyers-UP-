@@ -19,7 +19,7 @@ export function ProSummaryCard({
       style={{ backgroundColor: '#FFFFFF' }}
     >
       <div className="flex items-center gap-4">
-        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[#F2F2F0]">
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[#F5F5F5]">
           {proPhotoUrl ? (
             <img
               src={proPhotoUrl}

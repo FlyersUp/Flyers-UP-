@@ -2,7 +2,7 @@
 
 /**
  * HeaderBrand: Logo for premium header.
- * Matches Flyers Up design system: #F2F2F0, #D9D5D2, #B2FBA5, #1A1A1A
+ * Matches Flyers Up design system: #F5F5F5, #B2FBA5, #1A1A1A
  */
 
 import Logo from './Logo';

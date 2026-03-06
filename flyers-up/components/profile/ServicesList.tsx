@@ -17,7 +17,7 @@ export function ServicesList({
 }) {
   if (!services.length) {
     return (
-      <div className="rounded-2xl border border-hairline bg-white shadow-sm p-5">
+      <div className="rounded-2xl border border-black/5 bg-white shadow-sm shadow-sm p-5">
         <div className="text-sm font-semibold">Services coming soon</div>
         <div className="mt-1 text-sm text-muted">This pro hasn’t listed services yet.</div>
       </div>
@@ -30,7 +30,7 @@ export function ServicesList({
   return (
     <div className="space-y-3">
       {shown.map((s) => (
-        <div key={s.name} className="rounded-2xl border border-hairline bg-white shadow-sm p-4">
+        <div key={s.name} className="rounded-2xl border border-black/5 bg-white shadow-sm shadow-sm p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm font-semibold">{s.name}</div>

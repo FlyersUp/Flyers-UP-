@@ -214,7 +214,7 @@ export default function DemandPage() {
   if (!ready) {
     return (
       <AppLayout mode="customer">
-        <div className="min-h-[40vh] flex items-center justify-center bg-[#D9D5D2]">
+        <div className="min-h-[40vh] flex items-center justify-center bg-[#F5F5F5]">
           <p className="text-sm text-black/60">Loading…</p>
         </div>
       </AppLayout>
@@ -223,8 +223,8 @@ export default function DemandPage() {
 
   return (
     <AppLayout mode={isPro ? 'pro' : 'customer'}>
-      <div className="min-h-screen bg-[#D9D5D2]">
-        <div className="sticky top-0 z-20 bg-[#D9D5D2]/95 backdrop-blur-sm border-b border-black/10">
+      <div className="min-h-screen bg-[#F5F5F5]">
+        <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
           <div className="max-w-4xl mx-auto px-4 py-4">
             <h1 className="text-xl font-semibold text-[#111] mb-3">Demand Board</h1>
             <div className="flex gap-2">
@@ -232,7 +232,7 @@ export default function DemandPage() {
                 type="button"
                 onClick={() => setTab('board')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  tab === 'board' ? 'bg-[#FFC067] text-black' : 'bg-[#F2F2F0] text-black/70 hover:bg-[#F2F2F0]/90'
+                  tab === 'board' ? 'bg-[#FFC067] text-black' : 'bg-[#F5F5F5] text-black/70 hover:bg-[#EBEBEB]'
                 }`}
               >
                 Board
@@ -241,7 +241,7 @@ export default function DemandPage() {
                 type="button"
                 onClick={() => setTab('heatmap')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  tab === 'heatmap' ? 'bg-[#FFC067] text-black' : 'bg-[#F2F2F0] text-black/70 hover:bg-[#F2F2F0]/90'
+                  tab === 'heatmap' ? 'bg-[#FFC067] text-black' : 'bg-[#F5F5F5] text-black/70 hover:bg-[#EBEBEB]'
                 }`}
               >
                 Heatmap
@@ -269,7 +269,7 @@ export default function DemandPage() {
                   <button
                     type="button"
                     onClick={() => setShowPostForm(!showPostForm)}
-                    className="w-full rounded-xl border border-border bg-surface p-4 text-left font-medium text-[#111] hover:bg-[#F2F2F0]"
+                    className="w-full rounded-xl border border-border bg-surface p-4 text-left font-medium text-[#111] hover:bg-[#EBEBEB]"
                   >
                     {showPostForm ? '− Cancel' : '+ Post a request'}
                   </button>

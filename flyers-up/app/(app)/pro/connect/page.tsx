@@ -16,7 +16,7 @@ function ConnectInner() {
   }, [nextParam]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg flex flex-col items-center justify-center gap-4 px-4">
+    <div className="min-h-screen bg-[#F5F5F5] flex flex-col items-center justify-center gap-4 px-4">
       <Logo size="md" linkToHome />
       <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
       <div className="text-sm text-muted">Redirecting to Stripe Connect…</div>
@@ -33,7 +33,7 @@ export default function ProConnectPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg flex flex-col items-center justify-center gap-4 px-4">
+        <div className="min-h-screen bg-[#F5F5F5] flex flex-col items-center justify-center gap-4 px-4">
           <Logo size="md" linkToHome />
           <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
           <div className="text-sm text-muted">Loading…</div>

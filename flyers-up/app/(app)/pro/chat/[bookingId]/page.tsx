@@ -98,7 +98,7 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 bg-[#FAF8F6]">
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 bg-[#F5F5F5]">
           {loading ? (
             <p className="text-sm text-muted/70">Loading…</p>
           ) : rows.length === 0 ? (

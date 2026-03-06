@@ -86,7 +86,7 @@ export function BulletinFlyerCard({ pro, profileHref, rotation = 0 }: BulletinFl
 
       <Link
         href={profileHref}
-        className="relative block rounded-lg overflow-hidden bg-[#F2F2F0] border border-black/8 p-4 pt-5 transition-all duration-300 hover:shadow-xl"
+        className="relative block rounded-2xl overflow-hidden bg-white border border-black/5 shadow-sm p-4 pt-5 transition-all duration-300 hover:shadow-md"
         style={{
           boxShadow: '0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.5)',
         }}
@@ -116,7 +116,7 @@ export function BulletinFlyerCard({ pro, profileHref, rotation = 0 }: BulletinFl
         )}
 
         {/* Pro photo */}
-        <div className="relative w-full aspect-[4/3] rounded-md overflow-hidden bg-[#D9D5D2]/50 mb-3">
+        <div className="relative w-full aspect-[4/3] rounded-md overflow-hidden bg-[#F5F5F5] mb-3">
           {pro.photoUrl ? (
             <Image
               src={pro.photoUrl}
@@ -136,7 +136,7 @@ export function BulletinFlyerCard({ pro, profileHref, rotation = 0 }: BulletinFl
         <h3 className="font-semibold text-base text-[#111] leading-tight mb-1">
           {pro.displayName}
         </h3>
-        <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-[#D9D5D2]/60 text-black/70 mb-2">
+        <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-[#EBEBEB] text-black/70 mb-2">
           {pro.primaryCategory}
         </span>
 

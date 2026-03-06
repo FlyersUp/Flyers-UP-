@@ -41,7 +41,7 @@ export function BookingHeaderCard({
   return (
     <div
       className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm"
-      style={{ backgroundColor: '#FAF8F6' }}
+      style={{ backgroundColor: '#FFFFFF' }}
     >
       <div className="flex items-start gap-4">
         <div className="shrink-0">

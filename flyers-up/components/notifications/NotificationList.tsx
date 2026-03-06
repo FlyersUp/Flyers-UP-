@@ -2,7 +2,7 @@
 
 /**
  * NotificationList: Clean feed with unread styling, timestamps, deep links.
- * Flyers Up theme: #F2F2F0, #D9D5D2, accents #B2FBA5 / #FFC067
+ * Flyers Up theme: #F5F5F5, accents #B2FBA5 / #FFC067
  * Subscribes to realtime INSERT so new notifications appear live while viewing.
  */
 
@@ -114,10 +114,10 @@ export function NotificationList({ basePath }: NotificationListProps) {
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="rounded-xl border border-black/10 bg-[#F2F2F0] p-4 animate-pulse"
+            className="rounded-2xl border border-black/5 bg-white p-4 animate-pulse"
           >
-            <div className="h-4 bg-[#D9D5D2]/50 rounded w-3/4 mb-2" />
-            <div className="h-3 bg-[#D9D5D2]/30 rounded w-1/2" />
+            <div className="h-4 bg-[#F5F5F5] rounded w-3/4 mb-2" />
+            <div className="h-3 bg-[#EBEBEB] rounded w-1/2" />
           </div>
         ))}
       </div>
@@ -131,7 +131,7 @@ export function NotificationList({ basePath }: NotificationListProps) {
   if (items.length === 0) {
     return (
       <div
-        className="rounded-2xl border border-black/10 bg-[#F2F2F0] p-6 shadow-sm border-l-4 border-l-accent"
+        className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm border-l-4 border-l-accent"
         style={{ borderLeftColor: 'var(--role-accent, #FFC067)' }}
       >
         <div className="text-base font-semibold text-text">No notifications yet</div>
@@ -153,10 +153,10 @@ export function NotificationList({ basePath }: NotificationListProps) {
             key={item.id}
             href={href}
             onClick={() => handleClick(item)}
-            className={`block rounded-xl border border-black/10 p-4 shadow-sm transition-colors hover:opacity-90 ${
+            className={`block rounded-2xl border border-black/5 p-4 shadow-sm transition-colors hover:opacity-90 ${
               isUnread(item)
-                ? 'bg-[#F2F2F0] border-l-4 border-l-[#FFC067]'
-                : 'bg-[#F2F2F0]'
+                ? 'bg-white border-l-4 border-l-[#FFC067]'
+                : 'bg-white'
             }`}
             style={isUnread(item) ? { borderLeftColor: 'var(--role-accent, #FFC067)' } : undefined}
           >

@@ -99,7 +99,7 @@ export default function ProBookingDetailPage({
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div
             className="rounded-2xl border border-[var(--hairline)] p-6"
-            style={{ backgroundColor: '#F2F2F0' }}
+            style={{ backgroundColor: '#F5F5F5' }}
           >
             <p className="text-sm text-muted">Booking not found.</p>
             <Link
@@ -156,7 +156,7 @@ export default function ProBookingDetailPage({
 
                 <div
                   className="rounded-2xl border border-[var(--hairline)] p-5 mb-6"
-                  style={{ backgroundColor: '#F2F2F0' }}
+                  style={{ backgroundColor: '#F5F5F5' }}
                 >
                   <div className="text-sm font-medium text-muted mb-2">Customer</div>
                   <p className="text-text">Customer ID: {booking.customerId.slice(0, 8)}…</p>
@@ -219,7 +219,7 @@ export default function ProBookingDetailPage({
                   </div>
                   <div
                     className="rounded-2xl border border-[var(--hairline)] overflow-hidden"
-                    style={{ backgroundColor: '#F2F2F0' }}
+                    style={{ backgroundColor: '#F5F5F5' }}
                   >
                     <div className="p-6">
                       <BookingTimeline

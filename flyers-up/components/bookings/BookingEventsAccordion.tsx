@@ -33,7 +33,7 @@ export function BookingEventsAccordion({ bookingId }: BookingEventsAccordionProp
   }, [bookingId, open]);
 
   return (
-    <div className="rounded-lg border border-black/10 overflow-hidden">
+    <div className="rounded-2xl border border-black/5 overflow-hidden bg-white shadow-sm">
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -43,7 +43,7 @@ export function BookingEventsAccordion({ bookingId }: BookingEventsAccordionProp
         <span className="text-muted">{open ? '−' : '+'}</span>
       </button>
       {open && (
-        <div className="px-4 pb-4 pt-0 border-t border-black/10">
+        <div className="px-4 pb-4 pt-0 border-t border-black/5">
           {loading ? (
             <p className="text-xs text-muted">Loading…</p>
           ) : events.length === 0 ? (

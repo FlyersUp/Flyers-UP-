@@ -80,7 +80,7 @@ export default function CustomerConversationChat({ params }: { params: Promise<{
           You&apos;re just asking questions. When you&apos;re ready to book, click &quot;Request Booking&quot; on the pro&apos;s profile.
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 bg-[#FAF8F6]">
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 bg-[#F5F5F5]">
           {loading ? (
             <p className="text-sm text-muted/70">Loading…</p>
           ) : rows.length === 0 ? (

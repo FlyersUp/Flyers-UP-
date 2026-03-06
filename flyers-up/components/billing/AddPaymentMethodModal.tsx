@@ -83,7 +83,7 @@ export function AddPaymentMethodModal({ clientSecret, onSuccess, onClose }: AddP
   if (!stripePromise) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="rounded-2xl bg-[#F2F2F0] p-6 max-w-md w-full">
+        <div className="rounded-2xl bg-white p-6 max-w-md w-full">
           <p className="text-sm text-muted">Stripe is not configured.</p>
           <button
             type="button"
@@ -111,7 +111,7 @@ export function AddPaymentMethodModal({ clientSecret, onSuccess, onClose }: AddP
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
         className="rounded-2xl border border-black/10 p-6 max-w-md w-full max-h-[90vh] overflow-auto"
-        style={{ backgroundColor: '#F2F2F0' }}
+        style={{ backgroundColor: '#FFFFFF' }}
         role="dialog"
         aria-labelledby="add-payment-title"
       >
