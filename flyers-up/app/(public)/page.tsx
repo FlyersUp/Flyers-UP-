@@ -1,26 +1,35 @@
 'use client';
 
-// No auth or DB calls — statically renderable.
-export const dynamic = 'force-static';
-
 /**
  * Landing Page - Flyers Up Home
- * Explains what Flyers Up is and provides CTAs to sign in/up
+ * Featured occupations + CTAs
  */
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import Logo from '@/components/Logo';
 import { HeaderBrand } from '@/components/HeaderBrand';
+import { OccupationGrid } from '@/components/occupations/OccupationGrid';
+
+type Occupation = { id: string; name: string; slug: string; icon: string | null; featured: boolean };
 
 export default function HomePage() {
+  const [featuredOccupations, setFeaturedOccupations] = useState<Occupation[]>([]);
+
+  useEffect(() => {
+    fetch('/api/occupations?featured=true', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => setFeaturedOccupations(data.occupations ?? []))
+      .catch(() => {});
+  }, []);
   return (
     <div className="min-h-screen bg-bg" style={{ '--accent-customer': '111 91% 82%' } as React.CSSProperties}>
-      {/* Header: premium civic feel - #F2F2F0, #D9D5D2, 25% accent max */}
+      {/* Header: premium civic feel - #F5F5F5, 25% accent max */}
       <header
         className="sticky top-0 z-50 flex items-center justify-between h-16 md:h-[72px] px-6 md:px-6 border-b transition-opacity duration-150 ease-out"
         style={{
-          backgroundColor: '#F2F2F0',
-          borderColor: '#D9D5D2',
+          backgroundColor: '#F5F5F5',
+          borderColor: '#F5F5F5',
           boxShadow: '0 1px 0 rgba(0,0,0,0.04)',
         }}
       >
@@ -35,7 +44,7 @@ export default function HomePage() {
             </Link>
             <Link
               href="/signup?role=customer"
-              className="px-4 py-2 text-sm font-medium bg-surface hover:bg-surface2 text-[#1A1A1A] rounded-lg transition-colors duration-150 border border-[#D9D5D2]"
+              className="px-4 py-2 text-sm font-medium bg-surface hover:bg-surface2 text-[#1A1A1A] rounded-lg transition-colors duration-150 border border-[#F5F5F5]"
             >
               Book a Pro
             </Link>
@@ -73,6 +82,24 @@ export default function HomePage() {
             >
               I’m a Service Pro
             </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Browse Occupations - bulletin board style */}
+      <section className="py-16 px-4 bg-[#F5F5F5]">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-2xl font-semibold text-zinc-900 mb-6 text-center">
+            Browse Occupations
+          </h2>
+          <OccupationGrid occupations={featuredOccupations} variant="featured" />
+          <div className="mt-8 text-center">
+            <Link
+              href="/occupations"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white border border-black/5 text-zinc-900 font-medium shadow-[0_10px_25px_rgba(0,0,0,0.06)] hover:shadow-[0_14px_30px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 transition-all"
+            >
+              More Occupations →
+            </Link>
           </div>
         </div>
       </section>
