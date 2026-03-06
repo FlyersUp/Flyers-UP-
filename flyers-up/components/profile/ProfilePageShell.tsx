@@ -8,7 +8,7 @@ export function ProfilePageShell({
   maxWidth?: string;
 }) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text">
+    <div className="min-h-screen">
       <div className="mx-auto w-full px-4 py-5" style={{ maxWidth }}>
         {children}
       </div>
