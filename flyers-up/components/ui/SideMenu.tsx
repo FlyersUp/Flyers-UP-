@@ -74,8 +74,7 @@ function getProMenu(): MenuSection[] {
       items: [
         { label: 'Bookings', href: '/pro/bookings' },
         { label: 'Booking Rules', href: '/booking-rules' },
-        { label: 'Jobs', href: '/pro' },
-        { label: 'Requests', href: '/pro/requests' },
+        { label: 'Jobs', href: '/pro/jobs' },
         { label: 'Today (Detailed View)', href: '/pro/today' },
         { label: 'Availability', href: '/pro/settings/pricing-availability' },
         { label: 'Service Areas', href: '/pro/settings/business-profile' },

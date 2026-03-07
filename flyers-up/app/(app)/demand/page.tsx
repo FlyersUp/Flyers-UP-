@@ -139,7 +139,11 @@ export default function DemandPage() {
         .select('id')
         .eq('user_id', user.id)
         .maybeSingle();
-      setIsPro(!!pro);
+      if (pro) {
+        router.replace('/pro/jobs');
+        return;
+      }
+      setIsPro(false);
       setReady(true);
     };
     void check();

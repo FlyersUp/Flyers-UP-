@@ -126,7 +126,7 @@ export default function BottomNav() {
   /* theme-pro/theme-customer are set by root ThemeProvider from pathname */
 
   const homeHref = mode === 'pro' ? '/pro' : '/customer';
-  const requestsHref = mode === 'pro' ? '/pro/requests' : '/customer/requests';
+  const requestsHref = mode === 'pro' ? '/pro/jobs' : '/customer/requests';
   const searchHref = '/occupations';
   const messagesHref = mode === 'pro' ? '/pro/messages' : '/customer/messages';
   const profileHref = mode === 'pro' ? '/pro/settings' : '/customer/settings';

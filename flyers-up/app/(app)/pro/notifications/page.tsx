@@ -42,7 +42,7 @@ export default function ProNotifications() {
         <NotificationList basePath="/pro" />
 
         <div className="mt-6">
-          <Link href="/pro/requests" className="text-sm font-medium text-text hover:underline">
+          <Link href="/pro/jobs" className="text-sm font-medium text-text hover:underline">
             Go to requests →
           </Link>
         </div>

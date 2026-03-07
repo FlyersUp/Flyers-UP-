@@ -40,7 +40,7 @@ export default function ClaimedRequestPage() {
       }
       const { data: pro } = await supabase.from('service_pros').select('id').eq('user_id', user.id).maybeSingle();
       if (!pro) {
-        router.replace('/demand');
+        router.replace('/pro/jobs');
         return;
       }
       const { data } = await supabase
@@ -72,8 +72,8 @@ export default function ClaimedRequestPage() {
           <DashboardCard>
             <div className="p-6 text-center">
               <p className="font-medium text-[#111]">Request not found or not claimed by you.</p>
-              <Link href="/demand" className="mt-4 inline-block text-sm text-[#111] hover:underline">
-                ← Back to Demand Board
+              <Link href="/pro/jobs" className="mt-4 inline-block text-sm text-[#111] hover:underline">
+                ← Back to Jobs
               </Link>
             </div>
           </DashboardCard>
@@ -112,10 +112,10 @@ export default function ClaimedRequestPage() {
                   View Bookings
                 </Link>
                 <Link
-                  href="/demand"
+                  href="/pro/jobs"
                   className="px-4 py-2 rounded-lg border border-black/15 text-black/80 font-semibold text-sm hover:bg-black/5"
                 >
-                  Back to Board
+                  Back to Jobs
                 </Link>
               </div>
             </div>

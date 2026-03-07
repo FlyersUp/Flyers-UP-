@@ -129,7 +129,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
               </div>
               <div className="shrink-0">
                 <Link
-                  href="/pro/requests"
+                  href="/pro/jobs"
                   className="inline-flex items-center justify-center rounded-xl px-4 py-2 bg-accent text-accentContrast font-semibold hover:opacity-95 transition-opacity focus-ring"
                 >
                   View requests
@@ -174,7 +174,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
               </div>
             </div>
             <div className="shrink-0">
-              <Link href="/pro/requests" className="text-sm font-medium text-text hover:underline">
+              <Link href="/pro/jobs" className="text-sm font-medium text-text hover:underline">
                 View requests
               </Link>
             </div>
@@ -267,7 +267,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
               ) : null}
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link
-                  href="/pro/requests"
+                  href="/pro/jobs"
                   className="inline-flex items-center justify-center rounded-xl px-4 py-2 bg-accent text-accentContrast font-semibold hover:opacity-95 transition-opacity focus-ring"
                 >
                   Check requests

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 export default function ProDashboardRequestsRedirect() {
-  redirect('/pro/requests');
+  redirect('/pro/jobs');
 }
 
 

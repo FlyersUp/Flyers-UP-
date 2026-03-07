@@ -1,10 +1,11 @@
 'use client';
 
 /**
- * FloatingBottomNav - Detached floating action cluster
- * Each nav item floats independently. No shared dock/bar background.
- * Theme-aware: light mode = light buttons, dark mode = dark buttons.
- * Role-aware: Customer gets Search center pill; Pro gets Demand center pill.
+ * FloatingBottomNav - Independent floating buttons, no shared dock
+ * Each nav item floats separately with spacing between them.
+ * Pro: Home, Jobs (center pill), Messages, Profile
+ * Customer: Home, Requests, Search (center pill), Messages, Profile
+ * Theme: light = rgba(255,255,255,0.95), #E5E5E5, #111; dark = rgba(23,26,32,0.95), rgba(255,255,255,0.08), #F5F7FA
  */
 
 import Link from 'next/link';
@@ -16,7 +17,7 @@ import {
   User,
   ClipboardList,
   Search,
-  Zap,
+  Briefcase,
 } from 'lucide-react';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 
@@ -55,12 +56,12 @@ function getModeFromPath(pathname: string | null): 'customer' | 'pro' | null {
   return null;
 }
 
-/* Light mode: solid white bg, dark text. Dark mode: solid dark bg, light text. */
+/* Theme requirements: light bg rgba(255,255,255,0.95) border #E5E5E5 text #111; dark bg rgba(23,26,32,0.95) border rgba(255,255,255,0.08) text #F5F7FA */
 const SIDE_BTN_BASE =
   'flex items-center justify-center h-14 w-14 rounded-full border backdrop-blur-md transition-all duration-200 active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus:outline-none ' +
-  'bg-white dark:bg-[#171A20] ' +
-  'border-gray-200 dark:border-white/[0.08] ' +
-  'text-gray-900 dark:text-[#F5F7FA] ' +
+  'bg-[rgba(255,255,255,0.95)] dark:bg-[rgba(23,26,32,0.95)] ' +
+  'border-[#E5E5E5] dark:border-white/[0.08] ' +
+  'text-[#111111] dark:text-[#F5F7FA] ' +
   'shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)] ' +
   'focus-visible:ring-gray-300 dark:focus-visible:ring-white/20';
 
@@ -80,7 +81,7 @@ function SideTab({ href, isActive, icon, badge, ariaLabel, mode }: SideTabProps)
   return (
     <Link
       href={href}
-      className={`${SIDE_BTN_BASE} ${isActive ? accentColor : inactiveColor + ' hover:text-gray-900 dark:hover:text-white'}`}
+      className={`${SIDE_BTN_BASE} ${isActive ? accentColor : inactiveColor + ' hover:text-[#111111] dark:hover:text-[#F5F7FA]'}`}
       aria-label={ariaLabel}
     >
       <NavIconWithBadge icon={icon} badge={badge} />
@@ -98,16 +99,15 @@ interface CenterPillProps {
 }
 
 function CenterPill({ href, isActive, mode, label, icon, ariaLabel }: CenterPillProps) {
-  /* Pro Demand: warm cream/amber like reference (image 4) - vibrant, not pale */
   const accentBg = mode === 'pro' ? 'bg-[#FFEBB0] dark:bg-amber-900/40' : 'bg-emerald-100 dark:bg-emerald-900/30';
   const accentText = mode === 'pro' ? 'text-amber-900 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-300';
   const inactiveStyles =
-    'bg-white dark:bg-[#171A20] text-gray-900 dark:text-[#F5F7FA] border-gray-200 dark:border-white/[0.08]';
+    'bg-[rgba(255,255,255,0.95)] dark:bg-[rgba(23,26,32,0.95)] text-[#111111] dark:text-[#F5F7FA] border-[#E5E5E5] dark:border-white/[0.08]';
 
   return (
     <Link
       href={href}
-      className={`flex items-center justify-center gap-2 h-14 min-w-[150px] px-6 rounded-full font-medium text-sm border backdrop-blur-md transition-all duration-200 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-gray-300 dark:focus-visible:ring-white/20 focus-visible:ring-offset-2 focus:outline-none ${
+      className={`flex items-center justify-center gap-2 h-14 min-w-[130px] px-5 rounded-full font-medium text-sm border backdrop-blur-md transition-all duration-200 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-gray-300 dark:focus-visible:ring-white/20 focus-visible:ring-offset-2 focus:outline-none ${
         isActive ? `${accentBg} ${accentText} border-transparent` : `${inactiveStyles} hover:opacity-95`
       } shadow-[0_2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_2px_14px_rgba(0,0,0,0.45)]`}
       aria-label={ariaLabel}
@@ -125,10 +125,6 @@ export default function FloatingBottomNav() {
   const [storageMode, setStorageMode] = useState<'customer' | 'pro'>('customer');
   const mode: 'customer' | 'pro' = pathMode ?? storageMode;
   const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/');
-  /* Demand = /demand OR /pro/requests (same thing for Pro nav) */
-  const isDemandActive = mode === 'pro'
-    ? (pathname === '/demand' || pathname?.startsWith('/demand/') || pathname === '/pro/requests' || pathname?.startsWith('/pro/requests/'))
-    : isActive('/demand');
 
   useEffect(() => {
     if (pathMode != null) return;
@@ -140,27 +136,24 @@ export default function FloatingBottomNav() {
     }
   }, [pathMode]);
 
-  /* theme-pro/theme-customer are set by root ThemeProvider from pathname */
-
   const homeHref = mode === 'pro' ? '/pro' : '/customer';
-  const requestsHref = mode === 'pro' ? '/pro/requests' : '/customer/requests';
-  const demandHref = '/demand';
+  const jobsHref = mode === 'pro' ? '/pro/jobs' : '/customer/requests';
   const searchHref = '/occupations';
   const messagesHref = mode === 'pro' ? '/pro/messages' : '/customer/messages';
   const profileHref = mode === 'pro' ? '/pro/settings' : '/customer/settings';
 
   const iconClass = 'shrink-0 text-current [&>svg]:transition-colors';
 
-  /* Pro: center = Demand (links to /demand; active on /demand or /pro/requests). Customer: center = Search. */
+  /* Pro: center = Jobs (4 items). Customer: center = Search (5 items). */
   const centerPill =
     mode === 'pro' ? (
       <CenterPill
-        href={demandHref}
-        isActive={isDemandActive}
+        href={jobsHref}
+        isActive={isActive(jobsHref)}
         mode="pro"
-        label="Demand"
-        icon={<Zap size={CENTER_ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-        ariaLabel="Demand Board"
+        label="Jobs"
+        icon={<Briefcase size={CENTER_ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
+        ariaLabel="Jobs"
       />
     ) : (
       <CenterPill
@@ -173,12 +166,14 @@ export default function FloatingBottomNav() {
       />
     );
 
-  /* Unified nav bar: one dock with background so it reads as "one thing" */
+  /* Independent floating buttons - no shared dock wrapper */
+  const containerStyle = { marginBottom: 'max(12px, env(safe-area-inset-bottom))' };
+
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center px-4">
+    <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center">
       <div
-        className="pointer-events-auto flex items-center justify-center gap-3 px-4 py-3 max-w-md w-full rounded-2xl bg-white dark:bg-[#171A20] backdrop-blur-xl border border-gray-200 dark:border-white/10 shadow-lg"
-        style={{ marginBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+        className="pointer-events-auto flex items-center justify-center gap-3 px-4"
+        style={containerStyle}
       >
         <SideTab
           href={homeHref}
@@ -187,13 +182,15 @@ export default function FloatingBottomNav() {
           ariaLabel="Home"
           mode={mode}
         />
-        <SideTab
-          href={requestsHref}
-          isActive={isActive(requestsHref)}
-          icon={<ClipboardList size={SIDE_ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-          ariaLabel="Requests"
-          mode={mode}
-        />
+        {mode === 'customer' && (
+          <SideTab
+            href={jobsHref}
+            isActive={isActive(jobsHref)}
+            icon={<ClipboardList size={SIDE_ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
+            ariaLabel="Requests"
+            mode={mode}
+          />
+        )}
         {centerPill}
         <SideTab
           href={messagesHref}

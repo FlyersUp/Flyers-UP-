@@ -179,7 +179,7 @@ export default function ProDashboard({ userName }: { userName: string }) {
                 <div className="p-4">
                   <div className="font-semibold text-gray-900 dark:text-white">No jobs scheduled yet</div>
                   <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">When you accept work, it will show up here.</div>
-                  <Link href="/pro/requests" className="mt-3 inline-block text-sm font-medium text-gray-900 dark:text-white hover:underline">
+                  <Link href="/pro/jobs" className="mt-3 inline-block text-sm font-medium text-gray-900 dark:text-white hover:underline">
                     Check requests →
                   </Link>
                 </div>
@@ -196,7 +196,7 @@ export default function ProDashboard({ userName }: { userName: string }) {
               <div className="space-y-2">
                 {requests.slice(0, 3).map((r) => (
                   <DashboardCard key={r.id}>
-                    <Link href="/pro/requests" className="block p-4">
+                    <Link href="/pro/jobs" className="block p-4">
                       <div className="font-semibold text-gray-900 dark:text-white">{r.title}</div>
                       <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                         {r.location}
@@ -207,7 +207,7 @@ export default function ProDashboard({ userName }: { userName: string }) {
                     </Link>
                   </DashboardCard>
                 ))}
-                <Link href="/pro/requests">
+                <Link href="/pro/jobs">
                   <DashboardCard>
                     <div className="p-4 text-center font-semibold text-gray-900 dark:text-white">View Requests</div>
                   </DashboardCard>
@@ -218,7 +218,7 @@ export default function ProDashboard({ userName }: { userName: string }) {
                 <div className="p-4">
                   <div className="text-sm font-medium text-gray-900 dark:text-white">No open requests</div>
                   <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">New requests will appear here.</div>
-                  <Link href="/demand" className="mt-2 inline-block text-sm text-gray-900 dark:text-white hover:underline">
+                  <Link href="/pro/jobs" className="mt-2 inline-block text-sm text-gray-900 dark:text-white hover:underline">
                     View Demand Board →
                   </Link>
                 </div>
