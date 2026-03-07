@@ -55,11 +55,11 @@ function getModeFromPath(pathname: string | null): 'customer' | 'pro' | null {
   return null;
 }
 
-/* Light mode: white bg, dark text. Dark mode: dark bg, light text. */
+/* Light mode: solid white bg, dark text. Dark mode: solid dark bg, light text. */
 const SIDE_BTN_BASE =
   'flex items-center justify-center h-14 w-14 rounded-full border backdrop-blur-md transition-all duration-200 active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus:outline-none ' +
-  'bg-white/95 dark:bg-[#171A20]/95 ' +
-  'border-[#E5E5E5] dark:border-white/[0.08] ' +
+  'bg-white dark:bg-[#171A20] ' +
+  'border-gray-200 dark:border-white/[0.08] ' +
   'text-gray-900 dark:text-[#F5F7FA] ' +
   'shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)] ' +
   'focus-visible:ring-gray-300 dark:focus-visible:ring-white/20';
@@ -101,7 +101,7 @@ function CenterPill({ href, isActive, mode, label, icon, ariaLabel }: CenterPill
   const accentBg = mode === 'pro' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30';
   const accentText = mode === 'pro' ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-800 dark:text-emerald-300';
   const inactiveStyles =
-    'bg-white/95 dark:bg-[#171A20]/95 text-gray-900 dark:text-[#F5F7FA] border-[#E5E5E5] dark:border-white/[0.08]';
+    'bg-white dark:bg-[#171A20] text-gray-900 dark:text-[#F5F7FA] border-gray-200 dark:border-white/[0.08]';
 
   return (
     <Link

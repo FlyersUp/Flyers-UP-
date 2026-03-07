@@ -130,18 +130,18 @@ export default function ProDashboard({ userName }: { userName: string }) {
 
   return (
     <AppLayout mode="pro">
-      <div className="min-h-screen bg-[#F5F5F5]">
-        <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
+      <div className="min-h-screen bg-bg">
+        <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur-sm border-b border-border">
           <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
-              className="h-10 w-10 rounded-xl bg-[#F5F5F5] border border-black/10 text-black/70 hover:bg-[#EBEBEB]"
+              className="h-10 w-10 rounded-xl bg-surface2 border border-border text-gray-900 dark:text-white hover:bg-surface2/80"
               aria-label="Open menu"
             >
               ☰
             </button>
-            <h1 className="text-xl font-semibold text-[#111]">{userName}</h1>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{userName}</h1>
             <div className="w-10" />
           </div>
         </div>
@@ -149,7 +149,7 @@ export default function ProDashboard({ userName }: { userName: string }) {
         <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
           {/* 1. TODAY'S JOBS */}
           <section>
-            <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">Today&apos;s Jobs</h2>
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">Today&apos;s Jobs</h2>
             {jobsLoading ? (
               <DashboardSectionSkeleton />
             ) : todayJobs.length > 0 ? (
@@ -159,27 +159,27 @@ export default function ProDashboard({ userName }: { userName: string }) {
                     <DashboardCard>
                       <div className="p-4 flex items-center justify-between gap-4">
                         <div className="min-w-0">
-                          <div className="font-semibold text-[#111]">{job.service}</div>
-                          <div className="text-sm text-black/60">{job.customerName} • {job.time}</div>
+                          <div className="font-semibold text-gray-900 dark:text-white">{job.service}</div>
+                          <div className="text-sm text-gray-600 dark:text-gray-300">{job.customerName} • {job.time}</div>
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="text-lg font-bold text-[#FFC067]">${job.total}</div>
-                          <div className="text-xs text-black/50">{job.status.replace(/_/g, ' ')}</div>
+                          <div className="text-lg font-bold text-amber-600 dark:text-amber-400">${job.total}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{job.status.replace(/_/g, ' ')}</div>
                         </div>
                       </div>
                     </DashboardCard>
                   </Link>
                 ))}
-                <Link href="/pro/bookings" className="block text-sm font-medium text-black/60 hover:text-[#111]">
+                <Link href="/pro/bookings" className="block text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
                   View all bookings →
                 </Link>
               </div>
             ) : (
               <DashboardCard>
                 <div className="p-4">
-                  <div className="font-semibold text-[#111]">No jobs scheduled yet</div>
-                  <div className="text-sm text-black/60 mt-1">When you accept work, it will show up here.</div>
-                  <Link href="/pro/requests" className="mt-3 inline-block text-sm font-medium text-[#111] hover:underline">
+                  <div className="font-semibold text-gray-900 dark:text-white">No jobs scheduled yet</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">When you accept work, it will show up here.</div>
+                  <Link href="/pro/requests" className="mt-3 inline-block text-sm font-medium text-gray-900 dark:text-white hover:underline">
                     Check requests →
                   </Link>
                 </div>
@@ -189,7 +189,7 @@ export default function ProDashboard({ userName }: { userName: string }) {
 
           {/* 2. REQUESTS NEAR YOU */}
           <section>
-            <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">Requests Near You</h2>
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">Requests Near You</h2>
             {requestsLoading ? (
               <DashboardSectionSkeleton />
             ) : requests.length > 0 ? (
@@ -197,8 +197,8 @@ export default function ProDashboard({ userName }: { userName: string }) {
                 {requests.slice(0, 3).map((r) => (
                   <DashboardCard key={r.id}>
                     <Link href="/pro/requests" className="block p-4">
-                      <div className="font-semibold text-[#111]">{r.title}</div>
-                      <div className="text-sm text-black/60 mt-1">
+                      <div className="font-semibold text-gray-900 dark:text-white">{r.title}</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                         {r.location}
                         {(r.budget_min != null || r.budget_max != null) && (
                           <span> • ${r.budget_min ?? '?'}–${r.budget_max ?? '?'}</span>
@@ -209,16 +209,16 @@ export default function ProDashboard({ userName }: { userName: string }) {
                 ))}
                 <Link href="/pro/requests">
                   <DashboardCard>
-                    <div className="p-4 text-center font-semibold text-[#111]">View Requests</div>
+                    <div className="p-4 text-center font-semibold text-gray-900 dark:text-white">View Requests</div>
                   </DashboardCard>
                 </Link>
               </div>
             ) : (
               <DashboardCard>
                 <div className="p-4">
-                  <div className="text-sm font-medium text-[#111]">No open requests</div>
-                  <div className="text-xs text-black/60 mt-1">New requests will appear here.</div>
-                  <Link href="/demand" className="mt-2 inline-block text-sm text-[#111] hover:underline">
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">No open requests</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">New requests will appear here.</div>
+                  <Link href="/demand" className="mt-2 inline-block text-sm text-gray-900 dark:text-white hover:underline">
                     View Demand Board →
                   </Link>
                 </div>
@@ -228,17 +228,17 @@ export default function ProDashboard({ userName }: { userName: string }) {
 
           {/* 3. WEEKLY EARNINGS */}
           <section>
-            <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">Weekly Earnings</h2>
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">Weekly Earnings</h2>
             {earningsLoading ? (
               <DashboardSectionSkeleton />
             ) : (
               <DashboardCard>
                 <Link href="/pro/earnings" className="block p-4">
-                  <div className="text-2xl font-bold text-[#FFC067]">
+                  <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                     ${(earnings?.thisWeek ?? 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                   </div>
-                  <div className="text-sm text-black/60 mt-1">This week</div>
-                  <div className="mt-2 text-xs font-medium text-black/50">View earnings →</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">This week</div>
+                  <div className="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">View earnings →</div>
                 </Link>
               </DashboardCard>
             )}
@@ -246,18 +246,18 @@ export default function ProDashboard({ userName }: { userName: string }) {
 
           {/* 4. REPUTATION */}
           <section>
-            <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">Reputation</h2>
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">Reputation</h2>
             <DashboardCard>
               <div className="p-4 flex gap-6">
                 <div>
-                  <div className="text-2xl font-bold text-[#111]">
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
                     {proRating != null ? proRating.toFixed(1) : '—'}
                   </div>
-                  <div className="text-xs text-black/60">Average rating</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-300">Average rating</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-[#111]">{jobsCompleted}</div>
-                  <div className="text-xs text-black/60">Jobs completed</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{jobsCompleted}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-300">Jobs completed</div>
                 </div>
               </div>
             </DashboardCard>
@@ -269,14 +269,14 @@ export default function ProDashboard({ userName }: { userName: string }) {
               <Link href="/pro/settings/business">
                 <DashboardCard>
                   <div className="p-4 text-center">
-                    <div className="text-sm font-semibold text-[#111]">My Business</div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">My Business</div>
                   </div>
                 </DashboardCard>
               </Link>
               <Link href="/pro/credentials">
                 <DashboardCard>
                   <div className="p-4 text-center">
-                    <div className="text-sm font-semibold text-[#111]">Credentials</div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">Credentials</div>
                   </div>
                 </DashboardCard>
               </Link>

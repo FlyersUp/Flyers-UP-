@@ -22,6 +22,6 @@ export function DashboardCard({ children, className = '' }: DashboardCardProps) 
 
 export function DashboardSectionSkeleton() {
   return (
-    <div className="rounded-2xl bg-gray-200 animate-pulse border border-black/5 shadow-sm h-32" />
+    <div className="rounded-2xl bg-gray-200 dark:bg-gray-700 animate-pulse border border-gray-200 dark:border-white/10 shadow-sm h-32" />
   );
 }

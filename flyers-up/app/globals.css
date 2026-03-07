@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Tailwind v4: use .dark class instead of prefers-color-scheme so app theme toggle works */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ============================================
    FLYERS UP DESIGN SYSTEM
    Premium minimalism: restraint, whitespace, rhythm, intentional hierarchy
