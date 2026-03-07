@@ -215,9 +215,9 @@ export default function CustomerDashboard() {
 
   return (
     <AppLayout mode="customer">
-      <div className="min-h-screen bg-[#F5F5F5]">
+      <div className="min-h-screen bg-[#F5F5F5] overflow-x-hidden w-full">
         <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
-          <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="w-full max-w-4xl mx-auto px-4 py-4 flex items-center justify-between min-w-0">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
@@ -231,7 +231,7 @@ export default function CustomerDashboard() {
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        <div className="w-full max-w-4xl mx-auto px-4 py-6 space-y-6 min-w-0">
           {/* 1. ACTIVE BOOKING */}
           <section>
             <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">Active Booking</h2>

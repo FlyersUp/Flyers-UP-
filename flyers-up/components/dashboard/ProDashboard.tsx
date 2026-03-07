@@ -130,9 +130,9 @@ export default function ProDashboard({ userName }: { userName: string }) {
 
   return (
     <AppLayout mode="pro">
-      <div className="min-h-screen bg-bg">
+      <div className="min-h-screen bg-bg overflow-x-hidden w-full">
         <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur-sm border-b border-border">
-          <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="w-full max-w-4xl mx-auto px-4 py-4 flex items-center justify-between min-w-0">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
@@ -146,7 +146,7 @@ export default function ProDashboard({ userName }: { userName: string }) {
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        <div className="w-full max-w-4xl mx-auto px-4 py-6 space-y-6 min-w-0">
           {/* 1. TODAY'S JOBS */}
           <section>
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">Today&apos;s Jobs</h2>
