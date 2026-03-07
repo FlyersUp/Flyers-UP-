@@ -5,7 +5,7 @@
  * Active item becomes a pill (icon + label); inactive items stay as small circles.
  * No shared dock. Each button floats independently with smooth transitions.
  * Pro: Home, Jobs, Messages, Profile (4 items)
- * Customer: Home, Requests, Search, Messages, Profile (5 items)
+ * Customer: Home, Explore, Messages, Profile (4 items)
  */
 
 import Link from 'next/link';
@@ -15,9 +15,8 @@ import {
   Home,
   MessageCircle,
   User,
-  ClipboardList,
-  Search,
   Briefcase,
+  Compass,
 } from 'lucide-react';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 
@@ -50,7 +49,8 @@ function getModeFromPath(pathname: string | null): 'customer' | 'pro' | null {
     pathname?.startsWith('/customer') ||
     pathname?.startsWith('/dashboard/customer') ||
     pathname?.startsWith('/flyer-wall') ||
-    pathname?.startsWith('/requests')
+    pathname?.startsWith('/requests') ||
+    pathname?.startsWith('/occupations')
   )
     return 'customer';
   return null;
@@ -137,8 +137,8 @@ export default function FloatingBottomNav() {
   }, [pathMode]);
 
   const homeHref = mode === 'pro' ? '/pro' : '/customer';
-  const jobsHref = mode === 'pro' ? '/pro/jobs' : '/customer/requests';
-  const searchHref = '/occupations';
+  const jobsHref = '/pro/jobs';
+  const exploreHref = '/occupations';
   const messagesHref = mode === 'pro' ? '/pro/messages' : '/customer/messages';
   const profileHref = mode === 'pro' ? '/pro/settings' : '/customer/settings';
 
@@ -186,7 +186,7 @@ export default function FloatingBottomNav() {
     );
   }
 
-  /* Customer: 5 items - Home, Requests, Search, Messages, Profile */
+  /* Customer: 4 items - Home, Explore, Messages, Profile. Same morphing pattern as Pro. */
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center">
       <div
@@ -201,18 +201,11 @@ export default function FloatingBottomNav() {
           ariaLabel="Home"
         />
         <MorphingNavItem
-          href={jobsHref}
-          isActive={isActive(jobsHref)}
-          icon={<ClipboardList size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-          label="Requests"
-          ariaLabel="Requests"
-        />
-        <MorphingNavItem
-          href={searchHref}
-          isActive={isActive(searchHref)}
-          icon={<Search size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-          label="Search"
-          ariaLabel="Search"
+          href={exploreHref}
+          isActive={isActive(exploreHref)}
+          icon={<Compass size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
+          label="Explore"
+          ariaLabel="Explore"
         />
         <MorphingNavItem
           href={messagesHref}
