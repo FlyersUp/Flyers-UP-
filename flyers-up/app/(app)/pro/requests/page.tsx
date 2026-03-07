@@ -273,24 +273,24 @@ export default function ProRequestsPage() {
 
   return (
     <AppLayout mode="pro">
-      <div className="min-h-screen bg-[#F5F5F5]">
-        <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
+      <div className="min-h-screen bg-bg">
+        <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur-sm border-b border-border">
           <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
-              className="h-10 w-10 rounded-xl bg-white border border-black/10 text-black/70 hover:bg-white/90"
+              className="h-10 w-10 rounded-xl bg-surface border border-border text-gray-900 dark:text-white hover:bg-surface2"
               aria-label="Open menu"
             >
               ☰
             </button>
-            <h1 className="text-xl font-semibold text-[#111]">Demand Board</h1>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Demand Board</h1>
             <div className="w-10" />
           </div>
         </div>
 
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <p className="text-sm text-black/60 mb-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
             Customer job requests near you. Send offers to win jobs.
           </p>
 
@@ -301,9 +301,9 @@ export default function ProRequestsPage() {
               ))}
             </div>
           ) : requests.length === 0 ? (
-            <div className="bg-white rounded-xl p-8 text-center border border-black/8">
-              <p className="text-base font-medium text-[#111]">No open requests</p>
-              <p className="text-sm text-black/60 mt-1">
+            <div className="bg-surface rounded-xl p-8 text-center border border-border">
+              <p className="text-base font-medium text-gray-900 dark:text-white">No open requests</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                 New requests will appear here. Check back soon!
               </p>
             </div>

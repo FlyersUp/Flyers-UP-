@@ -50,9 +50,9 @@ export function PlacardHeader({
       ].join(' ')}
     >
       <div className="min-w-0">
-        <div className="text-sm font-semibold text-text">{title}</div>
+        <div className="text-sm font-semibold text-gray-900 dark:text-white">{title}</div>
         {subtitle ? (
-          <div className="mt-0.5 text-xs text-muted leading-relaxed">{subtitle}</div>
+          <div className="mt-0.5 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{subtitle}</div>
         ) : null}
       </div>
       {right ? <div className="shrink-0">{right}</div> : null}

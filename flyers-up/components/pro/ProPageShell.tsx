@@ -48,7 +48,7 @@ export function ProPageShell({ title, children, userName: userNameProp, subtitle
           >
             ☰
           </button>
-          <h1 className="text-xl font-semibold text-[#111] dark:text-[#F5F7FA]">{title}</h1>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{title}</h1>
           <div className="w-10" />
         </div>
       </div>
@@ -56,7 +56,7 @@ export function ProPageShell({ title, children, userName: userNameProp, subtitle
       <div className="pb-24">
         {subtitle && (
           <div className="max-w-4xl mx-auto px-4 pt-4">
-            <p className="text-sm text-muted">{subtitle}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">{subtitle}</p>
           </div>
         )}
         {children}

@@ -24,8 +24,8 @@ export function SettingsSelectRow<T extends string>({
     <div className="flex min-h-[56px] items-center justify-between gap-4 py-4">
       <div className="min-w-0 flex-1">
         <label htmlFor={id} className="block cursor-default">
-          <span className="text-sm font-medium text-text">{title}</span>
-          {description && <span className="mt-0.5 block text-sm text-black/60">{description}</span>}
+          <span className="text-sm font-medium text-gray-900 dark:text-white">{title}</span>
+          {description && <span className="mt-0.5 block text-sm text-gray-600 dark:text-gray-300">{description}</span>}
         </label>
       </div>
       <div className="flex h-10 shrink-0 items-center">
@@ -33,7 +33,7 @@ export function SettingsSelectRow<T extends string>({
           id={id}
           value={value}
           onChange={(e) => onChange(e.target.value as T)}
-          className="min-w-[120px] rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-text focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
+          className="min-w-[120px] rounded-xl border border-border bg-surface px-3 py-2 text-sm text-gray-900 dark:text-white focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
           aria-label={title}
         >
           {options.map((opt) => (

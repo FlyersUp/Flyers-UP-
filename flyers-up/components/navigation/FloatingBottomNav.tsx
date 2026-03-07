@@ -3,7 +3,8 @@
 /**
  * FloatingBottomNav - Detached floating action cluster
  * Each nav item floats independently. No shared dock/bar background.
- * Premium iPhone-style layout with theme-aware styling.
+ * Theme-aware: light mode = light buttons, dark mode = dark buttons.
+ * Role-aware: Customer gets Search center pill; Pro gets Demand center pill.
  */
 
 import Link from 'next/link';
@@ -15,11 +16,12 @@ import {
   User,
   ClipboardList,
   Search,
+  Zap,
 } from 'lucide-react';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 
 const SIDE_ICON_SIZE = 24;
-const SEARCH_ICON_SIZE = 22;
+const CENTER_ICON_SIZE = 22;
 const ICON_STROKE = 1.75;
 
 function NavAlertDot({ show }: { show: boolean }) {
@@ -53,13 +55,14 @@ function getModeFromPath(pathname: string | null): 'customer' | 'pro' | null {
   return null;
 }
 
-/* Side button: h-14 w-14, rounded-full, theme-aware, no shared background */
+/* Light mode: white bg, dark text. Dark mode: dark bg, light text. */
 const SIDE_BTN_BASE =
   'flex items-center justify-center h-14 w-14 rounded-full border backdrop-blur-md transition-all duration-200 active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus:outline-none ' +
-  'bg-[rgba(255,255,255,0.92)] dark:bg-[rgba(23,26,32,0.92)] ' +
-  'border-[#E5E5E5] dark:border-[rgba(255,255,255,0.08)] ' +
+  'bg-white/95 dark:bg-[#171A20]/95 ' +
+  'border-[#E5E5E5] dark:border-white/[0.08] ' +
+  'text-gray-900 dark:text-[#F5F7FA] ' +
   'shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)] ' +
-  'focus-visible:ring-[#E5E5E5] dark:focus-visible:ring-white/20';
+  'focus-visible:ring-gray-300 dark:focus-visible:ring-white/20';
 
 interface SideTabProps {
   href: string;
@@ -71,13 +74,13 @@ interface SideTabProps {
 }
 
 function SideTab({ href, isActive, icon, badge, ariaLabel, mode }: SideTabProps) {
-  const accentColor = mode === 'pro' ? 'text-[#D97706] dark:text-[#E8B15A]' : 'text-[#058954] dark:text-[#9FE38F]';
-  const inactiveColor = 'text-[#6B7280] dark:text-[#A1A8B3]';
+  const accentColor = mode === 'pro' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400';
+  const inactiveColor = 'text-gray-600 dark:text-gray-400';
 
   return (
     <Link
       href={href}
-      className={`${SIDE_BTN_BASE} ${isActive ? accentColor : inactiveColor + ' hover:text-[#111111] dark:hover:text-[#F5F7FA]'}`}
+      className={`${SIDE_BTN_BASE} ${isActive ? accentColor : inactiveColor + ' hover:text-gray-900 dark:hover:text-white'}`}
       aria-label={ariaLabel}
     >
       <NavIconWithBadge icon={icon} badge={badge} />
@@ -85,28 +88,31 @@ function SideTab({ href, isActive, icon, badge, ariaLabel, mode }: SideTabProps)
   );
 }
 
-interface SearchPillProps {
+interface CenterPillProps {
   href: string;
   isActive: boolean;
   mode: 'customer' | 'pro';
+  label: string;
+  icon: ReactNode;
+  ariaLabel: string;
 }
 
-function SearchPill({ href, isActive, mode }: SearchPillProps) {
-  const accentBg = mode === 'pro' ? 'bg-[#FFC067]/30 dark:bg-[#E8B15A]/25' : 'bg-[#B2FBA5]/40 dark:bg-[#9FE38F]/25';
-  const accentText = mode === 'pro' ? 'text-[#B45309] dark:text-[#E8B15A]' : 'text-[#047857] dark:text-[#9FE38F]';
+function CenterPill({ href, isActive, mode, label, icon, ariaLabel }: CenterPillProps) {
+  const accentBg = mode === 'pro' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30';
+  const accentText = mode === 'pro' ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-800 dark:text-emerald-300';
   const inactiveStyles =
-    'bg-[rgba(255,255,255,0.92)] dark:bg-[rgba(23,26,32,0.92)] text-[#111111] dark:text-[#F5F7FA] border-[#E5E5E5] dark:border-[rgba(255,255,255,0.08)]';
+    'bg-white/95 dark:bg-[#171A20]/95 text-gray-900 dark:text-[#F5F7FA] border-[#E5E5E5] dark:border-white/[0.08]';
 
   return (
     <Link
       href={href}
-      className={`flex items-center justify-center gap-2 h-14 min-w-[150px] px-6 rounded-full font-medium text-sm border backdrop-blur-md transition-all duration-200 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#E5E5E5] dark:focus-visible:ring-white/20 focus-visible:ring-offset-2 focus:outline-none ${
+      className={`flex items-center justify-center gap-2 h-14 min-w-[150px] px-6 rounded-full font-medium text-sm border backdrop-blur-md transition-all duration-200 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-gray-300 dark:focus-visible:ring-white/20 focus-visible:ring-offset-2 focus:outline-none ${
         isActive ? `${accentBg} ${accentText} border-transparent` : `${inactiveStyles} hover:opacity-95`
       } shadow-[0_2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_2px_14px_rgba(0,0,0,0.45)]`}
-      aria-label="Search"
+      aria-label={ariaLabel}
     >
-      <Search size={SEARCH_ICON_SIZE} strokeWidth={ICON_STROKE} className="shrink-0" />
-      <span>Search</span>
+      {icon}
+      <span>{label}</span>
     </Link>
   );
 }
@@ -133,11 +139,34 @@ export default function FloatingBottomNav() {
 
   const homeHref = mode === 'pro' ? '/pro' : '/customer';
   const requestsHref = mode === 'pro' ? '/pro/requests' : '/customer/requests';
+  const demandHref = '/demand';
   const searchHref = '/occupations';
   const messagesHref = mode === 'pro' ? '/pro/messages' : '/customer/messages';
   const profileHref = mode === 'pro' ? '/pro/settings' : '/customer/settings';
 
   const iconClass = 'shrink-0 text-current [&>svg]:transition-colors';
+
+  /* Pro: center = Demand. Customer: center = Search. */
+  const centerPill =
+    mode === 'pro' ? (
+      <CenterPill
+        href={demandHref}
+        isActive={isActive(demandHref)}
+        mode="pro"
+        label="Demand"
+        icon={<Zap size={CENTER_ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
+        ariaLabel="Demand Board"
+      />
+    ) : (
+      <CenterPill
+        href={searchHref}
+        isActive={isActive(searchHref)}
+        mode="customer"
+        label="Search"
+        icon={<Search size={CENTER_ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
+        ariaLabel="Search"
+      />
+    );
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none">
@@ -159,7 +188,7 @@ export default function FloatingBottomNav() {
           ariaLabel="Requests"
           mode={mode}
         />
-        <SearchPill href={searchHref} isActive={isActive(searchHref)} mode={mode} />
+        {centerPill}
         <SideTab
           href={messagesHref}
           isActive={isActive(messagesHref)}

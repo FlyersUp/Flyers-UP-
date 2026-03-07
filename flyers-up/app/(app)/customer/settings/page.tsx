@@ -43,11 +43,11 @@ export default function CustomerSettings() {
                   <div className="flex items-center justify-between">
                     <Label variant="card">
                       <span className="inline-flex items-center gap-2">
-                        <AppIcon name={section.icon as AppIconName} size={18} className="text-[#6B7280] dark:text-[#A1A8B3]" alt="" />
-                        <span className="text-[#111] dark:text-[#F5F7FA]">{section.label}</span>
+                        <AppIcon name={section.icon as AppIconName} size={18} className="text-gray-600 dark:text-gray-300" alt="" />
+                        <span className="text-gray-900 dark:text-white font-medium">{section.label}</span>
                       </span>
                     </Label>
-                    <span className="text-[#6B7280] dark:text-[#A1A8B3]">→</span>
+                    <span className="text-gray-500 dark:text-gray-400">→</span>
                   </div>
                 </Card>
               </Link>

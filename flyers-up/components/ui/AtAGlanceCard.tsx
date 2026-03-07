@@ -67,8 +67,8 @@ function MiniItem({
 }) {
   return (
     <div className="min-w-[9.5rem]">
-      <div className="text-xs text-muted">{label}</div>
-      <div className={['text-base font-semibold', emphasize ? 'text-accent' : 'text-text'].join(' ')}>
+      <div className="text-xs text-gray-600 dark:text-gray-300">{label}</div>
+      <div className={['text-base font-semibold', emphasize ? 'text-accent' : 'text-gray-900 dark:text-white'].join(' ')}>
         {value}
       </div>
     </div>
@@ -94,8 +94,8 @@ export function AtAGlanceCard({
     <div className="surface-card border-l-[var(--border-accent)] border-l-accent">
       <div className="p-5">
         <div className="flex items-baseline justify-between gap-4">
-          <div className="text-sm font-semibold text-text">Today at a Glance</div>
-          <Link href="/pro/today" className="text-sm text-muted hover:text-text transition-colors">
+          <div className="text-sm font-semibold text-gray-900 dark:text-white">Today at a Glance</div>
+          <Link href="/pro/today" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
             View more
           </Link>
         </div>

@@ -103,7 +103,7 @@ function ProPreferencesSettingsInner() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
       <div>
-        <Link href="/pro/settings" className="text-sm text-muted hover:text-text">
+        <Link href="/pro/settings" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
           ← Back to Settings
         </Link>
         <div className="mt-3">
@@ -120,9 +120,9 @@ function ProPreferencesSettingsInner() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-black/5 bg-white shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-black/5">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted">Quality of Life</span>
+      <div className="rounded-2xl border border-border bg-surface shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-border">
+          <span className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">Quality of Life</span>
         </div>
         {loading ? (
           <div className="px-4 py-8 text-sm text-muted">Loading…</div>
@@ -187,7 +187,7 @@ function ProPreferencesSettingsInner() {
               </div>
             </div>
             {(saved || saving) && (
-              <div className="border-t border-black/5 px-4 py-2 text-xs text-muted">
+              <div className="border-t border-border px-4 py-2 text-xs text-gray-600 dark:text-gray-300">
                 {saving ? 'Saving…' : 'Saved'}
               </div>
             )}

@@ -110,8 +110,8 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
               ☰
             </button>
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-text">{userName}</h1>
-              <div className="text-sm text-muted">Pro</div>
+              <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">{userName}</h1>
+              <div className="text-sm text-gray-600 dark:text-gray-300">Pro</div>
             </div>
           </div>
         </div>
