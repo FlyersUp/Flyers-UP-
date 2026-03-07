@@ -10,7 +10,7 @@
  */
 
 import Navbar from './Navbar';
-import BottomNav from './BottomNav';
+import FloatingBottomNav from '@/components/navigation/FloatingBottomNav';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -34,13 +34,13 @@ export default function Layout({
     <div
       data-role={mode}
       data-accent={accentDensity}
-      className="min-h-screen bg-bg text-text pb-20"
+      className="min-h-screen bg-bg text-text pb-32"
     >
       <Navbar title={title} showBackButton={showBackButton} hideRightLinks={hideNavLinks} />
       <main className="max-w-6xl mx-auto px-[var(--page-pad-x)] py-[var(--page-pad-y)]">
         {children}
       </main>
-      <BottomNav />
+      <FloatingBottomNav />
     </div>
   );
 }

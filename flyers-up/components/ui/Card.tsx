@@ -4,7 +4,7 @@ import { ReactNode, ElementType, createElement } from 'react';
 import { Rail } from './Rail';
 import { cn } from '@/lib/cn';
 
-const CARD_BASE = 'bg-white dark:bg-[#222225] rounded-2xl border border-black/5 dark:border-white/10 shadow-sm';
+const CARD_BASE = 'bg-white dark:bg-[#171A20] rounded-2xl border border-black/5 dark:border-white/10 shadow-sm';
 
 const PADDING = {
   sm: 'p-3',

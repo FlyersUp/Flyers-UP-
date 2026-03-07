@@ -10,7 +10,7 @@
  */
 
 import { useRouter, usePathname } from 'next/navigation';
-import BottomNav from './BottomNav';
+import FloatingBottomNav from '@/components/navigation/FloatingBottomNav';
 
 interface PageLayoutProps {
   children: React.ReactNode;
@@ -48,15 +48,15 @@ export default function PageLayout({
     <div
       data-role={resolvedMode}
       data-accent={accentDensity}
-      className={`min-h-screen bg-[#F5F5F5] dark:bg-[#18181B] text-gray-900 dark:text-[#F3F4F6] pb-20 ${className}`}
+      className={`min-h-screen bg-[#F5F5F5] dark:bg-[#0F1115] text-gray-900 dark:text-[#F5F7FA] pb-32 ${className}`}
     >
       {/* Back Button Header */}
       {showBackButton && (
-        <header className="bg-white dark:bg-[#222225] border-b border-[#E5E5E5] dark:border-white/10 sticky top-0 z-40">
+        <header className="bg-white dark:bg-[#171A20] border-b border-[#E5E5E5] dark:border-white/10 sticky top-0 z-40">
           <div className="max-w-7xl mx-auto px-[var(--page-pad-x)] py-3">
             <button
               onClick={handleBack}
-              className="flex items-center gap-2 text-[#6B7280] dark:text-[#A1A1AA] hover:text-gray-900 dark:hover:text-[#F3F4F6] transition-colors text-sm font-medium"
+              className="flex items-center gap-2 text-[#6B7280] dark:text-[#A1A8B3] hover:text-gray-900 dark:hover:text-[#F5F7FA] transition-colors text-sm font-medium"
             >
               <span>{backButtonText}</span>
             </button>
@@ -70,7 +70,7 @@ export default function PageLayout({
       </main>
 
       {/* Bottom Navigation Footer */}
-      <BottomNav />
+      <FloatingBottomNav />
     </div>
   );
 }

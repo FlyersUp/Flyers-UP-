@@ -7,7 +7,7 @@ import { useAccentDensity } from '@/contexts/AccentDensityContext';
 import { NavAlertsProvider } from '@/contexts/NavAlertsContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { NotificationToast } from '@/components/ui/NotificationToast';
-import BottomNav from '@/components/BottomNav';
+import FloatingBottomNav from '@/components/navigation/FloatingBottomNav';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -34,13 +34,13 @@ function LayoutContent({
     <div
       data-role={mode}
       data-accent={accentDensity}
-      className="min-h-screen bg-[#F5F5F5] dark:bg-[#18181B] text-gray-900 dark:text-[#F3F4F6] flex pb-[calc(7rem+env(safe-area-inset-bottom,0px))]"
+      className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F1115] text-gray-900 dark:text-[#F5F7FA] flex pb-[calc(8rem+env(safe-area-inset-bottom,0px))]"
     >
       {showRailForMode && <Rail className="h-screen" showLabel />}
       <div className="flex-1">
         {children}
       </div>
-      <BottomNav />
+      <FloatingBottomNav />
     </div>
   );
 }

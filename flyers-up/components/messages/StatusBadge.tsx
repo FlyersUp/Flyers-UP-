@@ -21,16 +21,16 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }>
   'active': { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-900 dark:text-[#9FE38F]', label: 'In Progress' },
   'declined': { bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-800 dark:text-[#F07A7A]', label: 'Declined' },
   'cancelled': { bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-800 dark:text-[#F07A7A]', label: 'Declined' },
-  'inquiry': { bg: 'bg-gray-100 dark:bg-[#2A2A2E]', text: 'text-gray-700 dark:text-[#A1A1AA]', label: 'Inquiry' },
-  'requested': { bg: 'bg-gray-100 dark:bg-[#2A2A2E]', text: 'text-gray-700 dark:text-[#A1A1AA]', label: 'Requested' },
-  'scheduled': { bg: 'bg-gray-100 dark:bg-[#2A2A2E]', text: 'text-gray-700 dark:text-[#A1A1AA]', label: 'Scheduled' },
+  'inquiry': { bg: 'bg-gray-100 dark:bg-[#1D2128]', text: 'text-gray-700 dark:text-[#A1A8B3]', label: 'Inquiry' },
+  'requested': { bg: 'bg-gray-100 dark:bg-[#1D2128]', text: 'text-gray-700 dark:text-[#A1A8B3]', label: 'Requested' },
+  'scheduled': { bg: 'bg-gray-100 dark:bg-[#1D2128]', text: 'text-gray-700 dark:text-[#A1A8B3]', label: 'Scheduled' },
 };
 
 function getConfig(status: string): { bg: string; text: string; label: string } {
   const s = status.toLowerCase().trim();
   return STATUS_CONFIG[s] ?? {
-    bg: 'bg-gray-100 dark:bg-[#2A2A2E]',
-    text: 'text-gray-700 dark:text-[#A1A1AA]',
+    bg: 'bg-gray-100 dark:bg-[#1D2128]',
+    text: 'text-gray-700 dark:text-[#A1A8B3]',
     label: status.replaceAll('_', ' '),
   };
 }

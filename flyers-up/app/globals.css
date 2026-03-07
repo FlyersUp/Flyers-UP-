@@ -172,22 +172,22 @@
   --surface-border: rgba(0,0,0,0.08);
 }
 
-/* Dark mode: soft neutral SaaS (#18181B app, #222225 cards) */
+/* Dark mode: soft neutral SaaS (#0F1115 app, #171A20 cards) */
 .dark {
   /* Core surfaces - no pure black */
-  --bg: 240 6% 10%;        /* #18181B app background */
-  --surface: 240 4% 13%;    /* #222225 card surface */
-  --surface-2: 240 4% 16%;  /* #2A2A2E elevated */
-  --muted: 240 4% 12%;     /* slightly darker than surface */
+  --bg: 220 14% 6%;        /* #0F1115 app background */
+  --surface: 220 14% 10%;   /* #171A20 card surface */
+  --surface-2: 220 12% 13%; /* #1D2128 muted surface */
+  --muted: 220 12% 11%;
 
-  /* Text */
-  --text: 210 20% 96%;     /* #F3F4F6 primary */
-  --text-2: 240 5% 65%;    /* #A1A1AA secondary */
-  --text-3: 240 4% 46%;    /* #71717A muted */
+  /* Text - readable light */
+  --text: 220 20% 98%;     /* #F5F7FA primary */
+  --text-2: 220 12% 68%;   /* #A1A8B3 secondary */
+  --text-3: 220 10% 55%;   /* muted */
 
   /* Borders */
-  --border: 0 0% 100% / 0.1;
-  --border-2: 0 0% 100% / 0.12;
+  --border: 0 0% 100% / 0.08;
+  --border-2: 0 0% 100% / 0.1;
   --ring: rgba(243, 244, 246, 0.2);
 
   /* Shadows */
@@ -199,7 +199,7 @@
   --shadow-card-hover: 0 1px 0 rgba(255,255,255,0.06), 0 6px 16px rgba(0,0,0,0.35);
 
   /* Hex for color-mix */
-  --surface-hex: #222225;
+  --surface-hex: #171A20;
 
   /* Accents */
   --success: 100 60% 65%;   /* #9FE38F */
@@ -214,28 +214,28 @@
   --pro-tint: color-mix(in srgb, var(--pro-accent) 12%, var(--surface-hex) 88%);
 
   /* Semantic */
-  --background: #18181B;
-  --card: #222225;
-  --card-2: #2A2A2E;
-  --popover: #2A2A2E;
+  --background: #0F1115;
+  --card: #171A20;
+  --card-2: #1D2128;
+  --popover: #1D2128;
   --muted-bg: hsl(var(--muted));
-  --foreground: #F3F4F6;
-  --muted-foreground: #71717A;
-  --input: #222225;
-  --input-border: rgba(255,255,255,0.1);
+  --foreground: #F5F7FA;
+  --muted-foreground: #A1A8B3;
+  --input: #171A20;
+  --input-border: rgba(255,255,255,0.08);
   --focus-ring: var(--ring);
-  --btn: #F3F4F6;
-  --btn-foreground: #18181B;
-  --outline: rgba(255,255,255,0.1);
+  --btn: #F5F7FA;
+  --btn-foreground: #0F1115;
+  --outline: rgba(255,255,255,0.08);
 
-  /* Legacy / misc */
-  --text-muted: 240 4% 46%;
-  --hairline: rgba(255,255,255,0.1);
-  --card-border: 1px solid rgba(255,255,255,0.1);
-  --nav-bg: rgba(34, 34, 37, 0.9);
+  /* Legacy / misc - secondary text #A1A8B3 */
+  --text-muted: 220 12% 68%;
+  --hairline: rgba(255,255,255,0.08);
+  --card-border: 1px solid rgba(255,255,255,0.08);
+  --nav-bg: rgba(23, 26, 32, 0.92);
   --nav-solid: var(--nav-bg);
-  --surface-solid: #222225;
-  --surface-border: rgba(255,255,255,0.1);
+  --surface-solid: #171A20;
+  --surface-border: rgba(255,255,255,0.08);
   --page-pad-x: 16px;
   --page-pad-y: 24px;
   --stack-gap: 16px;
@@ -243,7 +243,7 @@
   --panel-pad-x: 20px;
   --panel-pad-y: 20px;
   --badge-bg: rgba(255,255,255,0.06);
-  --badge-border: rgba(255,255,255,0.1);
+  --badge-border: rgba(255,255,255,0.08);
   --accent-customer: 158 93% 28%;
   --accent-pro: 38 75% 62%;  /* #E8B15A */
   --role-tint: hsl(var(--role-accent-hsl) / 0.12);
@@ -285,11 +285,11 @@ body {
   min-height: 100vh;
 }
 .dark html {
-  background: #18181B;
+  background: #0F1115;
 }
 .dark body {
-  background: #18181B;
-  color: #F3F4F6;
+  background: #0F1115;
+  color: #F5F7FA;
 }
 
 /* ============================================
@@ -305,8 +305,8 @@ body {
   transition: box-shadow var(--transition-base) var(--ease-out);
 }
 .dark .surface-card {
-  background: #222225;
-  border-color: rgba(255, 255, 255, 0.1);
+  background: #171A20;
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 /* AccentDensity-aware card treatments (only affects the card surface itself) */
