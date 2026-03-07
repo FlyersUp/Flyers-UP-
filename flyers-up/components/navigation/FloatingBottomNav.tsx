@@ -123,7 +123,8 @@ export default function FloatingBottomNav() {
   const pathMode = getModeFromPath(pathname);
   const [storageMode, setStorageMode] = useState<'customer' | 'pro'>('customer');
   const mode: 'customer' | 'pro' = pathMode ?? storageMode;
-  const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/');
+  const isActive = (path: string, exact?: boolean) =>
+    exact ? pathname === path : pathname === path || pathname?.startsWith(path + '/');
 
   useEffect(() => {
     if (pathMode != null) return;
@@ -153,7 +154,7 @@ export default function FloatingBottomNav() {
         >
           <MorphingNavItem
             href={homeHref}
-            isActive={isActive(homeHref)}
+            isActive={isActive(homeHref, true)}
             icon={<Home size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
             label="Home"
             ariaLabel="Home"
@@ -194,7 +195,7 @@ export default function FloatingBottomNav() {
       >
         <MorphingNavItem
           href={homeHref}
-          isActive={isActive(homeHref)}
+          isActive={isActive(homeHref, true)}
           icon={<Home size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
           label="Home"
           ariaLabel="Home"
