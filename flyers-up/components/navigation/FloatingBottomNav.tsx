@@ -98,8 +98,9 @@ interface CenterPillProps {
 }
 
 function CenterPill({ href, isActive, mode, label, icon, ariaLabel }: CenterPillProps) {
-  const accentBg = mode === 'pro' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30';
-  const accentText = mode === 'pro' ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-800 dark:text-emerald-300';
+  /* Pro Demand: warm cream/amber like reference (image 4) - vibrant, not pale */
+  const accentBg = mode === 'pro' ? 'bg-[#FFEBB0] dark:bg-amber-900/40' : 'bg-emerald-100 dark:bg-emerald-900/30';
+  const accentText = mode === 'pro' ? 'text-amber-900 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-300';
   const inactiveStyles =
     'bg-white dark:bg-[#171A20] text-gray-900 dark:text-[#F5F7FA] border-gray-200 dark:border-white/[0.08]';
 
@@ -124,6 +125,10 @@ export default function FloatingBottomNav() {
   const [storageMode, setStorageMode] = useState<'customer' | 'pro'>('customer');
   const mode: 'customer' | 'pro' = pathMode ?? storageMode;
   const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/');
+  /* Demand = /demand OR /pro/requests (same thing for Pro nav) */
+  const isDemandActive = mode === 'pro'
+    ? (pathname === '/demand' || pathname?.startsWith('/demand/') || pathname === '/pro/requests' || pathname?.startsWith('/pro/requests/'))
+    : isActive('/demand');
 
   useEffect(() => {
     if (pathMode != null) return;
@@ -146,12 +151,12 @@ export default function FloatingBottomNav() {
 
   const iconClass = 'shrink-0 text-current [&>svg]:transition-colors';
 
-  /* Pro: center = Demand. Customer: center = Search. */
+  /* Pro: center = Demand (links to /demand; active on /demand or /pro/requests). Customer: center = Search. */
   const centerPill =
     mode === 'pro' ? (
       <CenterPill
         href={demandHref}
-        isActive={isActive(demandHref)}
+        isActive={isDemandActive}
         mode="pro"
         label="Demand"
         icon={<Zap size={CENTER_ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
@@ -168,10 +173,11 @@ export default function FloatingBottomNav() {
       />
     );
 
+  /* Unified nav bar: one dock with background so it reads as "one thing" */
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none">
+    <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center px-4">
       <div
-        className="pointer-events-auto mx-auto flex items-center justify-center gap-4 px-4 max-w-md"
+        className="pointer-events-auto flex items-center justify-center gap-3 px-4 py-3 max-w-md w-full rounded-2xl bg-white dark:bg-[#171A20] backdrop-blur-xl border border-gray-200 dark:border-white/10 shadow-lg"
         style={{ marginBottom: 'max(12px, env(safe-area-inset-bottom))' }}
       >
         <SideTab

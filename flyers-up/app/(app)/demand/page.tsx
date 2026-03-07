@@ -214,8 +214,8 @@ export default function DemandPage() {
   if (!ready) {
     return (
       <AppLayout mode="customer">
-        <div className="min-h-[40vh] flex items-center justify-center bg-[#F5F5F5]">
-          <p className="text-sm text-black/60">Loading…</p>
+        <div className="min-h-[40vh] flex items-center justify-center bg-bg">
+          <p className="text-sm text-gray-600 dark:text-gray-300">Loading…</p>
         </div>
       </AppLayout>
     );
@@ -223,16 +223,16 @@ export default function DemandPage() {
 
   return (
     <AppLayout mode={isPro ? 'pro' : 'customer'}>
-      <div className="min-h-screen bg-[#F5F5F5]">
-        <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
+      <div className="min-h-screen bg-bg">
+        <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur-sm border-b border-border">
           <div className="max-w-4xl mx-auto px-4 py-4">
-            <h1 className="text-xl font-semibold text-[#111] mb-3">Demand Board</h1>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">Demand Board</h1>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setTab('board')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  tab === 'board' ? 'bg-[#FFC067] text-black' : 'bg-[#F5F5F5] text-black/70 hover:bg-[#EBEBEB]'
+                  tab === 'board' ? 'bg-[#FFEBB0] dark:bg-amber-900/40 text-amber-900 dark:text-amber-200' : 'bg-surface2 text-gray-600 dark:text-gray-300 hover:bg-surface2/80'
                 }`}
               >
                 Board
@@ -241,7 +241,7 @@ export default function DemandPage() {
                 type="button"
                 onClick={() => setTab('heatmap')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  tab === 'heatmap' ? 'bg-[#FFC067] text-black' : 'bg-[#F5F5F5] text-black/70 hover:bg-[#EBEBEB]'
+                  tab === 'heatmap' ? 'bg-[#FFEBB0] dark:bg-amber-900/40 text-amber-900 dark:text-amber-200' : 'bg-surface2 text-gray-600 dark:text-gray-300 hover:bg-surface2/80'
                 }`}
               >
                 Heatmap
@@ -269,7 +269,7 @@ export default function DemandPage() {
                   <button
                     type="button"
                     onClick={() => setShowPostForm(!showPostForm)}
-                    className="w-full rounded-xl border border-border bg-surface p-4 text-left font-medium text-[#111] hover:bg-[#EBEBEB]"
+                    className="w-full rounded-xl border border-border bg-surface p-4 text-left font-medium text-gray-900 dark:text-white hover:bg-surface2"
                   >
                     {showPostForm ? '− Cancel' : '+ Post a request'}
                   </button>
@@ -280,11 +280,11 @@ export default function DemandPage() {
                           <div className="p-2 rounded bg-red-50 text-red-800 text-sm">{postError}</div>
                         )}
                         <div>
-                          <label className="block text-sm font-medium text-black/70 mb-1">Service</label>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Service</label>
                           <select
                             value={postService}
                             onChange={(e) => setPostService(e.target.value)}
-                            className="w-full rounded-lg border border-black/20 px-3 py-2 text-sm"
+                            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
                           >
                             {availableServices.map((s) => (
                               <option key={s.slug} value={s.slug}>{s.name}</option>
@@ -293,32 +293,32 @@ export default function DemandPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-sm font-medium text-black/70 mb-1">Borough</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Borough</label>
                             <input
                               type="text"
                               value={postBorough}
                               onChange={(e) => setPostBorough(e.target.value)}
                               placeholder="e.g. Brooklyn"
-                              className="w-full rounded-lg border border-black/20 px-3 py-2 text-sm"
+                              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-black/70 mb-1">Neighborhood</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Neighborhood</label>
                             <input
                               type="text"
                               value={postNeighborhood}
                               onChange={(e) => setPostNeighborhood(e.target.value)}
                               placeholder="e.g. Williamsburg"
-                              className="w-full rounded-lg border border-black/20 px-3 py-2 text-sm"
+                              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
                             />
                           </div>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-black/70 mb-1">Urgency</label>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Urgency</label>
                           <select
                             value={postUrgency}
                             onChange={(e) => setPostUrgency(e.target.value as 'normal' | 'priority' | 'emergency')}
-                            className="w-full rounded-lg border border-black/20 px-3 py-2 text-sm"
+                            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
                           >
                             <option value="normal">Normal</option>
                             <option value="priority">Priority</option>
@@ -326,13 +326,13 @@ export default function DemandPage() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-black/70 mb-1">Starting price ($)</label>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Starting price ($)</label>
                           <input
                             type="number"
                             min={0}
                             value={postPriceCents / 100}
                             onChange={(e) => setPostPriceCents(Math.round(parseFloat(e.target.value || '0') * 100))}
-                            className="w-full rounded-lg border border-black/20 px-3 py-2 text-sm"
+                            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
                           />
                         </div>
                         <button
@@ -358,8 +358,8 @@ export default function DemandPage() {
                   {boardServices.map((svc) => (
                     <DashboardCard key={svc.serviceSlug}>
                       <div className="p-4">
-                        <div className="font-semibold text-[#111]">{formatServiceName(svc.serviceSlug)}</div>
-                        <div className="flex flex-wrap gap-2 mt-2 text-sm text-black/60">
+                        <div className="font-semibold text-gray-900 dark:text-white">{formatServiceName(svc.serviceSlug)}</div>
+                        <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-600 dark:text-gray-300">
                           <span>{svc.openRequests} open requests</span>
                           <span>•</span>
                           <span>{svc.prosOnline} pros online</span>
@@ -373,7 +373,7 @@ export default function DemandPage() {
                           )}
                         </div>
                         {(svc.basePriceMinCents != null || svc.basePriceMaxCents != null) && (
-                          <div className="text-sm text-black/60 mt-1">
+                          <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                             Suggested: ${(svc.basePriceMinCents ?? 0) / 100}–${(svc.basePriceMaxCents ?? 0) / 100}
                           </div>
                         )}
@@ -383,7 +383,7 @@ export default function DemandPage() {
 
                   {isPro && boardRequests.length > 0 && (
                     <div className="mt-6">
-                      <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">
+                      <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">
                         Open Requests
                       </h2>
                       <div className="space-y-2">
@@ -391,8 +391,8 @@ export default function DemandPage() {
                           <DashboardCard key={r.id}>
                             <div className="p-4 flex items-center justify-between gap-4">
                               <div>
-                                <div className="font-medium text-[#111]">{formatServiceName(r.service_slug)}</div>
-                                <div className="text-sm text-black/60">
+                                <div className="font-medium text-gray-900 dark:text-white">{formatServiceName(r.service_slug)}</div>
+                                <div className="text-sm text-gray-600 dark:text-gray-400">
                                   {(r.borough || r.neighborhood) && `${r.borough ?? ''} ${r.neighborhood ?? ''}`.trim()}
                                   {r.final_price_cents > 0 && ` • $${r.final_price_cents / 100}`}
                                 </div>
@@ -414,7 +414,7 @@ export default function DemandPage() {
 
                   {boardServices.length === 0 && !boardLoading && (
                     <DashboardCard>
-                      <div className="p-6 text-center text-black/60">
+                      <div className="p-6 text-center text-gray-600 dark:text-gray-400">
                         No open requests yet. Check back soon.
                       </div>
                     </DashboardCard>
@@ -434,8 +434,8 @@ export default function DemandPage() {
                     <DashboardCard key={`${c.cellKey}-${c.serviceSlug}-${i}`}>
                       <div className="p-4 flex items-center justify-between gap-4">
                         <div>
-                          <div className="font-medium text-[#111]">{c.cellKey}</div>
-                          <div className="text-sm text-black/60">{formatServiceName(c.serviceSlug)}</div>
+                          <div className="font-medium text-gray-900 dark:text-white">{c.cellKey}</div>
+                          <div className="text-sm text-gray-600 dark:text-gray-300">{formatServiceName(c.serviceSlug)}</div>
                         </div>
                         <div className="text-right text-sm">
                           <div>{c.openRequests} requests</div>
@@ -449,7 +449,7 @@ export default function DemandPage() {
                   ))}
                   {heatmapCells.length === 0 && !heatmapLoading && (
                     <DashboardCard>
-                      <div className="p-6 text-center text-black/60">No heatmap data.</div>
+                      <div className="p-6 text-center text-gray-600 dark:text-gray-300">No heatmap data.</div>
                     </DashboardCard>
                   )}
                 </div>

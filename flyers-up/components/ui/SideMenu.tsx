@@ -21,7 +21,7 @@ type MenuSection = {
 function Section({ title, items, onNavigate }: { title: string; items: MenuItem[]; onNavigate: () => void }) {
   return (
     <div className="space-y-2">
-      <div className="pb-2 mb-1 text-xs font-semibold tracking-wide text-muted uppercase border-b border-border">
+      <div className="pb-2 mb-1 text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-white/10">
         <span>{title}</span>
       </div>
       <div className="space-y-1">
@@ -30,12 +30,12 @@ function Section({ title, items, onNavigate }: { title: string; items: MenuItem[
           const row = (
             <div
               className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2 transition-colors ${
-                disabled ? 'text-muted cursor-not-allowed opacity-60' : 'text-text hover:bg-surface2'
+                disabled ? 'text-gray-500 dark:text-gray-400 cursor-not-allowed opacity-60' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10'
               }`}
               title={disabled ? 'Coming soon' : undefined}
             >
               <span className="text-sm font-medium">{it.label}</span>
-              <span className="text-muted" aria-hidden>
+              <span className="text-gray-500 dark:text-gray-400" aria-hidden>
                 ›
               </span>
             </div>
@@ -279,24 +279,24 @@ export function SideMenu({
       style={{ position: 'fixed', inset: 0, zIndex: 60 }}
     >
       <aside
-        className="w-[22rem] max-w-[92vw] bg-surface text-text shadow-xl border-r border-border"
+        className="w-[22rem] max-w-[92vw] bg-white dark:bg-[#171A20] text-gray-900 dark:text-white shadow-xl border-r border-gray-200 dark:border-white/10"
         style={{ position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 61 }}
       >
         <div className="h-full flex flex-col">
-          <div className="px-5 py-5 border-b border-border">
+          <div className="px-5 py-5 border-b border-gray-200 dark:border-white/10">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-base font-semibold text-text">{userName}</div>
-                <div className="text-sm text-muted">{roleLabel}</div>
+                <div className="text-base font-semibold text-gray-900 dark:text-white">{userName}</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">{roleLabel}</div>
                 {identity.email || identity.idShort ? (
-                  <div className="mt-1 text-xs text-muted">
+                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     {identity.email ?? '—'}{identity.idShort ? ` • ${identity.idShort}` : ''}
                   </div>
                 ) : null}
               </div>
               <button
                 onClick={onClose}
-                className="h-9 w-9 rounded-xl bg-surface2 text-text hover:bg-surface2/80 transition-colors border border-border"
+                className="h-9 w-9 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-white/15 transition-colors border border-gray-200 dark:border-white/10"
                 aria-label="Close"
               >
                 ×
@@ -312,18 +312,18 @@ export function SideMenu({
             </div>
           </div>
 
-          <div className="px-5 py-4 border-t border-border">
+          <div className="px-5 py-4 border-t border-gray-200 dark:border-white/10">
             <div className="flex items-center justify-between gap-3">
               <Link
                 href={mode === 'pro' ? '/pro/messages' : '/customer/messages'}
-                className="text-sm font-medium text-muted hover:text-text transition-colors"
+                className="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                 onClick={onClose}
               >
                 Messages
               </Link>
               <button
                 onClick={() => void handleLogout()}
-                className="text-sm font-semibold text-text hover:opacity-90 transition-opacity"
+                className="text-sm font-semibold text-gray-900 dark:text-white hover:opacity-90 transition-opacity"
               >
                 Logout
               </button>
