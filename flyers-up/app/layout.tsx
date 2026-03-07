@@ -1,5 +1,6 @@
 import "./globals.css";
 import { ErrorReporter } from "@/components/ErrorReporter";
+import { ThemeProviderWrapper } from "@/components/ThemeProviderWrapper";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -14,19 +15,35 @@ export const metadata: Metadata = {
 };
 
 /**
- * TEMP: Minimal static layout (no fonts, PWA, RootClassSync).
- * Restore full layout when done debugging.
+ * Blocking script: apply .dark class before first paint to prevent theme flash.
+ * Must run synchronously before body renders.
  */
+const themeInitScript = `
+(function(){
+  try {
+    var t = localStorage.getItem('flyersup:theme');
+    var d = localStorage.getItem('flyersup:darkMode');
+    var dark = t === 'dark' || ((!t || t === 'system') && d === '1');
+    document.documentElement.classList.toggle('dark', dark);
+  } catch(e){}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="bg-[#F5F5F5] dark:bg-[#0F1115]" suppressHydrationWarning>
-      <body className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F1115] text-[#111111] dark:text-[#F5F7FA]" suppressHydrationWarning>
-        <ErrorReporter />
-        {children}
+    <html lang="en" className="bg-bg text-text" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="min-h-screen bg-bg text-text antialiased" suppressHydrationWarning>
+        <ThemeProviderWrapper>
+          <ErrorReporter />
+          {children}
+        </ThemeProviderWrapper>
       </body>
     </html>
   );

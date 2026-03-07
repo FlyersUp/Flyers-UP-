@@ -33,7 +33,7 @@ export function Timeline({ steps }: TimelineProps) {
             }`}
           >
             {step.status === 'completed' && (
-              <span className="text-gray-900 text-xs">✓</span>
+              <span className="text-text text-xs">✓</span>
             )}
             {step.status === 'current' && (
               <div className="w-3 h-3 rounded-full bg-accent" />
@@ -45,8 +45,8 @@ export function Timeline({ steps }: TimelineProps) {
             <div 
               className={`text-sm font-semibold ${
                 step.status === 'completed' || step.status === 'current'
-                  ? 'text-gray-900'
-                  : 'text-gray-500'
+                  ? 'text-text'
+                  : 'text-muted'
               }`}
             >
               {step.label}

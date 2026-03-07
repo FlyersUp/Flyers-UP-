@@ -31,12 +31,19 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ 
   children, 
-  defaultMode = 'customer' 
+  defaultMode = 'customer',
+  /** When provided, mode is controlled by parent (e.g. from pathname). Overrides internal state. */
+  mode: controlledMode,
 }: { 
   children: React.ReactNode; 
   defaultMode?: ThemeMode;
+  mode?: ThemeMode;
 }) {
-  const [mode, setMode] = useState<ThemeMode>(defaultMode);
+  const [internalMode, setInternalMode] = useState<ThemeMode>(defaultMode);
+  const mode = controlledMode ?? internalMode;
+  const setMode = (next: ThemeMode) => {
+    if (controlledMode == null) setInternalMode(next);
+  };
   const THEME_KEY = 'flyersup:theme';
   const DARK_KEY = 'flyersup:darkMode'; // legacy
   const ROLE_KEY = 'flyersup:lastRole';

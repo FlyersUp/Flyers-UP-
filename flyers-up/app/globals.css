@@ -271,23 +271,23 @@
 }
 
 /* Typography - Montserrat (Primary) + Oswald (Labels) */
-/* Force edge-to-edge background: html + body in light mode */
+/* Theme-aware html/body: use CSS variables so .dark class drives colors */
 html {
-  background: #F5F5F5;
+  background: hsl(var(--bg));
   min-height: 100vh;
 }
 body {
-  background: #F5F5F5;
+  background: hsl(var(--bg));
   color: hsl(var(--text));
   font-family: var(--font-montserrat), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
 }
-.dark html {
+html.dark {
   background: #0F1115;
 }
-.dark body {
+html.dark body {
   background: #0F1115;
   color: #F5F7FA;
 }

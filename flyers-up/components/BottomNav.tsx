@@ -123,11 +123,7 @@ export default function BottomNav() {
     }
   }, [pathMode]);
 
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle('theme-pro', mode === 'pro');
-    root.classList.toggle('theme-customer', mode === 'customer');
-  }, [mode]);
+  /* theme-pro/theme-customer are set by root ThemeProvider from pathname */
 
   const homeHref = mode === 'pro' ? '/pro' : '/customer';
   const requestsHref = mode === 'pro' ? '/pro/requests' : '/customer/requests';

@@ -184,7 +184,7 @@ export default function CustomerMessagesPage() {
       >
         <div className="max-w-4xl mx-auto px-4 pt-2 bg-transparent">
           {loading ? (
-            <p className="text-sm text-[#6B7280]">Loading…</p>
+            <p className="text-sm text-[#6B7280] dark:text-[#A1A8B3]">Loading…</p>
           ) : threads.length === 0 ? (
             <EmptyState
             variant="list"

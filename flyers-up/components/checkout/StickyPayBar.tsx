@@ -34,8 +34,7 @@ export function StickyPayBar({
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-black/5 bg-white/95 backdrop-blur-sm p-4 pb-[env(safe-area-inset-bottom)]"
-      style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface/95 dark:bg-surface/95 backdrop-blur-sm p-4 pb-[env(safe-area-inset-bottom)]"
     >
       <div className="max-w-lg mx-auto">
         <button
@@ -46,13 +45,13 @@ export function StickyPayBar({
         >
           {loading ? 'Processing…' : `${label} ${displayAmount}`}
         </button>
-        <p className="text-xs text-[#6A6A6A] text-center mt-2">
+        <p className="text-xs text-muted text-center mt-2">
           Payment held until job completion
         </p>
         {showBookingRulesLink && (
           <Link
             href="/booking-rules"
-            className="block text-center text-xs text-[#6A6A6A] hover:text-[#111111] hover:underline mt-1"
+            className="block text-center text-xs text-muted hover:text-text hover:underline mt-1"
           >
             Booking Rules
           </Link>

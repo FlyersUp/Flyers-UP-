@@ -2,7 +2,6 @@
 
 import { ReactNode } from 'react';
 import { Rail } from '@/components/ui/Rail';
-import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useAccentDensity } from '@/contexts/AccentDensityContext';
 import { NavAlertsProvider } from '@/contexts/NavAlertsContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
@@ -34,7 +33,7 @@ function LayoutContent({
     <div
       data-role={mode}
       data-accent={accentDensity}
-      className="min-h-screen bg-[#F5F5F5] dark:bg-[#0F1115] text-gray-900 dark:text-[#F5F7FA] flex pb-[calc(8rem+env(safe-area-inset-bottom,0px))]"
+      className="min-h-screen bg-bg text-text flex pb-[calc(8rem+env(safe-area-inset-bottom,0px))]"
     >
       {showRailForMode && <Rail className="h-screen" showLabel />}
       <div className="flex-1">
@@ -59,16 +58,14 @@ export function AppLayout({
   const accentFromContext = useAccentDensity();
   const accentDensity = accentDensityProp ?? accentFromContext;
   return (
-    <ThemeProvider defaultMode={mode}>
-      <NavAlertsProvider>
-        <NotificationProvider>
-          <LayoutContent showRail={showRail} mode={mode} accentDensity={accentDensity}>
-            {children}
-          </LayoutContent>
-          <NotificationToast />
-        </NotificationProvider>
-      </NavAlertsProvider>
-    </ThemeProvider>
+    <NavAlertsProvider>
+      <NotificationProvider>
+        <LayoutContent showRail={showRail} mode={mode} accentDensity={accentDensity}>
+          {children}
+        </LayoutContent>
+        <NotificationToast />
+      </NotificationProvider>
+    </NavAlertsProvider>
   );
 }
 

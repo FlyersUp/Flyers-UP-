@@ -40,11 +40,11 @@ export function ConversationCard({ item, href, unread = false }: ConversationCar
   return (
     <Link
       href={href}
-      className={`block rounded-2xl bg-white dark:bg-[#171A20] border border-[#E5E5E5] dark:border-white/10 shadow-sm hover:shadow-md active:scale-[0.99] transition-all duration-150 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus:outline-none ${accentBorder} ${unread ? 'shadow-md' : ''}`}
+      className={`block rounded-2xl bg-surface border border-border shadow-sm hover:shadow-md active:scale-[0.99] transition-all duration-150 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus:outline-none ${accentBorder} ${unread ? 'shadow-md' : ''}`}
     >
       <div className="flex items-center gap-4 p-4">
         {/* Avatar */}
-        <div className="shrink-0 w-11 h-11 rounded-full overflow-hidden bg-gray-100 dark:bg-[#1D2128] flex items-center justify-center">
+        <div className="shrink-0 w-11 h-11 rounded-full overflow-hidden bg-surface2 flex items-center justify-center">
           {item.avatarUrl ? (
             <Image
               src={item.avatarUrl}
@@ -62,8 +62,8 @@ export function ConversationCard({ item, href, unread = false }: ConversationCar
 
         {/* Center: name, preview */}
         <div className="min-w-0 flex-1">
-          <div className="font-semibold text-gray-900 truncate">{item.otherPartyName}</div>
-          <div className="text-sm text-[#6B7280] truncate mt-0.5 line-clamp-1">
+          <div className="font-semibold text-text truncate">{item.otherPartyName}</div>
+          <div className="text-sm text-muted truncate mt-0.5 line-clamp-1">
             {item.lastMessage}
           </div>
         </div>
@@ -80,7 +80,7 @@ export function ConversationCard({ item, href, unread = false }: ConversationCar
             <StatusBadge status={displayStatus} className="mt-1.5" />
           </div>
           <svg
-            className="w-5 h-5 text-[#6B7280] dark:text-[#A1A8B3] shrink-0"
+            className="w-5 h-5 text-muted shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
