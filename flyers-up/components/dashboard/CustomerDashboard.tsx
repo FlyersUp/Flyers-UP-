@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
+import { CustomerPageShell } from '@/components/customer/CustomerPageShell';
 import { DashboardCard, DashboardSectionSkeleton } from '@/components/dashboard/DashboardCard';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -9,7 +10,6 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 import { getProsForFlyerWall } from '@/lib/api';
-import { SideMenu } from '@/components/ui/SideMenu';
 
 type ActiveBooking = {
   id: string;
@@ -57,7 +57,6 @@ function formatStatus(s: string): string {
 
 export default function CustomerDashboard() {
   const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [userName, setUserName] = useState('Account');
   const [ready, setReady] = useState(false);
 
@@ -215,23 +214,8 @@ export default function CustomerDashboard() {
 
   return (
     <AppLayout mode="customer">
-      <div className="min-h-screen bg-[#F5F5F5] overflow-x-hidden w-full">
-        <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
-          <div className="w-full max-w-4xl mx-auto px-4 py-4 flex items-center justify-between min-w-0">
-            <button
-              type="button"
-              onClick={() => setMenuOpen(true)}
-              className="h-10 w-10 rounded-xl bg-[#F5F5F5] border border-black/10 text-black/70 hover:bg-[#EBEBEB]"
-              aria-label="Open menu"
-            >
-              ☰
-            </button>
-            <h1 className="text-xl font-semibold text-[#111]">{userName}</h1>
-            <div className="w-10" />
-          </div>
-        </div>
-
-        <div className="w-full max-w-4xl mx-auto px-4 py-6 space-y-6 min-w-0">
+      <CustomerPageShell title={userName} userName={userName}>
+        <div className="max-w-4xl mx-auto px-4 pt-2 space-y-6">
           {/* 1. ACTIVE BOOKING */}
           <section>
             <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">Active Booking</h2>
@@ -280,28 +264,37 @@ export default function CustomerDashboard() {
           {/* 2. QUICK ACTIONS */}
           <section>
             <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">Quick Actions</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="flex flex-col gap-3">
               <Link href="/customer/categories" className="block">
                 <DashboardCard>
-                  <div className="p-5 text-center">
-                    <div className="text-base font-semibold text-[#111]">Book Service</div>
-                    <div className="text-xs text-black/60 mt-1">Find a pro</div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-[#111]">Book Service</div>
+                      <div className="text-xs text-black/60 mt-0.5">Find a pro</div>
+                    </div>
+                    <span className="text-gray-500 dark:text-gray-400">→</span>
                   </div>
                 </DashboardCard>
               </Link>
               <Link href="/customer/requests/new" className="block">
                 <DashboardCard>
-                  <div className="p-5 text-center">
-                    <div className="text-base font-semibold text-[#111]">Post Request</div>
-                    <div className="text-xs text-black/60 mt-1">Get offers from pros</div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-[#111]">Post Request</div>
+                      <div className="text-xs text-black/60 mt-0.5">Get offers from pros</div>
+                    </div>
+                    <span className="text-gray-500 dark:text-gray-400">→</span>
                   </div>
                 </DashboardCard>
               </Link>
               <Link href="/flyer-wall" className="block">
                 <DashboardCard>
-                  <div className="p-5 text-center">
-                    <div className="text-base font-semibold text-[#111]">Browse Flyer Wall</div>
-                    <div className="text-xs text-black/60 mt-1">Discover pros</div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-[#111]">Browse Flyer Wall</div>
+                      <div className="text-xs text-black/60 mt-0.5">Discover pros</div>
+                    </div>
+                    <span className="text-gray-500 dark:text-gray-400">→</span>
                   </div>
                 </DashboardCard>
               </Link>
@@ -312,15 +305,15 @@ export default function CustomerDashboard() {
           <section>
             <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">Nearby Pros</h2>
             {nearbyProsLoading ? (
-              <div className="flex gap-3 overflow-hidden">
+              <div className="flex gap-3 overflow-hidden -mx-4 px-4">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-36 w-40 shrink-0 rounded-xl bg-gray-200 animate-pulse" />
+                  <div key={i} className="h-36 w-[150px] shrink-0 rounded-2xl bg-gray-200 animate-pulse" />
                 ))}
               </div>
             ) : nearbyPros.length > 0 ? (
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
                 {nearbyPros.map((pro) => (
-                  <Link key={pro.id} href={`/customer/pros/${pro.id}`} className="shrink-0 w-40">
+                  <Link key={pro.id} href={`/customer/pros/${pro.id}`} className="shrink-0 w-[150px]">
                     <DashboardCard>
                       <div className="p-3">
                         <div className="w-12 h-12 rounded-full overflow-hidden bg-[#F5F5F5]/50 mx-auto mb-2">
@@ -459,8 +452,7 @@ export default function CustomerDashboard() {
             )}
           </section>
         </div>
-      </div>
-      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} mode="customer" userName={userName} />
+      </CustomerPageShell>
     </AppLayout>
   );
 }
