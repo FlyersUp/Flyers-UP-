@@ -13,7 +13,7 @@ interface EmptyStateProps {
 function MessageIcon() {
   return (
     <svg
-      className="w-12 h-12 text-[#6B7280] mx-auto opacity-60"
+      className="w-12 h-12 text-[#6B7280] dark:text-[#71717A] mx-auto opacity-60"
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
@@ -42,7 +42,7 @@ export function EmptyState({
 
   return (
     <div
-      className={`rounded-2xl bg-white border border-[#E5E5E5] shadow-sm p-8 text-center ${
+      className={`rounded-2xl bg-white dark:bg-[#222225] border border-[#E5E5E5] dark:border-white/10 shadow-sm p-8 text-center ${
         isList ? 'max-w-md mx-auto' : ''
       }`}
     >
@@ -58,7 +58,7 @@ export function EmptyState({
             title={ctaDisabled ? ctaTooltip : undefined}
             className={`inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus:outline-none ${
               ctaDisabled
-                ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                ? 'bg-gray-100 dark:bg-[#2A2A2E] text-gray-500 dark:text-[#71717A] cursor-not-allowed'
                 : 'bg-accent text-accentContrast hover:opacity-90'
             }`}
           >

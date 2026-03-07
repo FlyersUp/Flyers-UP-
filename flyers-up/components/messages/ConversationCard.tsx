@@ -40,11 +40,11 @@ export function ConversationCard({ item, href, unread = false }: ConversationCar
   return (
     <Link
       href={href}
-      className={`block rounded-2xl bg-white border border-[#E5E5E5] shadow-sm hover:shadow-md active:scale-[0.99] transition-all duration-150 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus:outline-none ${accentBorder} ${unread ? 'shadow-md' : ''}`}
+      className={`block rounded-2xl bg-white dark:bg-[#222225] border border-[#E5E5E5] dark:border-white/10 shadow-sm hover:shadow-md active:scale-[0.99] transition-all duration-150 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus:outline-none ${accentBorder} ${unread ? 'shadow-md' : ''}`}
     >
       <div className="flex items-center gap-4 p-4">
         {/* Avatar */}
-        <div className="shrink-0 w-11 h-11 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+        <div className="shrink-0 w-11 h-11 rounded-full overflow-hidden bg-gray-100 dark:bg-[#2A2A2E] flex items-center justify-center">
           {item.avatarUrl ? (
             <Image
               src={item.avatarUrl}
@@ -54,7 +54,7 @@ export function ConversationCard({ item, href, unread = false }: ConversationCar
               className="w-full h-full object-cover"
             />
           ) : (
-            <span className="text-sm font-semibold text-gray-600">
+            <span className="text-sm font-semibold text-gray-600 dark:text-[#A1A1AA]">
               {getInitial(item.otherPartyName)}
             </span>
           )}
@@ -71,7 +71,7 @@ export function ConversationCard({ item, href, unread = false }: ConversationCar
         {/* Right: time, status badge, chevron */}
         <div className="shrink-0 flex items-center gap-2">
           <div className="flex flex-col items-end">
-            <span className="text-xs text-[#6B7280] whitespace-nowrap">
+            <span className="text-xs text-[#6B7280] dark:text-[#71717A] whitespace-nowrap">
               {new Date(item.date).toLocaleDateString(undefined, {
                 month: 'short',
                 day: 'numeric',
@@ -80,7 +80,7 @@ export function ConversationCard({ item, href, unread = false }: ConversationCar
             <StatusBadge status={displayStatus} className="mt-1.5" />
           </div>
           <svg
-            className="w-5 h-5 text-[#6B7280] shrink-0"
+            className="w-5 h-5 text-[#6B7280] dark:text-[#71717A] shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

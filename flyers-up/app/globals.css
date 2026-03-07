@@ -172,75 +172,81 @@
   --surface-border: rgba(0,0,0,0.08);
 }
 
-/* Dark mode: soft charcoal (no black) */
+/* Dark mode: soft neutral SaaS (#18181B app, #222225 cards) */
 .dark {
-  /* Core (dark) - HSL for Tailwind alpha support */
-  --bg: 0 0% 18%;          /* #2d2d2d soft charcoal */
-  --surface: 0 0% 22%;     /* #383838 card */
-  --surface-2: 0 0% 24%;   /* #3d3d3d panel */
-  --muted: 30 8% 15%;      /* #2A2724 dust equivalent */
+  /* Core surfaces - no pure black */
+  --bg: 240 6% 10%;        /* #18181B app background */
+  --surface: 240 4% 13%;    /* #222225 card surface */
+  --surface-2: 240 4% 16%;  /* #2A2A2E elevated */
+  --muted: 240 4% 12%;     /* slightly darker than surface */
 
   /* Text */
-  --text: 40 14% 95%;      /* #F3F2F0 warm off-white */
-  --text-2: 30 10% 80%;    /* #CFCBC7 */
-  --text-3: 30 8% 64%;     /* #A7A19B */
+  --text: 210 20% 96%;     /* #F3F4F6 primary */
+  --text-2: 240 5% 65%;    /* #A1A1AA secondary */
+  --text-3: 240 4% 46%;    /* #71717A muted */
 
   /* Borders */
-  --border: 30 6% 18%;     /* #322F2C */
-  --border-2: 30 6% 21%;   /* #3B3733 */
-  --ring: rgba(242, 242, 240, 0.18);
+  --border: 0 0% 100% / 0.1;
+  --border-2: 0 0% 100% / 0.12;
+  --ring: rgba(243, 244, 246, 0.2);
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 10px 26px rgba(0, 0, 0, 0.45);
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-card: 0 1px 0 rgba(255,255,255,0.03), 0 4px 12px rgba(0,0,0,0.25);
-  --shadow-card-hover: 0 1px 0 rgba(255,255,255,0.05), 0 6px 16px rgba(0,0,0,0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --shadow-card: 0 1px 0 rgba(255,255,255,0.04), 0 4px 12px rgba(0,0,0,0.3);
+  --shadow-card-hover: 0 1px 0 rgba(255,255,255,0.06), 0 6px 16px rgba(0,0,0,0.35);
 
   /* Hex for color-mix */
-  --surface-hex: #383838;
+  --surface-hex: #222225;
+
+  /* Accents */
+  --success: 100 60% 65%;   /* #9FE38F */
+  --danger: 0 80% 71%;      /* #F07A7A */
+  --customer-accent: #058954;
+  --pro-accent: #E8B15A;    /* Orange brand accent */
 
   /* Role accents: dark-safe borders/tints */
-  --customer-border: color-mix(in srgb, var(--customer-accent) 55%, #000 45%);
-  --pro-border: color-mix(in srgb, var(--pro-accent) 55%, #000 45%);
-  --customer-tint: color-mix(in srgb, var(--customer-accent) 10%, var(--surface-hex) 90%);
-  --pro-tint: color-mix(in srgb, var(--pro-accent) 10%, var(--surface-hex) 90%);
+  --customer-border: color-mix(in srgb, var(--customer-accent) 50%, var(--surface-hex) 50%);
+  --pro-border: color-mix(in srgb, var(--pro-accent) 50%, var(--surface-hex) 50%);
+  --customer-tint: color-mix(in srgb, var(--customer-accent) 12%, var(--surface-hex) 88%);
+  --pro-tint: color-mix(in srgb, var(--pro-accent) 12%, var(--surface-hex) 88%);
 
   /* Semantic */
-  --background: hsl(var(--bg));
-  --card: hsl(var(--surface));
-  --card-2: hsl(var(--surface-2));
-  --popover: hsl(var(--surface));
+  --background: #18181B;
+  --card: #222225;
+  --card-2: #2A2A2E;
+  --popover: #2A2A2E;
   --muted-bg: hsl(var(--muted));
-  --foreground: hsl(var(--text));
-  --muted-foreground: hsl(var(--text-3));
-  --input: hsl(var(--surface));
-  --input-border: hsl(var(--border));
+  --foreground: #F3F4F6;
+  --muted-foreground: #71717A;
+  --input: #222225;
+  --input-border: rgba(255,255,255,0.1);
   --focus-ring: var(--ring);
-  --btn: #F3F2F0;
-  --btn-foreground: #141312;
-  --outline: hsl(var(--border));
+  --btn: #F3F4F6;
+  --btn-foreground: #18181B;
+  --outline: rgba(255,255,255,0.1);
 
   /* Legacy / misc */
-  --text-muted: 30 8% 64%;
-  --hairline: rgba(255,255,255,0.06);
-  --card-border: 1px solid rgba(255,255,255,0.06);
-  --nav-bg: #2d2d2d;
+  --text-muted: 240 4% 46%;
+  --hairline: rgba(255,255,255,0.1);
+  --card-border: 1px solid rgba(255,255,255,0.1);
+  --nav-bg: rgba(34, 34, 37, 0.9);
   --nav-solid: var(--nav-bg);
-  --surface-solid: #383838;
-  --surface-border: rgba(255,255,255,0.06);
+  --surface-solid: #222225;
+  --surface-border: rgba(255,255,255,0.1);
   --page-pad-x: 16px;
   --page-pad-y: 24px;
   --stack-gap: 16px;
   --card-pad: 20px;
   --panel-pad-x: 20px;
   --panel-pad-y: 20px;
-  --badge-bg: rgba(255,255,255,0.05);
-  --badge-border: rgba(255,255,255,0.08);
-  --accent-customer: 158 85% 35%;
-  --accent-pro: 38 90% 55%;
-  --role-tint: hsl(var(--role-accent-hsl) / 0.08);
+  --badge-bg: rgba(255,255,255,0.06);
+  --badge-border: rgba(255,255,255,0.1);
+  --accent-customer: 158 93% 28%;
+  --accent-pro: 38 75% 62%;  /* #E8B15A */
+  --role-tint: hsl(var(--role-accent-hsl) / 0.12);
   --role-border: hsl(var(--role-accent-hsl) / 0.35);
 }
 
@@ -278,7 +284,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
 }
-/* Light theme only: html/body always use app background */
+.dark html {
+  background: #18181B;
+}
+.dark body {
+  background: #18181B;
+  color: #F3F4F6;
+}
 
 /* ============================================
    UTILITY CLASSES
@@ -291,6 +303,10 @@ body {
   border: var(--card-border);
   box-shadow: var(--shadow-card);
   transition: box-shadow var(--transition-base) var(--ease-out);
+}
+.dark .surface-card {
+  background: #222225;
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 /* AccentDensity-aware card treatments (only affects the card surface itself) */

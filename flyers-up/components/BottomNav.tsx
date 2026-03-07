@@ -1,41 +1,33 @@
 'use client';
 
 /**
- * Bottom Navigation Footer
- * Premium floating light-theme mobile tab bar.
- * Matches Uber / Airbnb / modern iOS app navigation.
+ * Bottom Navigation - Uber Eats style floating pill
+ * Premium floating iOS-style tab bar with center Search action.
+ * Light theme, soft shadow, rounded pill, visible page background around it.
  */
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, ReactNode } from 'react';
-import { Home, MessageCircle, Settings, FileText, ClipboardList, Calendar } from 'lucide-react';
+import {
+  Home,
+  MessageCircle,
+  User,
+  ClipboardList,
+  Search,
+} from 'lucide-react';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
-import { useUnreadNotifications } from '@/hooks/useUnreadNotifications';
 
-const ICON_SIZE = 24;
+const ICON_SIZE = 22;
 const ICON_STROKE = 1.75;
 
 function NavAlertDot({ show }: { show: boolean }) {
   if (!show) return null;
   return (
     <span
-      className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white/95 shrink-0"
+      className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 dark:bg-[#F07A7A] border-2 border-white dark:border-[#222225] shrink-0"
       aria-label="New"
     />
-  );
-}
-
-function NotificationBadge({ count }: { count: number }) {
-  if (count <= 0) return null;
-  const display = count > 99 ? '99+' : count;
-  return (
-    <span
-      className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-semibold leading-[18px] text-center flex items-center justify-center shrink-0 border-2 border-white/95"
-      aria-label={`${count} unread notifications`}
-    >
-      {display}
-    </span>
   );
 }
 
@@ -45,46 +37,6 @@ function NavIconWithBadge({ icon, badge }: { icon: ReactNode; badge?: ReactNode 
       {icon}
       {badge}
     </span>
-  );
-}
-
-interface TabItemProps {
-  href: string;
-  isActive: boolean;
-  label: string;
-  icon: ReactNode;
-  badge?: ReactNode;
-  ariaLabel?: string;
-  mode: 'customer' | 'pro';
-}
-
-function TabItem({ href, isActive, label, icon, badge, ariaLabel, mode }: TabItemProps) {
-  const accentColor = mode === 'pro' ? 'text-[#D97706]' : 'text-[#058954]';
-  const accentBg = mode === 'pro' ? 'bg-[#FFC067]/25' : 'bg-[#B2FBA5]/35';
-
-  return (
-    <Link
-      href={href}
-      className="group flex-1 flex flex-col items-center justify-center min-h-[68px] gap-1.5 py-2 px-2 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-neutral-300 focus-visible:ring-offset-2 focus:outline-none active:scale-[0.98]"
-      aria-label={ariaLabel ?? label}
-    >
-      <span
-        className={`inline-flex items-center justify-center rounded-full px-3 py-1.5 transition-colors ${
-          isActive ? accentBg : 'hover:bg-neutral-100'
-        }`}
-      >
-        <span className={isActive ? accentColor : 'text-neutral-500 group-hover:text-neutral-700'}>
-          <NavIconWithBadge icon={icon} badge={badge} />
-        </span>
-      </span>
-      <span
-        className={`text-[11px] leading-tight ${
-          isActive ? 'font-medium text-neutral-900' : 'font-normal text-neutral-500'
-        }`}
-      >
-        {label}
-      </span>
-    </Link>
   );
 }
 
@@ -100,10 +52,58 @@ function getModeFromPath(pathname: string | null): 'customer' | 'pro' | null {
   return null;
 }
 
+interface SideTabProps {
+  href: string;
+  isActive: boolean;
+  icon: ReactNode;
+  badge?: ReactNode;
+  ariaLabel: string;
+  mode: 'customer' | 'pro';
+}
+
+function SideTab({ href, isActive, icon, badge, ariaLabel, mode }: SideTabProps) {
+  const accentColor = mode === 'pro' ? 'text-[#D97706] dark:text-[#E8B15A]' : 'text-[#058954] dark:text-[#9FE38F]';
+
+  return (
+    <Link
+      href={href}
+      className={`flex flex-col items-center justify-center w-12 h-12 rounded-full transition-all duration-150 active:scale-95 focus-visible:ring-2 focus-visible:ring-[#E5E5E5] dark:focus-visible:ring-white/20 focus-visible:ring-offset-2 focus:outline-none ${
+        isActive ? accentColor : 'text-[#7A7A7A] dark:text-[#A1A1AA] hover:text-[#111111] dark:hover:text-[#F3F4F6]'
+      }`}
+      aria-label={ariaLabel}
+    >
+      <NavIconWithBadge icon={icon} badge={badge} />
+    </Link>
+  );
+}
+
+interface SearchPillProps {
+  href: string;
+  isActive: boolean;
+  mode: 'customer' | 'pro';
+}
+
+function SearchPill({ href, isActive, mode }: SearchPillProps) {
+  const accentBg = mode === 'pro' ? 'bg-[#FFC067]/30 dark:bg-[#E8B15A]/25' : 'bg-[#B2FBA5]/40 dark:bg-[#9FE38F]/25';
+  const accentText = mode === 'pro' ? 'text-[#B45309] dark:text-[#E8B15A]' : 'text-[#047857] dark:text-[#9FE38F]';
+
+  return (
+    <Link
+      href={href}
+      className={`flex items-center justify-center gap-2 min-w-[120px] h-11 px-5 rounded-full font-medium text-sm transition-all duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#E5E5E5] focus-visible:ring-offset-2 focus:outline-none ${
+        isActive ? `${accentBg} ${accentText}` : 'bg-white/95 text-[#111111] border border-[#E5E5E5] shadow-sm hover:bg-white'
+      }`}
+      aria-label="Search"
+    >
+      <Search size={20} strokeWidth={ICON_STROKE} className="shrink-0" />
+      <span>Search</span>
+    </Link>
+  );
+}
+
 export default function BottomNav() {
   const pathname = usePathname();
   const { hasNewMessages } = useNavAlerts();
-  const { unreadCount } = useUnreadNotifications();
   const pathMode = getModeFromPath(pathname);
   const [storageMode, setStorageMode] = useState<'customer' | 'pro'>('customer');
   const mode: 'customer' | 'pro' = pathMode ?? storageMode;
@@ -126,65 +126,63 @@ export default function BottomNav() {
   }, [mode]);
 
   const homeHref = mode === 'pro' ? '/pro' : '/customer';
-  const flyerWallHref = '/flyer-wall';
   const requestsHref = mode === 'pro' ? '/pro/requests' : '/customer/requests';
-  const bookingsHref = mode === 'pro' ? '/pro/bookings' : '/customer/bookings';
+  const searchHref = '/occupations';
   const messagesHref = mode === 'pro' ? '/pro/messages' : '/customer/messages';
-  const settingsHref = mode === 'pro' ? '/pro/settings' : '/customer/settings';
+  const profileHref = mode === 'pro' ? '/pro/settings' : '/customer/settings';
 
   const iconClass = 'shrink-0 text-current [&>svg]:transition-colors';
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-[#E5E5E5] bg-white/95 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 shadow-[0_-6px_20px_rgba(0,0,0,0.06)] safe-area-bottom">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-stretch justify-around min-h-[68px]">
-          <TabItem
-            href={homeHref}
-            isActive={isActive(homeHref)}
-            label="Home"
-            icon={<Home size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-            mode={mode}
-          />
-          {mode === 'customer' && (
-            <TabItem
-              href={flyerWallHref}
-              isActive={isActive(flyerWallHref)}
-              label="Flyer Wall"
-              icon={<FileText size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
+    <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none pb-[env(safe-area-inset-bottom)]">
+      <div className="pointer-events-auto mx-auto flex items-center justify-center px-4 pb-3 max-w-md">
+        <nav
+          className="flex items-center justify-between gap-1 px-3 py-2 rounded-full border border-[#E5E5E5] dark:border-white/10 bg-[rgba(255,255,255,0.92)] dark:bg-[#222225]/90 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.10)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
+          aria-label="Main navigation"
+        >
+          {/* Left: Home, Requests */}
+          <div className="flex items-center gap-1">
+            <SideTab
+              href={homeHref}
+              isActive={isActive(homeHref)}
+              icon={<Home size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
+              ariaLabel="Home"
               mode={mode}
             />
-          )}
-          <TabItem
-            href={requestsHref}
-            isActive={isActive(requestsHref)}
-            label="Requests"
-            icon={<ClipboardList size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-            mode={mode}
-          />
-          <TabItem
-            href={bookingsHref}
-            isActive={isActive(bookingsHref)}
-            label="Bookings"
-            icon={<Calendar size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-            mode={mode}
-          />
-          <TabItem
-            href={messagesHref}
-            isActive={isActive(messagesHref)}
-            label="Messages"
-            icon={<MessageCircle size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-            badge={<NavAlertDot show={hasNewMessages} />}
-            mode={mode}
-          />
-          <TabItem
-            href={settingsHref}
-            isActive={isActive(settingsHref)}
-            label="Profile"
-            icon={<Settings size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-            mode={mode}
-          />
-        </div>
+            <SideTab
+              href={requestsHref}
+              isActive={isActive(requestsHref)}
+              icon={<ClipboardList size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
+              ariaLabel="Requests"
+              mode={mode}
+            />
+          </div>
+
+          {/* Center: Search pill */}
+          <div className="mx-2">
+            <SearchPill href={searchHref} isActive={isActive(searchHref)} mode={mode} />
+          </div>
+
+          {/* Right: Messages, Profile */}
+          <div className="flex items-center gap-1">
+            <SideTab
+              href={messagesHref}
+              isActive={isActive(messagesHref)}
+              icon={<MessageCircle size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
+              badge={<NavAlertDot show={hasNewMessages} />}
+              ariaLabel="Messages"
+              mode={mode}
+            />
+            <SideTab
+              href={profileHref}
+              isActive={isActive(profileHref)}
+              icon={<User size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
+              ariaLabel="Profile"
+              mode={mode}
+            />
+          </div>
+        </nav>
       </div>
-    </nav>
+    </div>
   );
 }

@@ -37,13 +37,13 @@ export function ProPageShell({ title, children, userName: userNameProp, subtitle
   }, [userNameProp]);
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5]">
-      <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-gray-200">
+    <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#18181B]">
+      <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 dark:bg-[#18181B]/95 backdrop-blur-sm border-b border-[#E5E5E5] dark:border-white/10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
-            className="h-10 w-10 rounded-xl bg-[#F8F8F8] border border-[#E5E5E5] text-[#111111] hover:bg-[#EBEBEB]"
+            className="h-10 w-10 rounded-xl bg-[#F8F8F8] dark:bg-[#222225] border border-[#E5E5E5] dark:border-white/10 text-[#111111] dark:text-[#F3F4F6] hover:bg-[#EBEBEB] dark:hover:bg-[#2A2A2E]"
             aria-label="Open menu"
           >
             ☰
@@ -56,7 +56,7 @@ export function ProPageShell({ title, children, userName: userNameProp, subtitle
       <div className="pb-24">
         {subtitle && (
           <div className="max-w-4xl mx-auto px-4 pt-4">
-            <p className="text-sm text-[#6B7280]">{subtitle}</p>
+            <p className="text-sm text-[#6B7280] dark:text-[#A1A1AA]">{subtitle}</p>
           </div>
         )}
         {children}

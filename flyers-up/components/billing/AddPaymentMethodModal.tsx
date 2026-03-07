@@ -82,8 +82,8 @@ export interface AddPaymentMethodModalProps {
 export function AddPaymentMethodModal({ clientSecret, onSuccess, onClose }: AddPaymentMethodModalProps) {
   if (!stripePromise) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="rounded-2xl bg-white p-6 max-w-md w-full">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60 p-4">
+        <div className="rounded-2xl bg-white dark:bg-[#2A2A2E] p-6 max-w-md w-full">
           <p className="text-sm text-muted">Stripe is not configured.</p>
           <button
             type="button"
@@ -108,10 +108,9 @@ export function AddPaymentMethodModal({ clientSecret, onSuccess, onClose }: AddP
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60 p-4">
       <div
-        className="rounded-2xl border border-black/10 p-6 max-w-md w-full max-h-[90vh] overflow-auto"
-        style={{ backgroundColor: '#FFFFFF' }}
+        className="rounded-2xl border border-black/10 dark:border-white/10 p-6 max-w-md w-full max-h-[90vh] overflow-auto bg-white dark:bg-[#2A2A2E]"
         role="dialog"
         aria-labelledby="add-payment-title"
       >

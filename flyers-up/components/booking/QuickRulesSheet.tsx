@@ -91,8 +91,7 @@ export function QuickRulesSheet({ open, onContinue, onClose }: QuickRulesSheetPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 dark:bg-black/60"
       onClick={(e) => e.target === e.currentTarget && onClose()}
       role="dialog"
       aria-modal="true"
@@ -100,11 +99,11 @@ export function QuickRulesSheet({ open, onContinue, onClose }: QuickRulesSheetPr
     >
       <div
         ref={panelRef}
-        className="w-full max-w-lg bg-[#F5F5F5] rounded-t-2xl shadow-xl p-6 pb-[env(safe-area-inset-bottom)]"
+        className="w-full max-w-lg bg-[#F5F5F5] dark:bg-[#2A2A2E] rounded-t-2xl shadow-xl p-6 pb-[env(safe-area-inset-bottom)]"
         style={{ maxHeight: '85vh' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="quick-rules-title" className="text-lg font-semibold text-[#111111] mb-6">
+        <h2 id="quick-rules-title" className="text-lg font-semibold text-[#111111] dark:text-[#F3F4F6] mb-6">
           Quick Rules
         </h2>
         <ul className="space-y-3 mb-6">
@@ -117,7 +116,7 @@ export function QuickRulesSheet({ open, onContinue, onClose }: QuickRulesSheetPr
             </li>
           ))}
         </ul>
-        <label className="flex items-center gap-3 p-3 rounded-xl border border-black/10 bg-white/50 cursor-pointer mb-6">
+        <label className="flex items-center gap-3 p-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/50 dark:bg-[#222225] cursor-pointer mb-6">
           <input
             type="checkbox"
             checked={understood}
@@ -138,7 +137,7 @@ export function QuickRulesSheet({ open, onContinue, onClose }: QuickRulesSheetPr
           <Link
             href="/booking-rules"
             onClick={onClose}
-            className="w-full h-12 rounded-full text-sm font-medium text-[#6A6A6A] border border-black/15 hover:bg-black/5 transition-colors flex items-center justify-center"
+            className="w-full h-12 rounded-full text-sm font-medium text-[#6A6A6A] dark:text-[#A1A1AA] border border-black/15 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex items-center justify-center"
           >
             View full rules
           </Link>

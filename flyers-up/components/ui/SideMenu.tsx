@@ -21,7 +21,7 @@ type MenuSection = {
 function Section({ title, items, onNavigate }: { title: string; items: MenuItem[]; onNavigate: () => void }) {
   return (
     <div className="space-y-2">
-      <div className="pb-2 mb-1 text-xs font-semibold tracking-wide text-[#6B7280] uppercase border-b border-[#E5E5E5]">
+      <div className="pb-2 mb-1 text-xs font-semibold tracking-wide text-[#6B7280] dark:text-[#A1A1AA] uppercase border-b border-[#E5E5E5] dark:border-white/10">
         <span>{title}</span>
       </div>
       <div className="space-y-1">
@@ -30,12 +30,12 @@ function Section({ title, items, onNavigate }: { title: string; items: MenuItem[
           const row = (
             <div
               className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2 transition-colors ${
-                disabled ? 'text-[#6B7280] cursor-not-allowed opacity-60' : 'text-gray-900 hover:bg-[#F8F8F8]'
+                disabled ? 'text-[#6B7280] dark:text-[#71717A] cursor-not-allowed opacity-60' : 'text-gray-900 dark:text-[#F3F4F6] hover:bg-[#F8F8F8] dark:hover:bg-[#2A2A2E]'
               }`}
               title={disabled ? 'Coming soon' : undefined}
             >
               <span className="text-sm font-medium">{it.label}</span>
-              <span className="text-[#6B7280]" aria-hidden>
+              <span className="text-[#6B7280] dark:text-[#A1A1AA]" aria-hidden>
                 ›
               </span>
             </div>
@@ -279,24 +279,24 @@ export function SideMenu({
       style={{ position: 'fixed', inset: 0, zIndex: 60 }}
     >
       <aside
-        className="w-[22rem] max-w-[92vw] bg-[#F5F5F5] text-gray-900 shadow-xl border-r border-[#E5E5E5]"
+        className="w-[22rem] max-w-[92vw] bg-[#F5F5F5] dark:bg-[#222225] text-gray-900 dark:text-[#F3F4F6] shadow-xl border-r border-[#E5E5E5] dark:border-white/10"
         style={{ position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 61 }}
       >
         <div className="h-full flex flex-col">
-          <div className="px-5 py-5 border-b border-[#E5E5E5]">
+          <div className="px-5 py-5 border-b border-[#E5E5E5] dark:border-white/10">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-base font-semibold text-gray-900">{userName}</div>
-                <div className="text-sm text-[#6B7280]">{roleLabel}</div>
+                <div className="text-base font-semibold text-gray-900 dark:text-[#F3F4F6]">{userName}</div>
+                <div className="text-sm text-[#6B7280] dark:text-[#A1A1AA]">{roleLabel}</div>
                 {identity.email || identity.idShort ? (
-                  <div className="mt-1 text-xs text-[#6B7280]">
+                  <div className="mt-1 text-xs text-[#6B7280] dark:text-[#71717A]">
                     {identity.email ?? '—'}{identity.idShort ? ` • ${identity.idShort}` : ''}
                   </div>
                 ) : null}
               </div>
               <button
                 onClick={onClose}
-                className="h-9 w-9 rounded-xl bg-[#F8F8F8] text-gray-900 hover:bg-[#EBEBEB] transition-colors border border-[#E5E5E5]"
+                className="h-9 w-9 rounded-xl bg-[#F8F8F8] dark:bg-[#2A2A2E] text-gray-900 dark:text-[#F3F4F6] hover:bg-[#EBEBEB] dark:hover:bg-[#2A2A2E]/80 transition-colors border border-[#E5E5E5] dark:border-white/10"
                 aria-label="Close"
               >
                 ×
@@ -312,18 +312,18 @@ export function SideMenu({
             </div>
           </div>
 
-          <div className="px-5 py-4 border-t border-[#E5E5E5]">
+          <div className="px-5 py-4 border-t border-[#E5E5E5] dark:border-white/10">
             <div className="flex items-center justify-between gap-3">
               <Link
                 href={mode === 'pro' ? '/pro/messages' : '/customer/messages'}
-                className="text-sm font-medium text-[#6B7280] hover:text-gray-900 transition-colors"
+                className="text-sm font-medium text-[#6B7280] dark:text-[#A1A1AA] hover:text-gray-900 dark:hover:text-[#F3F4F6] transition-colors"
                 onClick={onClose}
               >
                 Messages
               </Link>
               <button
                 onClick={() => void handleLogout()}
-                className="text-sm font-semibold text-gray-900 hover:opacity-90 transition-opacity"
+                className="text-sm font-semibold text-gray-900 dark:text-[#F3F4F6] hover:opacity-90 transition-opacity"
               >
                 Logout
               </button>
