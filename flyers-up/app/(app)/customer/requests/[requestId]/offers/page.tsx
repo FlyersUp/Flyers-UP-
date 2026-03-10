@@ -33,6 +33,8 @@ type JobRequest = {
   location: string;
   preferred_date: string | null;
   preferred_time: string | null;
+  budget_min?: number | null;
+  budget_max?: number | null;
 };
 
 function getInitials(name: string): string {
