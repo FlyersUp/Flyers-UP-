@@ -101,12 +101,11 @@ export async function GET(req: NextRequest) {
       });
 
       if (proUser) {
-        await createNotification({
+        void createNotificationEvent({
           userId: proUser,
+          type: NOTIFICATION_TYPES.PAYOUT_SENT,
           bookingId: b.id,
-          type: 'payout',
-          title: 'Payout released',
-          body: 'Your payout for this booking has been released.',
+          basePath: 'pro',
         });
       }
       released++;
