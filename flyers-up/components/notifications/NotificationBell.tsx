@@ -2,7 +2,7 @@
 
 /**
  * Notification bell with dropdown.
- * Grouped by Today, Earlier, This Week. Unread badge. Mark all read. Settings link.
+ * Grouped by Today, Earlier this week, Earlier. Icons, unread badge, mark all read, settings.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -11,13 +11,18 @@ import { useRouter } from 'next/navigation';
 import { Bell } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
+import { NotificationIcon } from './NotificationIcon';
+import { trackNotificationOpened } from '@/lib/notifications/analytics';
+import { supabase } from '@/lib/supabaseClient';
 
 interface NotificationItem {
   id: string;
   title: string;
   body: string | null;
   deep_link: string | null;
+  target_path: string | null;
   booking_id: string | null;
+  conversation_id: string | null;
   read_at: string | null;
   read: boolean;
   created_at: string;
@@ -43,7 +48,7 @@ function groupByRecency(items: NotificationItem[]): { label: string; items: Noti
 
   const groups: { label: string; items: NotificationItem[] }[] = [];
   if (today.length) groups.push({ label: 'Today', items: today });
-  if (thisWeek.length) groups.push({ label: 'This Week', items: thisWeek });
+  if (thisWeek.length) groups.push({ label: 'Earlier this week', items: thisWeek });
   if (earlier.length) groups.push({ label: 'Earlier', items: earlier });
   return groups;
 }
@@ -91,7 +96,21 @@ export function NotificationBell({ basePath, className = '' }: NotificationBellP
       await refreshUnreadCount();
     }
     setOpen(false);
-    const href = item.deep_link || (item.booking_id ? `${basePath === 'pro' ? '/pro' : ''}/bookings/${item.booking_id}` : basePath === 'pro' ? '/pro/notifications' : '/customer/notifications');
+
+    const href =
+      item.target_path ??
+      item.deep_link ??
+      (item.booking_id
+        ? `${basePath === 'pro' ? '/pro' : '/customer'}/bookings/${item.booking_id}`
+        : item.conversation_id
+          ? `${basePath === 'pro' ? '/pro' : '/customer'}/chat/conversation/${item.conversation_id}`
+          : basePath === 'pro'
+            ? '/pro/notifications'
+            : '/customer/notifications');
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) trackNotificationOpened({ notificationId: item.id, type: item.type, userId: user.id });
+
     router.push(href);
   };
 
@@ -139,8 +158,9 @@ export function NotificationBell({ basePath, className = '' }: NotificationBellP
               {loading ? (
                 <div className="p-6 text-center text-muted text-sm">Loading…</div>
               ) : items.length === 0 ? (
-                <div className="p-6 text-center text-muted text-sm">
-                  No notifications yet
+                <div className="p-8 text-center">
+                  <p className="text-muted text-sm">No notifications yet</p>
+                  <p className="text-muted/70 text-xs mt-1">When you get updates, they&apos;ll show up here.</p>
                 </div>
               ) : (
                 groupByRecency(items).map((group) => (
@@ -155,14 +175,14 @@ export function NotificationBell({ basePath, className = '' }: NotificationBellP
                           key={item.id}
                           type="button"
                           onClick={() => handleClick(item)}
-                          className={`w-full px-4 py-3 text-left hover:bg-surface2/80 transition-colors flex gap-3 ${
+                          className={`w-full px-4 py-3 text-left hover:bg-surface2/80 transition-colors flex gap-3 items-start ${
                             isUnread ? 'bg-surface2/50' : ''
                           }`}
                         >
-                          {isUnread && (
-                            <span className="mt-2 w-2 h-2 rounded-full bg-accent shrink-0" aria-hidden />
-                          )}
-                          <div className={`flex-1 min-w-0 ${!isUnread ? 'ml-5' : ''}`}>
+                          <div className="mt-0.5 shrink-0 text-muted">
+                            <NotificationIcon type={item.type} />
+                          </div>
+                          <div className="flex-1 min-w-0">
                             <div className={`text-sm ${isUnread ? 'font-semibold' : 'font-normal'} text-text`}>
                               {item.title}
                             </div>
@@ -173,6 +193,9 @@ export function NotificationBell({ basePath, className = '' }: NotificationBellP
                               {formatRelativeTime(item.created_at)}
                             </div>
                           </div>
+                          {isUnread && (
+                            <span className="mt-2 w-2 h-2 rounded-full bg-accent shrink-0" aria-hidden />
+                          )}
                         </button>
                       );
                     })}

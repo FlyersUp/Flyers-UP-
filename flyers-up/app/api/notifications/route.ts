@@ -20,10 +20,13 @@ export async function GET(req: Request) {
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') ?? String(PAGE_SIZE), 10)));
     const offset = page * limit;
 
+    const now = new Date().toISOString();
+
     const { data, error } = await supabase
       .from('notifications')
-      .select('id, user_id, actor_user_id, type, category, priority, title, body, entity_type, entity_id, booking_id, conversation_id, message_id, payment_id, payout_id, read, read_at, deep_link, created_at')
+      .select('id, user_id, actor_user_id, type, category, priority, title, body, entity_type, entity_id, booking_id, conversation_id, message_id, payment_id, payout_id, read, read_at, deep_link, target_path, created_at')
       .eq('user_id', user.id)
+      .or(`expires_at.is.null,expires_at.gte.${now}`)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 

@@ -1,20 +1,22 @@
 /**
  * Smart Notification Engine
  * Central decision layer: in-app, realtime, push.
- * 3-5 notifications per booking max. Only meaningful state changes.
+ * Deduplication, routing, expiration, priority, presence-aware.
  */
 
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import type { NotificationType } from './types';
 import {
   notificationPayloads,
-  getDeepLinkForNotification,
   TYPE_TO_CATEGORY,
   NOTIFICATION_PRIORITIES,
 } from './types';
-import { sendPushNotification } from './onesignal';
+import { getTargetPathForNotification } from './routing';
+import { getExpiresAt } from './expiration';
+import { sendPushNotification, queuePushForBatching } from './onesignal';
+import { trackNotificationCreated } from './analytics';
 
-const DEDUPE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const DEFAULT_DEDUPE_WINDOW_SECONDS = 60;
 
 export interface CreateNotificationParams {
   userId: string;
@@ -27,15 +29,13 @@ export interface CreateNotificationParams {
   payoutId?: string | null;
   entityType?: string | null;
   entityId?: string | null;
-  /** Override title/body if needed */
+  reviewId?: string | null;
   titleOverride?: string | null;
   bodyOverride?: string | null;
-  /** Base path for deep link (customer vs pro) */
   basePath?: 'customer' | 'pro';
-  /** Skip push (e.g. user viewing thread) */
   skipPush?: boolean;
-  /** Dedupe key to prevent duplicates */
   dedupeKey?: string | null;
+  dedupeWindowSeconds?: number;
 }
 
 export interface NotificationRow {
@@ -54,10 +54,30 @@ export interface NotificationRow {
   message_id: string | null;
   payment_id: string | null;
   payout_id: string | null;
+  unique_key: string | null;
+  target_path: string | null;
+  deep_link: string | null;
+  expires_at: string | null;
   read: boolean;
   read_at: string | null;
   created_at: string;
-  deep_link: string | null;
+}
+
+function buildUniqueKey(
+  type: string,
+  userId: string,
+  bookingId?: string | null,
+  conversationId?: string | null,
+  messageId?: string | null,
+  entityId?: string | null
+): string {
+  const parts: string[] = [type];
+  if (bookingId) parts.push(bookingId);
+  if (conversationId) parts.push(conversationId);
+  if (messageId) parts.push(messageId);
+  if (entityId && !bookingId && !conversationId && !messageId) parts.push(entityId);
+  parts.push(userId);
+  return parts.join(':');
 }
 
 export async function createInAppNotification(params: CreateNotificationParams): Promise<NotificationRow | null> {
@@ -71,12 +91,28 @@ export async function createInAppNotification(params: CreateNotificationParams):
   const body = params.bodyOverride ?? payload.body;
   const category = TYPE_TO_CATEGORY[params.type as NotificationType];
   const priority = payload.priority ?? NOTIFICATION_PRIORITIES.IMPORTANT;
-  const deepLink = getDeepLinkForNotification(
+  const basePath = params.basePath ?? 'customer';
+
+  const targetPath = getTargetPathForNotification(
     params.type as NotificationType,
+    basePath,
     params.bookingId,
     params.conversationId,
-    params.basePath
+    params.reviewId
   );
+
+  const expiresAt = getExpiresAt(params.type as NotificationType, category);
+
+  const uniqueKey = buildUniqueKey(
+    params.type,
+    params.userId,
+    params.bookingId,
+    params.conversationId,
+    params.messageId,
+    params.entityId
+  );
+
+  const dedupeWindowSeconds = params.dedupeWindowSeconds ?? DEFAULT_DEDUPE_WINDOW_SECONDS;
 
   const admin = createAdminSupabaseClient();
   const { data, error } = await admin
@@ -96,7 +132,11 @@ export async function createInAppNotification(params: CreateNotificationParams):
       message_id: params.messageId ?? null,
       payment_id: params.paymentId ?? null,
       payout_id: params.payoutId ?? null,
-      deep_link: deepLink,
+      unique_key: uniqueKey,
+      dedupe_window_seconds: dedupeWindowSeconds,
+      target_path: targetPath,
+      deep_link: targetPath,
+      expires_at: expiresAt,
       read: false,
       read_at: null,
     })
@@ -104,10 +144,14 @@ export async function createInAppNotification(params: CreateNotificationParams):
     .single();
 
   if (error) {
+    if (error.code === '23505') {
+      return null;
+    }
     console.error('[createInAppNotification] insert failed:', error);
     return null;
   }
 
+  trackNotificationCreated({ type: params.type, userId: params.userId });
   return data as NotificationRow;
 }
 
@@ -115,57 +159,96 @@ export async function createNotificationEvent(params: CreateNotificationParams):
   const payload = notificationPayloads[params.type as NotificationType];
   if (!payload) return null;
 
-  const dedupeKey = params.dedupeKey ?? (params.bookingId ? `${params.type}:${params.bookingId}` : null);
-  if (dedupeKey) {
-    const alreadySent = await checkDedupe(params.userId, params.type, params.bookingId);
-    if (alreadySent) return null;
-  }
+  const uniqueKey = params.dedupeKey ?? buildUniqueKey(
+    params.type,
+    params.userId,
+    params.bookingId,
+    params.conversationId,
+    params.entityId
+  );
 
-  const row = await createInAppNotification(params);
+  const dedupeWindowSeconds = params.dedupeWindowSeconds ?? DEFAULT_DEDUPE_WINDOW_SECONDS;
+  const windowMs = dedupeWindowSeconds * 1000;
+
+  const alreadySent = await checkDedupeByUniqueKey(params.userId, uniqueKey, windowMs);
+  if (alreadySent) return null;
+
+  const row = await createInAppNotification({
+    ...params,
+    dedupeKey: uniqueKey,
+    dedupeWindowSeconds,
+  });
   if (!row) return null;
 
   const shouldPush =
     !params.skipPush &&
     payload.pushEligible &&
-    (await shouldSendPush(params.userId, payload.category));
+    (await shouldSendPush(params.userId, payload.category, payload.priority));
 
   if (shouldPush) {
-    void sendPushNotification({
-      userId: params.userId,
-      title: params.titleOverride ?? payload.title,
-      body: params.bodyOverride ?? payload.body,
-      data: {
+    const skipForPresence =
+      params.type === 'message.received' &&
+      params.conversationId &&
+      (await isUserViewingConversation(params.userId, params.conversationId));
+
+    if (!skipForPresence) {
+      const title = params.titleOverride ?? payload.title;
+      const body = params.bodyOverride ?? payload.body;
+      const targetPath = getTargetPathForNotification(
+        params.type as NotificationType,
+        params.basePath ?? 'customer',
+        params.bookingId,
+        params.conversationId,
+        params.reviewId
+      );
+
+      queuePushForBatching({
+        userId: params.userId,
         type: params.type,
-        bookingId: params.bookingId ?? '',
-        conversationId: params.conversationId ?? '',
-        deepLink: getDeepLinkForNotification(
-          params.type as NotificationType,
-          params.bookingId,
-          params.conversationId,
-          params.basePath
-        ),
-      },
-    });
+        title,
+        body,
+        data: {
+          type: params.type,
+          bookingId: params.bookingId ?? '',
+          conversationId: params.conversationId ?? '',
+          deepLink: targetPath,
+        },
+      });
+    }
   }
 
   return row;
 }
 
-async function checkDedupe(userId: string, type: string, bookingId?: string | null): Promise<boolean> {
+async function checkDedupeByUniqueKey(userId: string, uniqueKey: string, windowMs: number): Promise<boolean> {
   const admin = createAdminSupabaseClient();
-  let q = admin
+  const since = new Date(Date.now() - windowMs).toISOString();
+  const { data } = await admin
     .from('notifications')
     .select('id')
     .eq('user_id', userId)
-    .eq('type', type)
-    .gte('created_at', new Date(Date.now() - DEDUPE_WINDOW_MS).toISOString())
+    .eq('unique_key', uniqueKey)
+    .gte('created_at', since)
     .limit(1);
-  if (bookingId) q = q.eq('booking_id', bookingId);
-  const { data } = await q;
   return Array.isArray(data) && data.length > 0;
 }
 
-async function shouldSendPush(userId: string, category: string): Promise<boolean> {
+async function isUserViewingConversation(userId: string, conversationId: string): Promise<boolean> {
+  const admin = createAdminSupabaseClient();
+  const threshold = new Date(Date.now() - 30 * 1000).toISOString();
+  const { data } = await admin
+    .from('conversation_presence')
+    .select('user_id')
+    .eq('user_id', userId)
+    .eq('conversation_id', conversationId)
+    .gte('updated_at', threshold)
+    .limit(1);
+  return Array.isArray(data) && data.length > 0;
+}
+
+async function shouldSendPush(userId: string, category: string, priority: string): Promise<boolean> {
+  if (priority === NOTIFICATION_PRIORITIES.INFORMATIONAL) return false;
+
   const admin = createAdminSupabaseClient();
   const { data: prefs } = await admin
     .from('user_notification_preferences')
@@ -222,11 +305,13 @@ export async function markAllNotificationsRead(userId: string): Promise<boolean>
 
 export async function getUnreadNotificationCount(userId: string): Promise<number> {
   const admin = createAdminSupabaseClient();
+  const now = new Date().toISOString();
   const { count, error } = await admin
     .from('notifications')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .is('read_at', null);
+    .is('read_at', null)
+    .or(`expires_at.is.null,expires_at.gte.${now}`);
   if (error) return 0;
   return count ?? 0;
 }

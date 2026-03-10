@@ -261,7 +261,7 @@ export const notificationPayloads: Record<NotificationType, Omit<NotificationPay
     body: 'You received a new review.',
     category: NOTIFICATION_CATEGORIES.REVIEW,
     priority: NOTIFICATION_PRIORITIES.INFORMATIONAL,
-    pushEligible: true,
+    pushEligible: false,
   },
   [NOTIFICATION_TYPES.ACCOUNT_VERIFIED]: {
     type: NOTIFICATION_TYPES.ACCOUNT_VERIFIED,

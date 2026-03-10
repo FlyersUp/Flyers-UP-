@@ -11,9 +11,11 @@ import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
+import { useConversationPresence } from '@/hooks/useConversationPresence';
 
 export default function CustomerConversationChat({ params }: { params: Promise<{ conversationId: string }> }) {
   const { conversationId } = use(params);
+  useConversationPresence(conversationId);
   const [message, setMessage] = useState('');
   const [rows, setRows] = useState<Array<{ id: string; sender_role: string; message: string; created_at: string }>>([]);
   const [loading, setLoading] = useState(true);

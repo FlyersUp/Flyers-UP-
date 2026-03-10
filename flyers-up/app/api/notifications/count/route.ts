@@ -13,11 +13,14 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ count: 0 });
 
+    const now = new Date().toISOString();
+
     const { count, error } = await supabase
       .from('notifications')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
-      .is('read_at', null);
+      .is('read_at', null)
+      .or(`expires_at.is.null,expires_at.gte.${now}`);
 
     if (error) return NextResponse.json({ count: 0 });
 

@@ -97,11 +97,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       setUnreadCount(0);
       return;
     }
+    const now = new Date().toISOString();
     const { count, error } = await supabase
       .from('notifications')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
-      .is('read_at', null);
+      .is('read_at', null)
+      .or(`expires_at.is.null,expires_at.gte.${now}`);
     if (error) {
       console.warn('NotificationContext: failed to fetch unread count', error);
       return;
