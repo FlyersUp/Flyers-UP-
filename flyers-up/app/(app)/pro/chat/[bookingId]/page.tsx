@@ -185,10 +185,10 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
               <div className="mb-2">
                 <p className="text-sm font-medium text-[#111]">Customer budget: ${customerBudget!.toFixed(2)}</p>
                 <Button
-                  size="sm"
                   onClick={handleAcceptBudget}
                   disabled={quoteLoading}
-                  className="mt-2 bg-[#FFC067] text-black"
+                  showArrow={false}
+                  className="mt-2 px-4 py-2 text-sm bg-[#FFC067] text-black"
                 >
                   {quoteLoading ? '…' : 'Accept budget'}
                 </Button>
@@ -212,7 +212,6 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
                   className="text-sm"
                 />
                 <Button
-                  size="sm"
                   onClick={async () => {
                     const amt = parseFloat(quoteAmount);
                     if (!Number.isFinite(amt) || amt < 0) return;
@@ -226,7 +225,8 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
                     }
                   }}
                   disabled={quoteLoading}
-                  className="bg-[#FFC067] text-black"
+                  showArrow={false}
+                  className="px-4 py-2 text-sm bg-[#FFC067] text-black"
                 >
                   {quoteLoading ? '…' : 'Send quote'}
                 </Button>

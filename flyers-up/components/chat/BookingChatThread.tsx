@@ -59,9 +59,6 @@ export function BookingChatThread({
   const canRespond =
     priceStatus === 'quoted' || priceStatus === 'countered';
   const maxRoundsReached = negotiationRound >= maxRounds;
-  const lastQuote = [...items]
-    .reverse()
-    .find((i): i is ChatQuote => isQuote(i) && i.action === 'proposed' || i.action === 'countered');
 
   return (
     <div className="space-y-4">

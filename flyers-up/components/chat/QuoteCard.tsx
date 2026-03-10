@@ -122,10 +122,10 @@ export function QuoteCard({
         <div className="mt-3 flex flex-wrap gap-2">
           {isCustomer && fromPro && onAccept && (
             <Button
-              size="sm"
               onClick={handleAccept}
               disabled={loading}
-              className="bg-[#B2FBA5] text-black hover:opacity-90"
+              showArrow={false}
+              className="px-4 py-2 text-sm bg-[#B2FBA5] text-black hover:opacity-90"
             >
               {loading ? '…' : 'Accept'}
             </Button>
@@ -134,10 +134,11 @@ export function QuoteCard({
             <>
               {!showCounterForm ? (
                 <Button
-                  size="sm"
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => setShowCounterForm(true)}
                   disabled={loading}
+                  showArrow={false}
+                  className="px-4 py-2 text-sm"
                 >
                   {isCustomer ? 'Counter' : 'Send quote'}
                 </Button>
@@ -159,7 +160,7 @@ export function QuoteCard({
                     className="text-sm"
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={handleCounterOrQuote} disabled={loading}>
+                    <Button onClick={handleCounterOrQuote} disabled={loading} showArrow={false} className="px-4 py-2 text-sm">
                       Send
                     </Button>
                     <button
