@@ -7,37 +7,37 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { Card } from '@/components/ui/Card';
 import { Label } from '@/components/ui/Label';
 import { Button } from '@/components/ui/Button';
-import { getNotificationSettingsV2, updateNotificationSettingsV2 } from '@/lib/api';
 import { TrustRow } from '@/components/ui/TrustRow';
 import { ToggleRow } from '@/components/ui/ToggleRow';
 
 type CustomerNotificationPrefs = {
-  delivery: {
-    email: boolean;
-    push: boolean;
-  };
-  alerts: {
-    booking_confirmations: boolean;
-    pro_arrival: boolean;
-    job_completion: boolean;
-    payment_receipts: boolean;
-    dispute_updates: boolean;
-    promotions: boolean;
-  };
+  booking_push: boolean;
+  message_push: boolean;
+  payment_push: boolean;
+  payout_push: boolean;
+  marketing_in_app: boolean;
+  quiet_hours_enabled: boolean;
+  quiet_hours_start: string;
+  quiet_hours_end: string;
 };
 
 function getDefaultPrefs(): CustomerNotificationPrefs {
   return {
-    delivery: { email: true, push: true },
-    alerts: {
-      booking_confirmations: true,
-      pro_arrival: true,
-      job_completion: true,
-      payment_receipts: true,
-      dispute_updates: true,
-      promotions: false,
-    },
+    booking_push: true,
+    message_push: true,
+    payment_push: true,
+    payout_push: true,
+    marketing_in_app: true,
+    quiet_hours_enabled: false,
+    quiet_hours_start: '22:00',
+    quiet_hours_end: '08:00',
   };
+}
+
+function timeToInputValue(t: string | null): string {
+  if (!t) return '22:00';
+  const [h, m] = t.split(':').map(Number);
+  return `${String(h ?? 22).padStart(2, '0')}:${String(m ?? 0).padStart(2, '0')}`;
 }
 
 export default function CustomerNotificationSettingsPage() {
@@ -60,23 +60,22 @@ export default function CustomerNotificationSettingsPage() {
         if (!user) return;
         setUserId(user.id);
 
-        const server = await getNotificationSettingsV2(user.id);
-        setPrefs((prev) => ({
-          ...prev,
-          delivery: {
-            email: server.delivery.email,
-            push: server.delivery.push,
-          },
-          alerts: {
-            ...prev.alerts,
-            booking_confirmations: server.alerts.booking_confirmations ?? server.new_booking,
-            pro_arrival: server.alerts.pro_arrival ?? server.job_status_updates,
-            job_completion: server.alerts.job_completion ?? server.job_status_updates,
-            payment_receipts: server.alerts.payment_receipts ?? prev.alerts.payment_receipts,
-            dispute_updates: server.alerts.dispute_updates ?? prev.alerts.dispute_updates,
-            promotions: server.alerts.promotions ?? server.marketing_emails,
-          },
-        }));
+        const res = await fetch('/api/notifications/preferences');
+        if (!res.ok) {
+          setPrefs(getDefaultPrefs());
+          return;
+        }
+        const data = await res.json();
+        setPrefs({
+          booking_push: data.booking_push ?? true,
+          message_push: data.message_push ?? true,
+          payment_push: data.payment_push ?? true,
+          payout_push: data.payout_push ?? true,
+          marketing_in_app: data.marketing_in_app ?? true,
+          quiet_hours_enabled: data.quiet_hours_enabled ?? false,
+          quiet_hours_start: timeToInputValue(data.quiet_hours_start),
+          quiet_hours_end: timeToInputValue(data.quiet_hours_end),
+        });
       } catch {
         setError('Failed to load notification settings.');
       } finally {
@@ -94,18 +93,24 @@ export default function CustomerNotificationSettingsPage() {
     setError(null);
 
     try {
-      const result = await updateNotificationSettingsV2(userId, {
-        delivery: prefs.delivery,
-        alerts: prefs.alerts,
-        legacy: {
-          new_booking: prefs.alerts.booking_confirmations,
-          job_status_updates: prefs.alerts.pro_arrival || prefs.alerts.job_completion,
-          marketing_emails: prefs.alerts.promotions,
-        },
+      const res = await fetch('/api/notifications/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          booking_push: prefs.booking_push,
+          message_push: prefs.message_push,
+          payment_push: prefs.payment_push,
+          payout_push: prefs.payout_push,
+          marketing_in_app: prefs.marketing_in_app,
+          quiet_hours_enabled: prefs.quiet_hours_enabled,
+          quiet_hours_start: prefs.quiet_hours_enabled ? prefs.quiet_hours_start : null,
+          quiet_hours_end: prefs.quiet_hours_enabled ? prefs.quiet_hours_end : null,
+        }),
       });
 
-      if (!result.success) {
-        setError(result.error || 'Failed to save notification settings.');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setError((err as { error?: string }).error || 'Failed to save notification settings.');
         return;
       }
 
@@ -153,70 +158,68 @@ export default function CustomerNotificationSettingsPage() {
         )}
 
         <Card withRail>
-          <Label>DELIVERY</Label>
+          <Label>PUSH NOTIFICATIONS</Label>
+          <p className="text-sm text-muted mt-1">Control which events trigger push notifications.</p>
           <div className="mt-4 space-y-3">
             <ToggleRow
-              title="Email"
-              description="Receive notifications by email."
-              checked={prefs.delivery.email}
-              onChange={(next) => setPrefs((p) => ({ ...p, delivery: { ...p.delivery, email: next } }))}
+              title="Booking updates"
+              description="Confirmations, reschedules, pro on the way, job completion."
+              checked={prefs.booking_push}
+              onChange={(next) => setPrefs((p) => ({ ...p, booking_push: next }))}
             />
             <ToggleRow
-              title="Push"
-              description="Receive push notifications on your device (when enabled)."
-              checked={prefs.delivery.push}
-              onChange={(next) => setPrefs((p) => ({ ...p, delivery: { ...p.delivery, push: next } }))}
+              title="Messages"
+              description="New messages from pros."
+              checked={prefs.message_push}
+              onChange={(next) => setPrefs((p) => ({ ...p, message_push: next }))}
+            />
+            <ToggleRow
+              title="Payments"
+              description="Deposit paid, balance due, refunds, payment failures."
+              checked={prefs.payment_push}
+              onChange={(next) => setPrefs((p) => ({ ...p, payment_push: next }))}
+            />
+            <ToggleRow
+              title="Marketing in-app"
+              description="Promos and tips in the notification feed."
+              checked={prefs.marketing_in_app}
+              onChange={(next) => setPrefs((p) => ({ ...p, marketing_in_app: next }))}
             />
           </div>
         </Card>
 
         <Card withRail>
-          <Label>WHAT I GET NOTIFIED ABOUT</Label>
+          <Label>QUIET HOURS</Label>
+          <p className="text-sm text-muted mt-1">Suppress push notifications during these hours.</p>
           <div className="mt-4 space-y-3">
             <ToggleRow
-              title="Booking confirmations"
-              description="Confirmation, reschedules, and key booking updates."
-              checked={prefs.alerts.booking_confirmations}
-              onChange={(next) =>
-                setPrefs((p) => ({ ...p, alerts: { ...p.alerts, booking_confirmations: next } }))
-              }
+              title="Enable quiet hours"
+              description="No push notifications during the selected time."
+              checked={prefs.quiet_hours_enabled}
+              onChange={(next) => setPrefs((p) => ({ ...p, quiet_hours_enabled: next }))}
             />
-            <ToggleRow
-              title="Pro arrival"
-              description="When your pro is on the way or arrives."
-              checked={prefs.alerts.pro_arrival}
-              onChange={(next) => setPrefs((p) => ({ ...p, alerts: { ...p.alerts, pro_arrival: next } }))}
-            />
-            <ToggleRow
-              title="Job completion"
-              description="When the job is marked complete and ready for review."
-              checked={prefs.alerts.job_completion}
-              onChange={(next) =>
-                setPrefs((p) => ({ ...p, alerts: { ...p.alerts, job_completion: next } }))
-              }
-            />
-            <ToggleRow
-              title="Payment receipts"
-              description="Receipts, refunds, and payment status updates."
-              checked={prefs.alerts.payment_receipts}
-              onChange={(next) =>
-                setPrefs((p) => ({ ...p, alerts: { ...p.alerts, payment_receipts: next } }))
-              }
-            />
-            <ToggleRow
-              title="Dispute updates"
-              description="Dispute status changes and claim updates."
-              checked={prefs.alerts.dispute_updates}
-              onChange={(next) =>
-                setPrefs((p) => ({ ...p, alerts: { ...p.alerts, dispute_updates: next } }))
-              }
-            />
-            <ToggleRow
-              title="Promotions"
-              description="Occasional promos, product updates, and tips."
-              checked={prefs.alerts.promotions}
-              onChange={(next) => setPrefs((p) => ({ ...p, alerts: { ...p.alerts, promotions: next } }))}
-            />
+            {prefs.quiet_hours_enabled && (
+              <div className="flex flex-wrap gap-4 items-center pt-2">
+                <label className="flex items-center gap-2 text-sm text-text">
+                  <span>From</span>
+                  <input
+                    type="time"
+                    value={prefs.quiet_hours_start}
+                    onChange={(e) => setPrefs((p) => ({ ...p, quiet_hours_start: e.target.value }))}
+                    className="rounded-lg border border-border bg-surface px-3 py-2 text-text"
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-sm text-text">
+                  <span>To</span>
+                  <input
+                    type="time"
+                    value={prefs.quiet_hours_end}
+                    onChange={(e) => setPrefs((p) => ({ ...p, quiet_hours_end: e.target.value }))}
+                    className="rounded-lg border border-border bg-surface px-3 py-2 text-text"
+                  />
+                </label>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -229,4 +232,3 @@ export default function CustomerNotificationSettingsPage() {
     </AppLayout>
   );
 }
-

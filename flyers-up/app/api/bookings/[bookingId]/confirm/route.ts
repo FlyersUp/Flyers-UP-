@@ -7,7 +7,8 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
-import { createNotification, bookingDeepLinkPro } from '@/lib/notifications';
+import { createNotificationEvent } from '@/lib/notifications';
+import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -70,13 +71,14 @@ export async function POST(
   const { data: proRow } = await admin.from('service_pros').select('user_id').eq('id', booking.pro_id).maybeSingle();
   const proUserId = (proRow as { user_id?: string } | null)?.user_id;
   if (proUserId) {
-    void createNotification({
-      user_id: proUserId,
-      type: 'booking_status',
-      title: 'Customer confirmed',
-      body: 'Customer confirmed — payout releasing',
-      booking_id: id,
-      deep_link: bookingDeepLinkPro(id),
+    void createNotificationEvent({
+      userId: proUserId,
+      type: NOTIFICATION_TYPES.BOOKING_COMPLETED,
+      bookingId: id,
+      actorUserId: user.id,
+      titleOverride: 'Customer confirmed',
+      bodyOverride: 'Customer confirmed — payout releasing',
+      basePath: 'pro',
     });
   }
 

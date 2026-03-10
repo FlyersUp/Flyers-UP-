@@ -25,7 +25,9 @@ import {
   isValidTransition,
   type NextStatusAction,
 } from '@/components/jobs/jobStatus';
-import { createNotification, bookingDeepLinkCustomer, bookingDeepLinkPro } from '@/lib/notifications';
+import { createNotificationEvent } from '@/lib/notifications';
+import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
+import type { NotificationType } from '@/lib/notifications/types';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -238,53 +240,55 @@ export async function PATCH(
       return NextResponse.json({ error: 'Update succeeded but no data returned' }, { status: 500 });
     }
 
-    // Notify Customer on status changes (optional for on_the_way/start; required for complete)
     const customerId = (booking as { customer_id?: string }).customer_id;
-    if (customerId) {
-      const statusMessages: Record<string, { title: string; body: string }> = {
-        pro_en_route: { title: 'Pro is on the way', body: 'Your pro is heading to your location.' },
-        arrived: { title: 'Pro arrived', body: 'Your pro has arrived at your location.' },
-        in_progress: { title: 'Job started', body: 'Your pro has started the job.' },
-        awaiting_remaining_payment: { title: 'Pro finished', body: 'Pro finished — pay remaining to confirm' },
-      };
-      const msg = statusMessages[nextDbStatus];
-      if (msg) {
-        void createNotification({
-          user_id: customerId,
-          type: 'booking_status',
-          title: msg.title,
-          body: msg.body,
-          booking_id: id,
-          deep_link: bookingDeepLinkCustomer(id),
-        });
-      }
+    const statusToType: Record<string, string> = {
+      pro_en_route: NOTIFICATION_TYPES.BOOKING_ON_THE_WAY,
+      arrived: NOTIFICATION_TYPES.BOOKING_ON_THE_WAY,
+      in_progress: NOTIFICATION_TYPES.BOOKING_STARTED,
+      awaiting_remaining_payment: NOTIFICATION_TYPES.BOOKING_COMPLETED,
+    };
+    const statusOverrides: Record<string, { title: string; body: string }> = {
+      pro_en_route: { title: 'Pro is on the way', body: 'Your pro is heading to your location.' },
+      arrived: { title: 'Pro arrived', body: 'Your pro has arrived at your location.' },
+      in_progress: { title: 'Job started', body: 'Your pro has started the job.' },
+      awaiting_remaining_payment: { title: 'Pro finished', body: 'Pro finished — pay remaining to confirm' },
+    };
+    const notifType = statusToType[nextDbStatus];
+    const override = statusOverrides[nextDbStatus];
+    if (customerId && notifType && override) {
+      void createNotificationEvent({
+        userId: customerId,
+        type: notifType as NotificationType,
+        actorUserId: user.id,
+        bookingId: id,
+        titleOverride: override.title,
+        bodyOverride: override.body,
+        basePath: 'customer',
+      });
     }
 
     if (nextDbStatus === 'awaiting_remaining_payment') {
       try {
-        const { error: eventsErr } = await admin.from('booking_events').insert({
+        await admin.from('booking_events').insert({
           booking_id: id,
           type: 'WORK_COMPLETED_BY_PRO',
           data: {},
         });
-        if (eventsErr) {
-          console.error('booking_events insert failed:', eventsErr, { jobId: id });
-        }
         const { data: proRow } = await admin.from('service_pros').select('user_id').eq('id', booking.pro_id).maybeSingle();
         const proUserId = (proRow as { user_id?: string } | null)?.user_id;
         if (proUserId) {
-          void createNotification({
-            user_id: proUserId,
-            type: 'booking_status',
-            title: 'Marked complete',
-            body: 'Marked complete — awaiting customer payment/confirmation',
-            booking_id: id,
-            deep_link: bookingDeepLinkPro(id),
+          void createNotificationEvent({
+            userId: proUserId,
+            type: NOTIFICATION_TYPES.BOOKING_COMPLETED,
+            actorUserId: user.id,
+            bookingId: id,
+            titleOverride: 'Marked complete',
+            bodyOverride: 'Marked complete — awaiting customer payment/confirmation',
+            basePath: 'pro',
           });
         }
       } catch (postErr) {
         console.error('Post-update (events/notify) failed:', postErr, { jobId: id });
-        // Main update succeeded; don't fail the request
       }
     }
 

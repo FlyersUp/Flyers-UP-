@@ -7,7 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireCronSecret } from '@/lib/cron/auth';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
-import { createNotification } from '@/lib/notify/create-notification';
+import { createNotificationEvent } from '@/lib/notifications';
+import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { createTransfer } from '@/lib/stripe/server';
 import { computeNetToPro } from '@/lib/bookings/money';
 import { evaluatePayoutRiskForPro } from '@/lib/payoutRisk';
@@ -122,12 +123,13 @@ export async function GET(req: NextRequest) {
       });
 
       if (proUser) {
-        await createNotification({
+        void createNotificationEvent({
           userId: proUser,
+          type: NOTIFICATION_TYPES.PAYOUT_FAILED,
           bookingId: b.id,
-          type: 'payout_failed',
-          title: 'Payout issue',
-          body: 'We could not process your payout. Please contact support.',
+          titleOverride: 'Payout issue',
+          bodyOverride: 'We could not process your payout. Please contact support.',
+          basePath: 'pro',
         });
       }
       failed++;

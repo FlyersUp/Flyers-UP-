@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "generate-icons": "node scripts/generate-app-icons.js"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^5.6.0",

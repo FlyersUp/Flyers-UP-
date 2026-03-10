@@ -282,6 +282,7 @@ export function BookingDetailContent({
                     { type: 'pro_late', label: 'Pro is late' },
                     { type: 'work_incomplete', label: 'Work incomplete' },
                     { type: 'wrong_service', label: 'Wrong service' },
+                    { type: 'dispute', label: 'Dispute' },
                     { type: 'contact_support', label: 'Contact Support' },
                   ].map(({ type, label }) => (
                     <button
@@ -292,7 +293,7 @@ export function BookingDetailContent({
                           const res = await fetch(`/api/bookings/${bookingId}/issues`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ issueType: type }),
+                            body: JSON.stringify({ issueType: type, notes: type === 'dispute' ? 'User initiated dispute' : undefined }),
                           });
                           if (res.ok) {
                             alert('Thanks for reporting. We\'ll look into it.');

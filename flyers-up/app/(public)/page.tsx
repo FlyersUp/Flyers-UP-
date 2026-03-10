@@ -385,9 +385,9 @@ export default function HomePage() {
           <div className="border-t border-border pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm">© 2024 Flyers Up. All rights reserved.</p>
             <div className="flex gap-6 text-sm">
-              <a href="#" className="hover:text-text transition-colors">Privacy</a>
-              <a href="#" className="hover:text-text transition-colors">Terms</a>
-              <a href="#" className="hover:text-text transition-colors">Cookies</a>
+              <Link href="/privacy" className="hover:text-text transition-colors">Privacy</Link>
+              <Link href="/terms" className="hover:text-text transition-colors">Terms</Link>
+              <Link href="/privacy#cookies" className="hover:text-text transition-colors">Cookies</Link>
             </div>
           </div>
         </div>

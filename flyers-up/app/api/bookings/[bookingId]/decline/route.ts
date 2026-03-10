@@ -5,6 +5,8 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
+import { createNotificationEvent } from '@/lib/notifications';
+import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -44,7 +46,7 @@ export async function POST(
   const admin = createAdminSupabaseClient();
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, status, status_history, pro_id')
+    .select('id, customer_id, status, status_history, pro_id')
     .eq('id', id)
     .single();
 
@@ -78,6 +80,16 @@ export async function POST(
 
   if (updateErr) {
     return NextResponse.json({ error: 'Failed to decline booking' }, { status: 500 });
+  }
+
+  if (booking.customer_id) {
+    void createNotificationEvent({
+      userId: booking.customer_id,
+      type: NOTIFICATION_TYPES.BOOKING_DECLINED,
+      actorUserId: user.id,
+      bookingId: id,
+      basePath: 'customer',
+    });
   }
 
   return NextResponse.json({ success: true }, { status: 200 });

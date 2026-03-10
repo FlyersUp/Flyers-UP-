@@ -130,14 +130,12 @@ export default function CustomerConversationChat({ params }: { params: Promise<{
               onClick={async () => {
                 const text = message.trim();
                 if (!text) return;
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
-                await supabase.from('conversation_messages').insert({
-                  conversation_id: conversationId,
-                  sender_id: user.id,
-                  sender_role: 'customer',
-                  message: text,
+                const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ message: text }),
                 });
+                if (!res.ok) return;
                 setMessage('');
                 await load();
               }}

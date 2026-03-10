@@ -7,37 +7,37 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { Card } from '@/components/ui/Card';
 import { Label } from '@/components/ui/Label';
 import { Button } from '@/components/ui/Button';
-import { getNotificationSettingsV2, updateNotificationSettingsV2 } from '@/lib/api';
 import { TrustRow } from '@/components/ui/TrustRow';
 import { ToggleRow } from '@/components/ui/ToggleRow';
 
 type ProNotificationPrefs = {
-  delivery: {
-    email: boolean;
-    push: boolean;
-  };
-  alerts: {
-    new_booking_requests: boolean;
-    job_reminders: boolean;
-    payment_released: boolean;
-    disputes_opened: boolean;
-    promotions_tips: boolean;
-    messages: boolean;
-  };
+  booking_push: boolean;
+  message_push: boolean;
+  payment_push: boolean;
+  payout_push: boolean;
+  marketing_in_app: boolean;
+  quiet_hours_enabled: boolean;
+  quiet_hours_start: string;
+  quiet_hours_end: string;
 };
 
 function getDefaultPrefs(): ProNotificationPrefs {
   return {
-    delivery: { email: true, push: true },
-    alerts: {
-      new_booking_requests: true,
-      job_reminders: true,
-      payment_released: true,
-      disputes_opened: true,
-      promotions_tips: false,
-      messages: true,
-    },
+    booking_push: true,
+    message_push: true,
+    payment_push: true,
+    payout_push: true,
+    marketing_in_app: true,
+    quiet_hours_enabled: false,
+    quiet_hours_start: '22:00',
+    quiet_hours_end: '08:00',
   };
+}
+
+function timeToInputValue(t: string | null): string {
+  if (!t) return '22:00';
+  const [h, m] = t.split(':').map(Number);
+  return `${String(h ?? 22).padStart(2, '0')}:${String(m ?? 0).padStart(2, '0')}`;
 }
 
 export default function ProNotificationSettingsPage() {
@@ -48,7 +48,6 @@ export default function ProNotificationSettingsPage() {
   const [userId, setUserId] = useState<string | null>(null);
 
   const [prefs, setPrefs] = useState<ProNotificationPrefs>(() => getDefaultPrefs());
-
   const canSave = useMemo(() => Boolean(userId), [userId]);
 
   useEffect(() => {
@@ -61,21 +60,23 @@ export default function ProNotificationSettingsPage() {
         if (!user) return;
         setUserId(user.id);
 
-        const server = await getNotificationSettingsV2(user.id);
-        setPrefs((prev) => ({
-          ...prev,
-          delivery: { email: server.delivery.email, push: server.delivery.push },
-          alerts: {
-            ...prev.alerts,
-            new_booking_requests: server.alerts.new_booking_requests ?? server.new_booking,
-            job_reminders: server.alerts.job_reminders ?? server.job_status_updates,
-            payment_released: server.alerts.payment_released ?? prev.alerts.payment_released,
-            disputes_opened: server.alerts.disputes_opened ?? prev.alerts.disputes_opened,
-            messages: server.alerts.messages ?? server.messages,
-            promotions_tips: server.alerts.promotions_tips ?? server.marketing_emails,
-          },
-        }));
-      } catch (err) {
+        const res = await fetch('/api/notifications/preferences');
+        if (!res.ok) {
+          setPrefs(getDefaultPrefs());
+          return;
+        }
+        const data = await res.json();
+        setPrefs({
+          booking_push: data.booking_push ?? true,
+          message_push: data.message_push ?? true,
+          payment_push: data.payment_push ?? true,
+          payout_push: data.payout_push ?? true,
+          marketing_in_app: data.marketing_in_app ?? true,
+          quiet_hours_enabled: data.quiet_hours_enabled ?? false,
+          quiet_hours_start: timeToInputValue(data.quiet_hours_start),
+          quiet_hours_end: timeToInputValue(data.quiet_hours_end),
+        });
+      } catch {
         setError('Failed to load notification settings.');
       } finally {
         setLoadingData(false);
@@ -92,24 +93,29 @@ export default function ProNotificationSettingsPage() {
     setError(null);
 
     try {
-      const result = await updateNotificationSettingsV2(userId, {
-        delivery: prefs.delivery,
-        alerts: prefs.alerts,
-        legacy: {
-          new_booking: prefs.alerts.new_booking_requests,
-          job_status_updates: prefs.alerts.job_reminders,
-          messages: prefs.alerts.messages,
-          marketing_emails: prefs.alerts.promotions_tips,
-        },
+      const res = await fetch('/api/notifications/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          booking_push: prefs.booking_push,
+          message_push: prefs.message_push,
+          payment_push: prefs.payment_push,
+          payout_push: prefs.payout_push,
+          marketing_in_app: prefs.marketing_in_app,
+          quiet_hours_enabled: prefs.quiet_hours_enabled,
+          quiet_hours_start: prefs.quiet_hours_enabled ? prefs.quiet_hours_start : null,
+          quiet_hours_end: prefs.quiet_hours_enabled ? prefs.quiet_hours_end : null,
+        }),
       });
 
-      if (!result.success) {
-        setError(result.error || 'Failed to save notification settings.');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setError((err as { error?: string }).error || 'Failed to save notification settings.');
         return;
       }
 
       setSuccess('Notification settings saved.');
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred.');
     } finally {
       setSaving(false);
@@ -152,80 +158,79 @@ export default function ProNotificationSettingsPage() {
         )}
 
         <Card withRail>
-          <Label>DELIVERY</Label>
+          <Label>PUSH NOTIFICATIONS</Label>
+          <p className="text-sm text-muted mt-1">Control which events trigger push notifications.</p>
           <div className="mt-4 space-y-3">
             <ToggleRow
-              title="Email"
-              description="Receive notifications by email."
-              checked={prefs.delivery.email}
-              onChange={(next) => setPrefs((p) => ({ ...p, delivery: { ...p.delivery, email: next } }))}
+              title="Booking requests"
+              description="New booking requests and key updates."
+              checked={prefs.booking_push}
+              onChange={(next) => setPrefs((p) => ({ ...p, booking_push: next }))}
             />
             <ToggleRow
-              title="Push"
-              description="Receive push notifications on your device (when enabled)."
-              checked={prefs.delivery.push}
-              onChange={(next) => setPrefs((p) => ({ ...p, delivery: { ...p.delivery, push: next } }))}
+              title="Messages"
+              description="New messages from customers."
+              checked={prefs.message_push}
+              onChange={(next) => setPrefs((p) => ({ ...p, message_push: next }))}
+            />
+            <ToggleRow
+              title="Payments"
+              description="Deposit paid, balance due."
+              checked={prefs.payment_push}
+              onChange={(next) => setPrefs((p) => ({ ...p, payment_push: next }))}
+            />
+            <ToggleRow
+              title="Payouts"
+              description="Payout sent, payout failed."
+              checked={prefs.payout_push}
+              onChange={(next) => setPrefs((p) => ({ ...p, payout_push: next }))}
+            />
+            <ToggleRow
+              title="Marketing in-app"
+              description="Promos and tips in the notification feed."
+              checked={prefs.marketing_in_app}
+              onChange={(next) => setPrefs((p) => ({ ...p, marketing_in_app: next }))}
             />
           </div>
         </Card>
 
         <Card withRail>
-          <Label>WHAT ALERTS I RECEIVE</Label>
+          <Label>QUIET HOURS</Label>
+          <p className="text-sm text-muted mt-1">Suppress push notifications during these hours.</p>
           <div className="mt-4 space-y-3">
             <ToggleRow
-              title="New booking requests"
-              description="Get alerted when a customer requests a booking."
-              checked={prefs.alerts.new_booking_requests}
-              onChange={(next) =>
-                setPrefs((p) => ({ ...p, alerts: { ...p.alerts, new_booking_requests: next } }))
-              }
+              title="Enable quiet hours"
+              description="No push notifications during the selected time."
+              checked={prefs.quiet_hours_enabled}
+              onChange={(next) => setPrefs((p) => ({ ...p, quiet_hours_enabled: next }))}
             />
-            <ToggleRow
-              title="Job reminders"
-              description="Reminders before scheduled jobs and key status updates."
-              checked={prefs.alerts.job_reminders}
-              onChange={(next) => setPrefs((p) => ({ ...p, alerts: { ...p.alerts, job_reminders: next } }))}
-            />
-            <ToggleRow
-              title="Payment released"
-              description="Alerts when a payout is released or changes."
-              checked={prefs.alerts.payment_released}
-              onChange={(next) =>
-                setPrefs((p) => ({ ...p, alerts: { ...p.alerts, payment_released: next } }))
-              }
-            />
-            <ToggleRow
-              title="Disputes opened"
-              description="Alerts when a dispute is opened or updated."
-              checked={prefs.alerts.disputes_opened}
-              onChange={(next) =>
-                setPrefs((p) => ({ ...p, alerts: { ...p.alerts, disputes_opened: next } }))
-              }
-            />
-            <ToggleRow
-              title="Promotions / tips"
-              description="Occasional product updates, promos, and best-practice tips."
-              checked={prefs.alerts.promotions_tips}
-              onChange={(next) =>
-                setPrefs((p) => ({ ...p, alerts: { ...p.alerts, promotions_tips: next } }))
-              }
-            />
-            <ToggleRow
-              title="Messages"
-              description="Alerts when you receive a new message from a customer."
-              checked={prefs.alerts.messages}
-              onChange={(next) => setPrefs((p) => ({ ...p, alerts: { ...p.alerts, messages: next } }))}
-            />
+            {prefs.quiet_hours_enabled && (
+              <div className="flex flex-wrap gap-4 items-center pt-2">
+                <label className="flex items-center gap-2 text-sm text-text">
+                  <span>From</span>
+                  <input
+                    type="time"
+                    value={prefs.quiet_hours_start}
+                    onChange={(e) => setPrefs((p) => ({ ...p, quiet_hours_start: e.target.value }))}
+                    className="rounded-lg border border-border bg-surface px-3 py-2 text-text"
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-sm text-text">
+                  <span>To</span>
+                  <input
+                    type="time"
+                    value={prefs.quiet_hours_end}
+                    onChange={(e) => setPrefs((p) => ({ ...p, quiet_hours_end: e.target.value }))}
+                    className="rounded-lg border border-border bg-surface px-3 py-2 text-text"
+                  />
+                </label>
+              </div>
+            )}
           </div>
         </Card>
 
         <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={handleSave}
-            disabled={!canSave || saving}
-            showArrow={false}
-          >
+          <Button type="button" onClick={handleSave} disabled={!canSave || saving} showArrow={false}>
             {saving ? 'Saving…' : 'Save Changes'}
           </Button>
         </div>
@@ -233,4 +238,3 @@ export default function ProNotificationSettingsPage() {
     </AppLayout>
   );
 }
-

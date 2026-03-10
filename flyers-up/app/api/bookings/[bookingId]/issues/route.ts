@@ -9,7 +9,7 @@ import { normalizeUuidOrNull } from '@/lib/isUuid';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const VALID_ISSUE_TYPES = ['pro_late', 'work_incomplete', 'wrong_service', 'contact_support'] as const;
+const VALID_ISSUE_TYPES = ['pro_late', 'work_incomplete', 'wrong_service', 'contact_support', 'dispute'] as const;
 
 export async function POST(
   req: Request,

@@ -2,6 +2,25 @@ import Layout from '@/components/Layout';
 import Link from 'next/link';
 import { requireAdminUser, isAdminUser } from '@/app/(app)/admin/_admin';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { getCommandCenterData, getJobsWaitingForAttention } from '@/lib/adminCommandCenter';
+import { KpiCard } from '@/components/admin/KpiCard';
+import { AlertList, type AlertItem as PlatformAlertItem } from '@/components/admin/AlertList';
+import { ActivityFeed } from '@/components/admin/ActivityFeed';
+import { DemandSupplyTable, type DemandSupplyRow } from '@/components/admin/DemandSupplyTable';
+import { AttentionJobsCard } from '@/components/admin/AttentionJobsCard';
+import { StatsPanel } from '@/components/admin/StatsPanel';
+import { AdminToolGrid } from '@/components/admin/AdminToolGrid';
+import { AiOpsSuggestions } from '@/components/admin/AiOpsSuggestions';
+import { AdminSessionBanner } from '@/components/admin/AdminSessionBanner';
+import {
+  LayoutDashboard,
+  BarChart3,
+  Users,
+  Calendar,
+  AlertTriangle,
+  FileText,
+  Store,
+} from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,14 +30,22 @@ function pickFirst(v: string | string[] | undefined) {
   return Array.isArray(v) ? v[0] : v;
 }
 
+function formatCurrency(n: number): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+}
+
+function formatPercent(n: number): string {
+  return `${(n * 100).toFixed(1)}%`;
+}
+
 export default async function AdminPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
   const denied = pickFirst(sp.denied) === '1';
   const ok = pickFirst(sp.ok);
   const error = pickFirst(sp.error);
 
-  // Read env only in server component (never in "use client" or client bundle)
   const adminEmails = process.env.ADMIN_EMAILS ?? '';
+  const envLabel = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? '—';
 
   const supabase = await createServerSupabaseClient();
   const {
@@ -27,7 +54,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  const sessionStatus = session ? 'authenticated (cookie seen and valid)' : 'none';
 
   if (!user) {
     await requireAdminUser('/admin');
@@ -44,11 +70,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           </p>
           {user?.email ? (
             <div className="mt-6 p-4 rounded-xl border border-border bg-surface2 text-left space-y-2">
-              <p className="text-sm font-medium text-text">You’re signed in as:</p>
+              <p className="text-sm font-medium text-text">You're signed in as:</p>
               <p className="text-sm text-muted font-mono break-all">{user.email}</p>
               <p className="text-xs text-muted mt-2">
                 Admin access: add this email to <code className="bg-surface px-1 rounded">ADMIN_EMAILS</code> in Vercel (then redeploy),
-                or set your account’s <code className="bg-surface px-1 rounded">role</code> to <code className="bg-surface px-1 rounded">admin</code> in Supabase (Table Editor → profiles).
+                or set your account's <code className="bg-surface px-1 rounded">role</code> to <code className="bg-surface px-1 rounded">admin</code> in Supabase (Table Editor → profiles).
               </p>
               <p className="text-xs text-muted">
                 Current <code className="bg-surface px-1 rounded">ADMIN_EMAILS</code> on server: {adminEmails ? `set (${adminEmails.split(',').length} value(s))` : '(not set)'}
@@ -57,7 +83,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           ) : null}
           <pre className="mt-4 rounded-lg border border-border bg-surface2 p-3 text-xs text-muted overflow-x-auto">
             USER_EMAIL: {user?.email ?? '(no user)'}
-            {'\n'}Session: {sessionStatus}
+            {'\n'}Session: {session ? 'authenticated' : 'none'}
           </pre>
           <div className="mt-6 text-center">
             <Link
@@ -72,69 +98,254 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     );
   }
 
+  const [ccData, jobsWaiting] = await Promise.all([
+    getCommandCenterData(),
+    getJobsWaitingForAttention(),
+  ]);
+
+  const { revenue, jobs, pros, customers, alerts } = ccData;
+
+  // Build platform alerts from available data
+  const platformAlerts: PlatformAlertItem[] = [];
+  if (jobsWaiting.length > 0) {
+    platformAlerts.push({
+      id: 'jobs-waiting',
+      label: 'Jobs waiting > 15 min',
+      count: jobsWaiting.length,
+      severity: jobsWaiting.length >= 3 ? 'warning' : 'info',
+      href: '/admin/bookings',
+    });
+  }
+  if (revenue.refundsCount > 0) {
+    platformAlerts.push({
+      id: 'refunds',
+      label: 'Refunds',
+      count: revenue.refundsCount,
+      severity: revenue.refundsCount >= 3 ? 'warning' : 'info',
+    });
+  }
+  if (revenue.chargebacksCount > 0) {
+    platformAlerts.push({
+      id: 'chargebacks',
+      label: 'Chargebacks',
+      count: revenue.chargebacksCount,
+      severity: 'critical',
+    });
+  }
+  // TODO: Add flagged pros/users when content_moderation data available
+  if (alerts.some((a) => a.severity === 'critical')) {
+    platformAlerts.push({
+      id: 'system-alerts',
+      label: 'Critical system alerts',
+      count: alerts.filter((a) => a.severity === 'critical').length,
+      severity: 'critical',
+    });
+  }
+
+  // Demand vs supply: placeholder - TODO wire to category-level aggregation
+  const demandSupplyRows: DemandSupplyRow[] = [];
+
+  const toolGroups = [
+    {
+      title: 'Marketplace Controls',
+      tools: [
+        {
+          href: '/admin/command-center',
+          title: 'Command Center',
+          description: 'Revenue, jobs, pros, targets & alerts.',
+          icon: <LayoutDashboard className="h-4 w-4" />,
+        },
+        {
+          href: '/admin/density',
+          title: 'Marketplace density',
+          description: 'Pros per category per zip · Requests per category per zip.',
+          icon: <BarChart3 className="h-4 w-4" />,
+        },
+        {
+          href: '/admin/marketplace',
+          title: 'Marketplace',
+          description: 'Surge pricing, heatmap, job claims & controls.',
+          icon: <Store className="h-4 w-4" />,
+        },
+      ],
+    },
+    {
+      title: 'Users & Pros',
+      tools: [
+        {
+          href: '/admin/categories',
+          title: 'Categories (Phase 1)',
+          description: 'Toggle is_active_phase1 · Show/hide from customers & pros.',
+          icon: <FileText className="h-4 w-4" />,
+        },
+        {
+          href: '/admin/users',
+          title: 'Users',
+          description: 'Search profiles + pro availability.',
+          icon: <Users className="h-4 w-4" />,
+        },
+      ],
+    },
+    {
+      title: 'Bookings & Payments',
+      tools: [
+        {
+          href: '/admin/bookings',
+          title: 'Bookings',
+          description: 'Search bookings + manual status override.',
+          icon: <Calendar className="h-4 w-4" />,
+        },
+      ],
+    },
+    {
+      title: 'System & Logs',
+      tools: [
+        {
+          href: '/admin/errors',
+          title: 'Error logs',
+          description: 'Last 100 error events.',
+          icon: <AlertTriangle className="h-4 w-4" />,
+        },
+      ],
+    },
+  ];
+
   return (
     <Layout title="Flyers Up – Admin">
-      <div className="max-w-3xl mx-auto py-6 space-y-5">
+      <div className="mx-auto max-w-5xl space-y-6 pb-24">
+        {/* Section 1 — Page header */}
         <div>
           <h1 className="text-2xl font-semibold text-text">Admin</h1>
-          <p className="mt-1 text-sm text-muted">User + booking oversight and support tools.</p>
+          <p className="mt-1 text-sm text-muted">
+            Marketplace health, operations, and support tools.
+          </p>
         </div>
 
         {denied ? (
-          <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">
+          <div className="rounded-2xl border border-black/5 bg-red-50 p-4 text-text">
             Access denied.
           </div>
         ) : null}
         {error ? (
-          <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">{error}</div>
+          <div className="rounded-2xl border border-black/5 bg-red-50 p-4 text-text">{error}</div>
         ) : null}
         {ok ? (
-          <div className="p-4 bg-surface2 border border-[var(--surface-border)] border-l-[3px] border-l-accent rounded-lg text-text">
+          <div className="rounded-2xl border border-black/5 border-l-4 border-l-accent bg-white p-4 text-text shadow-sm">
             {ok}
           </div>
         ) : null}
 
-        <pre className="rounded-lg border border-border bg-surface2 p-3 text-xs text-muted overflow-x-auto">
-          USER_EMAIL: {user?.email ?? '(no user)'}
-          {'\n'}Session: {sessionStatus}
-          {'\n'}ADMIN_EMAILS: {adminEmails || '(not set)'}
-        </pre>
+        {/* Optional: Admin session banner */}
+        <AdminSessionBanner email={user?.email ?? null} environment={envLabel} />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Link href="/admin/command-center" className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors p-4">
-            <div className="text-sm font-semibold text-text">Command Center</div>
-            <div className="mt-1 text-sm text-muted">Revenue, jobs, pros, targets &amp; alerts.</div>
-          </Link>
-          <Link href="/admin/density" className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors p-4">
-            <div className="text-sm font-semibold text-text">Marketplace density</div>
-            <div className="mt-1 text-sm text-muted">Pros per category per zip · Requests per category per zip.</div>
-          </Link>
-          <Link href="/admin/categories" className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors p-4">
-            <div className="text-sm font-semibold text-text">Categories (Phase 1)</div>
-            <div className="mt-1 text-sm text-muted">Toggle is_active_phase1 · Show/hide from customers &amp; pros.</div>
-          </Link>
-          <Link href="/admin/users" className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors p-4">
-            <div className="text-sm font-semibold text-text">Users</div>
-            <div className="mt-1 text-sm text-muted">Search profiles + pro availability.</div>
-          </Link>
-          <Link href="/admin/bookings" className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors p-4">
-            <div className="text-sm font-semibold text-text">Bookings</div>
-            <div className="mt-1 text-sm text-muted">Search bookings + manual status override.</div>
-          </Link>
-          <Link href="/admin/errors" className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors p-4">
-            <div className="text-sm font-semibold text-text">Error logs</div>
-            <div className="mt-1 text-sm text-muted">Last 100 error events.</div>
-          </Link>
-          <Link href="/admin/marketplace" className="rounded-xl border border-border bg-surface hover:bg-surface2 transition-colors p-4">
-            <div className="text-sm font-semibold text-text">Marketplace</div>
-            <div className="mt-1 text-sm text-muted">Surge pricing, heatmap, job claims &amp; controls.</div>
-          </Link>
-        </div>
+        {/* Section 2 — Marketplace Health (KPI row) */}
+        <section>
+          <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">
+            Marketplace Health
+          </h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <KpiCard
+              label="Active Pros"
+              value={pros.activeLast30d}
+              helperText={pros.activeLast30d > 0 ? undefined : 'Waiting for live data'}
+              periodLabel="30d"
+            />
+            <KpiCard
+              label="Jobs Requested Today"
+              value={jobs.posted.today}
+              helperText={jobs.posted.today > 0 ? undefined : 'Waiting for live data'}
+              periodLabel="Today"
+            />
+            <KpiCard
+              label="Jobs Completed Today"
+              value={jobs.completed.today}
+              helperText={jobs.completed.today > 0 ? undefined : 'Waiting for live data'}
+              periodLabel="Today"
+            />
+            <KpiCard
+              label="Fill Rate"
+              value={jobs.fillRate24h != null ? formatPercent(jobs.fillRate24h) : '—'}
+              helperText={jobs.fillRate24h == null ? 'Waiting for live data' : undefined}
+            />
+            <KpiCard
+              label="Avg Response Time"
+              value={
+                jobs.medianTimeToMatchHours != null
+                  ? `${jobs.medianTimeToMatchHours.toFixed(1)} h`
+                  : '—'
+              }
+              helperText={jobs.medianTimeToMatchHours == null ? 'Waiting for live data' : undefined}
+            />
+            <KpiCard
+              label="Revenue Today"
+              value={formatCurrency(revenue.byPeriod.today.platformGross)}
+              helperText={revenue.byPeriod.today.platformGross > 0 ? undefined : 'Waiting for live data'}
+              periodLabel="Today"
+            />
+          </div>
+        </section>
+
+        {/* Section 3 — Alerts + Live Activity */}
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <AlertList alerts={platformAlerts} />
+          <ActivityFeed items={[]} />
+        </section>
+
+        {/* Section 4 — Demand vs Supply */}
+        <section>
+          <DemandSupplyTable rows={demandSupplyRows} />
+        </section>
+
+        {/* Section 5 — Jobs Needing Attention */}
+        <section>
+          <AttentionJobsCard jobs={jobsWaiting} />
+        </section>
+
+        {/* Section 6 — Pro / Customer / Revenue Panels */}
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatsPanel
+            title="Pro Performance"
+            stats={[
+              { label: 'Top pros (30d)', value: pros.activeLast30d },
+              { label: 'Available now', value: pros.availableNow },
+              { label: 'Jobs/pro avg', value: pros.jobsPerProAvg.toFixed(1) },
+            ]}
+          />
+          <StatsPanel
+            title="Customer Experience"
+            stats={[
+              { label: 'Repeat rate (30d)', value: customers.repeatRate30d != null ? formatPercent(customers.repeatRate30d) : '—' },
+              { label: 'Refund rate', value: revenue.refundsCount > 0 ? `${revenue.refundsCount} (${formatCurrency(revenue.refundsTotal)})` : '—' },
+              { label: 'Disputes', value: ccData.jobs.disputeRate != null ? formatPercent(ccData.jobs.disputeRate) : '—' },
+            ]}
+          />
+          <StatsPanel
+            title="Revenue Snapshot"
+            stats={[
+              { label: 'Today', value: formatCurrency(revenue.byPeriod.today.platformGross) },
+              { label: 'This week', value: formatCurrency(revenue.byPeriod.sevenDays.platformGross) },
+              { label: 'This month', value: formatCurrency(revenue.byPeriod.thirtyDays.platformGross) },
+              { label: 'Net MRR', value: formatCurrency(revenue.netRevenueMrr) },
+            ]}
+          />
+        </section>
+
+        {/* Section 7 — Operations Tools */}
+        <section>
+          <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">
+            Operations
+          </h2>
+          <AdminToolGrid groups={toolGroups} />
+        </section>
+
+        {/* Section 8 — AI Ops Suggestions */}
+        <section>
+          <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">
+            AI Ops Suggestions
+          </h2>
+          <AiOpsSuggestions suggestions={[]} />
+        </section>
       </div>
     </Layout>
   );
 }
-
-
-
-

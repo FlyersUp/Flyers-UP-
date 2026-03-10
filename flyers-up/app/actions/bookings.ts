@@ -9,7 +9,8 @@
 
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { recordServerErrorEvent } from '@/lib/serverError';
-import { createNotification, bookingDeepLinkPro } from '@/lib/notifications';
+import { createNotificationEvent } from '@/lib/notifications';
+import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 
 type BookingStatus = 'requested' | 'accepted' | 'declined' | 'completed' | 'cancelled';
 
@@ -177,20 +178,29 @@ export async function createBookingWithPayment(
       return { success: false, error: 'Failed to create request. Please try again.' };
     }
 
-    // 6) Notify Pro: New booking request (ONLY on explicit Request Booking - never on profile view/message open)
+    // 6) Notify Customer: in-app confirmation only (no push)
+    void createNotificationEvent({
+      userId: user.id,
+      type: NOTIFICATION_TYPES.BOOKING_REQUESTED,
+      bookingId: booking.id,
+      basePath: 'customer',
+    });
+
+    // 7) Notify Pro: New booking request
     const proUserId = (proRow as { user_id?: string }).user_id;
     if (proUserId) {
-      void createNotification({
-        user_id: proUserId,
-        type: 'booking_request',
-        title: 'New booking request',
-        body: `A customer requested a booking for ${date} at ${time}.`,
-        booking_id: booking.id,
-        deep_link: bookingDeepLinkPro(booking.id),
+      void createNotificationEvent({
+        userId: proUserId,
+        type: NOTIFICATION_TYPES.BOOKING_REQUESTED,
+        actorUserId: user.id,
+        bookingId: booking.id,
+        titleOverride: 'New booking request',
+        bodyOverride: `A customer requested a booking for ${date} at ${time}.`,
+        basePath: 'pro',
       });
     }
 
-    // 7) Snapshot selected add-ons (best-effort)
+    // 8) Snapshot selected add-ons (best-effort)
     if (selectedAddonIds.length > 0) {
       const { data: addonsData } = await supabase
         .from('service_addons')

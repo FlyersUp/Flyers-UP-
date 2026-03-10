@@ -17,7 +17,8 @@ import {
   markStripeEventProcessed,
 } from '@/lib/stripe/webhook-idempotency';
 import { refundPaymentIntent } from '@/lib/stripe/server';
-import { createNotification } from '@/lib/notify/create-notification';
+import { createNotificationEvent } from '@/lib/notifications';
+import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { isCancelled } from '@/lib/bookings/booking-status';
 import { applyDisputeHold } from '@/lib/payoutRisk';
 
@@ -206,20 +207,22 @@ export async function POST(req: NextRequest) {
                 type: 'LATE_PAYMENT_AUTO_REFUND',
                 data: { refund_id: refundId ?? null },
               });
-              await createNotification({
+              void createNotificationEvent({
                 userId: booking.customer_id,
+                type: NOTIFICATION_TYPES.PAYMENT_REFUNDED,
                 bookingId,
-                type: 'refund',
-                title: 'Payment refunded',
-                body: 'Payment arrived after cancellation — automatically refunded',
+                titleOverride: 'Payment refunded',
+                bodyOverride: 'Payment arrived after cancellation — automatically refunded',
+                basePath: 'customer',
               });
               if (proUserId) {
-                await createNotification({
+                void createNotificationEvent({
                   userId: proUserId,
+                  type: NOTIFICATION_TYPES.PAYMENT_REFUNDED,
                   bookingId,
-                  type: 'refund',
-                  title: 'Late payment refunded',
-                  body: 'Customer paid after cancellation — refunded',
+                  titleOverride: 'Late payment refunded',
+                  bodyOverride: 'Customer paid after cancellation — refunded',
+                  basePath: 'pro',
                 });
               }
               await markStripeEventProcessed(eventId, event.type);
@@ -242,20 +245,20 @@ export async function POST(req: NextRequest) {
                 type: 'DEPOSIT_PAID',
                 data: { payment_intent_id: paymentIntent.id },
               });
-              await createNotification({
+              void createNotificationEvent({
                 userId: booking.customer_id,
+                type: NOTIFICATION_TYPES.PAYMENT_DEPOSIT_PAID,
                 bookingId,
-                type: 'deposit_paid',
-                title: 'Deposit paid',
-                body: 'Your deposit has been received.',
+                basePath: 'customer',
               });
               if (proUserId) {
-                await createNotification({
+                void createNotificationEvent({
                   userId: proUserId,
+                  type: NOTIFICATION_TYPES.PAYMENT_DEPOSIT_PAID,
                   bookingId,
-                  type: 'deposit_paid',
-                  title: 'Deposit received',
-                  body: 'Customer paid the deposit.',
+                  titleOverride: 'Deposit received',
+                  bodyOverride: 'Customer paid the deposit.',
+                  basePath: 'pro',
                 });
               }
             } else if (paymentType === 'remaining' || paymentType === 'final') {
@@ -278,20 +281,22 @@ export async function POST(req: NextRequest) {
                 type: 'REMAINING_PAID',
                 data: { payment_intent_id: paymentIntent.id },
               });
-              await createNotification({
+              void createNotificationEvent({
                 userId: booking.customer_id,
+                type: NOTIFICATION_TYPES.PAYMENT_REMAINING_PAID,
                 bookingId,
-                type: 'remaining_paid',
-                title: isAwaitingRemaining ? 'Remaining paid' : 'Payment complete',
-                body: isAwaitingRemaining ? 'Remaining paid — confirm completion' : 'Remaining balance has been paid.',
+                titleOverride: isAwaitingRemaining ? 'Remaining paid' : 'Payment complete',
+                bodyOverride: isAwaitingRemaining ? 'Remaining paid — confirm completion' : 'Remaining balance has been paid.',
+                basePath: 'customer',
               });
               if (proUserId) {
-                await createNotification({
+                void createNotificationEvent({
                   userId: proUserId,
+                  type: NOTIFICATION_TYPES.PAYMENT_REMAINING_PAID,
                   bookingId,
-                  type: 'remaining_paid',
-                  title: 'Customer paid remaining',
-                  body: isAwaitingRemaining ? 'Customer paid remaining — awaiting confirmation' : 'Customer paid the remaining balance.',
+                  titleOverride: 'Customer paid remaining',
+                  bodyOverride: isAwaitingRemaining ? 'Customer paid remaining — awaiting confirmation' : 'Customer paid the remaining balance.',
+                  basePath: 'pro',
                 });
               }
 
@@ -444,12 +449,11 @@ export async function POST(req: NextRequest) {
             });
             const { data: b } = await admin.from('bookings').select('customer_id').eq('id', bookingId).maybeSingle();
             if (b?.customer_id) {
-              await createNotification({
+              void createNotificationEvent({
                 userId: b.customer_id,
+                type: NOTIFICATION_TYPES.PAYMENT_FAILED,
                 bookingId,
-                type: 'payment_failed',
-                title: 'Payment failed',
-                body: 'Your payment could not be processed. Please try again or use a different payment method.',
+                basePath: 'customer',
               });
             }
             await markStripeEventProcessed(eventId, event.type);

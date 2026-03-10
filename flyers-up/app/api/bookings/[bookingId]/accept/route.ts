@@ -7,7 +7,8 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
-import { createNotification, bookingDeepLinkCustomer } from '@/lib/notifications';
+import { createNotificationEvent } from '@/lib/notifications';
+import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -113,13 +114,12 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 });
   }
 
-  void createNotification({
-    user_id: booking.customer_id,
-    type: 'booking_accepted',
-    title: 'Booking accepted',
-    body: 'Your booking was accepted. Pay the deposit within 30 minutes to lock your time.',
-    booking_id: id,
-    deep_link: bookingDeepLinkCustomer(id),
+  void createNotificationEvent({
+    userId: booking.customer_id,
+    type: NOTIFICATION_TYPES.BOOKING_ACCEPTED,
+    actorUserId: user.id,
+    bookingId: id,
+    basePath: 'customer',
   });
 
   return NextResponse.json({

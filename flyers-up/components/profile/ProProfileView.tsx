@@ -14,6 +14,7 @@ import { ServicesList } from '@/components/profile/ServicesList';
 import { ReviewsList } from '@/components/profile/ReviewsList';
 import { AboutPanel } from '@/components/profile/AboutPanel';
 import { parseBusinessHoursModel, summarizeBusinessHours } from '@/lib/utils/businessHours';
+import { ReportUserBlockUser } from '@/components/moderation/ReportUserBlockUser';
 
 export function ProProfileView({
   profile,
@@ -58,7 +59,14 @@ export function ProProfileView({
   return (
     <div className="space-y-5 pb-28">
       {/* B) Header Trust Card */}
-      <section className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm relative">
+        <div className="absolute top-4 right-4">
+          <ReportUserBlockUser
+            targetUserId={profile.userId}
+            targetDisplayName={profile.businessName}
+            variant="menu"
+          />
+        </div>
         <ProHeaderCard profile={profile} />
         <div className="mt-4">
           <TrustBadgesRow trust={profile.trust} />

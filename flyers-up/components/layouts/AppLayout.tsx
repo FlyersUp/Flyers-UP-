@@ -5,7 +5,9 @@ import { Rail } from '@/components/ui/Rail';
 import { useAccentDensity } from '@/contexts/AccentDensityContext';
 import { NavAlertsProvider } from '@/contexts/NavAlertsContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
+import { OneSignalProvider } from '@/components/notifications/OneSignalProvider';
 import { NotificationToast } from '@/components/ui/NotificationToast';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import FloatingBottomNav from '@/components/navigation/FloatingBottomNav';
 
 interface AppLayoutProps {
@@ -26,8 +28,8 @@ function LayoutContent({
   mode: 'customer' | 'pro';
   accentDensity: 'default' | 'focus';
 }) {
-  // Rail + "PRO MODE" label: only for Pro. Customer gets clean layout with no vertical edge text.
   const showRailForMode = showRail && mode === 'pro';
+  const basePath = mode === 'pro' ? 'pro' : 'customer';
 
   return (
     <div
@@ -36,7 +38,10 @@ function LayoutContent({
       className="min-h-screen bg-bg text-text flex pb-[calc(8rem+env(safe-area-inset-bottom,0px))]"
     >
       {showRailForMode && <Rail className="h-screen" showLabel />}
-      <div className="flex-1">
+      <div className="flex-1 relative">
+        <div className="fixed top-4 right-4 z-30">
+          <NotificationBell basePath={basePath} />
+        </div>
         {children}
       </div>
       <FloatingBottomNav />
@@ -60,10 +65,12 @@ export function AppLayout({
   return (
     <NavAlertsProvider>
       <NotificationProvider>
-        <LayoutContent showRail={showRail} mode={mode} accentDensity={accentDensity}>
-          {children}
-        </LayoutContent>
-        <NotificationToast />
+        <OneSignalProvider>
+          <LayoutContent showRail={showRail} mode={mode} accentDensity={accentDensity}>
+            {children}
+          </LayoutContent>
+          <NotificationToast />
+        </OneSignalProvider>
       </NotificationProvider>
     </NavAlertsProvider>
   );

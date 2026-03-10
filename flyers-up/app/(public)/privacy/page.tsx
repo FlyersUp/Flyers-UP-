@@ -47,7 +47,7 @@ export default function PrivacyPage() {
             <li>Precise location is collected only with your explicit device permission</li>
           </ul>
 
-          <h2 className="text-lg font-semibold tracking-tight pt-2">2. Cookies &amp; Tracking Technologies</h2>
+          <h2 id="cookies" className="text-lg font-semibold tracking-tight pt-2">2. Cookies &amp; Tracking Technologies</h2>
           <p>
             We use cookies and local storage for authentication and session management, platform functionality, analytics, performance, and security. You may control cookies
             through device or browser settings; however, some features may not function properly if cookies are disabled.

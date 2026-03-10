@@ -7,7 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireCronSecret } from '@/lib/cron/auth';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
-import { createNotification } from '@/lib/notify/create-notification';
+import { createNotificationEvent } from '@/lib/notifications';
+import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { stripe } from '@/lib/stripe/server';
 import { STATUS } from '@/lib/bookings/booking-status';
 
@@ -59,21 +60,23 @@ export async function GET(req: NextRequest) {
     });
 
     // Notifications
-    await createNotification({
+    void createNotificationEvent({
       userId: b.customer_id,
+      type: NOTIFICATION_TYPES.BOOKING_CANCELED,
       bookingId: b.id,
-      type: 'booking_cancelled',
-      title: 'Deposit expired',
-      body: 'Deposit expired — booking cancelled',
+      titleOverride: 'Deposit expired',
+      bodyOverride: 'Deposit expired — booking cancelled',
+      basePath: 'customer',
     });
     const proUserId = (b.service_pros as { user_id?: string })?.user_id;
     if (proUserId) {
-      await createNotification({
+      void createNotificationEvent({
         userId: proUserId,
+        type: NOTIFICATION_TYPES.BOOKING_CANCELED,
         bookingId: b.id,
-        type: 'booking_cancelled',
-        title: 'Booking cancelled',
-        body: "Customer didn't pay deposit — booking cancelled",
+        titleOverride: 'Booking cancelled',
+        bodyOverride: "Customer didn't pay deposit — booking cancelled",
+        basePath: 'pro',
       });
     }
 

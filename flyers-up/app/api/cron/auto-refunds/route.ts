@@ -7,7 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireCronSecret } from '@/lib/cron/auth';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
-import { createNotification } from '@/lib/notify/create-notification';
+import { createNotificationEvent } from '@/lib/notifications';
+import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { refundPaymentIntent } from '@/lib/stripe/server';
 import { STATUS } from '@/lib/bookings/booking-status';
 
@@ -87,20 +88,20 @@ export async function GET(req: NextRequest) {
         data: { refund_id: refundId },
       });
 
-      await createNotification({
+      void createNotificationEvent({
         userId: b.customer_id,
+        type: NOTIFICATION_TYPES.PAYMENT_REFUNDED,
         bookingId: b.id,
-        type: 'refund',
-        title: 'Refund processed',
-        body: 'Your deposit has been refunded.',
+        basePath: 'customer',
       });
       if (proUserId) {
-        await createNotification({
+        void createNotificationEvent({
           userId: proUserId,
+          type: NOTIFICATION_TYPES.PAYMENT_REFUNDED,
           bookingId: b.id,
-          type: 'refund',
-          title: 'Refund processed',
-          body: 'Deposit refunded to customer.',
+          titleOverride: 'Refund processed',
+          bodyOverride: 'Deposit refunded to customer.',
+          basePath: 'pro',
         });
       }
       succeeded++;
@@ -116,12 +117,13 @@ export async function GET(req: NextRequest) {
         data: {},
       });
 
-      await createNotification({
+      void createNotificationEvent({
         userId: b.customer_id,
+        type: NOTIFICATION_TYPES.PAYMENT_FAILED,
         bookingId: b.id,
-        type: 'refund_failed',
-        title: 'Refund issue',
-        body: 'We could not process your refund automatically. Please contact support.',
+        titleOverride: 'Refund issue',
+        bodyOverride: 'We could not process your refund automatically. Please contact support.',
+        basePath: 'customer',
       });
       failed++;
     }

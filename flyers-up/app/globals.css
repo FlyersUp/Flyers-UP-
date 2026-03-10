@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 /* Tailwind v4: use .dark class instead of prefers-color-scheme so app theme toggle works */
-@custom-variant dark (&:where(.dark, .dark *));
+/* Exclude .public-light subtree so landing/signin/signup stay light regardless of dark mode */
+@custom-variant dark (&:where(.dark:not(.public-light), .dark *:not(.public-light *)));
 
 /* ============================================
    FLYERS UP DESIGN SYSTEM
@@ -271,6 +272,82 @@
   --stack-gap: 14px;
   --card-pad: 18px;
   --surface-border: rgba(255,255,255,0.08);
+}
+
+/* ============================================
+   PUBLIC LANDING / MARKETING – ALWAYS LIGHT
+   Overrides .dark so landing, signin, signup, auth, privacy stay branded.
+   ============================================ */
+.public-light {
+  /* Core surfaces */
+  --bg: 0 0% 96%;
+  --surface: 0 0% 100%;
+  --surface-2: 30 17% 96%;
+  --muted: 30 10% 83%;
+  /* Text */
+  --text: 0 0% 7%;
+  --text-2: 0 0% 23%;
+  --text-3: 0 0% 42%;
+  /* Borders */
+  --border: 30 10% 80%;
+  --border-2: 30 9% 74%;
+  --ring: rgba(17, 17, 17, 0.18);
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(17, 17, 17, 0.06);
+  --shadow-md: 0 6px 18px rgba(17, 17, 17, 0.08);
+  --shadow-1: 0 1px 2px rgba(17, 17, 17, 0.06);
+  --shadow-2: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-card: 0 1px 0 rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-card-hover: 0 1px 0 rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.05);
+  /* Hex for color-mix */
+  --surface-hex: #FFFFFF;
+  --customer-accent: #058954;
+  --pro-accent: #F59E0B;
+  --customer-border: color-mix(in srgb, var(--customer-accent) 65%, #000 35%);
+  --pro-border: color-mix(in srgb, var(--pro-accent) 65%, #000 35%);
+  --customer-tint: color-mix(in srgb, var(--customer-accent) 12%, var(--surface-hex) 88%);
+  --pro-tint: color-mix(in srgb, var(--pro-accent) 12%, var(--surface-hex) 88%);
+  /* Semantic */
+  --background: hsl(var(--bg));
+  --card: hsl(var(--surface));
+  --card-2: hsl(var(--surface-2));
+  --popover: hsl(var(--surface));
+  --muted-bg: hsl(var(--muted));
+  --foreground: hsl(var(--text));
+  --muted-foreground: hsl(var(--text-3));
+  --input: hsl(var(--surface));
+  --input-border: hsl(var(--border));
+  --focus-ring: var(--ring);
+  --btn: #111111;
+  --btn-foreground: #FFFFFF;
+  --outline: var(--border);
+  /* Role accents */
+  --role-accent: var(--customer-accent);
+  --role-border: var(--customer-border);
+  --role-tint: var(--customer-tint);
+  --role-accent-hsl: 158 93% 28%;
+  --accent: 158 93% 28%;
+  --accent-contrast: 0 0% 8%;
+  --accent-customer: 158 93% 28%;
+  --accent-pro: 38 92% 50%;
+  --text-muted: 0 0% 42%;
+  --ring: var(--role-accent);
+  --success: 158 55% 78%;
+  --warning: 30 100% 72%;
+  --info: 211 40% 72%;
+  --danger: 3 59% 70%;
+  /* Nav + surfaces */
+  --nav-bg: #F5F5F5;
+  --nav-solid: var(--nav-bg);
+  --surface-solid: #FFFFFF;
+  --surface-border: rgba(0,0,0,0.06);
+  --hairline: rgba(0,0,0,0.06);
+  --card-border: 1px solid rgba(0,0,0,0.05);
+  --badge-bg: rgba(0,0,0,0.03);
+  --badge-border: rgba(0,0,0,0.08);
+  /* Force light background and text on the container */
+  background: #F5F5F5;
+  color: #111111;
 }
 
 /* Typography - Montserrat (Primary) + Oswald (Labels) */

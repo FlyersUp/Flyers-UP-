@@ -616,3 +616,66 @@ async function getAlerts(
     return [];
   }
 }
+
+/** Jobs with status=requested waiting longer than threshold (for admin dashboard). */
+export interface JobWaiting {
+  id: string;
+  category: string;
+  areaZip: string;
+  waitingMinutes: number;
+  status: string;
+  href?: string;
+}
+
+const WAIT_THRESHOLD_MINUTES = 15;
+
+export async function getJobsWaitingForAttention(): Promise<JobWaiting[]> {
+  const admin = createAdminSupabaseClient();
+  const cutoff = new Date(Date.now() - WAIT_THRESHOLD_MINUTES * 60 * 1000);
+
+  try {
+    const { data: bookings } = await admin
+      .from('bookings')
+      .select('id, pro_id, created_at')
+      .eq('status', 'requested')
+      .lt('created_at', cutoff.toISOString())
+      .order('created_at', { ascending: true })
+      .limit(20);
+
+    if (!bookings?.length) return [];
+
+    const proIds = [...new Set((bookings ?? []).map((b) => String(b.pro_id)).filter(Boolean))];
+    const { data: pros } = await admin
+      .from('service_pros')
+      .select('id, category_id, service_area_zip')
+      .in('id', proIds);
+
+    const { data: categories } = await admin.from('service_categories').select('id, name');
+    const catById = new Map((categories ?? []).map((c: { id: string; name: string }) => [c.id, c]));
+    const proById = new Map(
+      (pros ?? []).map((p: { id: string; category_id?: string; service_area_zip?: string }) => [
+        p.id,
+        {
+          category: catById.get(p.category_id ?? '')?.name ?? '—',
+          zip: p.service_area_zip ?? '—',
+        },
+      ])
+    );
+
+    return (bookings ?? []).map((b) => {
+      const pro = proById.get(String(b.pro_id));
+      const created = b.created_at ? new Date(b.created_at) : new Date();
+      const waitingMinutes = Math.floor((Date.now() - created.getTime()) / 60000);
+      return {
+        id: String(b.id),
+        category: pro?.category ?? '—',
+        areaZip: pro?.zip ?? '—',
+        waitingMinutes,
+        status: 'requested',
+        href: `/admin/bookings?q=${encodeURIComponent(b.id)}`,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
