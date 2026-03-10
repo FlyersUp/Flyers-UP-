@@ -18,7 +18,7 @@ export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
-const ELIGIBLE_STATUSES = ['accepted', 'pro_en_route', 'in_progress', 'completed_pending_payment', 'awaiting_payment'];
+const ELIGIBLE_STATUSES = ['accepted', 'payment_required', 'awaiting_deposit_payment', 'pro_en_route', 'in_progress', 'completed_pending_payment', 'awaiting_payment'];
 
 export async function POST(
   req: Request,

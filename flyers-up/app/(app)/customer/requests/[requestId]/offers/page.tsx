@@ -79,7 +79,7 @@ export default function RequestOffersPage() {
     const load = async () => {
       const { data: reqData } = await supabase
         .from('job_requests')
-        .select('id, title, description, location, preferred_date, preferred_time')
+        .select('id, title, description, location, preferred_date, preferred_time, budget_min, budget_max')
         .eq('id', requestId)
         .single();
 
@@ -153,6 +153,7 @@ export default function RequestOffersPage() {
       const address = request.location;
       const notes = [request.title, request.description].filter(Boolean).join('\n\n');
 
+      const customerBudget = request.budget_max ?? request.budget_min ?? undefined;
       await createBooking({
         customerId: userId,
         proId,
@@ -160,6 +161,7 @@ export default function RequestOffersPage() {
         time: serviceTime,
         address,
         notes,
+        customerBudget,
       });
 
       await supabase

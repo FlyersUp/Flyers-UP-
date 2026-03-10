@@ -5,23 +5,29 @@ import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/messages/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { use, useEffect, useMemo, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
+import { BookingChatThread, type ChatItem } from '@/components/chat/BookingChatThread';
 
 /**
- * Pro Chat - Screen 18
- * Chat interface styled in Pro mode (orange)
+ * Pro Chat - messages + quote cards, send quote / accept budget
  */
 export default function ProChat({ params }: { params: Promise<{ bookingId: string }> }) {
   const { bookingId } = use(params);
   const [message, setMessage] = useState('');
-  const [rows, setRows] = useState<Array<{ id: string; sender_role: string; message: string; created_at: string }>>([]);
+  const [items, setItems] = useState<ChatItem[]>([]);
   const [status, setStatus] = useState<string>('requested');
+  const [priceStatus, setPriceStatus] = useState<string>('requested');
+  const [negotiationRound, setNegotiationRound] = useState(0);
+  const [customerBudget, setCustomerBudget] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [customerName, setCustomerName] = useState<string>('Customer');
   const [isInquiry, setIsInquiry] = useState(false);
+  const [quoteAmount, setQuoteAmount] = useState('');
+  const [quoteMessage, setQuoteMessage] = useState('');
+  const [quoteLoading, setQuoteLoading] = useState(false);
   const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
 
   useEffect(() => {
@@ -33,11 +39,14 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
     setLoading(true);
     const { data: booking } = await supabase
       .from('bookings')
-      .select('status, address, notes, customer_id')
+      .select('status, address, notes, customer_id, price_status, negotiation_round, customer_budget')
       .eq('id', bookingId)
       .maybeSingle();
     if (booking?.status) setStatus(booking.status);
-    const b = booking as { address?: string; notes?: string } | null;
+    const b = booking as { address?: string; notes?: string; price_status?: string; negotiation_round?: number; customer_budget?: number } | null;
+    setPriceStatus(b?.price_status ?? 'requested');
+    setNegotiationRound(b?.negotiation_round ?? 0);
+    setCustomerBudget(b?.customer_budget ?? null);
     setIsInquiry(
       b?.address === 'To be confirmed' &&
       (b?.notes?.includes('Contact request') ?? false)
@@ -56,24 +65,96 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
       setCustomerName(name?.trim() || 'Customer');
     }
 
-    const { data } = await supabase
-      .from('booking_messages')
-      .select('id, sender_role, message, created_at')
-      .eq('booking_id', bookingId)
-      .order('created_at', { ascending: true });
-    setRows((data as any[]) || []);
+    const [msgRes, quoteRes] = await Promise.all([
+      supabase
+        .from('booking_messages')
+        .select('id, sender_role, message, created_at')
+        .eq('booking_id', bookingId)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('booking_quotes')
+        .select('id, sender_role, amount, message, action, round, created_at')
+        .eq('booking_id', bookingId)
+        .order('created_at', { ascending: true }),
+    ]);
+
+    const messages = (msgRes.data ?? []).map((m) => ({
+      type: 'message' as const,
+      id: m.id,
+      sender_role: m.sender_role,
+      message: m.message,
+      created_at: m.created_at,
+    }));
+    const quotes = (quoteRes.data ?? []).map((q) => ({
+      type: 'quote' as const,
+      id: q.id,
+      sender_role: q.sender_role as 'customer' | 'pro',
+      amount: Number(q.amount),
+      message: q.message,
+      action: q.action,
+      round: q.round,
+      created_at: q.created_at,
+    }));
+    const merged: ChatItem[] = [...messages, ...quotes].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    setItems(merged);
     setLoading(false);
   }
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId]);
+
+  const handleSendQuote = async (amount: number, msg?: string) => {
+    const res = await fetch(`/api/bookings/${bookingId}/quote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, message: msg }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error ?? 'Failed to send quote');
+      return;
+    }
+    await load();
+  };
+
+  const handleAcceptBudget = async () => {
+    if (customerBudget == null || customerBudget <= 0) return;
+    setQuoteLoading(true);
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/accept-budget`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: customerBudget }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error ?? 'Failed to accept budget');
+        return;
+      }
+      await load();
+    } finally {
+      setQuoteLoading(false);
+    }
+  };
+
+  const canSendQuote =
+    !isInquiry &&
+    status === 'requested' &&
+    ['requested', 'countered'].includes(priceStatus) &&
+    negotiationRound < 2;
+  const canAcceptBudget =
+    !isInquiry &&
+    status === 'requested' &&
+    customerBudget != null &&
+    customerBudget > 0 &&
+    priceStatus === 'requested';
 
   return (
     <AppLayout mode="pro">
       <div className="flex flex-col h-screen max-w-4xl mx-auto">
-        {/* Header */}
         <div className="bg-surface border-b border-[var(--surface-border)] px-4 py-4 flex items-center gap-4">
           <Link href="/pro/messages" className="text-muted hover:text-text">
             ←
@@ -97,56 +178,91 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
           </div>
         )}
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 bg-[#F5F5F5]">
+        {/* Pro: Accept budget / Send quote */}
+        {!isInquiry && (canAcceptBudget || canSendQuote) && (
+          <div className="mx-4 mb-2 px-4 py-3 rounded-xl bg-[#FFC067]/20 border border-amber-200">
+            {canAcceptBudget && (
+              <div className="mb-2">
+                <p className="text-sm font-medium text-[#111]">Customer budget: ${customerBudget!.toFixed(2)}</p>
+                <Button
+                  size="sm"
+                  onClick={handleAcceptBudget}
+                  disabled={quoteLoading}
+                  className="mt-2 bg-[#FFC067] text-black"
+                >
+                  {quoteLoading ? '…' : 'Accept budget'}
+                </Button>
+              </div>
+            )}
+            {canSendQuote && (
+              <div className="flex flex-col gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Your quote ($)"
+                  value={quoteAmount}
+                  onChange={(e) => setQuoteAmount(e.target.value)}
+                  className="text-sm"
+                />
+                <Input
+                  placeholder="Optional message"
+                  value={quoteMessage}
+                  onChange={(e) => setQuoteMessage(e.target.value)}
+                  className="text-sm"
+                />
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    const amt = parseFloat(quoteAmount);
+                    if (!Number.isFinite(amt) || amt < 0) return;
+                    setQuoteLoading(true);
+                    try {
+                      await handleSendQuote(amt, quoteMessage.trim() || undefined);
+                      setQuoteAmount('');
+                      setQuoteMessage('');
+                    } finally {
+                      setQuoteLoading(false);
+                    }
+                  }}
+                  disabled={quoteLoading}
+                  className="bg-[#FFC067] text-black"
+                >
+                  {quoteLoading ? '…' : 'Send quote'}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-4 py-6 bg-[#F5F5F5]">
           {loading ? (
             <p className="text-sm text-muted/70">Loading…</p>
-          ) : rows.length === 0 ? (
+          ) : items.length === 0 ? (
             <EmptyState
               variant="thread"
               title="No messages yet"
-              subtitle="Send the first message to coordinate details."
+              subtitle="Send the first message or a quote to coordinate."
               ctaLabel="Message customer"
               ctaDisabled
               ctaTooltip="Use the input below to send a message"
             />
           ) : (
-            rows.map((msg) => {
-              const mine = msg.sender_role === 'pro';
-              const isCustomer = msg.sender_role === 'customer';
-              const bubbleStyle = isCustomer
-                ? 'bg-[#b2fba5] text-gray-900 border border-[#9ae88d]'
-                : 'bg-amber-100 text-gray-900 border border-amber-200';
-              const senderName = isCustomer ? customerName : 'You';
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}
-                >
-                  <span className="text-xs font-medium text-muted mb-0.5">{senderName}</span>
-                  <div
-                    className={`max-w-xs rounded-xl px-4 py-2 ${bubbleStyle}`}
-                  >
-                    <p>{msg.message}</p>
-                    <div className="text-xs text-gray-600 mt-1">
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+            <BookingChatThread
+              items={items}
+              isCustomer={false}
+              otherPartyName={customerName}
+              priceStatus={priceStatus}
+              negotiationRound={negotiationRound}
+              onSendQuote={handleSendQuote}
+              bookingId={bookingId}
+            />
           )}
         </div>
 
-        {/* Quick presets */}
         {!isInquiry && (
           <div className="px-4 py-2 flex flex-wrap gap-2 bg-surface border-t border-[var(--surface-border)]">
-            {[
-              'On my way',
-              'Running 10 minutes late',
-              'Need access instructions',
-              'Job finished',
-            ].map((preset) => (
+            {['On my way', 'Running 10 minutes late', 'Need access instructions', 'Job finished'].map((preset) => (
               <button
                 key={preset}
                 type="button"
@@ -169,7 +285,6 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
           </div>
         )}
 
-        {/* Input */}
         <div className="bg-surface border-t border-[var(--surface-border)] px-4 py-4">
           <div className="flex gap-2">
             <Input

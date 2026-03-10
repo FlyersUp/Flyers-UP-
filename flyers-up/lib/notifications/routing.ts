@@ -11,11 +11,16 @@ export function getTargetPathForNotification(
   basePath: 'customer' | 'pro',
   bookingId?: string | null,
   conversationId?: string | null,
-  reviewId?: string | null
+  reviewId?: string | null,
+  entityType?: string | null,
+  entityId?: string | null
 ): string {
   const bp = basePath ?? 'customer';
   const prefix = bp === 'pro' ? '/pro' : '/customer';
 
+  if (type === 'nearby_pro_alert' && entityType === 'pro' && entityId) {
+    return `${prefix}/pros/${entityId}?nearby=1`;
+  }
   if (bookingId) return `${prefix}/bookings/${bookingId}`;
   if (conversationId) return bp === 'pro' ? `/pro/chat/conversation/${conversationId}` : `${prefix}/chat/conversation/${conversationId}`;
   if (reviewId) return `${prefix}/reviews/${reviewId}`;

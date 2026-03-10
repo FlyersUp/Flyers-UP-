@@ -25,6 +25,7 @@ export const NOTIFICATION_TYPES = {
   REVIEW_RECEIVED: 'review.received',
   ACCOUNT_VERIFIED: 'account.verified',
   ACCOUNT_ACTION_REQUIRED: 'account.action_required',
+  NEARBY_PRO_ALERT: 'nearby_pro_alert',
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[keyof typeof NOTIFICATION_TYPES];
@@ -72,6 +73,7 @@ export const TYPE_TO_CATEGORY: Record<NotificationType, NotificationCategory> = 
   [NOTIFICATION_TYPES.REVIEW_RECEIVED]: NOTIFICATION_CATEGORIES.REVIEW,
   [NOTIFICATION_TYPES.ACCOUNT_VERIFIED]: NOTIFICATION_CATEGORIES.ACCOUNT,
   [NOTIFICATION_TYPES.ACCOUNT_ACTION_REQUIRED]: NOTIFICATION_CATEGORIES.ACCOUNT,
+  [NOTIFICATION_TYPES.NEARBY_PRO_ALERT]: NOTIFICATION_CATEGORIES.BOOKING,
 };
 
 /** MVP priority types (10) */
@@ -279,6 +281,15 @@ export const notificationPayloads: Record<NotificationType, Omit<NotificationPay
     category: NOTIFICATION_CATEGORIES.ACCOUNT,
     priority: NOTIFICATION_PRIORITIES.CRITICAL,
     pushEligible: true,
+  },
+  [NOTIFICATION_TYPES.NEARBY_PRO_ALERT]: {
+    type: NOTIFICATION_TYPES.NEARBY_PRO_ALERT,
+    title: 'Pro available nearby today',
+    body: 'A pro in your area is available today.',
+    category: NOTIFICATION_CATEGORIES.BOOKING,
+    priority: NOTIFICATION_PRIORITIES.IMPORTANT,
+    pushEligible: true,
+    customerOnly: true,
   },
 };
 

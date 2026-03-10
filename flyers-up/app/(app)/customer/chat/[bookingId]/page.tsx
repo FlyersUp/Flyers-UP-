@@ -9,16 +9,18 @@ import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
+import { BookingChatThread, type ChatItem } from '@/components/chat/BookingChatThread';
 
 /**
- * Customer Chat - Screen 10
- * Chat interface with pro, system messages
+ * Customer Chat - messages + quote cards for price negotiation
  */
 export default function CustomerChat({ params }: { params: Promise<{ bookingId: string }> }) {
   const { bookingId } = use(params);
   const [message, setMessage] = useState('');
-  const [rows, setRows] = useState<Array<{ id: string; sender_role: string; message: string; created_at: string }>>([]);
+  const [items, setItems] = useState<ChatItem[]>([]);
   const [status, setStatus] = useState<string>('requested');
+  const [priceStatus, setPriceStatus] = useState<string>('requested');
+  const [negotiationRound, setNegotiationRound] = useState(0);
   const [loading, setLoading] = useState(true);
   const [proName, setProName] = useState<string>('Pro');
   const [isInquiry, setIsInquiry] = useState(false);
@@ -33,11 +35,13 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
     setLoading(true);
     const { data: booking } = await supabase
       .from('bookings')
-      .select('status, address, notes, service_pros(display_name, user_id)')
+      .select('status, address, notes, price_status, negotiation_round, service_pros(display_name, user_id)')
       .eq('id', bookingId)
       .maybeSingle();
     if (booking?.status) setStatus(booking.status);
-    const b = booking as { address?: string; notes?: string } | null;
+    const b = booking as { address?: string; notes?: string; price_status?: string; negotiation_round?: number } | null;
+    setPriceStatus(b?.price_status ?? 'requested');
+    setNegotiationRound(b?.negotiation_round ?? 0);
     setIsInquiry(
       b?.address === 'To be confirmed' &&
       (b?.notes?.includes('Contact request') ?? false)
@@ -57,24 +61,76 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
     }
     setProName(name || 'Pro');
 
-    const { data } = await supabase
-      .from('booking_messages')
-      .select('id, sender_role, message, created_at')
-      .eq('booking_id', bookingId)
-      .order('created_at', { ascending: true });
-    setRows((data as any[]) || []);
+    const [msgRes, quoteRes] = await Promise.all([
+      supabase
+        .from('booking_messages')
+        .select('id, sender_role, message, created_at')
+        .eq('booking_id', bookingId)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('booking_quotes')
+        .select('id, sender_role, amount, message, action, round, created_at')
+        .eq('booking_id', bookingId)
+        .order('created_at', { ascending: true }),
+    ]);
+
+    const messages = (msgRes.data ?? []).map((m) => ({
+      type: 'message' as const,
+      id: m.id,
+      sender_role: m.sender_role,
+      message: m.message,
+      created_at: m.created_at,
+    }));
+    const quotes = (quoteRes.data ?? []).map((q) => ({
+      type: 'quote' as const,
+      id: q.id,
+      sender_role: q.sender_role as 'customer' | 'pro',
+      amount: Number(q.amount),
+      message: q.message,
+      action: q.action,
+      round: q.round,
+      created_at: q.created_at,
+    }));
+    const merged: ChatItem[] = [...messages, ...quotes].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    setItems(merged);
     setLoading(false);
   }
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId]);
+
+  const handleAcceptQuote = async () => {
+    const res = await fetch(`/api/bookings/${bookingId}/accept-quote`, { method: 'POST' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error ?? 'Failed to accept');
+      return;
+    }
+    await load();
+  };
+
+  const handleCounter = async (amount: number, msg?: string) => {
+    const res = await fetch(`/api/bookings/${bookingId}/counter`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, message: msg }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error ?? 'Failed to send counter');
+      return;
+    }
+    await load();
+  };
+
+  const showPaymentLink = priceStatus === 'accepted' && ['requested', 'awaiting_deposit_payment', 'payment_required'].includes(status);
 
   return (
     <AppLayout mode="customer">
       <div className="flex flex-col h-screen max-w-4xl mx-auto">
-        {/* Header */}
         <div className="bg-surface border-b border-[var(--surface-border)] px-4 py-4 flex items-center gap-4">
           <Link href="/customer/messages" className="text-muted hover:text-text">
             ←
@@ -98,11 +154,22 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
           </div>
         )}
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 bg-[#F5F5F5]">
+        {showPaymentLink && (
+          <div className="mx-4 mb-2 px-4 py-3 rounded-xl bg-[#B2FBA5]/30 border border-[#9ae88d]">
+            <p className="font-semibold text-[#111]">Price agreed!</p>
+            <Link
+              href={`/customer/bookings/${bookingId}/checkout`}
+              className="mt-2 inline-block px-4 py-2 rounded-lg bg-[#B2FBA5] text-black font-semibold text-sm hover:opacity-95"
+            >
+              Pay deposit
+            </Link>
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-4 py-6 bg-[#F5F5F5]">
           {loading ? (
             <p className="text-sm text-muted/70">Loading…</p>
-          ) : rows.length === 0 ? (
+          ) : items.length === 0 ? (
             <EmptyState
               variant="thread"
               title={isInquiry ? 'Ask a question' : 'No messages yet'}
@@ -116,34 +183,19 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
               ctaTooltip="Use the input below to send a message"
             />
           ) : (
-            rows.map((msg) => {
-              const mine = msg.sender_role === 'customer';
-              const isCustomer = msg.sender_role === 'customer';
-              const bubbleStyle = isCustomer
-                ? 'bg-[#b2fba5] text-gray-900 border border-[#9ae88d]'
-                : 'bg-amber-100 text-gray-900 border border-amber-200';
-              const senderName = isCustomer ? 'You' : proName;
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}
-                >
-                  <span className="text-xs font-medium text-muted mb-0.5">{senderName}</span>
-                  <div
-                    className={`max-w-xs rounded-xl px-4 py-2 ${bubbleStyle}`}
-                  >
-                    <p>{msg.message}</p>
-                    <div className="text-xs text-gray-600 mt-1">
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+            <BookingChatThread
+              items={items}
+              isCustomer={true}
+              otherPartyName={proName}
+              priceStatus={priceStatus}
+              negotiationRound={negotiationRound}
+              onAcceptQuote={handleAcceptQuote}
+              onCounter={handleCounter}
+              bookingId={bookingId}
+            />
           )}
         </div>
 
-        {/* Input */}
         <div className="bg-surface border-t border-[var(--surface-border)] px-4 py-4">
           <div className="flex gap-2">
             <Input

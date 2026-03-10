@@ -29,6 +29,7 @@ export const NOTIFICATION_EXPIRATION_DAYS: Partial<Record<NotificationType, numb
   [NOTIFICATION_TYPES.REVIEW_RECEIVED]: null,
   [NOTIFICATION_TYPES.ACCOUNT_VERIFIED]: null,
   [NOTIFICATION_TYPES.ACCOUNT_ACTION_REQUIRED]: null,
+  [NOTIFICATION_TYPES.NEARBY_PRO_ALERT]: 1,
 };
 
 /** Marketing category notifications expire in 7 days */

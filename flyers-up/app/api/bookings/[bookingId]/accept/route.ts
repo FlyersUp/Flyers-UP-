@@ -9,6 +9,7 @@ import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/sup
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
+import { notifyNearbyCustomers } from '@/lib/nearbyProAlert';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -48,7 +49,7 @@ export async function POST(
   const admin = createAdminSupabaseClient();
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, price')
+    .select('id, customer_id, pro_id, status, price, address, service_date, service_time')
     .eq('id', id)
     .single();
 
@@ -121,6 +122,29 @@ export async function POST(
     bookingId: id,
     basePath: 'customer',
   });
+
+  const { data: proProfile } = await admin
+    .from('service_pros')
+    .select('display_name, category_id')
+    .eq('id', booking.pro_id)
+    .maybeSingle();
+
+  const { data: category } = proProfile?.category_id
+    ? await admin.from('service_categories').select('slug, name').eq('id', proProfile.category_id).maybeSingle()
+    : { data: null };
+
+  if (proProfile && category && booking.address) {
+    void notifyNearbyCustomers({
+      bookingId: id,
+      proId: booking.pro_id,
+      proName: (proProfile.display_name as string) ?? 'Pro',
+      categorySlug: (category.slug as string) ?? '',
+      occupationName: (category.name as string) ?? 'Service',
+      address: booking.address,
+      serviceDate: booking.service_date,
+      nextSlot: (booking.service_time as string) ?? 'Today',
+    });
+  }
 
   return NextResponse.json({
     booking: {

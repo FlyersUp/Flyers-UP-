@@ -1,7 +1,7 @@
 /**
- * POST /api/bookings/[bookingId]/quote
- * Pro sends a quote (price + optional message).
- * Max 2 rounds. Creates quote card and updates booking price_status.
+ * POST /api/bookings/[bookingId]/counter
+ * Customer sends a counter offer.
+ * Max 2 rounds.
  */
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
@@ -39,62 +39,53 @@ export async function POST(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-  if (!profile || profile.role !== 'pro') {
+  if (!profile || profile.role !== 'customer') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
-
-  const { data: proRow } = await supabase
-    .from('service_pros')
-    .select('id')
-    .eq('user_id', user.id)
-    .maybeSingle();
-  if (!proRow?.id) return NextResponse.json({ error: 'Pro not found' }, { status: 403 });
-  const proId = String(proRow.id);
 
   const admin = createAdminSupabaseClient();
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, price_status, negotiation_round, price_proposed, price_counter')
+    .select('id, customer_id, pro_id, status, price_status, negotiation_round')
     .eq('id', id)
     .single();
 
   if (bErr || !booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
-  if (booking.pro_id !== proId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (booking.customer_id !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   if (booking.status !== 'requested' && (booking as { status?: string }).status !== 'pending') {
     return NextResponse.json({ error: 'Booking not in negotiation state' }, { status: 409 });
   }
 
   const priceStatus = (booking as { price_status?: string }).price_status ?? 'requested';
-  const round = ((booking as { negotiation_round?: number }).negotiation_round ?? 0) + 1;
+  if (priceStatus !== 'quoted') {
+    return NextResponse.json({ error: 'No quote to counter' }, { status: 409 });
+  }
 
+  const round = ((booking as { negotiation_round?: number }).negotiation_round ?? 0) + 1;
   if (round > MAX_ROUNDS) {
     return NextResponse.json({ error: 'Max negotiation rounds reached' }, { status: 409 });
-  }
-  if (priceStatus === 'accepted' || priceStatus === 'declined') {
-    return NextResponse.json({ error: 'Negotiation already concluded' }, { status: 409 });
   }
 
   const { error: quoteErr } = await admin.from('booking_quotes').insert({
     booking_id: id,
-    sender_role: 'pro',
+    sender_role: 'customer',
     sender_id: user.id,
     amount,
     message: body.message?.trim() || null,
     round,
-    action: 'proposed',
+    action: 'countered',
   });
 
   if (quoteErr) {
-    console.error('Quote insert failed', quoteErr);
-    return NextResponse.json({ error: 'Failed to save quote' }, { status: 500 });
+    console.error('Counter insert failed', quoteErr);
+    return NextResponse.json({ error: 'Failed to save counter' }, { status: 500 });
   }
 
   const { error: updateErr } = await admin
     .from('bookings')
     .update({
-      price_proposed: amount,
-      price_counter: null,
-      price_status: 'quoted',
+      price_counter: amount,
+      price_status: 'countered',
       negotiation_round: round,
     })
     .eq('id', id);
@@ -104,14 +95,22 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 });
   }
 
-  void createNotificationEvent({
-    userId: booking.customer_id,
-    type: NOTIFICATION_TYPES.BOOKING_ACCEPTED,
-    bookingId: id,
-    basePath: 'customer',
-    titleOverride: 'New quote received',
-    bodyOverride: `Pro sent a quote: $${amount.toFixed(2)}`,
-  });
+  const { data: proRow } = await admin
+    .from('service_pros')
+    .select('user_id')
+    .eq('id', booking.pro_id)
+    .maybeSingle();
+  const proUserId = (proRow as { user_id?: string } | null)?.user_id;
+  if (proUserId) {
+    void createNotificationEvent({
+      userId: proUserId,
+      type: NOTIFICATION_TYPES.BOOKING_ACCEPTED,
+      bookingId: id,
+      basePath: 'pro',
+      titleOverride: 'Counter offer received',
+      bodyOverride: `Customer countered: $${amount.toFixed(2)}`,
+    });
+  }
 
   return NextResponse.json({ ok: true, round }, { status: 200 });
 }

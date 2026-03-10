@@ -181,6 +181,8 @@ export interface CreateBookingPayload {
   address: string;
   notes: string;
   selectedAddonIds?: string[]; // Optional array of add-on IDs to snapshot
+  /** Optional budget from job request for price negotiation */
+  customerBudget?: number;
 }
 
 export interface EarningsSummary {
@@ -1496,18 +1498,22 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
     { status: 'requested', at: new Date().toISOString() }
   ];
 
+  const insertData: Record<string, unknown> = {
+    customer_id: authed.id,
+    pro_id: payload.proId,
+    service_date: payload.date,
+    service_time: payload.time,
+    address: payload.address,
+    notes: payload.notes || null,
+    status: 'requested',
+    status_history: initialStatusHistory,
+  };
+  if (payload.customerBudget != null && Number.isFinite(payload.customerBudget)) {
+    insertData.customer_budget = payload.customerBudget;
+  }
   const { data, error } = await supabase
     .from('bookings')
-    .insert({
-      customer_id: authed.id,
-      pro_id: payload.proId,
-      service_date: payload.date,
-      service_time: payload.time,
-      address: payload.address,
-      notes: payload.notes || null,
-      status: 'requested',
-      status_history: initialStatusHistory,
-    })
+    .insert(insertData)
     // Avoid embedded relationship reads here; service_pros can have multiple FKs to service_categories,
     // which makes PostgREST joins ambiguous and can cause the entire insert to fail with 400.
     .select('*')

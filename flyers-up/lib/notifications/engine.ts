@@ -98,7 +98,9 @@ export async function createInAppNotification(params: CreateNotificationParams):
     basePath,
     params.bookingId,
     params.conversationId,
-    params.reviewId
+    params.reviewId,
+    params.entityType,
+    params.entityId
   );
 
   const expiresAt = getExpiresAt(params.type as NotificationType, category);
@@ -199,7 +201,9 @@ export async function createNotificationEvent(params: CreateNotificationParams):
         params.basePath ?? 'customer',
         params.bookingId,
         params.conversationId,
-        params.reviewId
+        params.reviewId,
+        params.entityType,
+        params.entityId
       );
 
       queuePushForBatching({

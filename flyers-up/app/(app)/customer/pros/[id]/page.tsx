@@ -16,9 +16,17 @@ export const dynamic = 'force-dynamic';
 
 type RouteParams = { id?: string };
 
-export default async function CustomerProProfilePage({ params }: { params: Promise<RouteParams> }) {
+export default async function CustomerProProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<RouteParams>;
+  searchParams?: Promise<{ nearby?: string }>;
+}) {
   const resolved = await params;
   const proId = resolved?.id;
+  const sp = await searchParams;
+  const fromNearbyAlert = sp?.nearby === '1';
   if (!proId) return notFound();
 
   // Customer browsing requires sign-in.
@@ -51,6 +59,15 @@ export default async function CustomerProProfilePage({ params }: { params: Promi
     <AppLayout mode="customer">
       <div className="max-w-[720px] mx-auto px-4 py-6">
         <div className="theme-pro">
+          {fromNearbyAlert && (
+            <div className="mb-4 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3">
+              <p className="font-semibold text-text">Pro available nearby today</p>
+              <p className="text-sm text-muted mt-0.5">
+                {profile.businessName} · {profile.categoryName ?? 'Pro'}
+              </p>
+              <p className="text-xs text-muted mt-1">Book or message them now.</p>
+            </div>
+          )}
           <ProfileTopBar title={profile.businessName} />
           <div className="pt-4">
             <ProProfileView

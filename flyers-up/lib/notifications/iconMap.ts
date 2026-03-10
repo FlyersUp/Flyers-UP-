@@ -44,6 +44,7 @@ export const NOTIFICATION_ICON_MAP: Record<NotificationType, NotificationIconNam
   [NOTIFICATION_TYPES.REVIEW_RECEIVED]: 'star',
   [NOTIFICATION_TYPES.ACCOUNT_VERIFIED]: 'badge-check',
   [NOTIFICATION_TYPES.ACCOUNT_ACTION_REQUIRED]: 'alert-triangle',
+  [NOTIFICATION_TYPES.NEARBY_PRO_ALERT]: 'map-pin',
 };
 
 export function getIconForNotificationType(type: string): NotificationIconName {

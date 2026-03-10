@@ -2,7 +2,8 @@
 
 /**
  * Notification bell with dropdown.
- * Grouped by Today, Earlier this week, Earlier. Icons, unread badge, mark all read, settings.
+ * Uses NotificationsPanel, NotificationSection, NotificationItem, NotificationEmptyState, NotificationsFooterAction.
+ * Mobile-first, clean structure, no overlapping content.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -10,12 +11,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bell } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationContext';
-import { formatRelativeTime } from '@/lib/formatRelativeTime';
-import { NotificationIcon } from './NotificationIcon';
+import { NotificationItem as NotificationItemComponent } from './NotificationItem';
+import { NotificationSection } from './NotificationSection';
+import { NotificationEmptyState } from './NotificationEmptyState';
+import { NotificationsFooterAction } from './NotificationsFooterAction';
+import { NotificationsPanel } from './NotificationsPanel';
 import { trackNotificationOpened } from '@/lib/notifications/analytics';
 import { supabase } from '@/lib/supabaseClient';
 
-interface NotificationItem {
+interface NotificationItemData {
   id: string;
   title: string;
   body: string | null;
@@ -29,15 +33,24 @@ interface NotificationItem {
   type: string;
 }
 
-function groupByRecency(items: NotificationItem[]): { label: string; items: NotificationItem[] }[] {
+function getSectionConfig(basePath: 'customer' | 'pro') {
+  const prefix = basePath === 'pro' ? '/pro' : '/customer';
+  return [
+    { key: 'today' as const, title: "Today's Jobs", emptyTitle: 'No updates today', emptyDesc: 'New updates will show up here.', actionLabel: basePath === 'pro' ? 'Check requests' : 'View bookings', actionHref: basePath === 'pro' ? '/pro/jobs' : '/customer/bookings' },
+    { key: 'thisWeek' as const, title: 'Requests Near You', emptyTitle: 'No requests this week', emptyDesc: 'New requests will appear here.', actionLabel: basePath === 'pro' ? 'View demand board' : 'View requests', actionHref: basePath === 'pro' ? '/pro/jobs' : '/customer/requests' },
+    { key: 'earlier' as const, title: 'Earlier', emptyTitle: 'Nothing earlier', emptyDesc: 'Older notifications are archived.', actionLabel: 'View all', actionHref: `${prefix}/notifications` },
+  ];
+}
+
+function groupByRecency(items: NotificationItemData[]): Record<string, NotificationItemData[]> {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const weekStart = new Date(todayStart);
   weekStart.setDate(weekStart.getDate() - 7);
 
-  const today: NotificationItem[] = [];
-  const thisWeek: NotificationItem[] = [];
-  const earlier: NotificationItem[] = [];
+  const today: NotificationItemData[] = [];
+  const thisWeek: NotificationItemData[] = [];
+  const earlier: NotificationItemData[] = [];
 
   for (const item of items) {
     const d = new Date(item.created_at);
@@ -46,11 +59,7 @@ function groupByRecency(items: NotificationItem[]): { label: string; items: Noti
     else earlier.push(item);
   }
 
-  const groups: { label: string; items: NotificationItem[] }[] = [];
-  if (today.length) groups.push({ label: 'Today', items: today });
-  if (thisWeek.length) groups.push({ label: 'Earlier this week', items: thisWeek });
-  if (earlier.length) groups.push({ label: 'Earlier', items: earlier });
-  return groups;
+  return { today, thisWeek, earlier };
 }
 
 interface NotificationBellProps {
@@ -62,7 +71,7 @@ export function NotificationBell({ basePath, className = '' }: NotificationBellP
   const router = useRouter();
   const { unreadCount, refreshUnreadCount, markAsRead } = useNotifications();
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<NotificationItem[]>([]);
+  const [items, setItems] = useState<NotificationItemData[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchItems = useCallback(async () => {
@@ -88,7 +97,7 @@ export function NotificationBell({ basePath, className = '' }: NotificationBellP
     setItems((prev) => prev.map((i) => ({ ...i, read: true, read_at: new Date().toISOString() })));
   };
 
-  const handleClick = async (item: NotificationItem) => {
+  const handleClick = async (item: NotificationItemData) => {
     const isUnread = !item.read_at && !item.read;
     if (isUnread) {
       await fetch(`/api/notifications/${item.id}/read`, { method: 'POST' });
@@ -115,6 +124,11 @@ export function NotificationBell({ basePath, className = '' }: NotificationBellP
   };
 
   const settingsHref = basePath === 'pro' ? '/pro/settings/notifications' : '/customer/settings/notifications';
+  const allNotificationsHref = basePath === 'pro' ? '/pro/notifications' : '/customer/notifications';
+  const requestsHref = basePath === 'pro' ? '/pro/jobs' : '/customer/requests';
+
+  const groups = groupByRecency(items);
+  const sectionConfig = getSectionConfig(basePath);
 
   return (
     <div className={`relative ${className}`}>
@@ -135,84 +149,78 @@ export function NotificationBell({ basePath, className = '' }: NotificationBellP
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />
-          <div className="absolute right-0 top-full mt-2 z-50 w-[min(360px,calc(100vw-32px))] rounded-2xl border border-border bg-surface shadow-xl overflow-hidden">
-            <div className="p-3 border-b border-border flex items-center justify-between">
-              <span className="font-semibold text-text">Notifications</span>
-              <div className="flex gap-2">
-                {items.some((i) => !i.read_at && !i.read) && (
-                  <button
-                    type="button"
-                    onClick={handleMarkAllRead}
-                    className="text-xs font-medium text-accent hover:underline"
-                  >
-                    Mark all read
-                  </button>
-                )}
-                <Link href={settingsHref} onClick={() => setOpen(false)} className="text-xs font-medium text-muted hover:text-text">
-                  Settings
-                </Link>
-              </div>
-            </div>
-
-            <div className="max-h-[min(400px,70vh)] overflow-y-auto">
-              {loading ? (
-                <div className="p-6 text-center text-muted text-sm">Loading…</div>
-              ) : items.length === 0 ? (
-                <div className="p-8 text-center">
-                  <p className="text-muted text-sm">No notifications yet</p>
-                  <p className="text-muted/70 text-xs mt-1">When you get updates, they&apos;ll show up here.</p>
-                </div>
-              ) : (
-                groupByRecency(items).map((group) => (
-                  <div key={group.label} className="py-2">
-                    <div className="px-4 py-1 text-xs font-medium text-muted uppercase tracking-wide">
-                      {group.label}
-                    </div>
-                    {group.items.map((item) => {
-                      const isUnread = !item.read_at && !item.read;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => handleClick(item)}
-                          className={`w-full px-4 py-3 text-left hover:bg-surface2/80 transition-colors flex gap-3 items-start ${
-                            isUnread ? 'bg-surface2/50' : ''
-                          }`}
-                        >
-                          <div className="mt-0.5 shrink-0 text-muted">
-                            <NotificationIcon type={item.type} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className={`text-sm ${isUnread ? 'font-semibold' : 'font-normal'} text-text`}>
-                              {item.title}
-                            </div>
-                            {item.body && (
-                              <div className="text-xs text-muted line-clamp-2 mt-0.5">{item.body}</div>
-                            )}
-                            <div className="text-xs text-muted mt-1">
-                              {formatRelativeTime(item.created_at)}
-                            </div>
-                          </div>
-                          {isUnread && (
-                            <span className="mt-2 w-2 h-2 rounded-full bg-accent shrink-0" aria-hidden />
-                          )}
-                        </button>
-                      );
-                    })}
+          <div className="absolute right-0 top-full mt-2 z-50 w-[min(360px,calc(100vw-32px))]">
+            <NotificationsPanel
+              header={
+                <div className="px-4 py-3 flex items-center justify-between gap-4">
+                  <span className="text-sm font-semibold text-text">Notifications</span>
+                  <div className="flex items-center gap-3">
+                    {items.some((i) => !i.read_at && !i.read) && (
+                      <button
+                        type="button"
+                        onClick={handleMarkAllRead}
+                        className="text-xs font-medium text-accent hover:underline"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                    <Link href={settingsHref} onClick={() => setOpen(false)} className="text-xs font-medium text-muted hover:text-text">
+                      Settings
+                    </Link>
                   </div>
-                ))
+                </div>
+              }
+              footer={
+                <NotificationsFooterAction
+                  href={allNotificationsHref}
+                  label="View all notifications"
+                  onClick={() => setOpen(false)}
+                />
+              }
+            >
+              {loading ? (
+                <div className="px-4 py-8 text-center text-sm text-muted">Loading…</div>
+              ) : items.length === 0 ? (
+                <NotificationSection title="Today's Jobs">
+                  <NotificationEmptyState
+                    title="No notifications yet"
+                    description="When you get updates, they'll show up here."
+                    actionLabel="Check requests"
+                    actionHref={requestsHref}
+                    onActionClick={() => setOpen(false)}
+                  />
+                </NotificationSection>
+              ) : (
+                <div className="divide-y divide-border">
+                  {sectionConfig.map(({ key, title, emptyTitle, emptyDesc, actionLabel, actionHref }) => {
+                    const sectionItems = groups[key] ?? [];
+                    return (
+                      <NotificationSection key={key} title={title}>
+                        {sectionItems.length > 0 ? (
+                          <div className="divide-y divide-border/50">
+                            {sectionItems.map((item) => (
+                              <NotificationItemComponent
+                                key={item.id}
+                                item={item}
+                                onClick={() => handleClick(item)}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <NotificationEmptyState
+                            title={emptyTitle}
+                            description={emptyDesc}
+                            actionLabel={actionLabel}
+                            actionHref={actionHref}
+                            onActionClick={() => setOpen(false)}
+                          />
+                        )}
+                      </NotificationSection>
+                    );
+                  })}
+                </div>
               )}
-            </div>
-
-            <div className="p-2 border-t border-border">
-              <Link
-                href={basePath === 'pro' ? '/pro/notifications' : '/customer/notifications'}
-                onClick={() => setOpen(false)}
-                className="block text-center text-sm font-medium text-accent hover:underline py-2"
-              >
-                View all notifications
-              </Link>
-            </div>
+            </NotificationsPanel>
           </div>
         </>
       )}
