@@ -5,7 +5,7 @@ import { Rail } from '@/components/ui/Rail';
 import { useAccentDensity } from '@/contexts/AccentDensityContext';
 import { NavAlertsProvider } from '@/contexts/NavAlertsContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
-import { OneSignalProvider } from '@/components/notifications/OneSignalProvider';
+import OneSignalInit from '@/components/notifications/OneSignalInit';
 import { NotificationToast } from '@/components/ui/NotificationToast';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import FloatingBottomNav from '@/components/navigation/FloatingBottomNav';
@@ -65,12 +65,13 @@ export function AppLayout({
   return (
     <NavAlertsProvider>
       <NotificationProvider>
-        <OneSignalProvider>
+        <>
+          <OneSignalInit />
           <LayoutContent showRail={showRail} mode={mode} accentDensity={accentDensity}>
             {children}
           </LayoutContent>
           <NotificationToast />
-        </OneSignalProvider>
+        </>
       </NotificationProvider>
     </NavAlertsProvider>
   );

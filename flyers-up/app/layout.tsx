@@ -45,16 +45,15 @@ export default function RootLayout({
     <html lang="en" className="bg-bg text-text" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-        {process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID ? (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: 'window.OneSignalDeferred = window.OneSignalDeferred || [];',
-            }}
-          />
-        ) : null}
-        {process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID ? (
-          <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer />
-        ) : null}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: 'window.OneSignalDeferred = window.OneSignalDeferred || [];',
+          }}
+        />
+        <script
+          src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
+          defer
+        />
       </head>
       <body className="min-h-screen bg-bg text-text antialiased" suppressHydrationWarning>
         <ThemeProviderWrapper>
