@@ -13,32 +13,33 @@ export default function OneSignalInit() {
   useEffect(() => {
     const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
 
-    console.log("[OneSignal] mounted");
-    console.log("[OneSignal] appId exists:", !!appId);
+    console.log("[OneSignal Debug] component mounted");
+    console.log("[OneSignal Debug] appId exists:", !!appId);
 
     if (!appId) {
-      console.error("[OneSignal] Missing NEXT_PUBLIC_ONESIGNAL_APP_ID");
+      console.error("[OneSignal Debug] Missing NEXT_PUBLIC_ONESIGNAL_APP_ID");
       return;
     }
 
     window.OneSignalDeferred = window.OneSignalDeferred || [];
 
-    window.OneSignalDeferred.push(async function (OneSignal) {
+    window.OneSignalDeferred.push(async function (OneSignal: any) {
       try {
-        console.log("[OneSignal] init starting");
+        console.log("[OneSignal Debug] init starting");
 
         await OneSignal.init({
           appId,
-          serviceWorkerPath: "/sw.js",
-          serviceWorkerParam: { scope: "/" },
+          serviceWorkerPath: "/push/onesignal/OneSignalSDKWorker.js",
+          serviceWorkerUpdaterPath: "/push/onesignal/OneSignalSDKUpdaterWorker.js",
+          serviceWorkerParam: { scope: "/push/onesignal/" },
           allowLocalhostAsSecureOrigin: true,
         });
 
-        console.log("[OneSignal] init done");
+        console.log("[OneSignal Debug] init succeeded");
 
         const regs = await navigator.serviceWorker.getRegistrations();
         console.log(
-          "[OneSignal] registrations:",
+          "[OneSignal Debug] service worker registrations:",
           regs.map((r) => ({
             scope: r.scope,
             scriptURL:
@@ -48,20 +49,17 @@ export default function OneSignalInit() {
           }))
         );
 
+        console.log("[OneSignal Debug] Notification.permission:", Notification.permission);
         console.log(
-          "[OneSignal] permission:",
-          Notification.permission
-        );
-        console.log(
-          "[OneSignal] optedIn:",
+          "[OneSignal Debug] OneSignal.User.PushSubscription.optedIn:",
           await OneSignal.User.PushSubscription.optedIn
         );
         console.log(
-          "[OneSignal] subscription id:",
+          "[OneSignal Debug] OneSignal.User.PushSubscription.id:",
           OneSignal.User.PushSubscription.id
         );
       } catch (err) {
-        console.error("[OneSignal] init failed", err);
+        console.error("[OneSignal Debug] init failed", err);
       }
     });
   }, []);

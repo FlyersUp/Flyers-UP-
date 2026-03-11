@@ -53,6 +53,7 @@ These events already create in-app notifications. To deliver them as **push noti
 1. Sign up for OneSignal (or Pusher Beams, etc.).
 2. Add their SDK. They handle subscription, delivery, and iOS/Android.
 3. When creating a notification, call their API with user/segment and payload.
+4. **Env**: Add `NEXT_PUBLIC_ONESIGNAL_APP_ID` to `.env.local` (from OneSignal Dashboard → Settings → Keys & IDs).
 
 ## Recommended Next Steps
 

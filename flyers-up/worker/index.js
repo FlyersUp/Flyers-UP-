@@ -1,5 +1,4 @@
-/* OneSignal integration */
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+/* OneSignal removed for isolation - using /push/onesignal/ dedicated workers */
 
 /* Listeners at top level */
 self.addEventListener("install", (event) => {

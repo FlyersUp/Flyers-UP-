@@ -1,6 +1,7 @@
 const withPWA = require("next-pwa")({
   dest: "public",
-  register: true,
+  // TEMPORARY: Disabled for OneSignal push isolation debugging. Re-enable after push works.
+  register: false,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
   buildExcludes: [/middleware-manifest\.json$/],
