@@ -193,24 +193,14 @@ export default function DebugPushPage() {
         /push/onesignal/OneSignalSDKWorker.js
       </p>
 
-      {!process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID && (
+      {serverSeesAppId === false && (
         <div className="mt-4 rounded border-2 border-amber-500 bg-amber-50 p-4">
           <p className="font-semibold text-amber-800">
-            Client sees: Missing NEXT_PUBLIC_ONESIGNAL_APP_ID
+            Missing NEXT_PUBLIC_ONESIGNAL_APP_ID
           </p>
           <p className="mt-1 text-sm text-amber-700">
-            Server sees it: {serverSeesAppId === null ? "checking…" : serverSeesAppId ? "yes" : "no"}
+            .env.local must be in <code className="rounded bg-amber-100 px-1">flyers-up/</code> (next to next.config.js). Restart dev server after adding.
           </p>
-          {serverSeesAppId === false && (
-            <p className="mt-2 text-sm text-amber-700">
-              .env.local must be in <code className="rounded bg-amber-100 px-1">flyers-up/</code> (next to next.config.js). Restart dev server after adding.
-            </p>
-          )}
-          {serverSeesAppId === true && (
-            <p className="mt-2 text-sm text-amber-700">
-              Server has it but client does not → restart dev server so webpack re-inlines it.
-            </p>
-          )}
           <p className="mt-2 text-sm text-amber-700">
             Add to <code className="rounded bg-amber-100 px-1">.env.local</code>:{" "}
             <code>NEXT_PUBLIC_ONESIGNAL_APP_ID=your-app-id</code>

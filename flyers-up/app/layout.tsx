@@ -47,7 +47,11 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <script
           dangerouslySetInnerHTML={{
-            __html: 'window.OneSignalDeferred = window.OneSignalDeferred || [];',
+            __html:
+              'window.OneSignalDeferred = window.OneSignalDeferred || [];' +
+              (process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID
+                ? `window.__ONESIGNAL_APP_ID__ = ${JSON.stringify(process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID)};`
+                : ""),
           }}
         />
         <script

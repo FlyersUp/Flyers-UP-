@@ -6,18 +6,23 @@ declare global {
   interface Window {
     OneSignalDeferred?: Array<(OneSignal: any) => void>;
     OneSignal?: any;
+    __ONESIGNAL_APP_ID__?: string;
   }
 }
 
 export default function OneSignalInit() {
   useEffect(() => {
-    const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
+    // Server injects via layout script (avoids webpack env inlining issues)
+    const appId =
+      typeof window !== "undefined"
+        ? (window.__ONESIGNAL_APP_ID__ ?? process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID)
+        : process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
 
     console.log("[OneSignal Debug] component mounted");
     console.log("[OneSignal Debug] appId exists:", !!appId);
 
     if (!appId) {
-      console.error("[OneSignal Debug] Missing NEXT_PUBLIC_ONESIGNAL_APP_ID");
+      console.warn("[OneSignal Debug] Missing NEXT_PUBLIC_ONESIGNAL_APP_ID");
       return;
     }
 
