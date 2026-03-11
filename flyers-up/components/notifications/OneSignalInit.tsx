@@ -61,10 +61,12 @@ export function OneSignalInit({ userId }: { userId: string | null }) {
     if (typeof window === 'undefined' || !ONESIGNAL_APP_ID || !userId) return;
 
     window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async (OneSignal: any) => {
+    window.OneSignalDeferred.push(async function (OneSignal: any) {
       try {
         await OneSignal.init({
           appId: ONESIGNAL_APP_ID,
+          serviceWorkerPath: "push/onesignal/OneSignalSDKWorker.js",
+          serviceWorkerParam: { scope: "/push/onesignal/" },
           allowLocalhostAsSecureOrigin: true,
         });
         await OneSignal.login(userId);
