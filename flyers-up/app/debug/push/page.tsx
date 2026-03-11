@@ -29,6 +29,15 @@ export default function DebugPushPage() {
     error: null,
   });
 
+  const [serverSeesAppId, setServerSeesAppId] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/debug/onesignal-env")
+      .then((r) => r.json())
+      .then((d) => setServerSeesAppId(d.hasAppId))
+      .catch(() => setServerSeesAppId(null));
+  }, []);
+
   const refreshState = async () => {
     try {
       const regs = await navigator.serviceWorker.getRegistrations();
@@ -187,16 +196,24 @@ export default function DebugPushPage() {
       {!process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID && (
         <div className="mt-4 rounded border-2 border-amber-500 bg-amber-50 p-4">
           <p className="font-semibold text-amber-800">
-            Missing NEXT_PUBLIC_ONESIGNAL_APP_ID
+            Client sees: Missing NEXT_PUBLIC_ONESIGNAL_APP_ID
           </p>
           <p className="mt-1 text-sm text-amber-700">
-            Add to <code className="rounded bg-amber-100 px-1">.env.local</code> in flyers-up/:
+            Server sees it: {serverSeesAppId === null ? "checking…" : serverSeesAppId ? "yes" : "no"}
           </p>
-          <pre className="mt-2 overflow-x-auto rounded bg-amber-100 p-2 text-sm">
-            NEXT_PUBLIC_ONESIGNAL_APP_ID=your-app-id-from-onesignal-dashboard
-          </pre>
+          {serverSeesAppId === false && (
+            <p className="mt-2 text-sm text-amber-700">
+              .env.local must be in <code className="rounded bg-amber-100 px-1">flyers-up/</code> (next to next.config.js). Restart dev server after adding.
+            </p>
+          )}
+          {serverSeesAppId === true && (
+            <p className="mt-2 text-sm text-amber-700">
+              Server has it but client does not → restart dev server so webpack re-inlines it.
+            </p>
+          )}
           <p className="mt-2 text-sm text-amber-700">
-            Get it from OneSignal Dashboard → Settings → Keys &amp; IDs. Restart dev server after adding.
+            Add to <code className="rounded bg-amber-100 px-1">.env.local</code>:{" "}
+            <code>NEXT_PUBLIC_ONESIGNAL_APP_ID=your-app-id</code>
           </p>
         </div>
       )}
