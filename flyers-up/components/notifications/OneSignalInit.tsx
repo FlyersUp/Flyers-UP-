@@ -29,12 +29,6 @@ export default function OneSignalInit() {
 
         await OneSignal.init({
           appId,
-          serviceWorkerPath: "/push/onesignal/OneSignalSDKWorker.js",
-          serviceWorkerUpdaterPath:
-            "/push/onesignal/OneSignalSDKUpdaterWorker.js",
-          serviceWorkerParam: {
-            scope: "/push/onesignal/",
-          },
           allowLocalhostAsSecureOrigin: true,
         });
 
