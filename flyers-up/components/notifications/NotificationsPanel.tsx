@@ -24,17 +24,20 @@ export function NotificationsPanel({
 }: NotificationsPanelProps) {
   return (
     <div
-      className="flex flex-col rounded-2xl border border-border bg-surface shadow-xl overflow-hidden w-full"
-      style={{ maxHeight: 'min(500px, 70vh)' }}
+      className="flex flex-col rounded-2xl border border-border shadow-xl overflow-hidden w-full"
+      style={{
+        maxHeight: 'min(500px, 70vh)',
+        backgroundColor: 'var(--surface-solid)',
+      }}
     >
-      <div className="shrink-0 border-b border-border">{header}</div>
+      <div className="shrink-0 border-b border-border bg-[var(--surface-solid)]">{header}</div>
       <div
-        className="overflow-y-auto overscroll-contain flex-1 min-h-0"
+        className="overflow-y-auto overscroll-contain flex-1 min-h-0 bg-[var(--surface-solid)]"
         style={{ maxHeight }}
       >
         {children}
       </div>
-      <div className="shrink-0 border-t border-border">{footer}</div>
+      <div className="shrink-0 border-t border-border bg-[var(--surface-solid)]">{footer}</div>
     </div>
   );
 }
