@@ -183,6 +183,16 @@ export interface CreateBookingPayload {
   selectedAddonIds?: string[]; // Optional array of add-on IDs to snapshot
   /** Optional budget from job request for price negotiation */
   customerBudget?: number;
+  /** Pro offer price (from job request flow) */
+  price?: number;
+  /** Job request ID (scope lock flow - deposit requires scope confirmation) */
+  jobRequestId?: string;
+  /** Selected job offer ID */
+  jobOfferId?: string;
+  /** Snapshot of job details at booking creation */
+  jobDetailsSnapshot?: Record<string, unknown>;
+  /** Snapshot of photos at booking creation */
+  photosSnapshot?: Array<{ category: string; url: string }>;
 }
 
 export interface EarningsSummary {
@@ -1510,6 +1520,21 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
   };
   if (payload.customerBudget != null && Number.isFinite(payload.customerBudget)) {
     insertData.customer_budget = payload.customerBudget;
+  }
+  if (payload.price != null && Number.isFinite(payload.price)) {
+    insertData.price = payload.price;
+  }
+  if (payload.jobRequestId) {
+    insertData.job_request_id = payload.jobRequestId;
+  }
+  if (payload.jobOfferId) {
+    insertData.job_offer_id = payload.jobOfferId;
+  }
+  if (payload.jobDetailsSnapshot) {
+    insertData.job_details_snapshot = payload.jobDetailsSnapshot;
+  }
+  if (payload.photosSnapshot && payload.photosSnapshot.length > 0) {
+    insertData.photos_snapshot = payload.photosSnapshot;
   }
   const { data, error } = await supabase
     .from('bookings')

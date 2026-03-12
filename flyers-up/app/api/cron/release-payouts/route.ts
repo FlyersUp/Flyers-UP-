@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
   const admin = createSupabaseAdmin();
 
   // Completed only; paid_deposit + paid_remaining; no payout yet; refund not pending
+  // Require job_completions (2+ photos) for payout release
   const { data: eligible, error } = await admin
     .from('bookings')
     .select(
@@ -34,6 +35,17 @@ export async function GET(req: NextRequest) {
     .not('paid_deposit_at', 'is', null)
     .not('paid_remaining_at', 'is', null);
 
+  const toProcess: typeof eligible = [];
+  for (const b of eligible ?? []) {
+    const { data: jc } = await admin
+      .from('job_completions')
+      .select('after_photo_urls')
+      .eq('booking_id', b.id)
+      .maybeSingle();
+    const urls = (jc as { after_photo_urls?: string[] } | null)?.after_photo_urls ?? [];
+    if (urls.length >= 2) toProcess.push(b);
+  }
+
   if (error) {
     console.error('[cron/release-payouts] query failed', error);
     return NextResponse.json({ error: 'Query failed' }, { status: 500 });
@@ -42,7 +54,7 @@ export async function GET(req: NextRequest) {
   let released = 0;
   let failed = 0;
 
-  for (const b of eligible ?? []) {
+  for (const b of toProcess) {
     const totalCents = Number(b.total_amount_cents ?? b.amount_total ?? 0) || 0;
     if (totalCents <= 0) continue;
 

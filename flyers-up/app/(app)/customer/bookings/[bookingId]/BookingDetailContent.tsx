@@ -13,6 +13,9 @@ import { BookingHeaderCard } from '@/components/bookings/customer/BookingHeaderC
 import { BookingProgressTimeline } from '@/components/bookings/customer/BookingProgressTimeline';
 import { PaymentStatusModule } from '@/components/bookings/customer/PaymentStatusModule';
 import { BookingActionsBar } from '@/components/bookings/customer/BookingActionsBar';
+import { ArrivalVerificationCard } from '@/components/marketplace/ArrivalVerificationCard';
+import { InstantRebookCard } from '@/components/marketplace/InstantRebookCard';
+import { JobCompletedFlyer } from '@/components/marketplace/JobCompletedFlyer';
 
 export interface BookingDetailData {
   id: string;
@@ -49,6 +52,17 @@ export interface BookingDetailData {
   serviceTime?: string;
   address?: string;
   notes?: string;
+  arrival?: {
+    arrivalTimestamp: string;
+    arrivalPhotoUrl?: string | null;
+    locationVerified: boolean;
+  } | null;
+  completion?: {
+    id: string;
+    afterPhotoUrls: string[];
+    completionNote?: string | null;
+    completedAt: string;
+  } | null;
 }
 
 function getLatestTimestamp(status: string, data: TrackBookingData): string | null {
@@ -105,7 +119,11 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
 }
 
 function getPrimaryAction(booking: BookingDetailData & TrackBookingData, bookingId: string) {
+  const needsScopeLock =
+    (booking as { job_request_id?: string | null }).job_request_id &&
+    !(booking as { scope_confirmed_at?: string | null }).scope_confirmed_at;
   const needsDeposit =
+    !needsScopeLock &&
     ['payment_required', 'accepted', 'accepted_pending_payment', 'awaiting_deposit_payment'].includes(booking.status) &&
     !booking.paidAt &&
     booking.paymentDueAt &&
@@ -115,6 +133,16 @@ function getPrimaryAction(booking: BookingDetailData & TrackBookingData, booking
     !booking.paidRemainingAt &&
     !booking.fullyPaidAt;
 
+  if (needsScopeLock) {
+    return (
+      <Link
+        href={`/customer/bookings/${bookingId}/scope-lock`}
+        className="flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-black bg-[#B2FBA5] hover:brightness-95 transition-all"
+      >
+        Confirm Scope (required before deposit)
+      </Link>
+    );
+  }
   if (needsDeposit) {
     return (
       <Link
@@ -248,7 +276,27 @@ export function BookingDetailContent({
               </div>
             </section>
 
-            {/* D) Progress timeline */}
+            {/* D) Arrival verification (when Pro has arrived) */}
+            {(fullBooking.arrival || (booking as { arrival?: unknown }).arrival) && (
+              <section className="mb-6">
+                <ArrivalVerificationCard
+                  arrivalTimestamp={
+                    (fullBooking.arrival ?? (booking as { arrival?: { arrivalTimestamp: string } }).arrival)
+                    ?.arrivalTimestamp ?? ''
+                  }
+                  locationVerified={
+                    (fullBooking.arrival ?? (booking as { arrival?: { locationVerified: boolean } }).arrival)
+                    ?.locationVerified ?? false
+                  }
+                  arrivalPhotoUrl={
+                    (fullBooking.arrival ?? (booking as { arrival?: { arrivalPhotoUrl?: string | null } }).arrival)
+                    ?.arrivalPhotoUrl ?? undefined
+                  }
+                />
+              </section>
+            )}
+
+            {/* E) Progress timeline */}
             <section className="mb-6">
               <h2 className="text-base font-semibold text-text mb-4">Progress</h2>
               <BookingProgressTimeline
@@ -273,7 +321,7 @@ export function BookingDetailContent({
               />
             </section>
 
-            {/* F) Need Help */}
+            {/* G) Need Help */}
             <section className="mb-6">
               <h2 className="text-base font-semibold text-text mb-4">Need Help</h2>
               <div className="rounded-2xl border border-black/5 p-4 space-y-2" style={{ backgroundColor: '#FFFFFF' }}>
@@ -311,7 +359,7 @@ export function BookingDetailContent({
               </div>
             </section>
 
-            {/* G) Service details (collapsible) */}
+            {/* H) Service details (collapsible) */}
             {(hasAddressOrNotes || booking.id) && (
               <section className="mb-6">
                 <h2 className="text-base font-semibold text-text mb-4">Service details</h2>
@@ -358,7 +406,36 @@ export function BookingDetailContent({
               <BookingEventsAccordion bookingId={bookingId} />
             </div>
 
-            {/* H) Actions */}
+            {/* Instant Rebook + Job Completed Flyer (when completed) */}
+            {(status === 'COMPLETED' || status === 'PAID') && fullBooking.proId && fullBooking.proName && fullBooking.serviceName && (
+              <section className="mb-6 space-y-4">
+                <InstantRebookCard
+                  proName={fullBooking.proName}
+                  proId={fullBooking.proId}
+                  lastServiceType={fullBooking.serviceName}
+                  lastDate={
+                    fullBooking.serviceDate && fullBooking.serviceTime
+                      ? `${fullBooking.serviceDate} ${fullBooking.serviceTime}`
+                      : fullBooking.completedAt ?? ''
+                  }
+                  rating={5}
+                  bookingId={bookingId}
+                />
+                {fullBooking.completion && fullBooking.completion.afterPhotoUrls.length >= 2 && (
+                  <JobCompletedFlyer
+                    proName={fullBooking.proName}
+                    serviceType={fullBooking.serviceName}
+                    neighborhood={fullBooking.address ?? 'Local'}
+                    rating={5}
+                    beforePhotoUrls={[]}
+                    afterPhotoUrls={fullBooking.completion.afterPhotoUrls}
+                    completionId={fullBooking.completion.id}
+                  />
+                )}
+              </section>
+            )}
+
+            {/* I) Actions */}
             <section className="mb-6">
               <h2 className="text-base font-semibold text-text mb-4">Actions</h2>
               <BookingActionsBar

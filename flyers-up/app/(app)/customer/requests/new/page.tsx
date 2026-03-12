@@ -4,9 +4,14 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { getCurrentUser, getServiceCategories, type ServiceCategory } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { SideMenu } from '@/components/ui/SideMenu';
+import { JobDetailsForm, PhotoUploadGrid, PriceEstimateCard } from '@/components/scope-lock';
+import { computePriceEstimate } from '@/lib/scopeLock/priceCalculator';
+import type { JobDetails, PhotoEntry } from '@/lib/scopeLock/jobDetailsSchema';
+
+const REQUIRED_PHOTO_MIN = 2;
 
 export default function NewRequestPage() {
   const router = useRouter();
@@ -28,6 +33,17 @@ export default function NewRequestPage() {
   const [preferredTime, setPreferredTime] = useState('');
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
 
+  const [jobDetails, setJobDetails] = useState<Partial<JobDetails>>({
+    home_size_sqft: undefined,
+    bedrooms: 0,
+    bathrooms: 0,
+    cleaning_type: 'standard',
+    condition: 'moderate',
+    pets: false,
+    addons: [],
+  });
+  const [photosCategorized, setPhotosCategorized] = useState<PhotoEntry[]>([]);
+
   useEffect(() => {
     const guard = async () => {
       const user = await getCurrentUser();
@@ -47,6 +63,21 @@ export default function NewRequestPage() {
     getServiceCategories().then(setCategories);
   }, [ready]);
 
+  const uploadPhoto = useCallback(
+    async (file: File, category: string): Promise<string> => {
+      if (!userId) throw new Error('Not authenticated');
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `${userId}/job-requests/${Date.now()}-${category}.${ext}`;
+      const { error: uploadErr } = await supabase.storage
+        .from('profile-images')
+        .upload(path, file, { upsert: true });
+      if (uploadErr) throw new Error(uploadErr.message);
+      const { data } = supabase.storage.from('profile-images').getPublicUrl(path);
+      return data.publicUrl;
+    },
+    [userId]
+  );
+
   async function uploadPhotos(): Promise<string[]> {
     if (!userId || photoFiles.length === 0) return [];
     const urls: string[] = [];
@@ -65,6 +96,23 @@ export default function NewRequestPage() {
     return urls;
   }
 
+  const isCleaning = serviceCategory.toLowerCase().includes('cleaning');
+  const priceEstimate =
+    isCleaning &&
+    typeof jobDetails.home_size_sqft === 'number' &&
+    jobDetails.home_size_sqft >= 100 &&
+    jobDetails.condition
+      ? computePriceEstimate({
+          square_feet: jobDetails.home_size_sqft,
+          bedrooms: jobDetails.bedrooms ?? 0,
+          bathrooms: jobDetails.bathrooms ?? 0,
+          cleaning_type: jobDetails.cleaning_type ?? 'standard',
+          condition: jobDetails.condition,
+          pets: jobDetails.pets ?? false,
+          addons: jobDetails.addons ?? [],
+        })
+      : null;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -81,13 +129,37 @@ export default function NewRequestPage() {
       setError('Please enter a location.');
       return;
     }
+    if (isCleaning) {
+      const sqft = jobDetails.home_size_sqft;
+      if (typeof sqft !== 'number' || sqft < 100) {
+        setError('Please enter home size (min 100 sq ft).');
+        return;
+      }
+      if (photosCategorized.length < REQUIRED_PHOTO_MIN) {
+        setError(`Please upload at least ${REQUIRED_PHOTO_MIN} photos.`);
+        return;
+      }
+    } else if (photoFiles.length < REQUIRED_PHOTO_MIN) {
+      setError(`Please upload at least ${REQUIRED_PHOTO_MIN} photos.`);
+      return;
+    }
     setSubmitting(true);
     try {
-      const photos = await uploadPhotos();
+      const photos = photosCategorized.length > 0
+        ? photosCategorized.map((p) => p.url)
+        : await uploadPhotos();
+      const photosCategorizedPayload =
+        photosCategorized.length > 0 ? photosCategorized : undefined;
+      const jobDetailsPayload = isCleaning ? jobDetails : undefined;
+      const aiEstimate =
+        priceEstimate && isCleaning
+          ? { low: priceEstimate.estimate_low, high: priceEstimate.estimate_high }
+          : undefined;
+
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
 
-      const { error: insertErr } = await supabase.from('job_requests').insert({
+      const insertPayload: Record<string, unknown> = {
         customer_id: userId,
         title: title.trim(),
         description: description.trim() || null,
@@ -95,12 +167,20 @@ export default function NewRequestPage() {
         budget_min: budgetMin ? parseFloat(budgetMin) : null,
         budget_max: budgetMax ? parseFloat(budgetMax) : null,
         location: location.trim(),
-        photos,
+        photos: photos,
         status: 'open',
         preferred_date: preferredDate || null,
         preferred_time: preferredTime || null,
         expires_at: expiresAt.toISOString(),
-      });
+      };
+      if (jobDetailsPayload) insertPayload.job_details = jobDetailsPayload;
+      if (photosCategorizedPayload) insertPayload.photos_categorized = photosCategorizedPayload;
+      if (aiEstimate) {
+        insertPayload.ai_estimate_low = aiEstimate.low;
+        insertPayload.ai_estimate_high = aiEstimate.high;
+      }
+
+      const { error: insertErr } = await supabase.from('job_requests').insert(insertPayload);
 
       if (insertErr) throw new Error(insertErr.message);
       router.push('/customer/requests');
@@ -248,19 +328,47 @@ export default function NewRequestPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[#111] mb-1">Photos</label>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => setPhotoFiles(Array.from(e.target.files ?? []))}
-                className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#B2FBA5] file:font-semibold file:text-black"
-              />
-              {photoFiles.length > 0 && (
-                <p className="mt-1 text-xs text-black/60">{photoFiles.length} file(s) selected</p>
-              )}
-            </div>
+            {isCleaning ? (
+              <>
+                <div className="p-4 rounded-xl bg-white border border-black/10">
+                  <h3 className="text-sm font-semibold text-[#111] mb-4">Job Details (required)</h3>
+                  <JobDetailsForm
+                    value={jobDetails}
+                    onChange={setJobDetails}
+                    errors={{}}
+                  />
+                </div>
+                {priceEstimate && (
+                  <PriceEstimateCard estimate={priceEstimate} />
+                )}
+                <div className="p-4 rounded-xl bg-white border border-black/10">
+                  <PhotoUploadGrid
+                    photos={photosCategorized}
+                    onChange={setPhotosCategorized}
+                    onUpload={uploadPhoto}
+                    minRequired={REQUIRED_PHOTO_MIN}
+                    errors={photosCategorized.length < REQUIRED_PHOTO_MIN && photosCategorized.length > 0 ? [`Add ${REQUIRED_PHOTO_MIN - photosCategorized.length} more photo(s)`] : []}
+                  />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-[#111] mb-1">Photos (min 2 required)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => setPhotoFiles(Array.from(e.target.files ?? []))}
+                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#B2FBA5] file:font-semibold file:text-black"
+                />
+                {photoFiles.length > 0 && (
+                  <p className="mt-1 text-xs text-black/60">
+                    {photoFiles.length} file(s) selected
+                    {photoFiles.length < REQUIRED_PHOTO_MIN && ` — add ${REQUIRED_PHOTO_MIN - photoFiles.length} more`}
+                  </p>
+                )}
+              </div>
+            )}
 
             <button
               type="submit"

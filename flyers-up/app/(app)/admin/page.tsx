@@ -195,6 +195,18 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           description: 'Search bookings + manual status override.',
           icon: <Calendar className="h-4 w-4" />,
         },
+        {
+          href: '/admin/scope-lock',
+          title: 'Scope Lock Analytics',
+          description: 'Mismatch rate, price adjustments, misrepresentation scores.',
+          icon: <AlertTriangle className="h-4 w-4" />,
+        },
+        {
+          href: '/admin/marketplace-trust',
+          title: 'Marketplace Trust',
+          description: 'Arrival verification, rebook rate, completion proofs, flyer shares.',
+          icon: <BarChart3 className="h-4 w-4" />,
+        },
       ],
     },
     {

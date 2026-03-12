@@ -35,11 +35,13 @@ interface BookingFormProps {
   initialAddress?: string;
   /** Pre-fill notes (e.g. from Rebook Same Pro) */
   initialNotes?: string;
+  /** Previous booking ID when rebooking - records rebook_event on success */
+  previousBookingId?: string;
   /** Force Quick Rules sheet to show (for testing) */
   forceQuickRules?: boolean;
 }
 
-export default function BookingForm({ pro, initialSubcategorySlug, initialAddress, initialNotes, forceQuickRules }: BookingFormProps) {
+export default function BookingForm({ pro, initialSubcategorySlug, initialAddress, initialNotes, previousBookingId, forceQuickRules }: BookingFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +57,14 @@ export default function BookingForm({ pro, initialSubcategorySlug, initialAddres
     notes: initialNotes ?? '',
     subcategoryId: '' as string,
   });
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      address: initialAddress ?? prev.address,
+      notes: initialNotes ?? prev.notes,
+    }));
+  }, [initialAddress, initialNotes]);
 
   useEffect(() => {
     fetch(`/api/pro/${encodeURIComponent(pro.id)}/subcategories`)
@@ -111,7 +121,8 @@ export default function BookingForm({ pro, initialSubcategorySlug, initialAddres
         formData.address,
         formData.notes,
         [],
-        formData.subcategoryId || null
+        formData.subcategoryId || null,
+        previousBookingId || null
       );
       if (!result.success) {
         setError(result.error || 'Failed to create booking. Please try again.');

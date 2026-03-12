@@ -56,7 +56,7 @@ export async function GET(
       'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at, accepted_at, on_the_way_at, started_at, completed_at, cancelled_at, status_history';
     // Extended columns (migrations 031+) - may not exist if migrations not applied
     const EXTENDED_COLUMNS =
-      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_deposit, amount_remaining, amount_total, en_route_at, arrived_at';
+      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_deposit, amount_remaining, amount_total, en_route_at, arrived_at, job_request_id, scope_confirmed_at, job_details_snapshot, photos_snapshot';
 
     let proIdForQuery: string | null = null;
     if (role === 'pro') {
@@ -118,6 +118,20 @@ export async function GET(
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
+
+    // Fetch job arrival (for ArrivalVerificationCard)
+    const { data: arrival } = await admin
+      .from('job_arrivals')
+      .select('arrival_timestamp, arrival_photo_url, location_verified')
+      .eq('booking_id', id)
+      .maybeSingle();
+
+    // Fetch job completion (for JobCompletedFlyer)
+    const { data: completion } = await admin
+      .from('job_completions')
+      .select('id, after_photo_urls, completion_note, completed_at')
+      .eq('booking_id', id)
+      .maybeSingle();
 
     // Fetch pro info separately (same pattern as list API)
     let serviceName = 'Service';
@@ -213,6 +227,25 @@ export async function GET(
           proName,
           categoryName,
           proPhotoUrl,
+          job_request_id: booking.job_request_id ?? null,
+          scope_confirmed_at: booking.scope_confirmed_at ?? null,
+          job_details_snapshot: booking.job_details_snapshot ?? null,
+          photos_snapshot: booking.photos_snapshot ?? null,
+          arrival: arrival
+            ? {
+                arrivalTimestamp: arrival.arrival_timestamp,
+                arrivalPhotoUrl: arrival.arrival_photo_url,
+                locationVerified: arrival.location_verified,
+              }
+            : null,
+          completion: completion
+            ? {
+                id: completion.id,
+                afterPhotoUrls: (completion.after_photo_urls ?? []) as string[],
+                completionNote: completion.completion_note,
+                completedAt: completion.completed_at,
+              }
+            : null,
         },
       },
       { status: 200, headers: { 'Cache-Control': 'no-store' } }

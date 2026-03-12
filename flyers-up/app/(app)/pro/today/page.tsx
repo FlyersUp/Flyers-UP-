@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { ArrivalVerificationModal } from '@/components/marketplace/ArrivalVerificationModal';
+import { JobCompletionModal } from '@/components/marketplace/JobCompletionModal';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Card } from '@/components/ui/Card';
@@ -401,6 +403,8 @@ export default function ProTodayPage() {
   const alertCount = useMemo(() => (overview?.alerts?.length ? overview.alerts.length : 0), [overview]);
 
   const [statusUpdating, setStatusUpdating] = useState<string | null>(null);
+  const [arrivalModalBookingId, setArrivalModalBookingId] = useState<string | null>(null);
+  const [completionModalBookingId, setCompletionModalBookingId] = useState<string | null>(null);
 
   const updateJobStatusViaApi = async (
     bookingId: string,
@@ -409,7 +413,7 @@ export default function ProTodayPage() {
   ): Promise<boolean> => {
     setStatusUpdating(bookingId);
     try {
-      if (next === 'in_progress') {
+        if (next === 'in_progress') {
         const s = (dbStatus ?? '').toLowerCase();
         if (s === 'accepted' || s === 'pending' || s === 'requested') {
           const r1 = await fetch(`/api/jobs/${bookingId}/status`, {
@@ -424,6 +428,10 @@ export default function ProTodayPage() {
             return false;
           }
         }
+        if (s === 'pro_en_route' || s === 'on_the_way') {
+          setArrivalModalBookingId(bookingId);
+          return false;
+        }
         const r2 = await fetch(`/api/jobs/${bookingId}/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -432,21 +440,16 @@ export default function ProTodayPage() {
         });
         if (!r2.ok) {
           const err = await r2.json().catch(() => ({}));
+          if ((err as { code?: string }).code === 'arrival_required') {
+            setArrivalModalBookingId(bookingId);
+            return false;
+          }
           console.error('Status update failed:', err);
           return false;
         }
       } else {
-        const r = await fetch(`/api/jobs/${bookingId}/status`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nextStatus: 'COMPLETED' }),
-          credentials: 'include',
-        });
-        if (!r.ok) {
-          const err = await r.json().catch(() => ({}));
-          console.error('Status update failed:', err);
-          return false;
-        }
+        setCompletionModalBookingId(bookingId);
+        return false;
       }
       return true;
     } finally {
@@ -465,6 +468,23 @@ export default function ProTodayPage() {
         prev.map((j) => (j.id === jobId ? { ...j, status: next } : j))
       );
     }
+  };
+
+  const onArrivalSuccess = async () => {
+    if (!arrivalModalBookingId) return;
+    const ok = await updateJobStatusViaApi(
+      arrivalModalBookingId,
+      'in_progress',
+      'arrived'
+    );
+    if (ok) {
+      setJobs((prev) =>
+        prev.map((j) =>
+          j.id === arrivalModalBookingId ? { ...j, status: 'in_progress' as const } : j
+        )
+      );
+    }
+    setArrivalModalBookingId(null);
   };
 
   const onToggleTask = (id: string) => {
@@ -573,10 +593,7 @@ export default function ProTodayPage() {
                             showArrow={false}
                             className="px-3 py-2 rounded-lg text-sm"
                             disabled={statusUpdating === b.id}
-                            onClick={async () => {
-                              const ok = await updateJobStatusViaApi(b.id, 'completed', b.status);
-                              if (ok) setRealBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, status: 'awaiting_remaining_payment' } : x)));
-                            }}
+                            onClick={() => setCompletionModalBookingId(b.id)}
                           >
                             {statusUpdating === b.id ? '…' : 'Complete'}
                           </Button>
@@ -611,6 +628,33 @@ export default function ProTodayPage() {
         <TodayTasks tasks={tasks} onToggle={onToggleTask} />
         <TodayMessages messages={overview.messages} />
         <TodayEarnings earnings={overview.earnings} />
+
+        <ArrivalVerificationModal
+          isOpen={!!arrivalModalBookingId}
+          onClose={() => setArrivalModalBookingId(null)}
+          onSuccess={onArrivalSuccess}
+          bookingId={arrivalModalBookingId ?? ''}
+        />
+        <JobCompletionModal
+          isOpen={!!completionModalBookingId}
+          onClose={() => setCompletionModalBookingId(null)}
+          onSuccess={async () => {
+            if (completionModalBookingId) {
+              setRealBookings((prev) =>
+                prev.map((x) =>
+                  x.id === completionModalBookingId ? { ...x, status: 'awaiting_remaining_payment' } : x
+                )
+              );
+              setJobs((prev) =>
+                prev.map((j) =>
+                  j.id === completionModalBookingId ? { ...j, status: 'completed' as const } : j
+                )
+              );
+              setCompletionModalBookingId(null);
+            }
+          }}
+          bookingId={completionModalBookingId ?? ''}
+        />
 
         {(jobs.every((j) => j.status === 'completed') || jobs.length === 0) && (
           <Card className="border-l-[3px] border-l-accent">

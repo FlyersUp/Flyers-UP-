@@ -144,6 +144,45 @@ export async function PATCH(
     const currentDbStatus = String(booking.status);
     const nextDbStatus = apiNextStatusToDb(nextStatus as NextStatusAction);
 
+    // Job completion: COMPLETED requires job_completions with 2+ photos (payment release gate)
+    if (nextDbStatus === 'awaiting_remaining_payment') {
+      const { data: completion } = await admin
+        .from('job_completions')
+        .select('id, after_photo_urls')
+        .eq('booking_id', id)
+        .maybeSingle();
+      const urls = (completion as { after_photo_urls?: string[] } | null)?.after_photo_urls ?? [];
+      if (!completion || urls.length < 2) {
+        return NextResponse.json(
+          {
+            error: 'Job completion photos required before marking complete',
+            code: 'completion_photos_required',
+            hint: 'Call POST /api/bookings/[id]/complete with at least 2 after photos',
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Arrival verification: IN_PROGRESS requires job_arrivals record for pro_en_route/arrived
+    if (nextDbStatus === 'in_progress') {
+      const { data: arrival } = await admin
+        .from('job_arrivals')
+        .select('id')
+        .eq('booking_id', id)
+        .maybeSingle();
+      if (!arrival && ['pro_en_route', 'on_the_way', 'arrived'].includes(currentDbStatus)) {
+        return NextResponse.json(
+          {
+            error: 'Arrival verification required before starting job';
+            code: 'arrival_required',
+            hint: 'Call POST /api/bookings/[id]/arrive with GPS coordinates first',
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     if (!isValidTransition(currentDbStatus, nextDbStatus)) {
       return NextResponse.json(
         {

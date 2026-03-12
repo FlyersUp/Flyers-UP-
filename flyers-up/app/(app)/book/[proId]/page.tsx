@@ -25,27 +25,43 @@ export default function BookingPage() {
   const address = searchParams.get('address')?.trim() ?? undefined;
   const notes = searchParams.get('notes')?.trim() ?? undefined;
   const service = searchParams.get('service')?.trim() ?? undefined;
+  const rebookBookingId = searchParams.get('rebook')?.trim() ?? undefined;
   
   const [pro, setPro] = useState<ServicePro | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [rebookPrefill, setRebookPrefill] = useState<{ address?: string; notes?: string } | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
-      // Check if user is logged in via Supabase
       const user = await getCurrentUser();
       if (!user) {
         router.push(`/auth?role=customer&next=${encodeURIComponent(`/book/${proId}`)}`);
         return;
       }
 
-      // Fetch pro details from Supabase
       const proData = await getProById(proId);
       setPro(proData);
+
+      if (rebookBookingId && proId) {
+        try {
+          const res = await fetch(`/api/customer/bookings/${rebookBookingId}`, { cache: 'no-store', credentials: 'include' });
+          const json = await res.json();
+          if (res.ok && json.booking?.proId === proId) {
+            const b = json.booking;
+            setRebookPrefill({
+              address: b.address ?? undefined,
+              notes: b.notes ?? undefined,
+            });
+          }
+        } catch {
+          // ignore
+        }
+      }
       setIsLoading(false);
     };
 
     loadData();
-  }, [proId, router]);
+  }, [proId, router, rebookBookingId]);
 
   if (isLoading) {
     return (
@@ -114,8 +130,9 @@ export default function BookingPage() {
           <BookingForm
             pro={pro}
             initialSubcategorySlug={subcategorySlug}
-            initialAddress={address}
-            initialNotes={notes}
+            initialAddress={rebookPrefill?.address ?? address}
+            initialNotes={rebookPrefill?.notes ?? notes}
+            previousBookingId={rebookBookingId}
           />
         </div>
 

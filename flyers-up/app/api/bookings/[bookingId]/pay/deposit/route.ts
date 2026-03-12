@@ -51,13 +51,23 @@ export async function POST(
 
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, service_date, service_time, address')
+    .select('id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, service_date, service_time, address, job_request_id, scope_confirmed_at')
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();
 
   if (bErr || !booking) {
     return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+  }
+
+  // Scope Lock: deposit cannot be charged until scope is confirmed for job-request bookings
+  const jobRequestId = (booking as { job_request_id?: string | null }).job_request_id;
+  const scopeConfirmedAt = (booking as { scope_confirmed_at?: string | null }).scope_confirmed_at;
+  if (jobRequestId && !scopeConfirmedAt) {
+    return NextResponse.json(
+      { error: 'Scope must be confirmed before deposit. Please complete the Scope Lock confirmation.' },
+      { status: 403 }
+    );
   }
 
   const status = String(booking.status);

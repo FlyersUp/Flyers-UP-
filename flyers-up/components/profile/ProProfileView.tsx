@@ -15,6 +15,7 @@ import { ReviewsList } from '@/components/profile/ReviewsList';
 import { AboutPanel } from '@/components/profile/AboutPanel';
 import { parseBusinessHoursModel, summarizeBusinessHours } from '@/lib/utils/businessHours';
 import { ReportUserBlockUser } from '@/components/moderation/ReportUserBlockUser';
+import { ProReputationCardWithFetch } from '@/components/marketplace/ProReputationCardWithFetch';
 
 export function ProProfileView({
   profile,
@@ -77,6 +78,13 @@ export function ProProfileView({
           </div>
         )}
       </section>
+
+      {/* C) Reputation depth */}
+      <ProReputationCardWithFetch
+        proId={profile.id}
+        fallbackRating={profile.stats?.avgRating ?? 0}
+        fallbackJobsCompleted={profile.stats?.reviewCount ?? 0}
+      />
 
       {/* D) Pricing Card */}
       <PricingCard pricing={profile.pricing} />

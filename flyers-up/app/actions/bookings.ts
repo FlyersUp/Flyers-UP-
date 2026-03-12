@@ -11,6 +11,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { recordServerErrorEvent } from '@/lib/serverError';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
+import { geocodeAddress } from '@/lib/geocode';
 
 type BookingStatus = 'requested' | 'accepted' | 'declined' | 'completed' | 'cancelled';
 
@@ -35,7 +36,8 @@ export async function createBookingWithPayment(
   address: string,
   notes: string,
   selectedAddonIds: string[],
-  subcategoryId?: string | null
+  subcategoryId?: string | null,
+  previousBookingId?: string | null
 ): Promise<{ success: boolean; bookingId?: string; error?: string }> {
   try {
     const supabase = await createServerSupabaseClient();
@@ -144,6 +146,19 @@ export async function createBookingWithPayment(
 
     const initialStatusHistory = [{ status: 'requested', at: new Date().toISOString() }];
 
+    // 4b) Geocode address for arrival verification (best-effort)
+    let addressLat: number | null = null;
+    let addressLng: number | null = null;
+    try {
+      const coords = await geocodeAddress(address);
+      if (coords) {
+        addressLat = coords.lat;
+        addressLng = coords.lng;
+      }
+    } catch {
+      // ignore geocode failures
+    }
+
     // 5) Create booking
     const { data: booking, error: bookingErr } = await supabase
       .from('bookings')
@@ -158,6 +173,8 @@ export async function createBookingWithPayment(
         status_history: initialStatusHistory,
         price: totalDollars,
         subcategory_id: validatedSubcategoryId,
+        address_lat: addressLat,
+        address_lng: addressLng,
       })
       .select('id')
       .single();
@@ -176,6 +193,25 @@ export async function createBookingWithPayment(
         },
       });
       return { success: false, error: 'Failed to create request. Please try again.' };
+    }
+
+    // 5b) Record rebook event when customer rebooks from previous booking
+    if (previousBookingId?.trim()) {
+      const { data: prev } = await supabase
+        .from('bookings')
+        .select('id, customer_id, pro_id')
+        .eq('id', previousBookingId.trim())
+        .eq('customer_id', user.id)
+        .in('status', ['completed', 'paid', 'awaiting_customer_confirmation'])
+        .maybeSingle();
+      if (prev && prev.pro_id === proId) {
+        await supabase.from('rebook_events').insert({
+          customer_id: user.id,
+          pro_id: proId,
+          previous_booking_id: prev.id,
+          new_booking_id: booking.id,
+        });
+      }
     }
 
     // 6) Notify Customer: in-app confirmation only (no push)

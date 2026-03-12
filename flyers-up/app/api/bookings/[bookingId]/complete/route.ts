@@ -1,133 +1,141 @@
 /**
  * POST /api/bookings/[bookingId]/complete
- * Pro marks work complete.
- * 1. Update status = awaiting_remaining_payment, completed_by_pro_at, remaining_due_at, auto_confirm_at
- * 2. Customer pays remaining separately; then confirms or auto-confirms after 24h.
+ * Pro submits job completion with 2 after photos (required before payment release).
  */
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
-import { isValidTransition } from '@/components/jobs/jobStatus';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 
+const MIN_AFTER_PHOTOS = 2;
+
 export const runtime = 'nodejs';
-export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ bookingId: string }> }
 ) {
   const { bookingId } = await params;
   const id = normalizeUuidOrNull(bookingId);
-  if (!id) {
-    return NextResponse.json({ error: 'Invalid booking ID' }, { status: 400 });
+  if (!id) return NextResponse.json({ error: 'Invalid booking ID' }, { status: 400 });
+
+  let body: { after_photo_urls: string[]; completion_note?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const urls = Array.isArray(body.after_photo_urls) ? body.after_photo_urls : [];
+  if (urls.length < MIN_AFTER_PHOTOS) {
+    return NextResponse.json(
+      { error: `At least ${MIN_AFTER_PHOTOS} after photos required` },
+      { status: 400 }
+    );
   }
 
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-  if (!profile || profile.role !== 'pro') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: proRow } = await supabase
     .from('service_pros')
-    .select('id, user_id')
+    .select('id')
     .eq('user_id', user.id)
     .maybeSingle();
-  if (!proRow?.id) {
-    return NextResponse.json({ error: 'Pro profile not found' }, { status: 403 });
-  }
-  const proId = String(proRow.id);
-  const proUserId = proRow.user_id ?? null;
+  if (!proRow?.id) return NextResponse.json({ error: 'Pro not found' }, { status: 403 });
 
   const admin = createAdminSupabaseClient();
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, status, status_history, pro_id, customer_id, payment_intent_id')
+    .select('id, pro_id, customer_id, status')
     .eq('id', id)
-    .single();
+    .eq('pro_id', proRow.id)
+    .maybeSingle();
 
-  if (bErr || !booking) {
-    return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
-  }
-  if (booking.pro_id !== proId) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-  if (!isValidTransition(String(booking.status), 'awaiting_remaining_payment')) {
+  if (bErr || !booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+
+  if (String(booking.status) !== 'in_progress') {
     return NextResponse.json(
-      { error: `Cannot complete booking with status: ${booking.status}` },
+      { error: 'Booking must be in progress to complete' },
       { status: 409 }
     );
   }
 
+  const { data: existing } = await admin
+    .from('job_completions')
+    .select('id')
+    .eq('booking_id', id)
+    .maybeSingle();
+
+  if (existing) {
+    return NextResponse.json({ ok: true, completionId: existing.id, alreadyRecorded: true });
+  }
+
+  const { data: completion, error: insertErr } = await admin
+    .from('job_completions')
+    .insert({
+      booking_id: id,
+      pro_id: proRow.id,
+      after_photo_urls: urls.slice(0, 10),
+      completion_note: body.completion_note?.trim() || null,
+    })
+    .select('id')
+    .single();
+
+  if (insertErr) {
+    console.error('Job completion insert failed', insertErr);
+    return NextResponse.json({ error: 'Failed to record completion' }, { status: 500 });
+  }
+
   const now = new Date().toISOString();
   const in24h = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-  const history = ((booking as { status_history?: { status: string; at: string }[] }).status_history ?? []) as { status: string; at: string }[];
+  const history = (booking as { status_history?: { status: string; at: string }[] }).status_history ?? [];
   const newHistory = [...history, { status: 'awaiting_remaining_payment', at: now }];
 
-  const { data: updated, error: updateErr } = await admin
+  await admin
     .from('bookings')
     .update({
       status: 'awaiting_remaining_payment',
-      status_history: newHistory,
       completed_at: now,
       completed_by_pro_at: now,
       remaining_due_at: in24h,
       auto_confirm_at: in24h,
+      status_history: newHistory,
       status_updated_at: now,
       status_updated_by: user.id,
     })
     .eq('id', id)
-    .eq('pro_id', proId)
-    .select()
-    .single();
+    .eq('pro_id', proRow.id);
 
-  if (updateErr) {
-    return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 });
-  }
-
-  await admin.from('booking_events').insert({
-    booking_id: id,
-    type: 'WORK_COMPLETED_BY_PRO',
-    data: {},
-  });
-
-  void createNotificationEvent({
-    userId: booking.customer_id,
-    type: NOTIFICATION_TYPES.BOOKING_COMPLETED,
-    bookingId: id,
-    actorUserId: proUserId ?? undefined,
-    basePath: 'customer',
-  });
-
-  if (proUserId) {
+  const customerId = (booking as { customer_id?: string }).customer_id;
+  if (customerId) {
     void createNotificationEvent({
-      userId: proUserId,
+      userId: customerId,
       type: NOTIFICATION_TYPES.BOOKING_COMPLETED,
-      bookingId: id,
       actorUserId: user.id,
-      titleOverride: 'Marked complete',
-      bodyOverride: 'Marked complete — awaiting customer payment/confirmation',
-      basePath: 'pro',
+      bookingId: id,
+      titleOverride: 'Pro finished',
+      bodyOverride: 'Pro finished — pay remaining to confirm',
+      basePath: 'customer',
     });
   }
 
+  try {
+    await admin.from('booking_events').insert({
+      booking_id: id,
+      type: 'WORK_COMPLETED_BY_PRO',
+      data: {},
+    });
+  } catch {
+    // ignore
+  }
+
   return NextResponse.json({
-    booking: {
-      id: updated.id,
-      status: updated.status,
-      status_history: updated.status_history,
-      completed_at: updated.completed_at,
-      completed_by_pro_at: now,
-      remaining_due_at: in24h,
-      auto_confirm_at: in24h,
-    },
-  }, { status: 200 });
+    ok: true,
+    completionId: completion?.id,
+  });
 }

@@ -35,6 +35,9 @@ type JobRequest = {
   preferred_time: string | null;
   budget_min?: number | null;
   budget_max?: number | null;
+  job_details?: Record<string, unknown>;
+  photos?: string[];
+  photos_categorized?: Array<{ category: string; url: string }>;
 };
 
 function getInitials(name: string): string {
@@ -81,7 +84,7 @@ export default function RequestOffersPage() {
     const load = async () => {
       const { data: reqData } = await supabase
         .from('job_requests')
-        .select('id, title, description, location, preferred_date, preferred_time, budget_min, budget_max')
+        .select('id, title, description, location, preferred_date, preferred_time, budget_min, budget_max, job_details, photos, photos_categorized')
         .eq('id', requestId)
         .single();
 
@@ -145,7 +148,7 @@ export default function RequestOffersPage() {
     };
   }, [ready, requestId]);
 
-  async function handleSelectPro(proId: string, price: number) {
+  async function handleSelectPro(offerId: string, proId: string, price: number) {
     if (!userId || !request) return;
     setError(null);
     setSelectingProId(proId);
@@ -156,7 +159,13 @@ export default function RequestOffersPage() {
       const notes = [request.title, request.description].filter(Boolean).join('\n\n');
 
       const customerBudget = request.budget_max ?? request.budget_min ?? undefined;
-      await createBooking({
+      const reqData = request as { job_details?: Record<string, unknown>; photos?: string[]; photos_categorized?: Array<{ category: string; url: string }> };
+      const jobDetailsSnapshot = reqData.job_details ?? undefined;
+      const photosSnapshot = (reqData.photos_categorized && reqData.photos_categorized.length > 0)
+        ? reqData.photos_categorized
+        : (reqData.photos ?? []).map((url) => ({ category: 'main_room' as const, url }));
+
+      const booking = await createBooking({
         customerId: userId,
         proId,
         date: serviceDate,
@@ -164,14 +173,26 @@ export default function RequestOffersPage() {
         address,
         notes,
         customerBudget,
+        price,
+        jobRequestId: requestId,
+        jobOfferId: offerId,
+        jobDetailsSnapshot,
+        photosSnapshot,
       });
 
-      await supabase
-        .from('job_requests')
-        .update({ status: 'in_progress' })
-        .eq('id', requestId);
+      if (booking?.id) {
+        await supabase
+          .from('job_requests')
+          .update({ status: 'in_progress', selected_offer_id: offerId, booking_id: booking.id })
+          .eq('id', requestId);
+      } else {
+        await supabase
+          .from('job_requests')
+          .update({ status: 'in_progress' })
+          .eq('id', requestId);
+      }
 
-      router.push('/customer/bookings');
+      router.push(`/customer/bookings/${booking?.id}/scope-lock`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create booking.');
     } finally {
@@ -271,7 +292,7 @@ export default function RequestOffersPage() {
                       )}
                       <button
                         type="button"
-                        onClick={() => handleSelectPro(offer.pro_id, offer.price)}
+                        onClick={() => handleSelectPro(offer.id, offer.pro_id, offer.price)}
                         disabled={!!selectingProId}
                         className="mt-3 px-4 py-2 rounded-lg bg-[#B2FBA5] text-black font-semibold text-sm hover:opacity-95 disabled:opacity-60 transition-opacity"
                       >

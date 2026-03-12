@@ -34,7 +34,7 @@ async function getCustomerBooking(bookingId: string) {
   const { data: booking, error } = await admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_deposit, amount_remaining, amount_total, service_date, service_time, address, notes, status, price, created_at, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, cancelled_at, status_history'
+      'id, customer_id, pro_id, payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_deposit, amount_remaining, amount_total, service_date, service_time, address, notes, status, price, created_at, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, cancelled_at, status_history, job_request_id, scope_confirmed_at'
     )
     .eq('id', id)
     .eq('customer_id', user.id)
@@ -45,6 +45,18 @@ async function getCustomerBooking(bookingId: string) {
     return null;
   }
   if (!booking) return null;
+
+  const { data: arrival } = await admin
+    .from('job_arrivals')
+    .select('arrival_timestamp, arrival_photo_url, location_verified')
+    .eq('booking_id', id)
+    .maybeSingle();
+
+  const { data: completion } = await admin
+    .from('job_completions')
+    .select('id, after_photo_urls, completion_note, completed_at')
+    .eq('booking_id', id)
+    .maybeSingle();
 
   const b = booking as {
     payment_status?: string;
@@ -137,6 +149,23 @@ async function getCustomerBooking(bookingId: string) {
     proName,
     categoryName,
     proPhotoUrl,
+    job_request_id: (booking as { job_request_id?: string | null }).job_request_id ?? null,
+    scope_confirmed_at: (booking as { scope_confirmed_at?: string | null }).scope_confirmed_at ?? null,
+    arrival: arrival
+      ? {
+          arrivalTimestamp: arrival.arrival_timestamp,
+          arrivalPhotoUrl: arrival.arrival_photo_url,
+          locationVerified: arrival.location_verified,
+        }
+      : null,
+    completion: completion
+      ? {
+          id: completion.id,
+          afterPhotoUrls: (completion.after_photo_urls ?? []) as string[],
+          completionNote: completion.completion_note,
+          completedAt: completion.completed_at,
+        }
+      : null,
   };
 }
 
