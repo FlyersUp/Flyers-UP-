@@ -1,7 +1,7 @@
 import { LegalPageShell } from '@/components/LegalPageShell';
 import Link from 'next/link';
 
-const VERSION = '2026-03-11';
+const VERSION = '2026-03-12';
 
 export const metadata = {
   title: 'Independent Contractor Agreement — Flyers Up',
@@ -14,7 +14,7 @@ export default function ProAgreementPage() {
       <h1 className="text-2xl font-semibold tracking-tight">Flyers Up LLC — Independent Contractor Agreement (Pro Agreement)</h1>
       <div className="mt-2 text-sm text-muted">
         <div><span className="font-medium text-text">Effective Date:</span> March 11, 2026</div>
-        <div><span className="font-medium text-text">Last Updated:</span> March 11, 2026</div>
+        <div><span className="font-medium text-text">Last Updated:</span> March 12, 2026</div>
       </div>
 
       <div className="mt-6 space-y-5 text-sm leading-relaxed text-text">
@@ -77,7 +77,21 @@ export default function ProAgreementPage() {
           additional detail.
         </p>
 
-        <h2 className="text-lg font-semibold tracking-tight pt-4">Section 8 — Indemnification</h2>
+        <h2 className="text-lg font-semibold tracking-tight pt-4">Section 8 — Trust and Safety; Participation</h2>
+        <p>
+          You agree to participate in Flyers Up&apos;s trust and safety systems as applicable. This may include:
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li><span className="font-medium">Identity verification:</span> Providing accurate identity information and cooperating with identity verification as required by the Platform.</li>
+          <li><span className="font-medium">Background checks:</span> Cooperating with third-party background checks or screening where Flyers Up offers or requires such checks for your service category.</li>
+          <li><span className="font-medium">Ratings and reviews:</span> Accepting that Customers may rate and review your services after completion. Ratings and reviews may be displayed on the Platform and do not constitute a guarantee of future performance.</li>
+          <li><span className="font-medium">Dispute resolution:</span> Cooperating in good faith with Flyers Up&apos;s dispute resolution process for booking-related issues, as described in our <Link href="/legal/refunds" className="underline hover:text-text">Refund and Cancellation Policy</Link>.</li>
+        </ul>
+        <p>
+          Verification, badges, and trust indicators do not guarantee quality, safety, or performance. Flyers Up does not independently verify every credential. See our <Link href="/legal/licensing" className="underline hover:text-text">Licensing and Regulatory Compliance Policy</Link> and <Link href="/trust-verification" className="underline hover:text-text">Trust &amp; Verification</Link> page for additional detail.
+        </p>
+
+        <h2 className="text-lg font-semibold tracking-tight pt-4">Section 9 — Indemnification</h2>
         <p>
           You agree to indemnify, defend, and hold harmless Flyers Up, its affiliates, officers, directors, employees,
           and agents from and against any claims, damages, losses, liabilities, costs, and expenses (including reasonable
@@ -86,14 +100,14 @@ export default function ProAgreementPage() {
           you and a customer; or (e) any injury, damage, or loss arising from your conduct or services.
         </p>
 
-        <h2 className="text-lg font-semibold tracking-tight pt-4">Section 9 — Platform Fees</h2>
+        <h2 className="text-lg font-semibold tracking-tight pt-4">Section 10 — Platform Fees</h2>
         <p>
           You agree to pay the platform fees disclosed at the time of each booking. Fees are deducted from payouts. See
           our <Link href="/legal/payments" className="underline hover:text-text">Payment and Platform Fee Policy</Link> for
           details.
         </p>
 
-        <h2 className="text-lg font-semibold tracking-tight pt-4">Section 10 — Termination</h2>
+        <h2 className="text-lg font-semibold tracking-tight pt-4">Section 11 — Termination</h2>
         <p>
           Either party may terminate this relationship at any time. Flyers Up may suspend or terminate your access to the
           Platform for any reason, including violation of this Agreement or our policies. Upon termination, your right to
@@ -106,7 +120,7 @@ export default function ProAgreementPage() {
           incorporated by reference and apply to your use of the Platform.
         </p>
 
-        <h2 className="text-lg font-semibold tracking-tight pt-4">Section 12 — Contact</h2>
+        <h2 className="text-lg font-semibold tracking-tight pt-4">Section 13 — Contact</h2>
         <p>Flyers Up LLC — hello.flyersup@gmail.com</p>
       </div>
     </LegalPageShell>
