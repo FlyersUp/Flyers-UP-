@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -83,15 +84,15 @@ export default function AdminDisputePage() {
         <section className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Timeline</h2>
           <ul className="space-y-2 text-sm">
-            {(events as Array<{ type?: string; created_at?: string; data?: unknown }>).map((e, i) => (
+            {((events as Array<{ type?: string; created_at?: string; data?: unknown }>).map((e, i) => (
               <li key={i} className="flex gap-3">
-                <span className="text-muted shrink-0">{e.created_at ? new Date(e.created_at).toLocaleString() : ''}</span>
+                <span className="text-muted shrink-0">{e.created_at ? String(new Date(String(e.created_at)).toLocaleString()) : ''}</span>
                 <span className="font-medium">{String(e.type ?? 'event')}</span>
                 {e.data != null && Object.keys(e.data as object).length > 0 ? (
                   <span className="text-muted">({JSON.stringify(e.data)})</span>
                 ) : null}
               </li>
-            ))}
+            )) as ReactNode[])}
           </ul>
         </section>
 
