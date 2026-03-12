@@ -45,6 +45,16 @@ export default function AdminDisputePage() {
 
   const { booking, dispute, evidence, arrivals, events, completenessScore, missingEvidence } = data;
 
+  const timelineItems: ReactNode[] = (events as Array<{ type?: string; created_at?: string; data?: unknown }>).map((e, i) => (
+    <li key={i} className="flex gap-3">
+      <span className="text-muted shrink-0">{e.created_at ? String(new Date(String(e.created_at)).toLocaleString()) : ''}</span>
+      <span className="font-medium">{String(e.type ?? 'event')}</span>
+      {e.data != null && Object.keys(e.data as object).length > 0 ? (
+        <span className="text-muted">({JSON.stringify(e.data)})</span>
+      ) : null}
+    </li>
+  ));
+
   return (
     <AppLayout>
       <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -84,15 +94,7 @@ export default function AdminDisputePage() {
         <section className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Timeline</h2>
           <ul className="space-y-2 text-sm">
-            {((events as Array<{ type?: string; created_at?: string; data?: unknown }>).map((e, i) => (
-              <li key={i} className="flex gap-3">
-                <span className="text-muted shrink-0">{e.created_at ? String(new Date(String(e.created_at)).toLocaleString()) : ''}</span>
-                <span className="font-medium">{String(e.type ?? 'event')}</span>
-                {e.data != null && Object.keys(e.data as object).length > 0 ? (
-                  <span className="text-muted">({JSON.stringify(e.data)})</span>
-                ) : null}
-              </li>
-            )) as ReactNode[])}
+            {timelineItems}
           </ul>
         </section>
 
