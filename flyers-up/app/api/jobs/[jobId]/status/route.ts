@@ -174,7 +174,7 @@ export async function PATCH(
       if (!arrival && ['pro_en_route', 'on_the_way', 'arrived'].includes(currentDbStatus)) {
         return NextResponse.json(
           {
-            error: 'Arrival verification required before starting job';
+            error: 'Arrival verification required before starting job',
             code: 'arrival_required',
             hint: 'Call POST /api/bookings/[id]/arrive with GPS coordinates first',
           },
