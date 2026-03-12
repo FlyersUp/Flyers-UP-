@@ -218,7 +218,8 @@ function AuthInner() {
       if (code.length !== 6) return;
       setStatus('verifying');
       try {
-        let data: { user?: { id: string; email?: string | null }; session?: { access_token: string; refresh_token: string } };
+        type VerifyResult = Awaited<ReturnType<typeof supabase.auth.verifyOtp>>['data'];
+        let data: VerifyResult | null = null;
         if (otpChannel === 'email') {
           const trimmed = email.trim();
           if (!trimmed) {
@@ -231,7 +232,7 @@ function AuthInner() {
             token: code,
             type: 'email',
           });
-          data = result.data;
+          data = result.data as VerifyResult;
           if (result.error) {
             setStatus('error');
             setError(result.error.message.toLowerCase().includes('expired') || result.error.message.toLowerCase().includes('invalid')
@@ -251,7 +252,7 @@ function AuthInner() {
             token: code,
             type: 'sms',
           });
-          data = result.data;
+          data = result.data as VerifyResult;
           if (result.error) {
             setStatus('error');
             setError(result.error.message.toLowerCase().includes('expired') || result.error.message.toLowerCase().includes('invalid')
