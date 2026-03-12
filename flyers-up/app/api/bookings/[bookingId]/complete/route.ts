@@ -119,7 +119,7 @@ export async function POST(
       actorUserId: user.id,
       bookingId: id,
       titleOverride: 'Pro finished',
-      bodyOverride: 'Pro finished — pay remaining to confirm',
+      bodyOverride: 'Confirm completion to release payout — or it auto-confirms in 24h',
       basePath: 'customer',
     });
   }

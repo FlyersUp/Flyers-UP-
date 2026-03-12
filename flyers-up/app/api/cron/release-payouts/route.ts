@@ -2,6 +2,12 @@
  * Cron: release-payouts
  * Transfers net amount to pro for completed bookings.
  * net_to_pro = max(0, total_amount_cents - platform_fee_cents - refunded_total_cents)
+ *
+ * Eligibility:
+ * - status = 'completed'
+ * - job_completions has >= 2 after photos
+ * - customer_confirmed = true OR auto_confirm_at < now()
+ * - payout_released = false
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -21,22 +27,28 @@ export async function GET(req: NextRequest) {
   if (authErr) return authErr;
 
   const admin = createSupabaseAdmin();
+  const now = new Date().toISOString();
 
-  // Completed only; paid_deposit + paid_remaining; no payout yet; refund not pending
-  // Require job_completions (2+ photos) for payout release
+  // Completed: paid_deposit + paid_remaining; payout_released = false; refund not pending
   const { data: eligible, error } = await admin
     .from('bookings')
     .select(
-      'id, pro_id, total_amount_cents, amount_total, platform_fee_cents, refunded_total_cents, currency, paid_deposit_at, paid_remaining_at, stripe_destination_account_id, service_pros(stripe_account_id, user_id)'
+      'id, pro_id, total_amount_cents, amount_total, platform_fee_cents, refunded_total_cents, currency, paid_deposit_at, paid_remaining_at, stripe_destination_account_id, customer_confirmed, auto_confirm_at, service_pros(stripe_account_id, user_id)'
     )
     .eq('status', 'completed')
-    .or('payout_status.is.null,payout_status.eq.none')
+    .eq('payout_released', false)
     .not('refund_status', 'eq', 'pending')
     .not('paid_deposit_at', 'is', null)
     .not('paid_remaining_at', 'is', null);
 
   const toProcess: typeof eligible = [];
   for (const b of eligible ?? []) {
+    const customerConfirmed = (b as { customer_confirmed?: boolean }).customer_confirmed === true;
+    const autoConfirmAt = (b as { auto_confirm_at?: string | null }).auto_confirm_at;
+    const autoConfirmPassed = autoConfirmAt != null && autoConfirmAt < now;
+
+    if (!customerConfirmed && !autoConfirmPassed) continue;
+
     const { data: jc } = await admin
       .from('job_completions')
       .select('after_photo_urls')
@@ -80,12 +92,12 @@ export async function GET(req: NextRequest) {
 
     const currency = (b.currency ?? 'usd').toLowerCase();
 
-    // Set pending (idempotent)
+    // Set pending (idempotent) - only if not already released
     const { error: updErr } = await admin
       .from('bookings')
       .update({ payout_status: 'pending' })
       .eq('id', b.id)
-      .or('payout_status.is.null,payout_status.eq.none');
+      .eq('payout_released', false);
 
     if (updErr) continue;
 
@@ -101,6 +113,8 @@ export async function GET(req: NextRequest) {
         .from('bookings')
         .update({
           payout_status: 'succeeded',
+          payout_released: true,
+          payout_timestamp: now,
           stripe_transfer_id: transferId,
           transferred_total_cents: netToPro,
         })

@@ -54,6 +54,7 @@ export async function POST(
     .from('bookings')
     .update({
       status: 'completed',
+      customer_confirmed: true,
       confirmed_by_customer_at: now,
       status_history: newHistory,
     })
