@@ -87,9 +87,9 @@ export default function AdminDisputePage() {
               <li key={i} className="flex gap-3">
                 <span className="text-muted shrink-0">{e.created_at ? new Date(e.created_at).toLocaleString() : ''}</span>
                 <span className="font-medium">{e.type ?? 'event'}</span>
-                {e.data && Object.keys(e.data as object).length > 0 && (
+                {e.data != null && Object.keys(e.data as object).length > 0 ? (
                   <span className="text-muted">({JSON.stringify(e.data)})</span>
-                )}
+                ) : null}
               </li>
             ))}
           </ul>
