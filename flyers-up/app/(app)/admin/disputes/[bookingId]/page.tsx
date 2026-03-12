@@ -66,7 +66,7 @@ export default function AdminDisputePage() {
             <dd>{data.customer ? String(data.customer.full_name ?? data.customer.email) : '—'}</dd>
             <dt className="text-muted">Pro</dt>
             <dd>{data.pro?.display_name ?? data.pro?.profile?.full_name ?? '—'}</dd>
-            {booking.cancelled_at && (
+            {Boolean(booking.cancelled_at) && (
               <>
                 <dt className="text-muted">Canceled</dt>
                 <dd>{String(booking.cancelled_at)}</dd>
