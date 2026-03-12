@@ -114,13 +114,13 @@ export default function AdminDisputePage() {
                 <ul className="list-disc list-inside text-amber-700">{missingEvidence.map((m, i) => <li key={i}>{m}</li>)}</ul>
               </div>
             )}
-            {Boolean(arrivals) && (
+            {arrivals != null && (
               <div>
                 <p className="text-muted text-sm">GPS Arrival</p>
                 <p className="text-sm">Verified: {String(arrivals.location_verified)} at {String(arrivals.arrival_timestamp)}</p>
               </div>
             )}
-            {Boolean(evidence) && (
+            {evidence != null && (
               <div>
                 <p className="text-muted text-sm">Evidence bundle</p>
                 <pre className="text-xs bg-black/5 p-2 rounded overflow-auto max-h-40">{JSON.stringify(evidence, null, 2)}</pre>
@@ -130,7 +130,7 @@ export default function AdminDisputePage() {
         </section>
 
         {/* D. Policy decision */}
-        {Boolean(booking.policy_decision_snapshot) && (
+        {booking.policy_decision_snapshot != null && (
           <section className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold mb-4">Policy Decision</h2>
             <pre className="text-sm bg-black/5 p-3 rounded overflow-auto">{JSON.stringify(booking.policy_decision_snapshot, null, 2)}</pre>
