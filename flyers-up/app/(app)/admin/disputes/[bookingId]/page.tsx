@@ -45,7 +45,7 @@ export default function AdminDisputePage() {
 
   const { booking, dispute, evidence, arrivals, events, completenessScore, missingEvidence } = data;
 
-  const timelineItems: ReactNode[] = (events as Array<{ type?: string; created_at?: string; data?: unknown }>).map((e, i) => (
+  const timelineItems = (events as Array<{ type?: string; created_at?: string; data?: unknown }>).map((e, i) => (
     <li key={i} className="flex gap-3">
       <span className="text-muted shrink-0">{e.created_at ? String(new Date(String(e.created_at)).toLocaleString()) : ''}</span>
       <span className="font-medium">{String(e.type ?? 'event')}</span>
@@ -53,7 +53,7 @@ export default function AdminDisputePage() {
         <span className="text-muted">({JSON.stringify(e.data)})</span>
       ) : null}
     </li>
-  ));
+  )) as unknown as ReactNode[];
 
   return (
     <AppLayout>
@@ -114,13 +114,13 @@ export default function AdminDisputePage() {
                 <ul className="list-disc list-inside text-amber-700">{missingEvidence.map((m, i) => <li key={i}>{m}</li>)}</ul>
               </div>
             )}
-            {arrivals && (
+            {Boolean(arrivals) && (
               <div>
                 <p className="text-muted text-sm">GPS Arrival</p>
                 <p className="text-sm">Verified: {String(arrivals.location_verified)} at {String(arrivals.arrival_timestamp)}</p>
               </div>
             )}
-            {evidence && (
+            {Boolean(evidence) && (
               <div>
                 <p className="text-muted text-sm">Evidence bundle</p>
                 <pre className="text-xs bg-black/5 p-2 rounded overflow-auto max-h-40">{JSON.stringify(evidence, null, 2)}</pre>
@@ -130,7 +130,7 @@ export default function AdminDisputePage() {
         </section>
 
         {/* D. Policy decision */}
-        {booking.policy_decision_snapshot && (
+        {Boolean(booking.policy_decision_snapshot) && (
           <section className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold mb-4">Policy Decision</h2>
             <pre className="text-sm bg-black/5 p-3 rounded overflow-auto">{JSON.stringify(booking.policy_decision_snapshot, null, 2)}</pre>
