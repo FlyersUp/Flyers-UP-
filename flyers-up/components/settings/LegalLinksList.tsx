@@ -11,7 +11,16 @@ interface LegalItem {
 const ITEMS: LegalItem[] = [
   { label: 'Terms of service', href: '/legal/terms' },
   { label: 'Privacy policy', href: '/legal/privacy' },
+  { label: 'Pro agreement', href: '/legal/pro-agreement' },
+  { label: 'Payments', href: '/legal/payments' },
   { label: 'Community guidelines', href: '/legal/guidelines' },
+  { label: 'Licensing', href: '/legal/licensing' },
+  { label: 'Arbitration', href: '/legal/arbitration' },
+  { label: 'Refunds', href: '/legal/refunds' },
+  { label: 'DMCA', href: '/legal/dmca' },
+  { label: 'Acceptable use', href: '/legal/acceptable-use' },
+  { label: 'Security', href: '/legal/security' },
+  { label: 'Insurance', href: '/legal/insurance' },
 ];
 
 export function LegalLinksList() {

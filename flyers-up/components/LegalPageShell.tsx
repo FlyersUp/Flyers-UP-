@@ -44,25 +44,21 @@ export function LegalPageShell({ children, backHref }: LegalPageShellProps) {
 
       <footer className="border-t border-[var(--surface-border)] bg-[var(--surface-solid)] py-6 mt-auto shrink-0">
         <div className="max-w-3xl mx-auto px-4">
-          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">
-            <Link href="/" className="hover:text-text transition-colors">
-              Home
-            </Link>
-            <Link href="/terms" className="hover:text-text transition-colors">
-              Terms
-            </Link>
-            <Link href="/privacy" className="hover:text-text transition-colors">
-              Privacy
-            </Link>
-            <Link href="/community-guidelines" className="hover:text-text transition-colors">
-              Community Guidelines
-            </Link>
-            <Link href="/refund-policy" className="hover:text-text transition-colors">
-              Refund Policy
-            </Link>
-            <Link href="/trust-verification" className="hover:text-text transition-colors">
-              Trust & Verification
-            </Link>
+          <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-muted">
+            <Link href="/" className="hover:text-text transition-colors">Home</Link>
+            <Link href="/legal/terms" className="hover:text-text transition-colors">Terms</Link>
+            <Link href="/legal/privacy" className="hover:text-text transition-colors">Privacy</Link>
+            <Link href="/legal/pro-agreement" className="hover:text-text transition-colors">Pro Agreement</Link>
+            <Link href="/legal/payments" className="hover:text-text transition-colors">Payments</Link>
+            <Link href="/legal/guidelines" className="hover:text-text transition-colors">Guidelines</Link>
+            <Link href="/legal/licensing" className="hover:text-text transition-colors">Licensing</Link>
+            <Link href="/legal/arbitration" className="hover:text-text transition-colors">Arbitration</Link>
+            <Link href="/legal/refunds" className="hover:text-text transition-colors">Refunds</Link>
+            <Link href="/legal/dmca" className="hover:text-text transition-colors">DMCA</Link>
+            <Link href="/legal/acceptable-use" className="hover:text-text transition-colors">Acceptable Use</Link>
+            <Link href="/legal/security" className="hover:text-text transition-colors">Security</Link>
+            <Link href="/legal/insurance" className="hover:text-text transition-colors">Insurance</Link>
+            <Link href="/trust-verification" className="hover:text-text transition-colors">Trust & Verification</Link>
           </nav>
           <p className="mt-4 text-center text-xs text-muted/70" suppressHydrationWarning>
             © {new Date().getFullYear()} Flyers Up LLC
