@@ -126,8 +126,8 @@ export function evaluateCancellationPolicy(input: CancellationPolicyInput): Canc
     };
   }
 
-  // Pro cancels after accept: full customer refund + pro strike
-  if (canceledBy === 'pro' && bookingStage !== 'requested') {
+  // Pro cancels after accept: full customer refund + pro strike (requested already returned above)
+  if (canceledBy === 'pro') {
     return {
       ...base,
       refundType: 'full',
