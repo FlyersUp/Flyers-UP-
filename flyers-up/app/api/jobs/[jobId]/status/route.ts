@@ -118,6 +118,7 @@ export async function PATCH(
     }
 
     const proId = String(proRow.id);
+    const admin = createAdminSupabaseClient();
 
     const { data: booking, error: fetchErr } = await supabase
       .from('bookings')
@@ -219,7 +220,6 @@ export async function PATCH(
       update.auto_confirm_at = in24h;
     }
 
-    const admin = createAdminSupabaseClient();
     let result = await admin
       .from('bookings')
       .update(update)

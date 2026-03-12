@@ -277,7 +277,7 @@ export function BookingDetailContent({
             </section>
 
             {/* D) Arrival verification (when Pro has arrived) */}
-            {(fullBooking.arrival || (booking as { arrival?: unknown }).arrival) && (
+            {Boolean(fullBooking.arrival || (booking as { arrival?: unknown }).arrival) && (
               <section className="mb-6">
                 <ArrivalVerificationCard
                   arrivalTimestamp={
