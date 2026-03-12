@@ -15,12 +15,14 @@ import {
   ShieldCheck,
   FileText,
   Plus,
+  Globe,
   type LucideIcon,
 } from 'lucide-react';
 
 export type AppIconName =
   | 'home'
   | 'bell'
+  | 'globe'
   | 'chat'
   | 'settings'
   | 'id-card'
@@ -49,6 +51,7 @@ const ICON_MAP: Record<AppIconName, LucideIcon> = {
   'safety-check': ShieldCheck,
   'file-text': FileText,
   plus: Plus,
+  globe: Globe,
 };
 
 export function AppIcon({

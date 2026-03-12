@@ -4,152 +4,153 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { X, ChevronRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { supabase } from '@/lib/supabaseClient';
 
 type Role = 'customer' | 'pro';
 
 type MenuItem = {
-  label: string;
+  labelKey: string;
   href?: string | null;
   disabled?: boolean;
 };
 
 type MenuSection = {
-  title: string;
+  titleKey: string;
   items: MenuItem[];
 };
 
 const CUSTOMER_SECTIONS: MenuSection[] = [
   {
-    title: 'Role',
-    items: [{ label: 'Switch role', href: '/onboarding/role?switch=1&next=%2Fcustomer' }],
+    titleKey: 'sidebar.role',
+    items: [{ labelKey: 'sidebar.switchRole', href: '/onboarding/role?switch=1&next=%2Fcustomer' }],
   },
   {
-    title: 'Account',
+    titleKey: 'sidebar.account',
     items: [
-      { label: 'Profile', href: '/customer/settings/account-profile' },
-      { label: 'Addresses', href: '/customer/settings/addresses' },
-      { label: 'Payment Methods', href: '/customer/settings/payment-methods' },
-      { label: 'Preferences', href: '/customer/settings/booking-preferences' },
+      { labelKey: 'sidebar.customer.profile', href: '/customer/settings/account-profile' },
+      { labelKey: 'sidebar.customer.addresses', href: '/customer/settings/addresses' },
+      { labelKey: 'sidebar.customer.paymentMethods', href: '/customer/settings/payment-methods' },
+      { labelKey: 'sidebar.customer.preferences', href: '/customer/settings/booking-preferences' },
     ],
   },
   {
-    title: 'Bookings',
+    titleKey: 'sidebar.bookings',
     items: [
-      { label: 'Bookings', href: '/customer/bookings' },
-      { label: 'Requests', href: '/customer/requests' },
-      { label: 'Saved Pros', href: '/customer/categories' },
-      { label: 'Booking Rules', href: '/booking-rules' },
+      { labelKey: 'sidebar.customer.bookings', href: '/customer/bookings' },
+      { labelKey: 'sidebar.customer.requests', href: '/customer/requests' },
+      { labelKey: 'sidebar.customer.savedPros', href: '/customer/categories' },
+      { labelKey: 'sidebar.customer.bookingRules', href: '/booking-rules' },
     ],
   },
   {
-    title: 'Protection & Trust',
+    titleKey: 'sidebar.protection',
     items: [
-      { label: 'Verified Pros Explained', href: '/customer/categories' },
-      { label: 'Disputes & Support', href: '/customer/settings/help-support' },
+      { labelKey: 'sidebar.customer.verifiedProsExplained', href: '/customer/categories' },
+      { labelKey: 'sidebar.customer.disputesSupport', href: '/customer/settings/help-support' },
     ],
   },
   {
-    title: 'Discovery',
+    titleKey: 'sidebar.discovery',
     items: [
-      { label: 'Flyer Wall', href: '/flyer-wall' },
-      { label: 'Browse Occupations', href: '/occupations' },
-      { label: 'Nearby Pros', href: '/customer/categories' },
-      { label: 'Favorites', href: '/customer/favorites' },
+      { labelKey: 'sidebar.customer.flyerWall', href: '/flyer-wall' },
+      { labelKey: 'sidebar.customer.browseOccupations', href: '/occupations' },
+      { labelKey: 'sidebar.customer.nearbyPros', href: '/customer/categories' },
+      { labelKey: 'sidebar.customer.favorites', href: '/customer/favorites' },
     ],
   },
   {
-    title: 'Payments',
+    titleKey: 'sidebar.payments',
     items: [
-      { label: 'Payment History', href: '/customer/settings/payments' },
-      { label: 'Receipts', href: '/customer/settings/payments' },
-      { label: 'Refunds', href: '/customer/settings/payments' },
+      { labelKey: 'sidebar.customer.paymentHistory', href: '/customer/settings/payments' },
+      { labelKey: 'sidebar.customer.receipts', href: '/customer/settings/payments' },
+      { labelKey: 'sidebar.customer.refunds', href: '/customer/settings/payments' },
     ],
   },
   {
-    title: 'Support',
+    titleKey: 'sidebar.support',
     items: [
-      { label: 'Help Center', href: '/customer/settings/help-support' },
-      { label: 'Contact Support', href: '/customer/settings/help-support' },
-      { label: 'Booking Rules', href: '/booking-rules' },
-      { label: 'Safety & Policies', href: '/customer/settings/support-legal' },
+      { labelKey: 'sidebar.customer.helpCenter', href: '/customer/settings/help-support' },
+      { labelKey: 'sidebar.customer.contactSupport', href: '/customer/settings/help-support' },
+      { labelKey: 'sidebar.customer.bookingRules', href: '/booking-rules' },
+      { labelKey: 'sidebar.customer.safetyPolicies', href: '/customer/settings/support-legal' },
     ],
   },
   {
-    title: 'Settings',
+    titleKey: 'sidebar.settings',
     items: [
-      { label: 'Notifications', href: '/customer/settings/notifications' },
-      { label: 'Privacy', href: '/customer/settings/privacy-security' },
-      { label: 'Security', href: '/customer/settings/privacy-security' },
-      { label: 'Two-Factor Authentication', href: '/customer/settings/privacy-security#2fa' },
-      { label: 'Your Data', href: '/customer/settings/privacy-security#your-data' },
-      { label: 'Logout', href: null, disabled: true },
+      { labelKey: 'sidebar.customer.notifications', href: '/customer/settings/notifications' },
+      { labelKey: 'sidebar.customer.privacy', href: '/customer/settings/privacy-security' },
+      { labelKey: 'sidebar.customer.security', href: '/customer/settings/privacy-security' },
+      { labelKey: 'sidebar.customer.twoFactor', href: '/customer/settings/privacy-security#2fa' },
+      { labelKey: 'sidebar.customer.yourData', href: '/customer/settings/privacy-security#your-data' },
+      { labelKey: 'sidebar.logout', href: null, disabled: true },
     ],
   },
 ];
 
 const PRO_SECTIONS: MenuSection[] = [
   {
-    title: 'Role',
-    items: [{ label: 'Switch role', href: '/onboarding/role?switch=1&next=%2Fpro' }],
+    titleKey: 'sidebar.role',
+    items: [{ labelKey: 'sidebar.switchRole', href: '/onboarding/role?switch=1&next=%2Fpro' }],
   },
   {
-    title: 'Account & Identity',
+    titleKey: 'sidebar.accountIdentity',
     items: [
-      { label: 'Profile', href: '/pro/profile' },
-      { label: 'Business Info', href: '/pro/settings/business-profile' },
-      { label: 'Credentials & Licenses', href: '/pro/credentials' },
-      { label: 'Insurance', href: '/pro/settings/safety-compliance' },
-      { label: 'Verification Status', href: '/pro/verified-badge' },
+      { labelKey: 'sidebar.pro.profile', href: '/pro/profile' },
+      { labelKey: 'sidebar.pro.businessInfo', href: '/pro/settings/business-profile' },
+      { labelKey: 'sidebar.pro.credentialsLicenses', href: '/pro/credentials' },
+      { labelKey: 'sidebar.pro.insurance', href: '/pro/settings/safety-compliance' },
+      { labelKey: 'sidebar.pro.verificationStatus', href: '/pro/verified-badge' },
     ],
   },
   {
-    title: 'Work & Operations',
+    titleKey: 'sidebar.workOperations',
     items: [
-      { label: 'Bookings', href: '/pro/bookings' },
-      { label: 'Booking Rules', href: '/booking-rules' },
-      { label: 'Jobs', href: '/pro/jobs' },
-      { label: 'Today (Detailed View)', href: '/pro/today' },
-      { label: 'Availability', href: '/pro/settings/pricing-availability' },
-      { label: 'Service Areas', href: '/pro/settings/business-profile' },
-      { label: 'Pricing & Services', href: '/pro/settings/pricing-availability' },
-      { label: 'Calendar', href: '/pro/today', disabled: true },
+      { labelKey: 'sidebar.pro.bookings', href: '/pro/bookings' },
+      { labelKey: 'sidebar.pro.bookingRules', href: '/booking-rules' },
+      { labelKey: 'sidebar.pro.jobs', href: '/pro/jobs' },
+      { labelKey: 'sidebar.pro.today', href: '/pro/today' },
+      { labelKey: 'sidebar.pro.availability', href: '/pro/settings/pricing-availability' },
+      { labelKey: 'sidebar.pro.serviceAreas', href: '/pro/settings/business-profile' },
+      { labelKey: 'sidebar.pro.pricingServices', href: '/pro/settings/pricing-availability' },
+      { labelKey: 'sidebar.pro.calendar', href: '/pro/today', disabled: true },
     ],
   },
   {
-    title: 'Earnings & Finance',
+    titleKey: 'sidebar.pro.earningsFinance',
     items: [
-      { label: 'Earnings Overview', href: '/pro/earnings' },
-      { label: 'Payouts', href: '/pro/settings/payments-payouts' },
-      { label: 'Tax Documents', href: '/settings/payments', disabled: true },
-      { label: 'Payment Settings', href: '/pro/settings/payments-payouts' },
+      { labelKey: 'sidebar.pro.earningsOverview', href: '/pro/earnings' },
+      { labelKey: 'sidebar.pro.payouts', href: '/pro/settings/payments-payouts' },
+      { labelKey: 'sidebar.pro.taxDocuments', href: '/settings/payments', disabled: true },
+      { labelKey: 'sidebar.pro.paymentSettings', href: '/pro/settings/payments-payouts' },
     ],
   },
   {
-    title: 'Growth',
+    titleKey: 'sidebar.growth',
     items: [
-      { label: 'Insights', href: '/pro', disabled: true },
-      { label: 'Improve Visibility', href: '/pro', disabled: true },
-      { label: 'Education / Best Practices', href: '/settings/help-support', disabled: true },
-      { label: 'Trust & Standing', href: '/pro/verified-badge' },
-      { label: 'Reviews & Ratings', href: '/pro/profile', disabled: true },
-      { label: 'Disputes', href: '/pro/settings/support-legal', disabled: true },
-      { label: 'Platform Policies', href: '/pro/settings/support-legal' },
+      { labelKey: 'sidebar.pro.insights', href: '/pro', disabled: true },
+      { labelKey: 'sidebar.pro.improveVisibility', href: '/pro', disabled: true },
+      { labelKey: 'sidebar.pro.educationBestPractices', href: '/settings/help-support', disabled: true },
+      { labelKey: 'sidebar.pro.trustStanding', href: '/pro/verified-badge' },
+      { labelKey: 'sidebar.pro.reviewsRatings', href: '/pro/profile', disabled: true },
+      { labelKey: 'sidebar.pro.disputes', href: '/pro/settings/support-legal', disabled: true },
+      { labelKey: 'sidebar.pro.platformPolicies', href: '/pro/settings/support-legal' },
     ],
   },
   {
-    title: 'Settings',
+    titleKey: 'sidebar.settings',
     items: [
-      { label: 'Notifications', href: '/pro/settings/notifications' },
-      { label: 'Privacy', href: '/pro/settings/privacy-security' },
-      { label: 'Security', href: '/pro/settings/account-identity' },
-      { label: 'Two-Factor Authentication', href: '/pro/settings/privacy-security#2fa' },
-      { label: 'Your Data', href: '/pro/settings/privacy-security#your-data' },
-      { label: 'Connected Accounts', href: '/pro/settings/payments-payouts' },
-      { label: 'Help Center', href: '/pro/settings/help-support' },
-      { label: 'Contact Support', href: '/pro/settings/help-support' },
-      { label: 'Announcements / System Updates', href: '/pro/notifications' },
-      { label: 'Legal & Terms', href: '/pro/settings/support-legal' },
+      { labelKey: 'sidebar.customer.notifications', href: '/pro/settings/notifications' },
+      { labelKey: 'sidebar.customer.privacy', href: '/pro/settings/privacy-security' },
+      { labelKey: 'sidebar.customer.security', href: '/pro/settings/account-identity' },
+      { labelKey: 'sidebar.customer.twoFactor', href: '/pro/settings/privacy-security#2fa' },
+      { labelKey: 'sidebar.customer.yourData', href: '/pro/settings/privacy-security#your-data' },
+      { labelKey: 'sidebar.pro.connectedAccounts', href: '/pro/settings/payments-payouts' },
+      { labelKey: 'sidebar.customer.helpCenter', href: '/pro/settings/help-support' },
+      { labelKey: 'sidebar.customer.contactSupport', href: '/pro/settings/help-support' },
+      { labelKey: 'sidebar.pro.announcements', href: '/pro/notifications' },
+      { labelKey: 'sidebar.pro.legalTerms', href: '/pro/settings/support-legal' },
     ],
   },
 ];
@@ -166,11 +167,15 @@ function Section({
   items,
   onNavigate,
   subtitleColor,
+  getLabel,
+  comingSoon,
 }: {
   title: string;
   items: MenuItem[];
   onNavigate: () => void;
   subtitleColor: string;
+  getLabel: (key: string) => string;
+  comingSoon: string;
 }) {
   return (
     <div className="mb-8">
@@ -184,6 +189,7 @@ function Section({
       <div className="mt-2">
         {items.map((it) => {
           const disabled = Boolean(it.disabled || !it.href);
+          const label = getLabel(it.labelKey);
           const row = (
             <div
               className={`flex items-center justify-between gap-3 rounded-2xl px-4 py-4 text-left transition ${
@@ -191,16 +197,16 @@ function Section({
                   ? 'cursor-not-allowed opacity-60 text-[#4A4A48] dark:text-gray-400'
                   : 'text-[#1F2937] dark:text-gray-100 hover:bg-black/[0.03] dark:hover:bg-white/10 active:bg-black/[0.05] dark:active:bg-white/15'
               }`}
-              title={disabled ? 'Coming soon' : undefined}
+              title={disabled ? comingSoon : undefined}
             >
-              <span className="text-[1.1rem] font-medium">{it.label}</span>
+              <span className="text-[1.1rem] font-medium">{label}</span>
               <ChevronRight size={20} className="flex-shrink-0 text-[#8C93A1] dark:text-gray-500" aria-hidden />
             </div>
           );
 
-          if (disabled) return <div key={it.label}>{row}</div>;
+          if (disabled) return <div key={it.labelKey}>{row}</div>;
           return (
-            <Link key={it.label} href={it.href!} className="block" onClick={onNavigate}>
+            <Link key={it.labelKey} href={it.href!} className="block" onClick={onNavigate}>
               {row}
             </Link>
           );
@@ -276,15 +282,17 @@ export function SideMenu({
     };
   }, [open]);
 
-  const roleLabel = resolvedRole === 'pro' ? 'Pro' : 'Customer';
+  const t = useTranslations();
+  const roleLabel = resolvedRole === 'pro' ? t('sidebar.roleLabelPro') : t('sidebar.roleLabelCustomer');
   const baseSections = resolvedRole === 'pro' ? PRO_SECTIONS : CUSTOMER_SECTIONS;
   const subtitleColor = SUBTITLE_COLORS[resolvedRole];
   const isCanonicalAdmin =
     identity.email?.trim().toLowerCase() === 'hello.flyersup@gmail.com';
   const adminSection: MenuSection[] = isCanonicalAdmin
-    ? [{ title: 'Admin', items: [{ label: 'Switch to Admin', href: '/admin' }] }]
+    ? [{ titleKey: 'sidebar.admin', items: [{ labelKey: 'sidebar.switchToAdmin', href: '/admin' }] }]
     : [];
   const sections = [...adminSection, ...baseSections];
+  const getLabel = (key: string) => t(key);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -306,7 +314,7 @@ export function SideMenu({
           if (Date.now() - openedAtRef.current < 250) return;
           onClose();
         }}
-        aria-label="Close menu"
+        aria-label={t('sidebar.closeMenu')}
       />
 
       {/* Drawer panel - right-side slide-in */}
@@ -340,7 +348,7 @@ export function SideMenu({
               className="flex-shrink-0 h-14 w-14 rounded-full border border-[#D9D9D9] dark:border-white/10 bg-[#EFEFEF] dark:bg-white/10 text-[#1F2937] dark:text-white
                 hover:bg-[#E7E7E7] dark:hover:bg-white/15 active:bg-[#DFDFDF] dark:active:bg-white/20
                 transition-colors flex items-center justify-center"
-              aria-label="Close menu"
+              aria-label={t('sidebar.closeMenu')}
             >
               <X size={22} />
             </button>
@@ -351,11 +359,13 @@ export function SideMenu({
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-4">
           {sections.map((s) => (
             <Section
-              key={s.title}
-              title={s.title}
+              key={s.titleKey}
+              title={getLabel(s.titleKey)}
               items={s.items}
               onNavigate={onClose}
-              subtitleColor={s.title === 'Admin' ? NEUTRAL_SUBTITLE : subtitleColor}
+              subtitleColor={s.titleKey === 'sidebar.admin' ? NEUTRAL_SUBTITLE : subtitleColor}
+              getLabel={getLabel}
+              comingSoon={t('common.comingSoon')}
             />
           ))}
         </div>
@@ -368,13 +378,13 @@ export function SideMenu({
               className="text-[1.1rem] font-medium text-[#667085] dark:text-gray-400 hover:text-[#1F2937] dark:hover:text-white transition-colors"
               onClick={onClose}
             >
-              Messages
+              {t('sidebar.messages')}
             </Link>
             <button
               onClick={() => void handleLogout()}
               className="rounded-2xl px-4 py-4 text-[1.1rem] font-semibold text-[#1F2937] dark:text-white transition hover:bg-black/[0.03] dark:hover:bg-white/10"
             >
-              Logout
+              {t('sidebar.logout')}
             </button>
           </div>
         </div>

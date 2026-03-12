@@ -1,6 +1,9 @@
 import "./globals.css";
 import { ErrorReporter } from "@/components/ErrorReporter";
 import { ThemeProviderWrapper } from "@/components/ThemeProviderWrapper";
+import { NextIntlClientProvider } from "next-intl";
+import { LocaleSync } from "@/components/LocaleSync";
+import { getLocale } from "next-intl/server";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -36,13 +39,14 @@ const themeInitScript = `
 })();
 `;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
   return (
-    <html lang="en" className="bg-bg text-text" suppressHydrationWarning>
+    <html lang={locale} className="bg-bg text-text" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <script
@@ -60,10 +64,13 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-bg text-text antialiased" suppressHydrationWarning>
-        <ThemeProviderWrapper>
-          <ErrorReporter />
-          {children}
-        </ThemeProviderWrapper>
+        <NextIntlClientProvider>
+          <ThemeProviderWrapper>
+            <LocaleSync />
+            <ErrorReporter />
+            {children}
+          </ThemeProviderWrapper>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 const path = require("path");
 const fs = require("fs");
+const createNextIntlPlugin = require("next-intl/plugin");
 
 // Explicitly load .env.local from this directory (fixes cwd/env loading issues)
 const envPath = path.join(__dirname, ".env.local");
@@ -25,6 +26,8 @@ const withPWA = require("next-pwa")({
   buildExcludes: [/middleware-manifest\.json$/],
 });
 
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
+
 const nextConfig = {
   images: {
     remotePatterns: process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -39,4 +42,4 @@ const nextConfig = {
   },
 };
 
-module.exports = withPWA(nextConfig);
+module.exports = withPWA(withNextIntl(nextConfig));
