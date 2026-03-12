@@ -207,6 +207,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           description: 'Arrival verification, rebook rate, completion proofs, flyer shares.',
           icon: <BarChart3 className="h-4 w-4" />,
         },
+        {
+          href: '/admin/disputes',
+          title: 'Dispute Evidence',
+          description: 'Booking evidence, timeline, policy decisions, admin actions.',
+          icon: <FileText className="h-4 w-4" />,
+        },
       ],
     },
     {

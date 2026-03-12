@@ -14,8 +14,10 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
-import { getMyServicePro, getServiceCategories, getProEarnings, getProJobs, type ServiceCategory, type Booking } from '@/lib/api';
+import { getMyServicePro, getServiceCategories, getProEarnings, getProJobs, getProSafetyComplianceSettings, type ServiceCategory, type Booking } from '@/lib/api';
 import { updateMyServiceProAction } from '@/app/actions/servicePro';
+import { getProfilePhotoUrl } from '@/lib/proProfile';
+import { BusinessProfileBuilder } from '@/components/business/BusinessProfileBuilder';
 import {
   getActiveSubcategoriesByServiceSlugAction,
   getMyProSubcategorySelectionsAction,
@@ -55,8 +57,16 @@ export default function BusinessSettingsPage() {
   const [categoryId, setCategoryId] = useState('');
   const [available, setAvailable] = useState(false);
   const [startingPrice, setStartingPrice] = useState('');
+  const [minJobPrice, setMinJobPrice] = useState('');
   const [serviceRadius, setServiceRadius] = useState('');
+  const [location, setLocation] = useState('');
   const [businessHoursModel, setBusinessHoursModel] = useState(() => defaultBusinessHoursModel());
+  const [beforeAfterPhotos, setBeforeAfterPhotos] = useState<string[]>([]);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
+  const [insuranceUploaded, setInsuranceUploaded] = useState(false);
+  const [identityVerified, setIdentityVerified] = useState(false);
+  const [backgroundChecked, setBackgroundChecked] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   // Service management
   const [serviceTypes, setServiceTypes] = useState<Array<{ name: string; price: string; id?: string }>>([]);
@@ -137,15 +147,23 @@ export default function BusinessSettingsPage() {
       setCategories(cats);
 
       // Load business data
-      const proData = await getMyServicePro(user.id);
+      const [proData, profilePhoto, safetySettings] = await Promise.all([
+        getMyServicePro(user.id),
+        getProfilePhotoUrl(user.id),
+        getProSafetyComplianceSettings(user.id),
+      ]);
+
       if (proData) {
         setDisplayName(proData.displayName);
         setBio(proData.bio || '');
         setCategoryId(proData.categoryId);
         setAvailable(Boolean(proData.available));
         setStartingPrice(proData.startingPrice.toString());
+        setMinJobPrice(proData.minJobPrice != null ? String(proData.minJobPrice) : '');
         setServiceRadius(proData.serviceRadius?.toString() || '');
+        setLocation(proData.location || '');
         setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
+        setBeforeAfterPhotos(proData.beforeAfterPhotos || []);
         
         // Load service types from Supabase; fall back to localStorage for older sessions.
         if (proData.serviceTypes && proData.serviceTypes.length > 0) {
@@ -159,6 +177,13 @@ export default function BusinessSettingsPage() {
             setServiceTypes([{ name: proData.categoryName || 'General Service', price: proData.startingPrice.toString() }]);
           }
         }
+      }
+
+      setProfilePhotoUrl(profilePhoto ?? '');
+      setInsuranceUploaded(Boolean(safetySettings?.insuranceDocPath));
+      if (proData) {
+        setIdentityVerified(proData.identityVerified);
+        setBackgroundChecked(proData.backgroundChecked);
       }
 
       // Load bookings for reviews
@@ -196,8 +221,11 @@ export default function BusinessSettingsPage() {
         category_id: categoryId || undefined,
         available,
         starting_price: startingPrice ? parseFloat(startingPrice) : undefined,
+        min_job_price: minJobPrice ? parseFloat(minJobPrice) : null,
         service_radius: serviceRadius ? parseInt(serviceRadius) : undefined,
+        location: location || undefined,
         business_hours: stringifyBusinessHoursModel(businessHoursModel),
+        before_after_photos: beforeAfterPhotos.length > 0 ? beforeAfterPhotos : undefined,
       }, accessToken);
 
       if (result.success) {
@@ -227,9 +255,14 @@ export default function BusinessSettingsPage() {
         setCategoryId(proData.categoryId);
         setAvailable(Boolean(proData.available));
         setStartingPrice(proData.startingPrice.toString());
+        setMinJobPrice(proData.minJobPrice != null ? String(proData.minJobPrice) : '');
         setServiceRadius(proData.serviceRadius?.toString() || '');
+        setLocation(proData.location || '');
         setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
+        setBeforeAfterPhotos(proData.beforeAfterPhotos || []);
         setSuccess('Business profile saved.');
+        setToast('Saved!');
+        setTimeout(() => setToast(null), 3000);
       } else {
         setError(result.error || 'Failed to update business profile');
       }
@@ -418,19 +451,69 @@ export default function BusinessSettingsPage() {
         </div>
       )}
 
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-accent text-accentContrast rounded-lg shadow-lg">
+          {toast}
+        </div>
+      )}
+
       {/* Tab Content */}
       <div className="surface-card p-6 overflow-visible">
         {/* Edit Business Profile Tab */}
         {activeTab === 'profile' && (
-          <form onSubmit={handleSaveProfile} className="space-y-4">
-            <div className="text-sm text-muted/70">
-              These details appear on your public listing. Required fields are marked with *.
+          <>
+            <BusinessProfileBuilder
+              userId={userId!}
+              displayName={displayName}
+              bio={bio}
+              categoryId={categoryId}
+              categoryName={selectedCategory?.name ?? ''}
+              startingPrice={startingPrice}
+              minJobPrice={minJobPrice}
+              serviceRadius={serviceRadius}
+              location={location}
+              available={available}
+              businessHoursModel={businessHoursModel}
+              beforeAfterPhotos={beforeAfterPhotos}
+              profilePhotoUrl={profilePhotoUrl}
+              identityVerified={identityVerified}
+              backgroundChecked={backgroundChecked}
+              insuranceUploaded={insuranceUploaded}
+              phoneVerified={false}
+              onDisplayNameChange={setDisplayName}
+              onBioChange={setBio}
+              onCategoryIdChange={setCategoryId}
+              onStartingPriceChange={setStartingPrice}
+              onMinJobPriceChange={setMinJobPrice}
+              onServiceRadiusChange={setServiceRadius}
+              onLocationChange={setLocation}
+              onAvailableChange={setAvailable}
+              onBusinessHoursModelChange={setBusinessHoursModel}
+              onBeforeAfterPhotosChange={setBeforeAfterPhotos}
+              onProfilePhotoChange={setProfilePhotoUrl}
+              categories={activeCategories.map((c) => ({ id: c.id, name: c.name }))}
+              onEditSchedule={() => setActiveTab('schedule')}
+            />
+            <div className="fixed bottom-0 left-0 right-0 z-40 p-4 bg-surface/95 backdrop-blur border-t border-border safe-area-pb md:left-[var(--sidebar-width,0)]">
+              <form onSubmit={handleSaveProfile} className="max-w-2xl mx-auto">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 px-4 bg-accent text-accentContrast rounded-xl font-medium hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                >
+                  {loading ? 'Saving…' : 'Save profile'}
+                </button>
+              </form>
             </div>
-
+          </>
+        )}
+        {/* DEADCODE_START */}
+        {false && (
+          <form onSubmit={handleSaveProfile} className="space-y-4">
+            <div className="text-sm text-muted/70">x</div>
             <div>
-              <label htmlFor="displayName" className="block text-sm font-medium text-muted mb-1">
-                Business name *
-              </label>
+              <label htmlFor="displayName">x</label>
               <input
                 type="text"
                 id="displayName"

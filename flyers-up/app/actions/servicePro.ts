@@ -43,6 +43,8 @@ export async function updateMyServiceProAction(
     if (params.service_types !== undefined) updateData.service_types = params.service_types;
     if (params.same_day_available !== undefined) updateData.same_day_available = params.same_day_available;
 
+    const minJobPrice = params.min_job_price;
+
     // Prefer admin client (service role). Fall back to authed client (RLS) when missing.
     const writer =
       (() => {
@@ -91,6 +93,14 @@ export async function updateMyServiceProAction(
       .select('*')
       .single();
     if (error) return { success: false, error: error.message };
+
+    // Sync min_job_price to pro_profiles when provided
+    if (minJobPrice !== undefined) {
+      const { error: ppErr } = await writer
+        .from('pro_profiles')
+        .upsert({ user_id: userId, min_job_price: minJobPrice }, { onConflict: 'user_id' });
+      if (ppErr) console.warn('[pro_profiles] min_job_price sync:', ppErr.message);
+    }
 
     // Read-after-write verification (also powers UI refresh).
     return { success: true, servicePro: (data as unknown as Record<string, unknown>) ?? undefined };

@@ -2340,15 +2340,24 @@ export interface ServiceProProfile {
   verifiedCredentials: string[];
   servicesOffered: string[];
   serviceTypes: Array<{ name: string; price: string; id?: string }>;
+  /** Profile/storefront fields */
+  logoUrl: string | null;
+  beforeAfterPhotos: string[];
+  location: string | null;
+  identityVerified: boolean;
+  backgroundChecked: boolean;
+  licensed: boolean;
+  minJobPrice: number | null;
 }
 
 export async function getMyServicePro(userId: string): Promise<ServiceProProfile | null> {
   try {
-    // Avoid embedded relationship reads here.
-    // If `service_categories` select is blocked/misconfigured, it can break the whole read
-    // even when `service_pros` itself is readable.
-    const { data, error } = await supabase.from('service_pros').select('*').eq('user_id', userId).maybeSingle();
+    const [proRes, proProfileRes] = await Promise.all([
+      supabase.from('service_pros').select('*').eq('user_id', userId).maybeSingle(),
+      supabase.from('pro_profiles').select('min_job_price').eq('user_id', userId).maybeSingle(),
+    ]);
 
+    const { data, error } = proRes;
     if (error || !data) {
       console.error('Error fetching service pro:', {
         message: (error as any)?.message,
@@ -2379,6 +2388,16 @@ export async function getMyServicePro(userId: string): Promise<ServiceProProfile
     } catch {
       // ignore
     }
+
+    const rawPhotos = (data as any).before_after_photos;
+    const beforeAfterPhotos = Array.isArray(rawPhotos)
+      ? (rawPhotos as unknown[]).filter((v): v is string => typeof v === 'string')
+      : Array.isArray(rawPhotos) && rawPhotos.some((p: unknown) => p && typeof (p as any).url === 'string')
+        ? (rawPhotos as { url: string }[]).map((p) => p.url)
+        : [];
+
+    const pp = proProfileRes.data as { min_job_price?: number | null } | null;
+    const minJobPrice = pp?.min_job_price != null ? Number(pp.min_job_price) : null;
 
     return {
       id: data.id,
@@ -2414,6 +2433,13 @@ export async function getMyServicePro(userId: string): Promise<ServiceProProfile
             id: typeof s.id === 'string' ? s.id : undefined,
           }));
       })(),
+      logoUrl: (data as any).logo_url ?? null,
+      beforeAfterPhotos,
+      location: (data as any).location ?? null,
+      identityVerified: Boolean((data as any).identity_verified ?? false),
+      backgroundChecked: Boolean((data as any).background_checked ?? false),
+      licensed: Boolean((data as any).licensed ?? false),
+      minJobPrice: Number.isFinite(minJobPrice) ? minJobPrice : null,
     };
   } catch (err) {
     console.error('Unexpected error fetching service pro:', err);
@@ -2446,6 +2472,8 @@ export interface UpdateServiceProParams {
   certifications?: unknown[];
   service_types?: unknown[];
   same_day_available?: boolean;
+  /** Stored in pro_profiles; passed through to updateProProfile */
+  min_job_price?: number | null;
 }
 
 export async function updateServicePro(
