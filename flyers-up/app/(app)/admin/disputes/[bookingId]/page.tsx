@@ -71,7 +71,7 @@ export default function AdminDisputePage() {
                 <dt className="text-muted">Canceled</dt>
                 <dd>{String(booking.cancelled_at)}</dd>
                 <dt className="text-muted">Refund</dt>
-                <dd>{String(booking.refund_type ?? '—')} ({booking.refund_amount_cents ?? 0}¢)</dd>
+                <dd>{String(booking.refund_type ?? '—')} ({String(booking.refund_amount_cents ?? 0)}¢)</dd>
                 <dt className="text-muted">Policy</dt>
                 <dd>{String(booking.policy_explanation ?? '—')}</dd>
               </>
