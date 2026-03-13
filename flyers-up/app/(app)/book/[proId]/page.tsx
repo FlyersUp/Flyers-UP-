@@ -22,6 +22,7 @@ export default function BookingPage() {
   const searchParams = useSearchParams();
   const proId = params.proId as string;
   const subcategorySlug = searchParams.get('subcategorySlug')?.trim() ?? undefined;
+  const serviceSlug = searchParams.get('serviceSlug')?.trim() ?? undefined;
   const address = searchParams.get('address')?.trim() ?? undefined;
   const notes = searchParams.get('notes')?.trim() ?? undefined;
   const service = searchParams.get('service')?.trim() ?? undefined;
@@ -35,7 +36,11 @@ export default function BookingPage() {
     const loadData = async () => {
       const user = await getCurrentUser();
       if (!user) {
-        router.push(`/auth?role=customer&next=${encodeURIComponent(`/book/${proId}`)}`);
+        const nextParams = new URLSearchParams();
+        if (serviceSlug) nextParams.set('serviceSlug', serviceSlug);
+        if (subcategorySlug) nextParams.set('subcategorySlug', subcategorySlug);
+        const nextPath = nextParams.toString() ? `/book/${proId}?${nextParams.toString()}` : `/book/${proId}`;
+        router.push(`/auth?role=customer&next=${encodeURIComponent(nextPath)}`);
         return;
       }
 
@@ -61,7 +66,7 @@ export default function BookingPage() {
     };
 
     loadData();
-  }, [proId, router, rebookBookingId]);
+  }, [proId, router, rebookBookingId, serviceSlug, subcategorySlug]);
 
   if (isLoading) {
     return (
@@ -130,6 +135,7 @@ export default function BookingPage() {
           <BookingForm
             pro={pro}
             initialSubcategorySlug={subcategorySlug}
+            serviceSlug={serviceSlug}
             initialAddress={rebookPrefill?.address ?? address}
             initialNotes={rebookPrefill?.notes ?? notes}
             previousBookingId={rebookBookingId}

@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCurrentUser, type ServicePro } from '@/lib/api';
+import { getCurrentUser, getActiveAddonsForPro, type ServicePro, type ServiceAddon } from '@/lib/api';
 import { createBookingWithPayment } from '@/app/actions/bookings';
 import { QuickRulesSheet, hasSeenQuickRules } from '@/components/booking/QuickRulesSheet';
 
@@ -31,6 +31,8 @@ interface BookingFormProps {
   pro: ServicePro;
   /** Pre-select subcategory when coming from marketplace (e.g. ?subcategorySlug=30-min-walk) */
   initialSubcategorySlug?: string;
+  /** Service context when coming from marketplace (e.g. ?serviceSlug=pet-care) - filters subcategories and add-ons */
+  serviceSlug?: string;
   /** Pre-fill address (e.g. from Rebook Same Pro) */
   initialAddress?: string;
   /** Pre-fill notes (e.g. from Rebook Same Pro) */
@@ -41,11 +43,13 @@ interface BookingFormProps {
   forceQuickRules?: boolean;
 }
 
-export default function BookingForm({ pro, initialSubcategorySlug, initialAddress, initialNotes, previousBookingId, forceQuickRules }: BookingFormProps) {
+export default function BookingForm({ pro, initialSubcategorySlug, serviceSlug, initialAddress, initialNotes, previousBookingId, forceQuickRules }: BookingFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [addons, setAddons] = useState<ServiceAddon[]>([]);
+  const [selectedAddonIds, setSelectedAddonIds] = useState<Set<string>>(new Set());
   const [quickRulesOpen, setQuickRulesOpen] = useState(false);
   const pendingSubmitRef = useRef(false);
 
@@ -66,8 +70,14 @@ export default function BookingForm({ pro, initialSubcategorySlug, initialAddres
     }));
   }, [initialAddress, initialNotes]);
 
+  const effectiveServiceSlug = serviceSlug ?? pro.categorySlug;
+
   useEffect(() => {
-    fetch(`/api/pro/${encodeURIComponent(pro.id)}/subcategories`)
+    const params = new URLSearchParams();
+    if (effectiveServiceSlug) params.set('serviceSlug', effectiveServiceSlug);
+    if (initialSubcategorySlug) params.set('subcategorySlug', initialSubcategorySlug);
+    const qs = params.toString();
+    fetch(`/api/pro/${encodeURIComponent(pro.id)}/subcategories${qs ? `?${qs}` : ''}`)
       .then((res) => res.json())
       .then((data) => {
         if (data?.ok && Array.isArray(data.subcategories)) {
@@ -83,7 +93,13 @@ export default function BookingForm({ pro, initialSubcategorySlug, initialAddres
         }
       })
       .catch(() => {});
-  }, [pro.id, initialSubcategorySlug]);
+  }, [pro.id, initialSubcategorySlug, effectiveServiceSlug]);
+
+  useEffect(() => {
+    const cat = effectiveServiceSlug ?? pro.categorySlug;
+    if (!cat) return;
+    getActiveAddonsForPro(pro.id, cat).then(setAddons);
+  }, [pro.id, pro.categorySlug, effectiveServiceSlug]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -120,7 +136,7 @@ export default function BookingForm({ pro, initialSubcategorySlug, initialAddres
         formData.time,
         formData.address,
         formData.notes,
-        [],
+        Array.from(selectedAddonIds),
         formData.subcategoryId || null,
         previousBookingId || null
       );
@@ -209,6 +225,42 @@ export default function BookingForm({ pro, initialSubcategorySlug, initialAddres
                 {sub.description && (
                   <span className="text-sm text-muted">— {sub.description}</span>
                 )}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Add-ons - optional extras the pro offers */}
+      {addons.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-text mb-1">
+            Add-ons
+          </label>
+          <p className="text-xs text-muted/70 mb-2">Optional extras to include with your booking</p>
+          <div className="space-y-2">
+            {addons.map((addon) => (
+              <label
+                key={addon.id}
+                className="flex items-center justify-between gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface2/50 transition-colors has-[:checked]:border-accent has-[:checked]:bg-surface2"
+              >
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedAddonIds.has(addon.id)}
+                    onChange={() => {
+                      const next = new Set(selectedAddonIds);
+                      if (next.has(addon.id)) next.delete(addon.id);
+                      else next.add(addon.id);
+                      setSelectedAddonIds(next);
+                    }}
+                    className="w-4 h-4 text-accent border-border focus:ring-accent rounded"
+                  />
+                  <span className="text-text font-medium">{addon.title}</span>
+                </div>
+                <span className="text-sm font-medium text-text">
+                  +${((addon.priceCents ?? 0) / 100).toFixed(2)}
+                </span>
               </label>
             ))}
           </div>

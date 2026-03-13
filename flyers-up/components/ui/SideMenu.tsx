@@ -317,13 +317,13 @@ export function SideMenu({
         aria-label={t('sidebar.closeMenu')}
       />
 
-      {/* Drawer panel - right-side slide-in */}
+      {/* Drawer panel - left-side slide-in */}
       <aside
-        className={`fixed right-0 top-0 z-[61] h-dvh w-[86%] max-w-[430px] flex flex-col shadow-2xl transition-transform duration-300 ease-out
+        className={`fixed left-0 top-0 z-[61] h-dvh w-[86%] max-w-[430px] flex flex-col shadow-2xl transition-transform duration-300 ease-out
           bg-[#F7F7F4] dark:bg-[#1C1E24] text-[#1F2937] dark:text-gray-100
-          border-l border-black/5 dark:border-white/10`}
+          border-r border-black/5 dark:border-white/10`}
         style={{
-          transform: open ? 'translateX(0)' : 'translateX(100%)',
+          transform: open ? 'translateX(0)' : 'translateX(-100%)',
         }}
       >
         {/* Fixed header */}

@@ -163,9 +163,10 @@ export default function ServiceProListPage({ params }: { params: Promise<{ slug:
             categoryName={serviceName}
             getBookHref={(proId) => {
               const base = `/book/${encodeURIComponent(proId)}`;
-              return selectedSubcategorySlug
-                ? `${base}?subcategorySlug=${encodeURIComponent(selectedSubcategorySlug)}`
-                : base;
+              const params = new URLSearchParams();
+              params.set('serviceSlug', slug);
+              if (selectedSubcategorySlug) params.set('subcategorySlug', selectedSubcategorySlug);
+              return `${base}?${params.toString()}`;
             }}
             getMessageHref={(proId) => `/customer/pros/${encodeURIComponent(proId)}`}
           />
