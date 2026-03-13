@@ -54,6 +54,8 @@ export interface BusinessProfileBuilderProps {
   onDisplayNameChange: (v: string) => void;
   onBioChange: (v: string) => void;
   onCategoryIdChange: (v: string) => void;
+  /** When true, occupation select is disabled (locked after signup) */
+  categoryLocked?: boolean;
   onStartingPriceChange: (v: string) => void;
   onMinJobPriceChange: (v: string) => void;
   onServiceRadiusChange: (v: string) => void;
@@ -89,6 +91,7 @@ export function BusinessProfileBuilder({
   onDisplayNameChange,
   onBioChange,
   onCategoryIdChange,
+  categoryLocked = false,
   onStartingPriceChange,
   onMinJobPriceChange,
   onServiceRadiusChange,
@@ -219,13 +222,19 @@ export function BusinessProfileBuilder({
             <select
               value={categoryId}
               onChange={(e) => onCategoryIdChange(e.target.value)}
-              className="w-full px-4 py-3 rounded-[var(--radius-lg)] border border-border bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
+              disabled={categoryLocked}
+              className="w-full px-4 py-3 rounded-[var(--radius-lg)] border border-border bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent disabled:opacity-70 disabled:cursor-not-allowed"
             >
               <option value="">Select your occupation</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
+            {categoryLocked && (
+              <p className="text-xs text-muted/70 mt-2">
+                Your primary occupation is locked and cannot be changed after signup.
+              </p>
+            )}
           </div>
           <Textarea
             label="About Your Service"

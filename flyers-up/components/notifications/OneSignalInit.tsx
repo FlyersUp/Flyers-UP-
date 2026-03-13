@@ -19,8 +19,9 @@ export default function OneSignalInit() {
         ? (window.__ONESIGNAL_APP_ID__ ?? process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID)
         : process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
 
-    console.log("[OneSignal Debug] component mounted");
-    console.log("[OneSignal Debug] appId exists:", !!appId);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[OneSignal] component mounted, appId:", !!appId);
+    }
 
     if (!appId) {
       console.warn("[OneSignal Debug] Missing NEXT_PUBLIC_ONESIGNAL_APP_ID");
@@ -37,7 +38,9 @@ export default function OneSignalInit() {
 
     window.OneSignalDeferred.push(async function (OneSignal: any) {
       try {
-        console.log("[OneSignal Debug] init starting");
+        if (process.env.NODE_ENV === "development") {
+          console.log("[OneSignal] init starting");
+        }
 
         await OneSignal.init({
           appId,
@@ -47,35 +50,18 @@ export default function OneSignalInit() {
           allowLocalhostAsSecureOrigin: true,
         });
 
-        console.log("[OneSignal Debug] init succeeded");
-
-        const regs = await navigator.serviceWorker.getRegistrations();
-        console.log(
-          "[OneSignal Debug] service worker registrations:",
-          regs.map((r) => ({
-            scope: r.scope,
-            scriptURL:
-              r.active?.scriptURL ||
-              r.installing?.scriptURL ||
-              r.waiting?.scriptURL,
-          }))
-        );
-
-        console.log("[OneSignal Debug] Notification.permission:", Notification.permission);
-        console.log(
-          "[OneSignal Debug] OneSignal.User.PushSubscription.optedIn:",
-          await OneSignal.User.PushSubscription.optedIn
-        );
-        console.log(
-          "[OneSignal Debug] OneSignal.User.PushSubscription.id:",
-          OneSignal.User.PushSubscription.id
-        );
+        if (process.env.NODE_ENV === "development") {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          console.log("[OneSignal] init succeeded, SW registrations:", regs.length);
+        }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes("already initialized")) {
-          console.log("[OneSignal Debug] Already initialized, skipping");
+          if (process.env.NODE_ENV === "development") {
+            console.log("[OneSignal] Already initialized, skipping");
+          }
         } else {
-          console.error("[OneSignal Debug] init failed", err);
+          console.error("[OneSignal] init failed", err);
         }
       }
     });

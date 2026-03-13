@@ -484,6 +484,7 @@ export default function BusinessSettingsPage() {
               onDisplayNameChange={setDisplayName}
               onBioChange={setBio}
               onCategoryIdChange={setCategoryId}
+              categoryLocked={!!categoryId && !primaryCategoryInactive}
               onStartingPriceChange={setStartingPrice}
               onMinJobPriceChange={setMinJobPrice}
               onServiceRadiusChange={setServiceRadius}

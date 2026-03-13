@@ -388,7 +388,8 @@ export default function ProProfilePage() {
                       });
                       if (e.target.value) setShowInactiveCategoryBanner(false);
                     }}
-                    className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                    disabled={!!formData.categoryId && !showInactiveCategoryBanner}
+                    className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     <option value="">Select your occupation</option>
                     {categories.map(cat => (
@@ -397,6 +398,11 @@ export default function ProProfilePage() {
                   </select>
                 ) : (
                   <p className="text-text">{formData.categorySlug || 'Not set'}</p>
+                )}
+                {isEditing && formData.categoryId && !showInactiveCategoryBanner && (
+                  <p className="text-xs text-muted/70 mt-2">
+                    Primary occupation is locked and cannot be changed after signup.
+                  </p>
                 )}
               </div>
 

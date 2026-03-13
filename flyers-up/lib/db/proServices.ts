@@ -88,7 +88,7 @@ export async function setMyProSubcategorySelections(
 
   const { data: pro } = await supabase
     .from('service_pros')
-    .select('id')
+    .select('id, primary_service_id')
     .eq('user_id', params.userId)
     .maybeSingle();
 
@@ -105,6 +105,15 @@ export async function setMyProSubcategorySelections(
 
   if (!service) {
     return { success: false, error: 'Service not found or inactive.' };
+  }
+
+  // Enforce: primary occupation cannot be changed after signup
+  const existingPrimaryServiceId = (pro as { primary_service_id?: string | null }).primary_service_id;
+  if (existingPrimaryServiceId && existingPrimaryServiceId !== service.id) {
+    return {
+      success: false,
+      error: 'Primary occupation cannot be changed after signup. You can only update subcategories within your current occupation.',
+    };
   }
 
   // Validate all subcategoryIds belong to this service and are active

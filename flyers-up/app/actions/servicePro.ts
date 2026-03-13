@@ -64,6 +64,16 @@ export async function updateMyServiceProAction(
       .maybeSingle();
     if (existErr) return { success: false, error: existErr.message };
 
+    // Enforce: primary occupation cannot be changed after signup (only exception: first-time set or admin)
+    const existingCategoryId = (existing?.category_id as string | undefined)?.trim() || '';
+    const requestedCategoryId = (params.category_id as string | undefined)?.trim() || '';
+    if (existingCategoryId && requestedCategoryId && requestedCategoryId !== existingCategoryId) {
+      return {
+        success: false,
+        error: 'Primary occupation cannot be changed after signup. Your occupation is locked.',
+      };
+    }
+
     const displayName =
       (updateData.display_name as string | undefined)?.trim() ||
       (existing?.display_name as string | undefined)?.trim() ||
@@ -100,6 +110,49 @@ export async function updateMyServiceProAction(
         .from('pro_profiles')
         .upsert({ user_id: userId, min_job_price: minJobPrice }, { onConflict: 'user_id' });
       if (ppErr) console.warn('[pro_profiles] min_job_price sync:', ppErr.message);
+    }
+
+    // Sync service_types to service_addons so customers see them at checkout (migration 063)
+    if (params.service_types !== undefined) {
+      try {
+        const { data: cat } = await writer
+          .from('service_categories')
+          .select('slug')
+          .eq('id', categoryId)
+          .maybeSingle();
+        const categorySlug = (cat as { slug?: string } | null)?.slug;
+        if (categorySlug) {
+          const types = Array.isArray(params.service_types)
+            ? (params.service_types as Array<{ name?: string; price?: string | number }>)
+            : [];
+          const validTypes = types.filter(
+            (t) => t && typeof t.name === 'string' && t.name.trim() && (t.price === 0 || (t.price != null && !Number.isNaN(Number(t.price))))
+          );
+          // Delete existing service_types-synced addons (requires source column from migration 063)
+          await writer
+            .from('service_addons')
+            .delete()
+            .eq('pro_id', userId)
+            .eq('service_category', categorySlug)
+            .eq('source', 'service_types');
+          // Insert new addons from service_types
+          for (const t of validTypes) {
+            const priceCents = Math.round(Number(t.price) * 100);
+            if (priceCents < 0) continue;
+            await writer.from('service_addons').insert({
+              pro_id: userId,
+              service_category: categorySlug,
+              title: String(t.name).trim(),
+              price_cents: priceCents,
+              is_active: true,
+              source: 'service_types',
+            });
+          }
+        }
+      } catch (syncErr) {
+        // source column may not exist before migration 063; log and continue
+        console.warn('[servicePro] service_types sync to addons:', syncErr);
+      }
     }
 
     // Read-after-write verification (also powers UI refresh).
