@@ -7,18 +7,20 @@ import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth, upsertProfile, upsertServicePro } from '@/lib/onboarding';
 import { getOccupationsAction } from '@/app/actions/occupations';
 import {
-  getActiveSubcategoriesByServiceSlugAction,
-  getCategoryIdForServiceSlugAction,
-  setMyProSubcategorySelectionsAction,
-} from '@/app/actions/services';
-import { OCCUPATION_TO_SERVICE_SLUG } from '@/lib/occupations';
+  getServicesByOccupationIdAction,
+  setProOccupationAndServicesAction,
+  getCategoryIdForOccupationSlugAction,
+} from '@/app/actions/proOnboarding';
+import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import type { OccupationRow } from '@/lib/occupationData';
-import type { ServiceSubcategory } from '@/lib/db/services';
+import type { OccupationServiceRow } from '@/lib/occupationData';
 
 function isInvalidRefreshToken(err: unknown): boolean {
   const msg = (err as { message?: string } | null)?.message ?? '';
   return /invalid refresh token/i.test(msg) || /refresh token not found/i.test(msg);
 }
+
+type Step = 2 | 3 | 4; // Role=1 done on role page; Pro flow: Occupation(2), Services(3), Setup(4)
 
 function ProInner() {
   const router = useRouter();
@@ -31,18 +33,30 @@ function ProInner() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<Step>(2);
   const [occupations, setOccupations] = useState<OccupationRow[]>([]);
-  const [subcategories, setSubcategories] = useState<ServiceSubcategory[]>([]);
-  const [subcategoriesLoading, setSubcategoriesLoading] = useState(false);
+  const [services, setServices] = useState<OccupationServiceRow[]>([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [occupationSearch, setOccupationSearch] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [businessName, setBusinessName] = useState('');
-  const [primaryOccupationSlug, setPrimaryOccupationSlug] = useState('');
-  const [selectedSubcategoryIds, setSelectedSubcategoryIds] = useState<string[]>([]);
+  const [selectedOccupationSlug, setSelectedOccupationSlug] = useState('');
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [serviceAreaZip, setServiceAreaZip] = useState('');
 
-  const primaryServiceSlug = primaryOccupationSlug ? (OCCUPATION_TO_SERVICE_SLUG[primaryOccupationSlug] ?? null) : null;
+  const selectedOccupation = selectedOccupationSlug ? occupations.find((o) => o.slug === selectedOccupationSlug) : null;
+  const selectedOccupationId = selectedOccupation?.id ?? null;
+
+  const filteredOccupations = useMemo(() => {
+    const q = occupationSearch.trim().toLowerCase();
+    if (!q) return occupations;
+    return occupations.filter(
+      (o) =>
+        o.name.toLowerCase().includes(q) ||
+        (o.description?.toLowerCase().includes(q) ?? false)
+    );
+  }, [occupations, occupationSearch]);
 
   useEffect(() => {
     const init = async () => {
@@ -55,7 +69,7 @@ function ProInner() {
             try {
               await supabase.auth.signOut();
             } catch {
-              // ignore
+              /* ignore */
             }
           }
           router.replace(
@@ -97,67 +111,69 @@ function ProInner() {
   }, [router, safeNext]);
 
   useEffect(() => {
-    const serviceSlug = primaryOccupationSlug ? OCCUPATION_TO_SERVICE_SLUG[primaryOccupationSlug] : null;
-    if (!serviceSlug) {
-      setSubcategories([]);
-      setSelectedSubcategoryIds([]);
+    if (!selectedOccupationId) {
+      setServices([]);
+      setSelectedServiceIds([]);
       return;
     }
     let cancelled = false;
-    setSubcategoriesLoading(true);
-    getActiveSubcategoriesByServiceSlugAction(serviceSlug)
-      .then((subs) => {
+    setServicesLoading(true);
+    getServicesByOccupationIdAction(selectedOccupationId)
+      .then((svcs) => {
         if (!cancelled) {
-          setSubcategories(subs);
-          setSelectedSubcategoryIds([]);
+          setServices(svcs);
+          setSelectedServiceIds([]);
         }
       })
       .finally(() => {
-        if (!cancelled) setSubcategoriesLoading(false);
+        if (!cancelled) setServicesLoading(false);
       });
     return () => { cancelled = true; };
-  }, [primaryOccupationSlug]);
+  }, [selectedOccupationId]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleContinueForNow() {
+    await saveAndRedirect('/pro');
+  }
+
+  async function handleSetUpNow() {
+    const finalNext = (() => {
+      if (!safeNext) return '/pro';
+      try {
+        const u = new URL(safeNext, 'https://x');
+        const inner = u.searchParams.get('next');
+        if (inner) return inner;
+      } catch {
+        /* ignore */
+      }
+      return safeNext.startsWith('/api/') ? '/pro' : safeNext;
+    })();
+    await saveAndRedirect(`/pro/connect?next=${encodeURIComponent(finalNext)}`);
+  }
+
+  async function saveAndRedirect(destination: string) {
     setSaving(true);
     setError(null);
     try {
       const { data: { user }, error: userErr } = await supabase.auth.getUser();
-      if (userErr) {
-        if (isInvalidRefreshToken(userErr)) {
-          try {
-            await supabase.auth.signOut();
-          } catch {
-            // ignore
-          }
-        }
-        router.replace('/auth');
-        return;
-      }
-      if (!user) {
+      if (userErr || !user) {
         router.replace('/auth');
         return;
       }
 
-      if (!firstName.trim()) {
-        setError('Please enter your first name.');
+      if (!firstName.trim() || !lastName.trim()) {
+        setError('Please enter your first and last name.');
         return;
       }
-      if (!lastName.trim()) {
-        setError('Please enter your last name.');
+      if (!selectedOccupationId || !selectedOccupationSlug) {
+        setError('Please select an occupation.');
         return;
       }
-      if (!primaryOccupationSlug || !primaryServiceSlug) {
-        setError('Please select a primary occupation.');
-        return;
-      }
-      if (selectedSubcategoryIds.length === 0) {
-        setError('Please select at least one subcategory.');
+      if (selectedServiceIds.length === 0) {
+        setError('Select at least one service to continue.');
         return;
       }
       if (!serviceAreaZip.trim()) {
-        setError('Please enter a service area zip.');
+        setError('Please enter a service area zip code.');
         return;
       }
 
@@ -176,9 +192,9 @@ function ProInner() {
         return;
       }
 
-      const categoryId = await getCategoryIdForServiceSlugAction(primaryServiceSlug);
+      const categoryId = await getCategoryIdForOccupationSlugAction(selectedOccupationSlug);
       if (!categoryId) {
-        setError('Could not map service to category. Please try again.');
+        setError('Could not map occupation to category. Please try again.');
         return;
       }
 
@@ -189,37 +205,37 @@ function ProInner() {
         category_id: categoryId,
         secondary_category_id: null,
         service_area_zip: serviceAreaZip.trim(),
+        occupation_id: selectedOccupationId,
       });
       if (!proRes.success) {
         setError(proRes.error || 'Could not save your pro profile. Please try again.');
         return;
       }
 
-      const subRes = await setMyProSubcategorySelectionsAction(primaryServiceSlug, selectedSubcategoryIds);
-      if (!subRes.success) {
-        setError(subRes.error || 'Could not save your service selections. Please try again.');
+      const svcRes = await setProOccupationAndServicesAction(selectedOccupationId, selectedServiceIds);
+      if (!svcRes.success) {
+        setError(svcRes.error || 'Could not save your service selections. Please try again.');
         return;
       }
-      // Redirect to Stripe Connect onboarding (required to receive payments)
-      // Extract final destination (/pro) from /pro/connect?next=X or /api/...?next=X
-      const finalNext = (() => {
-        if (!safeNext) return '/pro';
-        try {
-          const u = new URL(safeNext, 'https://x');
-          const inner = u.searchParams.get('next');
-          if (inner) return inner;
-        } catch {
-          // ignore
-        }
-        return safeNext.startsWith('/api/') ? '/pro' : safeNext;
-      })();
-      window.location.href = `/pro/connect?next=${encodeURIComponent(finalNext)}`;
+
+      window.location.href = destination;
     } catch (err) {
       console.error(err);
       setError('Something went wrong. Please try again.');
     } finally {
       setSaving(false);
     }
+  }
+
+  const canProceedOccupation = !!selectedOccupationSlug;
+  const canProceedServices = selectedServiceIds.length > 0 && !servicesLoading;
+  const canProceedSetup =
+    !!firstName.trim() && !!lastName.trim() && !!serviceAreaZip.trim();
+
+  function goNext() {
+    if (step === 2 && !canProceedOccupation) return;
+    if (step === 3 && !canProceedServices) return;
+    setStep((s) => Math.min(4, s + 1) as Step);
   }
 
   if (loading) {
@@ -233,203 +249,272 @@ function ProInner() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text">
       <header className="px-4 py-5">
-        <div className="max-w-md mx-auto">
+        <div className="max-w-lg mx-auto">
           <Logo size="md" linkToHome />
         </div>
       </header>
 
-      <main className="px-4 pb-10">
-        <div className="max-w-md mx-auto">
-          <div className="rounded-2xl border border-border bg-surface shadow-sm p-6">
-            <>
-                <div className="flex gap-2 mb-6">
-                  {([1, 2, 3, 4] as const).map((s) => (
-                    <div
-                      key={s}
-                      className={`h-1 flex-1 rounded-full ${s <= step ? 'bg-accent' : 'bg-surface2'}`}
-                      aria-hidden
-                    />
-                  ))}
-                </div>
-                <h1 className="text-xl font-semibold tracking-tight">
-                  {step === 1 && 'Step 1: Identity'}
-                  {step === 2 && 'Step 2: Choose your occupation'}
-                  {step === 3 && 'Step 3: Service area zip'}
-                  {step === 4 && 'Step 4: Review & go live'}
-                </h1>
-                <p className="text-muted mt-1 text-sm">You can add verification and payouts later.</p>
+      <main className="px-4 pb-12">
+        <div className="max-w-lg mx-auto">
+          <OnboardingProgress currentStep={step} />
 
-                {error && (
-                  <div className="mt-4 rounded-xl border border-red-100 bg-danger/10 px-4 py-3 text-sm text-text">
-                    {error}
-                  </div>
-                )}
+          <div className="rounded-2xl border border-border bg-surface shadow-sm p-6 sm:p-8">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {step === 2 && 'Choose your occupation'}
+              {step === 3 && 'Select your services'}
+              {step === 4 && 'Almost there'}
+            </h1>
+            <p className="text-muted mt-2">
+              {step === 2 && 'Select the occupation that best describes what you do.'}
+              {step === 3 && 'Pick the services you offer. You can add more later.'}
+              {step === 4 && 'Verification and payouts can be completed later.'}
+            </p>
 
-                <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-                  {step === 1 && (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-sm font-medium text-muted mb-1" htmlFor="firstName">First name</label>
-                          <input
-                            id="firstName"
-                            value={firstName}
-                            onChange={(e) => setFirstName(e.target.value)}
-                            required
-                            className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
-                            placeholder="Sam"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-muted mb-1" htmlFor="lastName">Last name</label>
-                          <input
-                            id="lastName"
-                            value={lastName}
-                            onChange={(e) => setLastName(e.target.value)}
-                            required
-                            className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
-                            placeholder="Smith"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-muted mb-1" htmlFor="businessName">Business name</label>
-                        <input
-                          id="businessName"
-                          value={businessName}
-                          onChange={(e) => setBusinessName(e.target.value)}
-                          className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
-                          placeholder="ABC Cleaning (what customers see)"
-                        />
-                        <p className="mt-1 text-xs text-muted">Optional. If blank, your first and last name will be shown.</p>
-                      </div>
-                    </div>
-                  )}
-                  {step === 2 && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-muted mb-1">Your occupation</label>
-                        <div className="space-y-2 mt-2 max-h-64 overflow-y-auto">
-                          {occupations.map((occ) => (
-                            <label
-                              key={occ.id}
-                              className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                                primaryOccupationSlug === occ.slug ? 'border-accent bg-accent/5' : 'border-border bg-surface hover:border-accent/50'
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name="primaryOccupation"
-                                value={occ.slug}
-                                checked={primaryOccupationSlug === occ.slug}
-                                onChange={() => setPrimaryOccupationSlug(occ.slug)}
-                                className="mt-1"
-                              />
-                              <div className="flex items-center gap-2 min-w-0">
-                                {occ.icon && <span className="text-lg shrink-0">{occ.icon}</span>}
-                                <span className="font-medium text-text">{occ.name}</span>
-                              </div>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                      {primaryOccupationSlug && primaryServiceSlug && (
-                        <div>
-                          <label className="block text-sm font-medium text-muted mb-1">
-                            Select the services you offer (at least one)
-                          </label>
-                          {subcategoriesLoading ? (
-                            <p className="text-sm text-muted">Loading…</p>
-                          ) : (
-                            <div className="space-y-2 mt-2 max-h-48 overflow-y-auto">
-                              {subcategories.map((sub) => (
-                                <label
-                                  key={sub.id}
-                                  className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-surface2 cursor-pointer"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedSubcategoryIds.includes(sub.id)}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setSelectedSubcategoryIds((prev) => [...prev, sub.id]);
-                                      } else {
-                                        setSelectedSubcategoryIds((prev) => prev.filter((id) => id !== sub.id));
-                                      }
-                                    }}
-                                  />
-                                  <span className="text-text">{sub.name}</span>
-                                </label>
-                              ))}
-                            </div>
+            {error && (
+              <div className="mt-4 rounded-xl border border-red-100 bg-danger/10 px-4 py-3 text-sm text-text">
+                {error}
+              </div>
+            )}
+
+            {/* Step 2: Occupation */}
+            {step === 2 && (
+              <div className="mt-6 space-y-4">
+                <input
+                  type="search"
+                  value={occupationSearch}
+                  onChange={(e) => setOccupationSearch(e.target.value)}
+                  placeholder="Search occupations…"
+                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text placeholder:text-muted"
+                  aria-label="Search occupations"
+                />
+                <div className="space-y-3">
+                  {filteredOccupations.map((occ) => (
+                    <button
+                      key={occ.id}
+                      type="button"
+                      onClick={() => setSelectedOccupationSlug(occ.slug)}
+                      className={`w-full text-left rounded-2xl border-2 p-5 sm:p-6 transition-all duration-200 ${
+                        selectedOccupationSlug === occ.slug
+                          ? 'border-accent bg-accent/10 shadow-sm'
+                          : 'border-border bg-surface hover:border-accent/50 hover:bg-surface2'
+                      }`}
+                    >
+                      <div className="flex items-start gap-4">
+                        {occ.icon && (
+                          <span className="text-3xl sm:text-4xl leading-none shrink-0">{occ.icon}</span>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-lg text-text">{occ.name}</div>
+                          {occ.description && (
+                            <div className="text-muted mt-1 text-sm">{occ.description}</div>
                           )}
                         </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {filteredOccupations.length === 0 && (
+                  <p className="text-sm text-muted py-4 text-center">No occupations match your search.</p>
+                )}
+              </div>
+            )}
+
+            {/* Step 3: Services */}
+            {step === 3 && (
+              <div className="mt-6">
+                {!selectedOccupation ? (
+                  <p className="text-sm text-muted">Select an occupation first.</p>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3 mb-4 p-4 rounded-xl bg-surface2/50 border border-border">
+                      {selectedOccupation.icon && (
+                        <span className="text-2xl">{selectedOccupation.icon}</span>
                       )}
-                    </>
-                  )}
-                  {step === 3 && (
+                      <span className="font-medium text-text">{selectedOccupation.name}</span>
+                    </div>
+                    <label className="block text-sm font-medium text-muted mb-3">
+                      Select the services you offer (at least one)
+                    </label>
+                    {servicesLoading ? (
+                      <p className="text-sm text-muted py-6">Loading services…</p>
+                    ) : services.length === 0 ? (
+                      <div className="rounded-xl border border-border bg-surface2/30 p-8 text-center">
+                        <p className="text-muted">No services added yet for this occupation.</p>
+                        <p className="text-xs text-muted mt-1">Check back later or contact support.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {services.map((svc) => (
+                          <label
+                            key={svc.id}
+                            className="flex items-center gap-3 p-4 rounded-xl border border-border hover:bg-surface2 cursor-pointer transition-colors has-[:checked]:border-accent has-[:checked]:bg-accent/5"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedServiceIds.includes(svc.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedServiceIds((prev) => [...prev, svc.id]);
+                                } else {
+                                  setSelectedServiceIds((prev) => prev.filter((id) => id !== svc.id));
+                                }
+                              }}
+                              className="rounded border-border size-5 shrink-0"
+                            />
+                            <div>
+                              <span className="text-text font-medium">{svc.name}</span>
+                              {svc.description && (
+                                <span className="text-muted text-sm block mt-0.5">{svc.description}</span>
+                              )}
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Step 4: Setup (Verification + Payouts) */}
+            {step === 4 && (
+              <div className="mt-6 space-y-6">
+                <div className="rounded-xl border border-border bg-surface2/30 p-4 space-y-4">
+                  <p className="text-sm font-medium text-text">Basic info</p>
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-muted mb-1" htmlFor="zip">Service area zip</label>
+                      <label className="block text-xs font-medium text-muted mb-1" htmlFor="firstName">
+                        First name
+                      </label>
                       <input
-                        id="zip"
-                        value={serviceAreaZip}
-                        onChange={(e) => setServiceAreaZip(e.target.value)}
-                        required
-                        className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-base text-text"
-                        placeholder="10001"
-                        inputMode="numeric"
+                        id="firstName"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text"
+                        placeholder="Sam"
                       />
                     </div>
-                  )}
-                  {step === 4 && (
-                    <div className="rounded-xl border border-border bg-surface2 p-4 text-sm text-muted">
-                      <p><strong className="text-text">Your name:</strong> {firstName} {lastName}</p>
-                      <p><strong className="text-text">Business name:</strong> {businessName.trim() || `${firstName} ${lastName}`.trim()}</p>
-                      <p><strong className="text-text">Primary occupation:</strong> {occupations.find((o) => o.slug === primaryOccupationSlug)?.name ?? '—'}</p>
-                      <p><strong className="text-text">Subcategories:</strong> {subcategories.filter((s) => selectedSubcategoryIds.includes(s.id)).map((s) => s.name).join(', ') || '—'}</p>
-                      <p><strong className="text-text">Service zip:</strong> {serviceAreaZip}</p>
+                    <div>
+                      <label className="block text-xs font-medium text-muted mb-1" htmlFor="lastName">
+                        Last name
+                      </label>
+                      <input
+                        id="lastName"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text"
+                        placeholder="Smith"
+                      />
                     </div>
-                  )}
-                  <div className="flex gap-3">
-                    {step > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
-                        className="rounded-xl border border-border px-4 py-3 text-base font-medium text-text"
-                      >
-                        Back
-                      </button>
-                    )}
-                    {step < 4 ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (step === 1 && (!firstName.trim() || !lastName.trim())) return;
-                          if (step === 2 && (!primaryOccupationSlug || selectedSubcategoryIds.length === 0)) return;
-                          if (step === 3 && !serviceAreaZip.trim()) return;
-                          setStep((s) => (s + 1) as 1 | 2 | 3 | 4);
-                        }}
-                        disabled={
-                          (step === 1 && (!firstName.trim() || !lastName.trim())) ||
-                          (step === 2 && (!primaryOccupationSlug || selectedSubcategoryIds.length === 0 || subcategoriesLoading)) ||
-                          (step === 3 && !serviceAreaZip.trim())
-                        }
-                        className="flex-1 rounded-xl bg-accent px-4 py-3.5 text-base font-medium text-accentContrast disabled:opacity-50"
-                      >
-                        Next
-                      </button>
-                    ) : (
-                      <button
-                        type="submit"
-                        disabled={saving}
-                        className="flex-1 rounded-xl bg-accent px-4 py-3.5 text-base font-medium text-accentContrast disabled:opacity-50"
-                      >
-                        {saving ? 'Saving…' : 'Go live'}
-                      </button>
-                    )}
                   </div>
-                </form>
-            </>
+                  <div>
+                    <label className="block text-xs font-medium text-muted mb-1" htmlFor="businessName">
+                      Business name (optional)
+                    </label>
+                    <input
+                      id="businessName"
+                      value={businessName}
+                      onChange={(e) => setBusinessName(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text"
+                      placeholder="ABC Cleaning"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted mb-1" htmlFor="zip">
+                      Service area zip code
+                    </label>
+                    <input
+                      id="zip"
+                      value={serviceAreaZip}
+                      onChange={(e) => setServiceAreaZip(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text"
+                      placeholder="10001"
+                      inputMode="numeric"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-sm font-medium text-text">Complete these when you&apos;re ready</p>
+
+                  <div className="rounded-2xl border-2 border-border bg-surface p-5 sm:p-6">
+                    <div className="flex items-start gap-4">
+                      <span className="text-2xl">✓</span>
+                      <div>
+                        <h3 className="font-semibold text-text">Verification</h3>
+                        <p className="text-sm text-muted mt-1">
+                          May be required for trust features or eligibility. Complete when prompted.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border-2 border-border bg-surface p-5 sm:p-6">
+                    <div className="flex items-start gap-4">
+                      <span className="text-2xl">💳</span>
+                      <div>
+                        <h3 className="font-semibold text-text">Payout setup</h3>
+                        <p className="text-sm text-muted mt-1">
+                          Required before receiving payouts. Connect your bank account when you&apos;re ready.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleContinueForNow}
+                    disabled={!canProceedSetup || saving}
+                    className="w-full rounded-xl border-2 border-accent bg-accent px-4 py-4 text-base font-medium text-accentContrast hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                  >
+                    {saving ? 'Saving…' : 'Continue for now'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSetUpNow}
+                    disabled={!canProceedSetup || saving}
+                    className="w-full rounded-xl border-2 border-border bg-surface px-4 py-4 text-base font-medium text-text hover:bg-surface2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Set up payouts now
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation: Back + Next (steps 2 & 3 only) */}
+            {(step === 2 || step === 3) && (
+              <div className="flex gap-3 mt-8 pt-6 border-t border-border">
+                {step > 2 && (
+                  <button
+                    type="button"
+                    onClick={() => setStep((s) => Math.max(2, s - 1) as Step)}
+                    className="rounded-xl border border-border px-4 py-3 text-base font-medium text-text hover:bg-surface2"
+                  >
+                    Back
+                  </button>
+                )}
+                <div className="flex-1 space-y-1">
+                  <button
+                    type="button"
+                    onClick={goNext}
+                    disabled={
+                      (step === 2 && !canProceedOccupation) ||
+                      (step === 3 && !canProceedServices)
+                    }
+                    className="w-full rounded-xl bg-accent px-4 py-4 text-base font-medium text-accentContrast hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                  >
+                    Next
+                  </button>
+                  {step === 3 && !canProceedServices && selectedOccupation && (
+                    <p className="text-xs text-muted text-center mt-1">
+                      Select at least one service to continue.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
@@ -450,5 +535,3 @@ export default function ProOnboardingPage() {
     </Suspense>
   );
 }
-
-

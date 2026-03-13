@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Logo from '@/components/Logo';
 import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth, upsertProfile, type AppRole } from '@/lib/onboarding';
+import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 
 function isInvalidRefreshToken(err: unknown): boolean {
   const msg = (err as { message?: string } | null)?.message ?? '';
@@ -128,14 +129,15 @@ function RoleInner() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text">
       <header className="px-4 py-5">
-        <div className="max-w-md mx-auto">
+        <div className="max-w-lg mx-auto">
           <Logo size="md" linkToHome />
         </div>
       </header>
 
-      <main className="px-4 pb-10">
-        <div className="max-w-md mx-auto">
-          <div className="rounded-[var(--radius-xl)] border border-[var(--hairline)] bg-surface shadow-card p-6">
+      <main className="px-4 pb-12">
+        <div className="max-w-lg mx-auto">
+          <OnboardingProgress currentStep={1} />
+          <div className="rounded-2xl border border-border bg-surface shadow-sm p-6 sm:p-8">
             <h1 className="text-2xl font-semibold tracking-tight">How will you use Flyers Up?</h1>
             <p className="text-muted mt-2">
               {switching ? 'Switch roles any time.' : 'Pick one — you can switch later.'}
@@ -147,21 +149,21 @@ function RoleInner() {
               </div>
             )}
 
-            <div className="mt-6 space-y-3">
+            <div className="mt-8 space-y-4">
               <button
                 type="button"
                 onClick={() => setSelected('customer')}
-                className={`w-full text-left rounded-[var(--radius-xl)] border px-4 py-4 transition-colors duration-[var(--transition-base)] ${
+                className={`w-full text-left rounded-2xl border-2 p-6 sm:p-8 transition-all duration-200 ${
                   selected === 'customer'
-                    ? 'border-[hsl(var(--accent-customer))] bg-[hsl(var(--accent-customer)/0.12)]'
-                    : 'border-[var(--hairline)] bg-surface hover:bg-surface2'
+                    ? 'border-accent bg-accent/10 shadow-sm'
+                    : 'border-border bg-surface hover:border-accent/50 hover:bg-surface2'
                 }`}
               >
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl leading-none text-[hsl(var(--accent-customer))]">🧹</div>
+                <div className="flex items-start gap-4">
+                  <div className="text-4xl leading-none shrink-0">🧹</div>
                   <div>
-                    <div className="font-semibold text-text">I’m looking for services</div>
-                    <div className="text-sm text-muted mt-0.5">Book local pros, message, and manage jobs.</div>
+                    <div className="font-semibold text-lg text-text">Customer</div>
+                    <div className="text-muted mt-1">Book local pros, message, and manage jobs.</div>
                   </div>
                 </div>
               </button>
@@ -169,17 +171,17 @@ function RoleInner() {
               <button
                 type="button"
                 onClick={() => setSelected('pro')}
-                className={`w-full text-left rounded-[var(--radius-xl)] border px-4 py-4 transition-colors duration-[var(--transition-base)] ${
+                className={`w-full text-left rounded-2xl border-2 p-6 sm:p-8 transition-all duration-200 ${
                   selected === 'pro'
-                    ? 'border-[hsl(var(--accent-pro))] bg-[hsl(var(--accent-pro)/0.10)]'
-                    : 'border-[var(--hairline)] bg-surface hover:bg-surface2'
+                    ? 'border-accent bg-accent/10 shadow-sm'
+                    : 'border-border bg-surface hover:border-accent/50 hover:bg-surface2'
                 }`}
               >
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl leading-none text-[hsl(var(--accent-pro))]">🪜</div>
-                  <div>
-                    <div className="font-semibold text-text">I offer services</div>
-                    <div className="text-sm text-muted mt-0.5">Create a simple profile and start taking bookings.</div>
+                <div className="flex items-start gap-4">
+                  <div className="text-4xl leading-none shrink-0">🪜</div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-lg text-text">Pro</div>
+                    <div className="text-muted mt-1">I offer services. Create a profile and start taking bookings.</div>
                   </div>
                 </div>
               </button>
@@ -189,13 +191,7 @@ function RoleInner() {
               type="button"
               disabled={!selected || saving}
               onClick={handleContinue}
-              className={`mt-6 w-full rounded-[var(--radius-lg)] px-4 py-3.5 text-base font-medium transition-colors duration-[var(--transition-base)] disabled:opacity-50 ${
-                selected === 'customer'
-                  ? 'bg-[hsl(var(--accent-customer))] text-text hover:opacity-95'
-                  : selected === 'pro'
-                    ? 'bg-[hsl(var(--accent-pro))] text-text hover:opacity-95'
-                    : 'bg-surface2 text-muted'
-              }`}
+              className="mt-8 w-full rounded-xl bg-accent px-4 py-4 text-base font-medium text-accentContrast hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
             >
               {saving ? 'Saving…' : 'Continue'}
             </button>

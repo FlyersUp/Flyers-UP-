@@ -1,0 +1,21 @@
+-- Populate short descriptions for occupation cards in pro onboarding
+UPDATE public.occupations SET description = 'Home cleaning and maintenance services' WHERE slug = 'cleaner';
+UPDATE public.occupations SET description = 'Repairs, assembly, and home improvements' WHERE slug = 'handyman';
+UPDATE public.occupations SET description = 'Academic tutoring and test prep' WHERE slug = 'tutor';
+UPDATE public.occupations SET description = 'Dog walking and pet care services' WHERE slug = 'dog-walker';
+UPDATE public.occupations SET description = 'Event planning and coordination' WHERE slug = 'event-planner';
+UPDATE public.occupations SET description = 'Moving and relocation services' WHERE slug = 'mover';
+UPDATE public.occupations SET description = 'Fitness training and coaching' WHERE slug = 'personal-trainer';
+UPDATE public.occupations SET description = 'Photography and photo services' WHERE slug = 'photographer';
+UPDATE public.occupations SET description = 'Video production and videography' WHERE slug = 'videographer';
+UPDATE public.occupations SET description = 'DJ and music entertainment' WHERE slug = 'dj';
+UPDATE public.occupations SET description = 'Private chef and catering' WHERE slug = 'chef';
+UPDATE public.occupations SET description = 'Makeup and beauty services' WHERE slug = 'makeup-artist';
+UPDATE public.occupations SET description = 'Haircuts and grooming' WHERE slug = 'barber';
+UPDATE public.occupations SET description = 'Vehicle repair and maintenance' WHERE slug = 'mechanic';
+UPDATE public.occupations SET description = 'IT support and computer repair' WHERE slug = 'it-technician';
+UPDATE public.occupations SET description = 'Lawn care and landscaping' WHERE slug = 'landscaper';
+UPDATE public.occupations SET description = 'Snow removal and winter services' WHERE slug = 'snow-removal';
+UPDATE public.occupations SET description = 'Interior and exterior painting' WHERE slug = 'painter';
+UPDATE public.occupations SET description = 'Car detailing and cleaning' WHERE slug = 'car-detailer';
+UPDATE public.occupations SET description = 'Home organization and decluttering' WHERE slug = 'home-organizer';
