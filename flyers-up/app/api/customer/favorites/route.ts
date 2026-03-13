@@ -18,7 +18,7 @@ export async function GET() {
 
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
     if (!profile || (profile.role ?? 'customer') !== 'customer') {
-      return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ ok: true, favorites: [] }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
     }
 
     const admin = createAdminSupabaseClient();
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
 
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
     if (!profile || (profile.role ?? 'customer') !== 'customer') {
-      return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ ok: true }, { status: 200 });
     }
 
     let body: { proId?: string };
@@ -109,6 +109,11 @@ export async function DELETE(req: Request) {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+    if (!profile || (profile.role ?? 'customer') !== 'customer') {
+      return NextResponse.json({ ok: true }, { status: 200 });
+    }
 
     const url = new URL(req.url);
     const proId = normalizeUuidOrNull(url.searchParams.get('proId'));

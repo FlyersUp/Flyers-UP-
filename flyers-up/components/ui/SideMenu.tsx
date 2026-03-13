@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { X, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { supabase } from '@/lib/supabaseClient';
@@ -250,14 +250,22 @@ export function SideMenu({
     };
   }, [open]);
 
+  const handleClose = () => {
+    // Move focus out before closing to avoid "aria-hidden on focused descendant" a11y error
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    onClose();
+  };
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
+  }, [open, handleClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -296,7 +304,7 @@ export function SideMenu({
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    onClose();
+    handleClose();
     router.replace('/');
   }
 
@@ -344,7 +352,7 @@ export function SideMenu({
               )}
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="flex-shrink-0 h-14 w-14 rounded-full border border-[#D9D9D9] dark:border-white/10 bg-[#EFEFEF] dark:bg-white/10 text-[#1F2937] dark:text-white
                 hover:bg-[#E7E7E7] dark:hover:bg-white/15 active:bg-[#DFDFDF] dark:active:bg-white/20
                 transition-colors flex items-center justify-center"
@@ -376,7 +384,7 @@ export function SideMenu({
             <Link
               href={resolvedRole === 'pro' ? '/pro/messages' : '/customer/messages'}
               className="text-[1.1rem] font-medium text-[#667085] dark:text-gray-400 hover:text-[#1F2937] dark:hover:text-white transition-colors"
-              onClick={onClose}
+              onClick={handleClose}
             >
               {t('sidebar.messages')}
             </Link>

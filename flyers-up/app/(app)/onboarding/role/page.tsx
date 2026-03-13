@@ -153,10 +153,10 @@ function RoleInner() {
               <button
                 type="button"
                 onClick={() => setSelected('customer')}
-                className={`w-full text-left rounded-2xl border-2 p-6 sm:p-8 transition-all duration-200 ${
+                className={`w-full text-left rounded-2xl border-2 p-6 sm:p-8 transition-all duration-200 active:scale-[0.99] ${
                   selected === 'customer'
-                    ? 'border-accent bg-accent/10 shadow-sm'
-                    : 'border-border bg-surface hover:border-accent/50 hover:bg-surface2'
+                    ? 'border-accent bg-accent/20 shadow-md ring-2 ring-accent/30'
+                    : 'border-border bg-surface hover:border-accent/50 hover:bg-surface2 active:bg-surface2'
                 }`}
               >
                 <div className="flex items-start gap-4">
@@ -171,10 +171,10 @@ function RoleInner() {
               <button
                 type="button"
                 onClick={() => setSelected('pro')}
-                className={`w-full text-left rounded-2xl border-2 p-6 sm:p-8 transition-all duration-200 ${
+                className={`w-full text-left rounded-2xl border-2 p-6 sm:p-8 transition-all duration-200 active:scale-[0.99] ${
                   selected === 'pro'
-                    ? 'border-accent bg-accent/10 shadow-sm'
-                    : 'border-border bg-surface hover:border-accent/50 hover:bg-surface2'
+                    ? 'border-accent bg-accent/20 shadow-md ring-2 ring-accent/30'
+                    : 'border-border bg-surface hover:border-accent/50 hover:bg-surface2 active:bg-surface2'
                 }`}
               >
                 <div className="flex items-start gap-4">
@@ -191,7 +191,7 @@ function RoleInner() {
               type="button"
               disabled={!selected || saving}
               onClick={handleContinue}
-              className="mt-8 w-full rounded-xl bg-accent px-4 py-4 text-base font-medium text-accentContrast hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+              className="mt-8 w-full rounded-xl bg-accent px-4 py-4 text-base font-medium text-accentContrast hover:opacity-95 active:scale-[0.98] active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
             >
               {saving ? 'Saving…' : 'Continue'}
             </button>

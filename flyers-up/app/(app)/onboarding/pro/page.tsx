@@ -293,10 +293,10 @@ function ProInner() {
                       key={occ.id}
                       type="button"
                       onClick={() => setSelectedOccupationSlug(occ.slug)}
-                      className={`w-full text-left rounded-2xl border-2 p-5 sm:p-6 transition-all duration-200 ${
+                      className={`w-full text-left rounded-2xl border-2 p-5 sm:p-6 transition-all duration-200 active:scale-[0.99] ${
                         selectedOccupationSlug === occ.slug
-                          ? 'border-accent bg-accent/10 shadow-sm'
-                          : 'border-border bg-surface hover:border-accent/50 hover:bg-surface2'
+                          ? 'border-accent bg-accent/20 shadow-md ring-2 ring-accent/30'
+                          : 'border-border bg-surface hover:border-accent/50 hover:bg-surface2 active:bg-surface2'
                       }`}
                     >
                       <div className="flex items-start gap-4">
@@ -347,7 +347,7 @@ function ProInner() {
                         {services.map((svc) => (
                           <label
                             key={svc.id}
-                            className="flex items-center gap-3 p-4 rounded-xl border border-border hover:bg-surface2 cursor-pointer transition-colors has-[:checked]:border-accent has-[:checked]:bg-accent/5"
+                            className="flex items-center gap-3 p-4 rounded-xl border border-border hover:bg-surface2 active:bg-surface2 cursor-pointer transition-all duration-150 has-[:checked]:border-accent has-[:checked]:bg-accent/5 has-[:checked]:ring-2 has-[:checked]:ring-accent/30"
                           >
                             <input
                               type="checkbox"
@@ -467,7 +467,7 @@ function ProInner() {
                     type="button"
                     onClick={handleContinueForNow}
                     disabled={!canProceedSetup || saving}
-                    className="w-full rounded-xl border-2 border-accent bg-accent px-4 py-4 text-base font-medium text-accentContrast hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                    className="w-full rounded-xl border-2 border-accent bg-accent px-4 py-4 text-base font-medium text-accentContrast hover:opacity-95 active:scale-[0.98] active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
                   >
                     {saving ? 'Saving…' : 'Continue for now'}
                   </button>
@@ -475,7 +475,7 @@ function ProInner() {
                     type="button"
                     onClick={handleSetUpNow}
                     disabled={!canProceedSetup || saving}
-                    className="w-full rounded-xl border-2 border-border bg-surface px-4 py-4 text-base font-medium text-text hover:bg-surface2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="w-full rounded-xl border-2 border-border bg-surface px-4 py-4 text-base font-medium text-text hover:bg-surface2 active:scale-[0.98] active:bg-surface2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
                   >
                     Set up payouts now
                   </button>
@@ -490,7 +490,7 @@ function ProInner() {
                   <button
                     type="button"
                     onClick={() => setStep((s) => Math.max(2, s - 1) as Step)}
-                    className="rounded-xl border border-border px-4 py-3 text-base font-medium text-text hover:bg-surface2"
+                    className="rounded-xl border border-border px-4 py-3 text-base font-medium text-text hover:bg-surface2 active:scale-[0.98] active:bg-surface2 transition-all duration-150"
                   >
                     Back
                   </button>
