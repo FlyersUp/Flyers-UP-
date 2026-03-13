@@ -83,6 +83,7 @@ export async function upsertServicePro(input: {
   category_id: string;
   secondary_category_id?: string | null;
   service_area_zip: string;
+  occupation_id?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
   // service_pros has UNIQUE(user_id)
   const { error } = await supabase.from('service_pros').upsert(
@@ -92,7 +93,7 @@ export async function upsertServicePro(input: {
       category_id: input.category_id,
       secondary_category_id: input.secondary_category_id ?? null,
       service_area_zip: input.service_area_zip,
-      // keep existing defaults for the rest
+      occupation_id: input.occupation_id ?? null,
     },
     { onConflict: 'user_id' }
   );
