@@ -59,11 +59,12 @@ export function validateProAvailability(input: AvailabilityValidationInput): Ava
 
   // Lead time: cannot book too soon
   const minutesFromNow = (proposedStart.getTime() - now.getTime()) / (1000 * 60);
-  if (minutesFromNow < leadTimeMinutes) {
+  const leadMin = leadTimeMinutes ?? DEFAULT_LEAD_TIME_MINUTES;
+  if (minutesFromNow < leadMin) {
     if (!sameDayEnabled || !isSameCalendarDay(proposedStart, now)) {
       return {
         allowed: 'unavailable',
-        rejectionReason: `Pro requires at least ${leadTimeMinutes} minutes lead time`,
+        rejectionReason: `Pro requires at least ${leadMin} minutes lead time`,
       };
     }
   }
@@ -78,7 +79,8 @@ export function validateProAvailability(input: AvailabilityValidationInput): Ava
 
   // Blocked dates
   const dateStr = serviceDate;
-  if (blockedDates.includes(dateStr)) {
+  const blocked = blockedDates ?? [];
+  if (blocked.includes(dateStr)) {
     return { allowed: 'unavailable', rejectionReason: 'Pro has blocked this date' };
   }
 
@@ -98,8 +100,10 @@ export function validateProAvailability(input: AvailabilityValidationInput): Ava
 
   // Overlap with existing bookings (with buffer)
   const proposedEnd = new Date(proposedStart.getTime() + durationMinutes * 60 * 1000);
-  const bufferMs = bufferBetweenJobsMinutes * 60 * 1000;
-  for (const range of existingBookingRanges) {
+  const bufferMin = bufferBetweenJobsMinutes ?? DEFAULT_BUFFER_MINUTES;
+  const bufferMs = bufferMin * 60 * 1000;
+  const ranges = existingBookingRanges ?? [];
+  for (const range of ranges) {
     const rangeStart = range.startAt.getTime();
     const rangeEnd = range.endAt.getTime();
     const propStart = proposedStart.getTime();

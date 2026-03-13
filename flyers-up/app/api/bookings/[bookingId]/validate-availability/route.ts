@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
-import { validateAvailability } from '@/lib/operations/availabilityValidation';
+import { validateProAvailability } from '@/lib/operations/availabilityValidation';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -53,40 +53,49 @@ export async function GET(
     .eq('pro_id', pro.id)
     .eq('service_date', booking.service_date);
 
-  const requestedStart = new Date(`${booking.service_date}T${booking.service_time || '12:00'}`);
   const activeBookings = (existing ?? []).filter(
     (b) => !['cancelled', 'declined'].includes(String(b.status)) && b.id !== id
   );
-  const ranges = activeBookings.map((b) => {
-    const start = new Date(`${b.service_date}T${b.service_time || '12:00'}`);
-    const end = b.completed_at ? new Date(b.completed_at) : new Date(start.getTime() + 60 * 60 * 1000);
-    return { start, end };
+  const existingBookingRanges = activeBookings.map((b) => {
+    const startAt = new Date(`${b.service_date}T${b.service_time || '12:00'}`);
+    const endAt = b.completed_at ? new Date(b.completed_at) : new Date(startAt.getTime() + 60 * 60 * 1000);
+    return { startAt, endAt };
   });
 
-  const result = validateAvailability({
-    isActive: (pro as { available?: boolean }).available ?? true,
+  const addressZip = (booking.address as string)?.match(/\b\d{5}(?:-\d{4})?\b/)?.[0] ?? null;
+
+  const result = validateProAvailability({
+    proId: pro.id,
+    proUserId: pro.user_id,
+    serviceDate: booking.service_date,
+    serviceTime: (booking.service_time as string) ?? '12:00',
+    addressZip,
+    addressLat: (booking as { address_lat?: number }).address_lat ?? null,
+    addressLng: (booking as { address_lng?: number }).address_lng ?? null,
+    durationMinutes: 60,
+    proActive: (pro as { available?: boolean }).available ?? true,
     travelRadiusMiles: Number((pro as { travel_radius_miles?: number }).travel_radius_miles) || null,
     serviceAreaMode: (pro as { service_area_mode?: string }).service_area_mode as 'radius' | 'boroughs' | 'zip_codes' | null,
     serviceAreaValues: ((pro as { service_area_values?: string[] }).service_area_values ?? []) as string[],
     leadTimeMinutes: Number((pro as { lead_time_minutes?: number }).lead_time_minutes) || 60,
     bufferBetweenJobsMinutes: Number((pro as { buffer_between_jobs_minutes?: number }).buffer_between_jobs_minutes) || 30,
     sameDayEnabled: Boolean((pro as { same_day_enabled?: boolean }).same_day_enabled),
-    blockedDates: (blocked ?? []).map((b) => new Date(b.blocked_date)),
-    existingBookingRanges: ranges,
-    businessHours: {},
-    requestedStart,
-    estimatedDurationMinutes: 60,
-    jobLat: (booking as { address_lat?: number }).address_lat,
-    jobLng: (booking as { address_lng?: number }).address_lng,
-    proLat: null,
-    proLng: null,
+    blockedDates: (blocked ?? []).map((b) => b.blocked_date as string),
+    existingBookingRanges,
   });
 
-  if (result.allowed) {
+  if (result.allowed === 'instant_book_allowed') {
     return NextResponse.json({
       allowed: true,
-      instantBookAllowed: result.instantBookAllowed ?? true,
-      requestOnlyAllowed: result.requestOnlyAllowed ?? true,
+      instantBookAllowed: true,
+      requestOnlyAllowed: true,
+    });
+  }
+  if (result.allowed === 'request_only_allowed') {
+    return NextResponse.json({
+      allowed: true,
+      instantBookAllowed: false,
+      requestOnlyAllowed: true,
     });
   }
 
