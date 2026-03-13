@@ -95,7 +95,7 @@ function TodayAlerts({ alerts }: { alerts: TodayAlert[] }) {
               showArrow={false}
               className="px-3 py-2 rounded-lg text-sm"
               disabled={!a.ctaLabel}
-              title={!a.ctaLabel ? 'TODO: wire action' : undefined}
+              title={!a.ctaLabel ? 'No action available' : undefined}
             >
               {a.ctaLabel || '—'}
             </Button>
@@ -154,28 +154,22 @@ function TodayTimeline({
                   >
                     Navigate
                   </a>
-                  <a
-                    className="px-3 py-2 rounded-lg text-sm font-semibold border-2 border-accent bg-surface text-accent hover:bg-surface2 transition-all focus-ring btn-press"
-                    href={job.client_phone ? `tel:${job.client_phone}` : undefined}
-                    aria-disabled={!job.client_phone}
-                    onClick={(e) => {
-                      if (!job.client_phone) e.preventDefault();
-                    }}
-                    title={!job.client_phone ? 'No phone number on file' : undefined}
-                  >
-                    Call
-                  </a>
-                  <Link
-                    className="px-3 py-2 rounded-lg text-sm font-semibold border-2 border-accent bg-surface text-accent hover:bg-surface2 transition-all focus-ring btn-press"
-                    href={job.bookingId ? `/pro/chat/${job.bookingId}` : '#'}
-                    aria-disabled={!job.bookingId}
-                    onClick={(e) => {
-                      if (!job.bookingId) e.preventDefault();
-                    }}
-                    title={!job.bookingId ? 'No booking linked' : undefined}
-                  >
-                    Message
-                  </Link>
+                  {job.client_phone ? (
+                    <a
+                      className="px-3 py-2 rounded-lg text-sm font-semibold border-2 border-accent bg-surface text-accent hover:bg-surface2 transition-all focus-ring btn-press"
+                      href={`tel:${job.client_phone}`}
+                    >
+                      Call
+                    </a>
+                  ) : null}
+                  {job.bookingId ? (
+                    <Link
+                      className="px-3 py-2 rounded-lg text-sm font-semibold border-2 border-accent bg-surface text-accent hover:bg-surface2 transition-all focus-ring btn-press"
+                      href={`/pro/chat/${job.bookingId}`}
+                    >
+                      Message
+                    </Link>
+                  ) : null}
                   <Button
                     variant="primary"
                     showArrow={false}
@@ -226,7 +220,6 @@ function TodayTasks({ tasks, onToggle }: { tasks: TodayTask[]; onToggle: (id: st
           </label>
         ))}
       </div>
-      {/* TODO: Persist task completion per pro + date */}
     </Card>
   );
 }
@@ -245,9 +238,8 @@ function TodayMessages({ messages }: { messages: TodayOverview['messages'] }) {
         {messages.slice(0, 3).map((m) => (
           <Link
             key={m.thread_id}
-            href={`/pro/messages/${m.thread_id}`}
+            href={`/pro/chat/conversation/${m.thread_id}`}
             className="block surface-item px-3 py-2 hover:bg-surface transition-colors"
-            title="TODO: Ensure this route matches your pro messages thread route"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -291,7 +283,6 @@ function TodayEarnings({ earnings }: { earnings: TodayOverview['earnings'] }) {
           </div>
         ))}
       </div>
-      {/* TODO: Wire expected/completed/pending/tips from bookings + payouts + tips tables */}
     </Card>
   );
 }
@@ -557,17 +548,14 @@ export default function ProTodayPage() {
                         >
                           Navigate
                         </a>
-                        <a
-                          className="px-3 py-2 rounded-lg text-sm font-semibold border-2 border-accent bg-surface text-accent hover:bg-surface2 transition-all focus-ring btn-press"
-                          href={b.customer?.phone ? `tel:${b.customer.phone}` : undefined}
-                          aria-disabled={!b.customer?.phone}
-                          onClick={(e) => {
-                            if (!b.customer?.phone) e.preventDefault();
-                          }}
-                          title={!b.customer?.phone ? 'No phone number on file' : undefined}
-                        >
-                          Call
-                        </a>
+                        {b.customer?.phone ? (
+                          <a
+                            className="px-3 py-2 rounded-lg text-sm font-semibold border-2 border-accent bg-surface text-accent hover:bg-surface2 transition-all focus-ring btn-press"
+                            href={`tel:${b.customer.phone}`}
+                          >
+                            Call
+                          </a>
+                        ) : null}
                         <Link
                           className="px-3 py-2 rounded-lg text-sm font-semibold border-2 border-accent bg-surface text-accent hover:bg-surface2 transition-all focus-ring btn-press"
                           href={`/pro/chat/${b.id}`}
@@ -661,12 +649,20 @@ export default function ProTodayPage() {
             <div className="text-sm font-semibold text-text">End-of-day</div>
             <div className="text-sm text-muted mt-1">Close out today’s work when you’re done.</div>
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button variant="primary" showArrow={false} className="px-3 py-2 rounded-lg text-sm" disabled title="TODO: wire end-of-day action">
+              <Button
+                variant="primary"
+                showArrow={false}
+                className="px-3 py-2 rounded-lg text-sm"
+                onClick={() => router.push('/pro')}
+              >
                 End Day
               </Button>
-              <button className="text-sm text-muted hover:text-text transition-colors" disabled title="TODO: wire report issue flow">
+              <Link
+                href="/pro/settings/help-support"
+                className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium text-muted hover:text-text hover:bg-surface2 transition-colors"
+              >
                 Report issue
-              </button>
+              </Link>
             </div>
           </Card>
         )}

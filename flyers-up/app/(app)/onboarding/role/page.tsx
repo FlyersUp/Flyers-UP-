@@ -92,7 +92,23 @@ function RoleInner() {
         return;
       }
 
-      const onboardingStep = selected === 'customer' ? 'customer_profile' : 'pro_profile';
+      // When switching to pro: skip onboarding if they already have a complete pro profile (data preserved)
+      let onboardingStep: string | null;
+      if (selected === 'customer') {
+        onboardingStep = 'customer_profile';
+      } else {
+        const { data: proRow } = await supabase
+          .from('service_pros')
+          .select('display_name, category_id, service_area_zip')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        const hasProProfile =
+          proRow?.display_name?.trim() &&
+          proRow?.category_id &&
+          proRow?.service_area_zip?.trim();
+        onboardingStep = hasProProfile ? null : 'pro_profile';
+      }
+
       const res = await upsertProfile({
         id: user.id,
         role: selected,
@@ -109,7 +125,7 @@ function RoleInner() {
         setError('Could not load your profile. Please try again.');
         return;
       }
-      router.replace(routeAfterAuth({ ...profile, role: selected, onboarding_step: onboardingStep }, safeNext));
+      router.replace(routeAfterAuth({ ...profile, role: selected, onboarding_step: onboardingStep ?? profile.onboarding_step }, safeNext));
     } catch (err) {
       console.error(err);
       setError('Something went wrong. Please try again.');

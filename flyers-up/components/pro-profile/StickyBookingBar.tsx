@@ -49,7 +49,7 @@ export function StickyBookingBar({
 
   return (
     <div
-      className={`fixed left-0 right-0 z-40 border-t border-black/5 bg-[#F5F5F5]/95 px-4 py-3 shadow-[0_-2px_10px_rgba(0,0,0,0.06)] backdrop-blur-sm ${
+      className={`fixed left-0 right-0 z-40 border-t border-border bg-bg/95 px-4 py-3 shadow-[0_-2px_10px_rgba(0,0,0,0.06)] dark:shadow-[0_-2px_10px_rgba(0,0,0,0.3)] backdrop-blur-sm ${
         aboveBottomNav ? 'bottom-16' : 'bottom-0 pb-safe'
       }`}
     >

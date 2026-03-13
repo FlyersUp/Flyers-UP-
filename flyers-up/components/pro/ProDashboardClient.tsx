@@ -313,7 +313,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
         </div>
       </div>
 
-      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} mode="pro" userName={userName} />
+      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} role="pro" userName={userName} />
     </AppLayout>
   );
 }

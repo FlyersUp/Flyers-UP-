@@ -43,8 +43,8 @@ export default function CustomerSettings() {
           <Card withRail className="mb-3">
             <Label variant="card" className="mb-3">
               <span className="inline-flex items-center gap-2">
-                <AppIcon name="globe" size={18} className="text-gray-600 dark:text-gray-300" alt="" />
-                <span className="text-gray-900 dark:text-white font-medium">{t('language')}</span>
+                <AppIcon name="globe" size={18} className="text-text3" alt="" />
+                <span className="text-text font-medium">{t('language')}</span>
               </span>
             </Label>
             <LanguageSwitcher variant="list" />
@@ -57,11 +57,11 @@ export default function CustomerSettings() {
                   <div className="flex items-center justify-between">
                     <Label variant="card">
                       <span className="inline-flex items-center gap-2">
-                        <AppIcon name={section.icon as AppIconName} size={18} className="text-gray-600 dark:text-gray-300" alt="" />
-                        <span className="text-gray-900 dark:text-white font-medium">{t(section.labelKey)}</span>
+                        <AppIcon name={section.icon as AppIconName} size={18} className="text-text3" alt="" />
+                        <span className="text-text font-medium">{t(section.labelKey)}</span>
                       </span>
                     </Label>
-                    <span className="text-gray-500 dark:text-gray-400">→</span>
+                    <span className="text-muted">→</span>
                   </div>
                 </Card>
               </Link>

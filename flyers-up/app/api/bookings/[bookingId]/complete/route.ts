@@ -96,7 +96,7 @@ export async function POST(
   const history = (booking as { status_history?: { status: string; at: string }[] }).status_history ?? [];
   const newHistory = [...history, { status: 'awaiting_remaining_payment', at: now }];
 
-  await admin
+  const { data: statusUpdated } = await admin
     .from('bookings')
     .update({
       status: 'awaiting_remaining_payment',
@@ -109,7 +109,18 @@ export async function POST(
       status_updated_by: user.id,
     })
     .eq('id', id)
-    .eq('pro_id', proRow.id);
+    .eq('pro_id', proRow.id)
+    .eq('status', 'in_progress')
+    .select('id')
+    .maybeSingle();
+
+  if (!statusUpdated) {
+    return NextResponse.json({
+      ok: true,
+      completionId: completion?.id,
+      alreadyRecorded: true,
+    });
+  }
 
   const customerId = (booking as { customer_id?: string }).customer_id;
   if (customerId) {

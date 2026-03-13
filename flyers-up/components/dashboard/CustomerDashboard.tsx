@@ -205,8 +205,8 @@ export default function CustomerDashboard() {
   if (!ready) {
     return (
       <AppLayout mode="customer">
-        <div className="min-h-[40vh] flex items-center justify-center bg-[#F5F5F5]">
-          <p className="text-sm text-black/60">Loading…</p>
+        <div className="min-h-[40vh] flex items-center justify-center bg-bg">
+          <p className="text-sm text-muted">Loading…</p>
         </div>
       </AppLayout>
     );
@@ -215,33 +215,33 @@ export default function CustomerDashboard() {
   return (
     <AppLayout mode="customer">
       <CustomerPageShell title={userName} userName={userName}>
-        <div className="max-w-4xl mx-auto px-4 pt-2 space-y-6">
+        <div className="max-w-4xl mx-auto px-4 pt-2 pb-6 space-y-6">
           {/* 1. ACTIVE BOOKING */}
           <section>
-            <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">Active Booking</h2>
+            <h2 className="text-sm font-semibold text-text2 uppercase tracking-wide mb-3">Active Booking</h2>
             {activeBookingLoading ? (
               <DashboardSectionSkeleton />
             ) : activeBooking ? (
               <DashboardCard>
                 <div className="p-4">
-                  <div className="font-semibold text-[#111]">{activeBooking.serviceName}</div>
-                  <div className="text-sm text-black/60 mt-1">{activeBooking.proName}</div>
-                  <div className="text-sm text-black/60">{activeBooking.dateTime}</div>
+                  <div className="font-semibold text-text">{activeBooking.serviceName}</div>
+                  <div className="text-sm text-text3 mt-1">{activeBooking.proName}</div>
+                  <div className="text-sm text-text3">{activeBooking.dateTime}</div>
                   <div className="mt-2">
-                    <span className="inline-block px-2 py-0.5 rounded-full bg-[#B2FBA5]/50 text-xs font-medium text-black/80">
+                    <span className="inline-block px-2 py-0.5 rounded-full bg-[hsl(var(--accent-customer)/0.25)] text-xs font-medium text-text">
                       {activeBooking.status}
                     </span>
                   </div>
                   <div className="flex gap-2 mt-4">
                     <Link
                       href={`/customer/bookings/${activeBooking.id}`}
-                      className="flex-1 py-2 rounded-lg bg-[#B2FBA5] text-black font-semibold text-sm text-center hover:opacity-95"
+                      className="flex-1 py-2 rounded-lg bg-accent text-accentContrast font-semibold text-sm text-center hover:opacity-95 transition-opacity"
                     >
                       View Booking
                     </Link>
                     <Link
                       href={`/customer/chat/${activeBooking.id}`}
-                      className="flex-1 py-2 rounded-lg border border-black/15 text-black/80 font-semibold text-sm text-center hover:bg-black/5"
+                      className="flex-1 py-2 rounded-lg border border-border text-text2 font-semibold text-sm text-center hover:bg-surface2 transition-colors"
                     >
                       Message Pro
                     </Link>
@@ -251,9 +251,9 @@ export default function CustomerDashboard() {
             ) : (
               <DashboardCard>
                 <div className="p-4">
-                  <div className="font-semibold text-[#111]">No active booking</div>
-                  <div className="text-sm text-black/60 mt-1">When you book a pro, it will show here.</div>
-                  <Link href="/occupations" className="mt-3 inline-block text-sm font-medium text-[#111] hover:underline">
+                  <div className="font-semibold text-text">No active booking</div>
+                  <div className="text-sm text-text3 mt-1">When you book a pro, it will show here.</div>
+                  <Link href="/occupations" className="mt-3 inline-block text-sm font-medium text-text hover:underline">
                     Browse occupations →
                   </Link>
                 </div>
@@ -263,16 +263,16 @@ export default function CustomerDashboard() {
 
           {/* 2. QUICK ACTIONS */}
           <section>
-            <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">Quick Actions</h2>
+            <h2 className="text-sm font-semibold text-text2 uppercase tracking-wide mb-3">Quick Actions</h2>
             <div className="flex flex-col gap-3">
-              <Link href="/customer/categories" className="block">
+              <Link href="/occupations" className="block">
                 <DashboardCard>
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-medium text-[#111]">Book Service</div>
-                      <div className="text-xs text-black/60 mt-0.5">Find a pro</div>
+                      <div className="font-medium text-text">Book Service</div>
+                      <div className="text-xs text-text3 mt-0.5">Find a pro</div>
                     </div>
-                    <span className="text-gray-500 dark:text-gray-400">→</span>
+                    <span className="text-muted">→</span>
                   </div>
                 </DashboardCard>
               </Link>
@@ -280,10 +280,10 @@ export default function CustomerDashboard() {
                 <DashboardCard>
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-medium text-[#111]">Post Request</div>
-                      <div className="text-xs text-black/60 mt-0.5">Get offers from pros</div>
+                      <div className="font-medium text-text">Post Request</div>
+                      <div className="text-xs text-text3 mt-0.5">Get offers from pros</div>
                     </div>
-                    <span className="text-gray-500 dark:text-gray-400">→</span>
+                    <span className="text-muted">→</span>
                   </div>
                 </DashboardCard>
               </Link>
@@ -291,10 +291,10 @@ export default function CustomerDashboard() {
                 <DashboardCard>
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-medium text-[#111]">Browse Flyer Wall</div>
-                      <div className="text-xs text-black/60 mt-0.5">Discover pros</div>
+                      <div className="font-medium text-text">Browse Flyer Wall</div>
+                      <div className="text-xs text-text3 mt-0.5">Discover pros</div>
                     </div>
-                    <span className="text-gray-500 dark:text-gray-400">→</span>
+                    <span className="text-muted">→</span>
                   </div>
                 </DashboardCard>
               </Link>
@@ -303,35 +303,35 @@ export default function CustomerDashboard() {
 
           {/* 3. NEARBY PROS */}
           <section>
-            <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">Nearby Pros</h2>
+            <h2 className="text-sm font-semibold text-text2 uppercase tracking-wide mb-3">Nearby Pros</h2>
             {nearbyProsLoading ? (
-              <div className="flex gap-3 overflow-hidden -mx-4 px-4">
+              <div className="flex gap-3 overflow-hidden -mx-4 px-4 scrollbar-hide">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-36 w-[150px] shrink-0 rounded-2xl bg-gray-200 animate-pulse" />
+                  <div key={i} className="h-36 w-[150px] shrink-0 rounded-2xl bg-muted animate-pulse" />
                 ))}
               </div>
             ) : nearbyPros.length > 0 ? (
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
                 {nearbyPros.map((pro) => (
                   <Link key={pro.id} href={`/customer/pros/${pro.id}`} className="shrink-0 w-[150px]">
                     <DashboardCard>
                       <div className="p-3">
-                        <div className="w-12 h-12 rounded-full overflow-hidden bg-[#F5F5F5]/50 mx-auto mb-2">
+                        <div className="w-12 h-12 rounded-full overflow-hidden bg-surface2 mx-auto mb-2">
                           {pro.profilePhotoUrl ? (
                             <Image src={pro.profilePhotoUrl} alt="" width={48} height={48} className="object-cover w-full h-full" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-sm font-semibold text-black/40">
+                            <div className="w-full h-full flex items-center justify-center text-sm font-semibold text-text3">
                               {getInitials(pro.name)}
                             </div>
                           )}
                         </div>
-                        <div className="font-medium text-sm text-[#111] truncate">{pro.name}</div>
-                        <div className="text-xs text-black/60 mt-0.5">{pro.categoryName}</div>
+                        <div className="font-medium text-sm text-text truncate">{pro.name}</div>
+                        <div className="text-xs text-text3 mt-0.5">{pro.categoryName}</div>
                         <div className="flex items-center gap-1 mt-1">
                           <span className="text-amber-500 text-xs">★</span>
-                          <span className="text-xs font-medium">{pro.rating.toFixed(1)}</span>
+                          <span className="text-xs font-medium text-text">{pro.rating.toFixed(1)}</span>
                         </div>
-                        <div className="text-xs text-black/60 mt-0.5">
+                        <div className="text-xs text-text3 mt-0.5">
                           ${pro.startingPrice}–${Math.ceil(pro.startingPrice * 1.2)}
                         </div>
                       </div>
@@ -342,8 +342,8 @@ export default function CustomerDashboard() {
             ) : (
               <DashboardCard>
                 <div className="p-4">
-                  <div className="text-sm font-medium text-[#111]">No pros nearby</div>
-                  <Link href="/flyer-wall" className="mt-2 inline-block text-sm text-[#111] hover:underline">
+                  <div className="text-sm font-medium text-text">No pros nearby</div>
+                  <Link href="/flyer-wall" className="mt-2 inline-block text-sm text-text hover:underline">
                     Browse Flyer Wall →
                   </Link>
                 </div>
@@ -353,7 +353,7 @@ export default function CustomerDashboard() {
 
           {/* 4. LIVE REQUESTS */}
           <section>
-            <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">Live Requests</h2>
+            <h2 className="text-sm font-semibold text-text2 uppercase tracking-wide mb-3">Live Requests</h2>
             {liveRequestsLoading ? (
               <DashboardSectionSkeleton />
             ) : liveRequests.length > 0 ? (
@@ -369,8 +369,8 @@ export default function CustomerDashboard() {
                   return (
                     <DashboardCard key={r.id}>
                       <div className="p-4">
-                        <div className="font-semibold text-[#111]">{r.title}</div>
-                        <div className="text-sm text-black/60 mt-1">
+                        <div className="font-semibold text-text">{r.title}</div>
+                        <div className="text-sm text-text3 mt-1">
                           Budget ${r.budget_min ?? '?'}–${r.budget_max ?? '?'}
                           {needLabel && (
                             <span className="ml-2">• {needLabel}</span>
@@ -388,15 +388,15 @@ export default function CustomerDashboard() {
                   className="block"
                 >
                   <DashboardCard>
-                    <div className="p-4 text-center font-semibold text-[#111]">View Requests</div>
+                    <div className="p-4 text-center font-semibold text-text">View Requests</div>
                   </DashboardCard>
                 </Link>
               </div>
             ) : (
               <DashboardCard>
                 <div className="p-4">
-                  <div className="text-sm font-medium text-[#111]">No live requests</div>
-                  <Link href="/customer/requests/new" className="mt-2 inline-block text-sm text-[#111] hover:underline">
+                  <div className="text-sm font-medium text-text">No live requests</div>
+                  <Link href="/customer/requests/new" className="mt-2 inline-block text-sm text-text hover:underline">
                     Post a request →
                   </Link>
                 </div>
@@ -406,7 +406,7 @@ export default function CustomerDashboard() {
 
           {/* 5. FAVORITE PROS */}
           <section>
-            <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">Favorite Pros</h2>
+            <h2 className="text-sm font-semibold text-text2 uppercase tracking-wide mb-3">Favorite Pros</h2>
             {favoritesLoading ? (
               <DashboardSectionSkeleton />
             ) : favorites.length > 0 ? (
@@ -415,36 +415,36 @@ export default function CustomerDashboard() {
                   <DashboardCard key={f.proId}>
                     <Link href={`/book/${f.proId}`} className="block p-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full overflow-hidden bg-[#F5F5F5]/50 shrink-0">
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-surface2 shrink-0">
                           {f.pro?.logoUrl ? (
                             <Image src={f.pro.logoUrl} alt="" width={40} height={40} className="object-cover w-full h-full" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-sm font-semibold text-black/40">
+                            <div className="w-full h-full flex items-center justify-center text-sm font-semibold text-text3">
                               {getInitials(f.pro?.displayName ?? 'Pro')}
                             </div>
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="font-medium text-[#111]">{f.pro?.displayName || 'Pro'}</div>
-                          <div className="text-xs text-black/60">{f.pro?.serviceName || 'Service'}</div>
+                          <div className="font-medium text-text">{f.pro?.displayName || 'Pro'}</div>
+                          <div className="text-xs text-text3">{f.pro?.serviceName || 'Service'}</div>
                         </div>
-                        <span className="shrink-0 px-3 py-1.5 rounded-lg bg-[#B2FBA5] text-black font-semibold text-sm">
+                        <span className="shrink-0 px-3 py-1.5 rounded-lg bg-accent text-accentContrast font-semibold text-sm">
                           Rebook
                         </span>
                       </div>
                     </Link>
                   </DashboardCard>
                 ))}
-                <Link href="/customer/favorites" className="block text-sm font-medium text-black/60 hover:text-[#111]">
+                <Link href="/customer/favorites" className="block text-sm font-medium text-text3 hover:text-text">
                   View all favorites →
                 </Link>
               </div>
             ) : (
               <DashboardCard>
                 <div className="p-4">
-                  <div className="text-sm font-medium text-[#111]">No favorite pros yet</div>
-                  <div className="text-xs text-black/60 mt-1">Save pros for quick rebooking.</div>
-                  <Link href="/occupations" className="mt-2 inline-block text-sm text-[#111] hover:underline">
+                  <div className="text-sm font-medium text-text">No favorite pros yet</div>
+                  <div className="text-xs text-text3 mt-1">Save pros for quick rebooking.</div>
+                  <Link href="/occupations" className="mt-2 inline-block text-sm text-text hover:underline">
                     Browse occupations →
                   </Link>
                 </div>

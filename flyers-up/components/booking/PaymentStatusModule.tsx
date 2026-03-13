@@ -63,7 +63,8 @@ export function PaymentStatusModule({
   const isExpired = status === 'expired_unpaid';
   const isPaymentRequired = status === 'payment_required' || status === 'accepted' || status === 'awaiting_deposit_payment';
   const isDepositPaid = status === 'deposit_paid' || (isPaid && !isFullyPaid);
-  const isReadyForFinal = ['completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment', 'deposit_paid', 'pro_en_route', 'in_progress'].includes(status) && isPaid && !isFullyPaid;
+  // Only show "Pay remaining" after pro has completed (backend enforces same)
+  const isReadyForFinal = ['completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment'].includes(status) && isPaid && !isFullyPaid;
 
   if (view === 'customer') {
     if (isExpired) {

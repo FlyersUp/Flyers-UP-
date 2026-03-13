@@ -236,7 +236,7 @@ export default function CustomerRequestsPage() {
           )}
         </div>
       </div>
-      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} mode="customer" userName={userName} />
+      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} role="customer" userName={userName} />
     </AppLayout>
   );
 }

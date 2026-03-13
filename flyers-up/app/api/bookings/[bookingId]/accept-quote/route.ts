@@ -57,7 +57,7 @@ export async function POST(
   const history = ((booking as { status_history?: { status: string; at: string }[] }).status_history ?? []) as { status: string; at: string }[];
   const newHistory = [...history, { status: 'awaiting_deposit_payment', at: now.toISOString() }];
 
-  const { error: updateErr } = await admin
+  const { data: updated, error: updateErr } = await admin
     .from('bookings')
     .update({
       price: proposed,
@@ -67,11 +67,21 @@ export async function POST(
       payment_due_at: paymentDueAt,
       status_history: newHistory,
     })
-    .eq('id', id);
+    .eq('id', id)
+    .in('status', ['requested', 'pending'])
+    .eq('price_status', 'quoted')
+    .select('id')
+    .maybeSingle();
 
   if (updateErr) {
     console.error('Accept quote failed', updateErr);
     return NextResponse.json({ error: 'Failed to update' }, { status: 500 });
+  }
+  if (!updated) {
+    return NextResponse.json(
+      { error: 'Quote was already accepted or booking is no longer available' },
+      { status: 409 }
+    );
   }
 
   await admin.from('booking_quotes').insert({
@@ -84,14 +94,21 @@ export async function POST(
     action: 'accepted',
   });
 
-  void createNotificationEvent({
-    userId: (booking as { pro_id: string }).pro_id,
-    type: NOTIFICATION_TYPES.BOOKING_ACCEPTED,
-    bookingId: id,
-    basePath: 'pro',
-    titleOverride: 'Quote accepted',
-    bodyOverride: 'Customer accepted your quote',
-  });
+  const proId = (booking as { pro_id?: string }).pro_id;
+  if (proId) {
+    const { data: proRow } = await admin.from('service_pros').select('user_id').eq('id', proId).maybeSingle();
+    const proUserId = (proRow as { user_id?: string })?.user_id;
+    if (proUserId) {
+      void createNotificationEvent({
+        userId: proUserId,
+        type: NOTIFICATION_TYPES.BOOKING_ACCEPTED,
+        bookingId: id,
+        basePath: 'pro',
+        titleOverride: 'Quote accepted',
+        bodyOverride: 'Customer accepted your quote',
+      });
+    }
+  }
 
   return NextResponse.json({ ok: true }, { status: 200 });
 }

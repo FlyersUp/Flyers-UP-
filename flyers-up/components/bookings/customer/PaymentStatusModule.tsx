@@ -67,15 +67,9 @@ export function PaymentStatusModule({
     status === 'accepted_pending_payment' ||
     status === 'awaiting_deposit_payment';
   const isDepositPaid = status === 'deposit_paid' || (isPaid && !isFullyPaid);
+  // Only show "Pay remaining" after pro has completed (backend enforces same)
   const isReadyForFinal =
-    [
-      'completed_pending_payment',
-      'awaiting_payment',
-      'awaiting_remaining_payment',
-      'deposit_paid',
-      'pro_en_route',
-      'in_progress',
-    ].includes(status) &&
+    ['completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment'].includes(status) &&
     isPaid &&
     !isFullyPaid;
 

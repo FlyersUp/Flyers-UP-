@@ -35,7 +35,7 @@ function LayoutContent({
     <div
       data-role={mode}
       data-accent={accentDensity}
-      className="min-h-screen bg-bg text-text flex pb-[calc(8rem+env(safe-area-inset-bottom,0px))]"
+      className="min-h-screen bg-bg text-text flex pb-[calc(7rem+env(safe-area-inset-bottom,0px))]"
     >
       {showRailForMode && <Rail className="h-screen" showLabel />}
       <div className="flex-1 relative">

@@ -163,8 +163,6 @@ export async function POST(req: NextRequest) {
           meta?.paymentType ?? (meta?.phase === 'final' ? 'remaining' : meta?.phase ?? 'deposit');
 
         if (bookingId) {
-          console.log('Payment succeeded for booking:', bookingId, 'paymentType:', paymentType);
-
           try {
             const admin = createSupabaseAdmin();
 
@@ -307,11 +305,14 @@ export async function POST(req: NextRequest) {
                 .maybeSingle();
 
               if (!existing) {
-                const amount = Number(booking.amount_total ?? booking.price ?? 0) / 100;
+                // Prefer total_amount_cents (canonical); amount_total is cents; price is legacy dollars
+                const totalCents = Number(booking.total_amount_cents ?? booking.amount_total ?? 0);
+                const amountDollars = totalCents > 0 ? totalCents / 100 : Number(booking.price ?? 0);
+                const amount = amountDollars > 0 ? amountDollars : 0;
                 await admin.from('pro_earnings').insert({
                   pro_id: booking.pro_id,
                   booking_id: bookingId,
-                  amount: amount > 0 ? amount : 0,
+                  amount: amount,
                 });
               }
 
@@ -329,7 +330,9 @@ export async function POST(req: NextRequest) {
                     .maybeSingle();
                   const proEmail = (profile as { email?: string | null } | null)?.email;
                   if (proEmail?.trim()) {
-                    const amount = Number(booking.amount_total ?? booking.price ?? 0) / 100;
+                    const totalCents = Number(booking.total_amount_cents ?? booking.amount_total ?? 0);
+                    const amountDollars = totalCents > 0 ? totalCents / 100 : Number(booking.price ?? 0);
+                    const amount = amountDollars > 0 ? amountDollars : 0;
                     void sendProPaymentReceipt({
                       to: proEmail.trim(),
                       proName: (proRow.display_name as string) || 'Pro',
@@ -363,11 +366,13 @@ export async function POST(req: NextRequest) {
                 .maybeSingle();
 
               if (shouldFinalize && !existing) {
-                const amount = Number(booking.price ?? 0);
+                const totalCents = Number(booking.total_amount_cents ?? booking.amount_total ?? 0);
+                const amountDollars = totalCents > 0 ? totalCents / 100 : Number(booking.price ?? 0);
+                const amount = amountDollars > 0 ? amountDollars : 0;
                 await admin.from('pro_earnings').insert({
                   pro_id: booking.pro_id,
                   booking_id: bookingId,
-                  amount: amount > 0 ? amount : 0,
+                  amount,
                 });
               }
 
@@ -385,10 +390,12 @@ export async function POST(req: NextRequest) {
                     .maybeSingle();
                   const proEmail = (profile as { email?: string | null } | null)?.email;
                   if (proEmail?.trim()) {
+                    const totalCents = Number(booking.total_amount_cents ?? booking.amount_total ?? 0);
+                    const amountDollars = totalCents > 0 ? totalCents / 100 : Number(booking.price ?? 0);
                     void sendProPaymentReceipt({
                       to: proEmail.trim(),
                       proName: (proRow.display_name as string) || 'Pro',
-                      amount: String(Number(booking.price ?? 0).toFixed(2)),
+                      amount: String(amountDollars.toFixed(2)),
                       bookingId,
                     });
                   }
@@ -479,7 +486,8 @@ export async function POST(req: NextRequest) {
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        // Unhandled event types are acknowledged but not processed
+        break;
     }
   } catch (err) {
     console.error('Stripe webhook handler failed:', err);

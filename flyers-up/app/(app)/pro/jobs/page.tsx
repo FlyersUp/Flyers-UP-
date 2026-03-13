@@ -272,7 +272,7 @@ export default function ProJobsPage() {
           )}
         </div>
       </div>
-      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} mode="pro" userName={userName} />
+      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} role="pro" userName={userName} />
     </AppLayout>
   );
 }

@@ -107,10 +107,17 @@ export async function POST(
     })
     .eq('id', id)
     .eq('pro_id', proId)
+    .in('status', ['requested', 'pending'])
     .select()
     .single();
 
-  if (updateErr) {
+  if (updateErr || !updated) {
+    if (updated === null) {
+      return NextResponse.json(
+        { error: 'Booking was already accepted or is no longer available' },
+        { status: 409 }
+      );
+    }
     console.error('Accept: booking update failed', updateErr);
     return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 });
   }

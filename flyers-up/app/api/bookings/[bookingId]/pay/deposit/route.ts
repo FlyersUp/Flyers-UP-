@@ -10,6 +10,7 @@ import { getOrCreateStripeCustomer } from '@/lib/stripeCustomer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { computeQuote } from '@/lib/bookingQuote';
 import { computeMoneyBreakdown } from '@/lib/bookings/money';
+import { validateProAvailability } from '@/lib/operations/availabilityValidation';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -100,12 +101,56 @@ export async function POST(
 
   const { data: proRow } = await admin
     .from('service_pros')
-    .select('id, user_id, display_name, stripe_account_id, stripe_charges_enabled, service_categories(name)')
+    .select('id, user_id, display_name, stripe_account_id, stripe_charges_enabled, available, travel_radius_miles, service_area_mode, service_area_values, lead_time_minutes, buffer_between_jobs_minutes, same_day_enabled, availability_rules, service_categories(name)')
     .eq('id', booking.pro_id)
     .maybeSingle();
 
   if (!proRow) {
     return NextResponse.json({ error: 'Pro not found' }, { status: 404 });
+  }
+
+  const { data: blockedRows } = await admin
+    .from('pro_blocked_dates')
+    .select('blocked_date')
+    .eq('pro_id', booking.pro_id)
+    .eq('blocked_date', booking.service_date);
+  const blockedDates = blockedRows?.length ? [String(booking.service_date)] : [];
+
+  const ACTIVE_STATUSES = ['requested', 'accepted', 'payment_required', 'deposit_paid', 'pro_en_route', 'on_the_way', 'arrived', 'in_progress', 'completed_pending_payment', 'awaiting_payment', 'paid'];
+  const { data: otherBookings } = await admin
+    .from('bookings')
+    .select('service_date, service_time')
+    .eq('pro_id', booking.pro_id)
+    .neq('id', id)
+    .in('status', ACTIVE_STATUSES)
+    .eq('service_date', booking.service_date);
+  const existingRanges = (otherBookings ?? []).map((b) => {
+    const start = new Date(`${b.service_date}T${b.service_time || '09:00'}`);
+    const end = new Date(start.getTime() + 90 * 60 * 1000);
+    return { startAt: start, endAt: end };
+  });
+
+  const availResult = validateProAvailability({
+    proId: booking.pro_id,
+    proUserId: (proRow as { user_id: string }).user_id,
+    serviceDate: booking.service_date,
+    serviceTime: booking.service_time || '12:00',
+    addressZip: (booking as { address?: string }).address?.match(/\d{5}/)?.[0],
+    proActive: Boolean((proRow as { available?: boolean }).available ?? true),
+    travelRadiusMiles: (proRow as { travel_radius_miles?: number | null }).travel_radius_miles,
+    serviceAreaMode: (proRow as { service_area_mode?: string | null }).service_area_mode as 'radius' | 'boroughs' | 'zip_codes' | null,
+    serviceAreaValues: (proRow as { service_area_values?: string[] | null }).service_area_values,
+    leadTimeMinutes: (proRow as { lead_time_minutes?: number | null }).lead_time_minutes,
+    bufferBetweenJobsMinutes: (proRow as { buffer_between_jobs_minutes?: number | null }).buffer_between_jobs_minutes,
+    sameDayEnabled: (proRow as { same_day_enabled?: boolean | null }).same_day_enabled ?? false,
+    blockedDates: blockedDates.length ? blockedDates : undefined,
+    existingBookingRanges: existingRanges,
+  });
+  if (availResult.allowed === 'unavailable') {
+    return NextResponse.json(
+      { error: availResult.rejectionReason },
+      { status: 409 }
+    );
   }
 
   const connectedAccountId =

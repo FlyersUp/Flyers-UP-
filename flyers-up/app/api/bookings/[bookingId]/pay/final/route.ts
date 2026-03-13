@@ -14,7 +14,8 @@ export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
-const ELIGIBLE_STATUSES = ['deposit_paid', 'pro_en_route', 'in_progress', 'completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment'];
+// Remaining payment only after pro has completed (with evidence). Prevents paying before job done.
+const ELIGIBLE_STATUSES = ['completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment'];
 
 export async function POST(
   _req: Request,

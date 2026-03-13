@@ -65,7 +65,7 @@ function ProPreferencesSettingsInner() {
       setUserId(user.id);
       const p = await getUserAppPreferences(user.id);
       setPrefs(p);
-      const { data } = await supabase.from('profiles').select('language_preference').eq('id', user.id).single();
+      const { data } = await supabase.from('profiles').select('language_preference').eq('id', user.id).maybeSingle();
       if (data?.language_preference) setLanguage(String(data.language_preference));
       setLoading(false);
     };

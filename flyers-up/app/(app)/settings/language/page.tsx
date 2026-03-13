@@ -33,7 +33,7 @@ export default function LanguageSettingsPage() {
         .from('profiles')
         .select('language_preference')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (profile?.language_preference) {
         setSelectedLanguage(profile.language_preference);
@@ -117,7 +117,7 @@ export default function LanguageSettingsPage() {
 
       <div className="mt-6 p-4 bg-surface2 border border-border rounded-lg">
         <p className="text-sm text-muted">
-          <strong>Note:</strong> Full translation support is coming soon. Currently, this setting is saved for future use.
+          <strong>Note:</strong> Language preference is saved for future translation features.
         </p>
       </div>
     </div>

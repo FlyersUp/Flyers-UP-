@@ -36,10 +36,7 @@ export function AiOpsSuggestions({ suggestions }: AiOpsSuggestionsProps) {
   return (
     <div className="rounded-2xl border border-black/5 bg-white p-4 shadow-sm">
       <h3 className="text-xs font-medium uppercase tracking-wide text-muted">AI Ops Suggestions</h3>
-      <p className="mt-1 text-xs text-muted">
-        {/* TODO: Implement real AI rules engine when data available */}
-        Future automation insights. Placeholder scaffolding.
-      </p>
+      <p className="mt-1 text-xs text-muted">Coming soon</p>
       <div className="mt-3 space-y-2">
         {items.map((item) => (
           <div

@@ -15,7 +15,7 @@ export interface DemandSupplyRow {
 }
 
 interface DemandSupplyTableProps {
-  /** Rows to display. If empty, shows placeholder with TODO. */
+  /** Rows to display. If empty, shows "Coming soon" placeholder. */
   rows: DemandSupplyRow[];
 }
 
@@ -37,10 +37,7 @@ export function DemandSupplyTable({ rows }: DemandSupplyTableProps) {
       <h3 className="text-xs font-medium uppercase tracking-wide text-muted">Demand vs Supply</h3>
       <div className="mt-3 overflow-x-auto">
         {rows.length === 0 ? (
-          <p className="py-4 text-sm text-muted">
-            {/* TODO: Add backend query for category-level requests + pros aggregation */}
-            No category data yet. Wire to occupations or service_categories aggregation.
-          </p>
+          <p className="py-4 text-sm text-muted">Coming soon</p>
         ) : (
           <table className="w-full min-w-[280px] text-sm">
             <thead>

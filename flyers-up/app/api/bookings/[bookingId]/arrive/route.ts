@@ -87,6 +87,9 @@ export async function POST(
     });
   }
 
+  const now = new Date();
+  const waitExpires = new Date(now.getTime() + 15 * 60 * 1000);
+
   const { data: arrival, error: insertErr } = await admin
     .from('job_arrivals')
     .insert({
@@ -107,7 +110,14 @@ export async function POST(
 
   await admin
     .from('bookings')
-    .update({ arrived_at: new Date().toISOString(), status: 'arrived' })
+    .update({
+      arrived_at: now.toISOString(),
+      status: 'arrived',
+      arrival_started_at: now.toISOString(),
+      arrival_verified_at: locationVerified ? now.toISOString() : null,
+      wait_timer_started_at: now.toISOString(),
+      wait_timer_expires_at: waitExpires.toISOString(),
+    })
     .eq('id', id)
     .eq('pro_id', proRow.id);
 

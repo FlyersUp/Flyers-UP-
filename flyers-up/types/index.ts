@@ -43,19 +43,3 @@ export interface Customer extends User {
   address?: string;
 }
 
-/**
- * @deprecated Use ServicePro from lib/api.ts instead
- * This interface is kept for backwards compatibility during migration.
- */
-export interface LegacyServicePro extends User {
-  role: 'pro';
-  name: string;
-  phone?: string;
-  bio: string;
-  categories: string[];
-  rating: number;
-  reviewCount: number;
-  startingPrice: number;
-  location: string;
-  available: boolean;
-}

@@ -39,14 +39,14 @@ const CUSTOMER_SECTIONS: MenuSection[] = [
     items: [
       { labelKey: 'sidebar.customer.bookings', href: '/customer/bookings' },
       { labelKey: 'sidebar.customer.requests', href: '/customer/requests' },
-      { labelKey: 'sidebar.customer.savedPros', href: '/customer/categories' },
+      { labelKey: 'sidebar.customer.savedPros', href: '/customer/favorites' },
       { labelKey: 'sidebar.customer.bookingRules', href: '/booking-rules' },
     ],
   },
   {
     titleKey: 'sidebar.protection',
     items: [
-      { labelKey: 'sidebar.customer.verifiedProsExplained', href: '/customer/categories' },
+      { labelKey: 'sidebar.customer.verifiedProsExplained', href: '/occupations' },
       { labelKey: 'sidebar.customer.disputesSupport', href: '/customer/settings/help-support' },
     ],
   },
@@ -55,7 +55,7 @@ const CUSTOMER_SECTIONS: MenuSection[] = [
     items: [
       { labelKey: 'sidebar.customer.flyerWall', href: '/flyer-wall' },
       { labelKey: 'sidebar.customer.browseOccupations', href: '/occupations' },
-      { labelKey: 'sidebar.customer.nearbyPros', href: '/customer/categories' },
+      { labelKey: 'sidebar.customer.nearbyPros', href: '/occupations' },
       { labelKey: 'sidebar.customer.favorites', href: '/customer/favorites' },
     ],
   },
@@ -219,18 +219,14 @@ function Section({
 export function SideMenu({
   open,
   onClose,
-  role,
-  mode,
+  role = 'customer',
   userName = 'Account',
 }: {
   open: boolean;
   onClose: () => void;
   role?: Role;
-  /** @deprecated Use `role` instead. Kept for backward compatibility. */
-  mode?: Role;
   userName?: string;
 }) {
-  const resolvedRole = role ?? mode ?? 'customer';
   const router = useRouter();
   const openedAtRef = useRef<number>(0);
   const [identity, setIdentity] = useState<{ email: string | null; idShort: string | null }>({
@@ -291,9 +287,9 @@ export function SideMenu({
   }, [open]);
 
   const t = useTranslations();
-  const roleLabel = resolvedRole === 'pro' ? t('sidebar.roleLabelPro') : t('sidebar.roleLabelCustomer');
-  const baseSections = resolvedRole === 'pro' ? PRO_SECTIONS : CUSTOMER_SECTIONS;
-  const subtitleColor = SUBTITLE_COLORS[resolvedRole];
+  const roleLabel = role === 'pro' ? t('sidebar.roleLabelPro') : t('sidebar.roleLabelCustomer');
+  const baseSections = role === 'pro' ? PRO_SECTIONS : CUSTOMER_SECTIONS;
+  const subtitleColor = SUBTITLE_COLORS[role];
   const isCanonicalAdmin =
     identity.email?.trim().toLowerCase() === 'hello.flyersup@gmail.com';
   const adminSection: MenuSection[] = isCanonicalAdmin
@@ -382,7 +378,7 @@ export function SideMenu({
         <div className="flex-shrink-0 border-t border-[#D8D8D2] dark:border-white/10 px-6 py-4">
           <div className="flex items-center justify-between gap-3">
             <Link
-              href={resolvedRole === 'pro' ? '/pro/messages' : '/customer/messages'}
+              href={role === 'pro' ? '/pro/messages' : '/customer/messages'}
               className="text-[1.1rem] font-medium text-[#667085] dark:text-gray-400 hover:text-[#1F2937] dark:hover:text-white transition-colors"
               onClick={handleClose}
             >

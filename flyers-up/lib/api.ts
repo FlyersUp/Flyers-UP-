@@ -1844,7 +1844,7 @@ async function createEarningsForBooking(
     .from('pro_earnings')
     .select('id')
     .eq('booking_id', bookingId)
-    .single();
+    .maybeSingle();
 
   if (existingEarnings) {
     console.log('Earnings already exist for booking:', bookingId);
@@ -2191,8 +2191,8 @@ export type ProPricingSettings = {
 };
 
 export async function getProPricingSettings(userId: string): Promise<ProPricingSettings> {
-  const { data, error } = await supabase.from('pro_pricing_settings').select('*').eq('pro_user_id', userId).single();
-  if (error) {
+  const { data, error } = await supabase.from('pro_pricing_settings').select('*').eq('pro_user_id', userId).maybeSingle();
+  if (error || !data) {
     return { hourlyPricing: false, minimumJobPrice: null, travelFeeEnabled: false };
   }
   return {
@@ -2745,14 +2745,10 @@ export async function getPayoutMethod(userId: string): Promise<PayoutMethod | nu
       .from('pro_payout_accounts')
       .select('method, account_last4')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        // No payout method set yet
-        return null;
-      }
-      console.error('Error fetching payout method:', error);
+    if (error || !data) {
+      if (error) console.error('Error fetching payout method:', error);
       return null;
     }
 
@@ -2780,7 +2776,7 @@ export async function updatePayoutMethod(
       .from('pro_payout_accounts')
       .select('id')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       // Update existing
@@ -2864,7 +2860,7 @@ export async function getProPayoutPreferences(userId: string): Promise<ProPayout
       .from('pro_payout_preferences')
       .select('*')
       .eq('pro_user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (error || !data) return fallback;
     return {

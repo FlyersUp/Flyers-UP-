@@ -68,7 +68,7 @@ interface MorphingNavItemProps {
 
 function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel }: MorphingNavItemProps) {
   const base =
-    'flex items-center justify-center h-14 rounded-full border backdrop-blur-md overflow-hidden ' +
+    'flex items-center justify-center h-12 sm:h-14 rounded-full border backdrop-blur-md overflow-hidden ' +
     'active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus:outline-none ' +
     'focus-visible:ring-gray-300 dark:focus-visible:ring-white/20 ' +
     'shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)] ' +
@@ -89,11 +89,11 @@ function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel }: Morp
         isActive ? activeIcon : inactiveIcon + ' hover:text-[#111111] dark:hover:text-[#F5F7FA]'
       }`}
       style={{
-        width: isActive ? 132 : 56,
-        minWidth: isActive ? 120 : 56,
-        paddingLeft: isActive ? 20 : 0,
-        paddingRight: isActive ? 20 : 0,
-        gap: isActive ? 8 : 0,
+        width: isActive ? 104 : 48,
+        minWidth: isActive ? 88 : 48,
+        paddingLeft: isActive ? 14 : 0,
+        paddingRight: isActive ? 14 : 0,
+        gap: isActive ? 6 : 0,
         transition: `min-width ${TRANSITION_MS}ms ease-out, width ${TRANSITION_MS}ms ease-out, padding ${TRANSITION_MS}ms ease-out, gap ${TRANSITION_MS}ms ease-out, background-color ${TRANSITION_MS}ms, color ${TRANSITION_MS}ms`,
       }}
       aria-label={ariaLabel}
@@ -104,9 +104,9 @@ function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel }: Morp
         badge={badge}
       />
       <span
-        className="whitespace-nowrap font-medium text-sm overflow-hidden"
+        className="whitespace-nowrap font-medium text-xs sm:text-sm overflow-hidden"
         style={{
-          maxWidth: isActive ? 80 : 0,
+          maxWidth: isActive ? 64 : 0,
           opacity: isActive ? 1 : 0,
           transition: `max-width ${TRANSITION_MS}ms ease-out, opacity ${TRANSITION_MS}ms ease-out`,
         }}
@@ -149,7 +149,7 @@ export default function FloatingBottomNav() {
     return (
       <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center">
         <div
-          className="pointer-events-auto flex items-center justify-center gap-3 px-4 max-w-md"
+          className="pointer-events-auto flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 max-w-md"
           style={{ marginBottom: 'max(12px, env(safe-area-inset-bottom))' }}
         >
           <MorphingNavItem
@@ -190,7 +190,7 @@ export default function FloatingBottomNav() {
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center">
       <div
-        className="pointer-events-auto flex items-center justify-center gap-3 px-4 max-w-md"
+        className="pointer-events-auto flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 max-w-md"
         style={{ marginBottom: 'max(12px, env(safe-area-inset-bottom))' }}
       >
         <MorphingNavItem

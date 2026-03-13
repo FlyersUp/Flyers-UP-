@@ -51,11 +51,18 @@ export async function GET(req: NextRequest) {
 
     const { data: jc } = await admin
       .from('job_completions')
-      .select('after_photo_urls')
+      .select('after_photo_urls, booking_id')
       .eq('booking_id', b.id)
       .maybeSingle();
-    const urls = (jc as { after_photo_urls?: string[] } | null)?.after_photo_urls ?? [];
-    if (urls.length >= 2) toProcess.push(b);
+    const rawUrls = (jc as { after_photo_urls?: string[] } | null)?.after_photo_urls ?? [];
+    // Require 2+ valid non-empty URLs (reject placeholders, empty strings)
+    const validUrls = rawUrls.filter(
+      (u): u is string =>
+        typeof u === 'string' &&
+        u.trim().length > 5 &&
+        !/^(placeholder|n\/a|none|null|undefined)$/i.test(u.trim())
+    );
+    if (validUrls.length >= 2 && jc?.booking_id === b.id) toProcess.push(b);
   }
 
   if (error) {

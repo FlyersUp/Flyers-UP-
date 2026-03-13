@@ -73,6 +73,3 @@ export async function applyDisputeHold(params: {
   if (error) return { success: false, error: error.message };
   return { success: true };
 }
-
-/** @deprecated Use applyDisputeHold */
-export const applyDisputeHoldStub = applyDisputeHold;

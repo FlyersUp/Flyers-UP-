@@ -66,7 +66,7 @@ export async function DELETE() {
     .from('pro_safety_compliance_settings')
     .select('insurance_doc_path')
     .eq('pro_user_id', user.id)
-    .single();
+    .maybeSingle();
 
   const path = (row as { insurance_doc_path?: string } | null)?.insurance_doc_path;
   if (path) {

@@ -1,10 +1,11 @@
 /**
  * Server-side booking status transition logic.
  * Used by PATCH /api/jobs/[jobId]/status and POST /api/bookings/[bookingId]/* endpoints.
+ * Enforces: in_progress requires job_arrivals; awaiting_remaining_payment requires job_completions (2+ photos).
  */
 
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from './supabaseServer';
+import { createServerSupabaseClient, createAdminSupabaseClient } from './supabaseServer';
 import { isValidTransition } from '@/components/jobs/jobStatus';
 
 type AllowedDbStatus = 'accepted' | 'pro_en_route' | 'in_progress' | 'awaiting_remaining_payment';
@@ -76,6 +77,47 @@ export async function transitionBookingStatus(
   }
 
   const currentDbStatus = String(booking.status);
+
+  // in_progress: require job_arrivals (arrival verification) for pro_en_route/arrived
+  if (nextDbStatus === 'in_progress' && ['pro_en_route', 'on_the_way', 'arrived'].includes(currentDbStatus)) {
+    const admin = createAdminSupabaseClient();
+    const { data: arrival } = await admin
+      .from('job_arrivals')
+      .select('id')
+      .eq('booking_id', bookingId)
+      .maybeSingle();
+    if (!arrival) {
+      return NextResponse.json(
+        {
+          error: 'Arrival verification required before starting job',
+          code: 'arrival_required',
+          hint: 'Call POST /api/bookings/[id]/arrive with GPS coordinates first',
+        },
+        { status: 409 }
+      );
+    }
+  }
+
+  // awaiting_remaining_payment: require job_completions with 2+ photos
+  if (nextDbStatus === 'awaiting_remaining_payment') {
+    const admin = createAdminSupabaseClient();
+    const { data: completion } = await admin
+      .from('job_completions')
+      .select('after_photo_urls')
+      .eq('booking_id', bookingId)
+      .maybeSingle();
+    const urls = (completion as { after_photo_urls?: string[] } | null)?.after_photo_urls ?? [];
+    if (!completion || urls.length < 2) {
+      return NextResponse.json(
+        {
+          error: 'Job completion photos required before marking complete',
+          code: 'completion_photos_required',
+          hint: 'Call POST /api/bookings/[id]/complete with at least 2 after photos',
+        },
+        { status: 409 }
+      );
+    }
+  }
 
   if (!isValidTransition(currentDbStatus, nextDbStatus)) {
     return NextResponse.json(

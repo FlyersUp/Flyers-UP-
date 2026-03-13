@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import {
   getActiveServices,
   getActiveSubcategoriesByServiceSlug,
+  getSubcategoriesByOccupationId,
   type Service,
   type ServiceSubcategory,
 } from '@/lib/db/services';
@@ -34,6 +35,12 @@ export async function getActiveSubcategoriesByServiceSlugAction(serviceSlug: str
   return getActiveSubcategoriesByServiceSlug(supabase, serviceSlug);
 }
 
+/** Public: get subcategories for an occupation by occupation_id (strict occupation filtering) */
+export async function getSubcategoriesByOccupationIdAction(occupationId: string): Promise<ServiceSubcategory[]> {
+  const supabase = await createServerSupabaseClient();
+  return getSubcategoriesByOccupationId(supabase, occupationId);
+}
+
 /** Pro-only: get my subcategory selections grouped by service */
 export async function getMyProSubcategorySelectionsAction(): Promise<ProSubcategorySelection[]> {
   const { userId } = await requireProUser();
@@ -44,9 +51,10 @@ export async function getMyProSubcategorySelectionsAction(): Promise<ProSubcateg
 /** Pro-only: set my subcategory selections for a service (replaces existing). Returns category_id for backward compat. */
 export async function setMyProSubcategorySelectionsAction(
   serviceSlug: string,
-  subcategoryIds: string[]
+  subcategoryIds: string[],
+  occupationId?: string
 ): Promise<{ success: boolean; error?: string; category_id?: string; selections?: ProSubcategorySelection }> {
   const { userId } = await requireProUser();
   const supabase = await createServerSupabaseClient();
-  return setMyProSubcategorySelections(supabase, { userId, serviceSlug, subcategoryIds });
+  return setMyProSubcategorySelections(supabase, { userId, serviceSlug, subcategoryIds, occupationId });
 }

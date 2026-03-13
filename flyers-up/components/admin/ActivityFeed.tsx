@@ -32,7 +32,6 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
       <div className="mt-3 space-y-2">
         {items.length === 0 ? (
           <>
-            {/* TODO: Replace with real activity feed when backend supports it */}
             <div className="rounded-lg bg-surface2/50 px-3 py-2 text-sm text-muted">
               <span className="font-medium">Recent booking</span>
               <span className="ml-2">—</span>
@@ -45,7 +44,7 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
               <span className="font-medium">Completed job</span>
               <span className="ml-2">—</span>
             </div>
-            <p className="pt-1 text-xs text-muted">Waiting for live data</p>
+            <p className="pt-1 text-xs text-muted">Coming soon</p>
           </>
         ) : (
           items.map((item) => (

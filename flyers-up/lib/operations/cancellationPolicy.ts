@@ -208,9 +208,11 @@ export function evaluateCancellationPolicy(input: CancellationPolicyInput): Canc
       ...base,
       refundType: hasEvidence ? (reasonCode === 'no_show_customer' ? 'none' : 'full') : 'admin_override',
       refundAmountCents: hasEvidence && reasonCode === 'no_show_pro' ? depositPaidCents + remainingPaidCents : 0,
-      strikePro: hasEvidence && reasonCode === 'no_show_customer',
+      strikePro: hasEvidence && reasonCode === 'no_show_pro',
       explanation: hasEvidence
-        ? 'No-show with evidence — automated decision'
+        ? reasonCode === 'no_show_customer'
+          ? 'Customer no-show with evidence — deposit non-refundable'
+          : 'Pro no-show with evidence — full refund, strike applied'
         : 'No-show — insufficient evidence, manual review required',
       manualReviewRequired: !hasEvidence,
       ruleFired: reasonCode === 'no_show_customer' ? 'no_show_customer' : 'no_show_pro',
@@ -246,9 +248,8 @@ export function evaluateCancellationPolicy(input: CancellationPolicyInput): Canc
 export function mapDbStatusToBookingStage(status: string): BookingStage {
   const s = String(status).toLowerCase();
   if (s === 'requested' || s === 'pending') return 'requested';
+  if (s === 'deposit_paid') return 'deposit_paid';
   if (s === 'accepted' || s === 'payment_required' || s === 'awaiting_deposit_payment') return 'accepted';
-  if (s === 'deposit_paid' || s === 'awaiting_deposit_payment') return 'accepted';
-  if (s.includes('deposit') && s.includes('paid')) return 'deposit_paid';
   if (s === 'pro_en_route' || s === 'on_the_way' || s === 'arrived') return 'pro_en_route';
   if (s === 'in_progress' || s === 'started') return 'in_progress';
   if (s.includes('completed') || s.includes('paid') || s.includes('awaiting')) return 'completed';

@@ -28,7 +28,7 @@ export function BookingsTabsLayout({
   const tabs: BookingsTab[] = ['active', 'completed', 'cancelled'];
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
-      <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-3">{title}</h2>
+      <h2 className="text-sm font-semibold text-text2 uppercase tracking-wide mb-3">{title}</h2>
 
       <div className="flex gap-2 mb-6 border-b border-black/10">
         {tabs.map((tab) => (
@@ -38,8 +38,8 @@ export function BookingsTabsLayout({
             onClick={() => onTabChange(tab)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
               activeTab === tab
-                ? 'border-[#111] text-[#111]'
-                : 'border-transparent text-black/60 hover:text-[#111]'
+                ? 'border-text text-text'
+                : 'border-transparent text-text3 hover:text-text'
             }`}
           >
             {TAB_LABELS[tab]}

@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
@@ -27,8 +27,12 @@ export default function AdminDisputePage() {
   const [data, setData] = useState<DisputeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
+  const [adminNotes, setAdminNotes] = useState('');
+  const [issueStrike, setIssueStrike] = useState(false);
+  const [freezePayout, setFreezePayout] = useState(false);
 
-  useEffect(() => {
+  const refetch = useCallback(() => {
     if (!bookingId) return;
     fetch(`/api/admin/disputes/${bookingId}`, { cache: 'no-store' })
       .then((res) => res.json())
@@ -36,9 +40,36 @@ export default function AdminDisputePage() {
         if (json.error) setError(json.error);
         else setData(json);
       })
-      .catch(() => setError('Failed to load'))
-      .finally(() => setLoading(false));
+      .catch(() => setError('Failed to load'));
   }, [bookingId]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  async function handleResolve(decision: string) {
+    if (!bookingId || resolving) return;
+    setResolving(true);
+    try {
+      const res = await fetch(`/api/admin/disputes/${bookingId}/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          decision,
+          admin_notes: adminNotes || undefined,
+          issue_strike: issueStrike,
+          freeze_payout: freezePayout,
+        }),
+      });
+      const json = await res.json();
+      if (json.error) setError(json.error);
+      else refetch();
+    } catch {
+      setError('Failed to resolve');
+    } finally {
+      setResolving(false);
+    }
+  }
 
   if (loading) return <AppLayout><div className="p-6">Loading…</div></AppLayout>;
   if (error || !data) return <AppLayout><div className="p-6 text-red-600">{error ?? 'Not found'}</div></AppLayout>;
@@ -66,6 +97,16 @@ export default function AdminDisputePage() {
         {/* A. Booking overview */}
         <section className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Booking Overview</h2>
+          {(dispute as { dispute_reason_code?: string })?.dispute_reason_code && (
+            <p className="text-sm text-muted mb-2">
+              Reason: <strong>{(dispute as { dispute_reason_code: string }).dispute_reason_code}</strong>
+            </p>
+          )}
+          {((dispute as { risk_flags?: string[] })?.risk_flags?.length ?? 0) > 0 && (
+            <p className="text-sm text-amber-600 mb-2">
+              Risk flags: {(dispute as { risk_flags: string[] }).risk_flags.join(', ')}
+            </p>
+          )}
           <dl className="grid grid-cols-2 gap-2 text-sm">
             <dt className="text-muted">Status</dt>
             <dd>{String(booking.status)}</dd>
@@ -98,9 +139,22 @@ export default function AdminDisputePage() {
           </ul>
         </section>
 
-        {/* C. Evidence panel */}
+        {/* C. Claims + Evidence */}
         <section className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">Evidence</h2>
+          <h2 className="text-lg font-semibold mb-4">Claims & Evidence</h2>
+          {(dispute as { customer_claim?: string })?.customer_claim && (
+            <div className="mb-3">
+              <p className="text-muted text-xs font-medium uppercase">Customer claim</p>
+              <p className="text-sm">{String((dispute as { customer_claim: string }).customer_claim)}</p>
+            </div>
+          )}
+          {(dispute as { pro_claim?: string })?.pro_claim && (
+            <div className="mb-3">
+              <p className="text-muted text-xs font-medium uppercase">Pro claim</p>
+              <p className="text-sm">{String((dispute as { pro_claim: string }).pro_claim)}</p>
+            </div>
+          )}
+          <h3 className="text-sm font-medium mt-4 mb-2">Evidence</h3>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span>Completeness</span>
@@ -141,27 +195,58 @@ export default function AdminDisputePage() {
         {/* E. Admin action bar */}
         <section className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Admin Actions</h2>
+          <textarea
+            placeholder="Admin notes (optional)"
+            value={adminNotes}
+            onChange={(e) => setAdminNotes(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-black/10 text-sm mb-3 min-h-[60px]"
+            rows={2}
+          />
+          <div className="flex flex-wrap gap-2 mb-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={issueStrike} onChange={(e) => setIssueStrike(e.target.checked)} />
+              Issue strike to Pro
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={freezePayout} onChange={(e) => setFreezePayout(e.target.checked)} />
+              Freeze payout
+            </label>
+          </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className="px-4 py-2 rounded-lg bg-green-100 text-green-800 text-sm font-medium hover:bg-green-200">
+            <button
+              type="button"
+              disabled={resolving}
+              onClick={() => handleResolve('uphold_customer')}
+              className="px-4 py-2 rounded-lg bg-green-100 text-green-800 text-sm font-medium hover:bg-green-200 disabled:opacity-50"
+            >
               Uphold Customer
             </button>
-            <button type="button" className="px-4 py-2 rounded-lg bg-amber-100 text-amber-800 text-sm font-medium hover:bg-amber-200">
+            <button
+              type="button"
+              disabled={resolving}
+              onClick={() => handleResolve('uphold_pro')}
+              className="px-4 py-2 rounded-lg bg-amber-100 text-amber-800 text-sm font-medium hover:bg-amber-200 disabled:opacity-50"
+            >
               Uphold Pro
             </button>
-            <button type="button" className="px-4 py-2 rounded-lg bg-blue-100 text-blue-800 text-sm font-medium hover:bg-blue-200">
+            <button
+              type="button"
+              disabled={resolving}
+              onClick={() => handleResolve('split_refund')}
+              className="px-4 py-2 rounded-lg bg-blue-100 text-blue-800 text-sm font-medium hover:bg-blue-200 disabled:opacity-50"
+            >
               Split Refund
             </button>
-            <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-800 text-sm font-medium hover:bg-gray-200">
+            <button
+              type="button"
+              disabled={resolving}
+              onClick={() => handleResolve('request_evidence')}
+              className="px-4 py-2 rounded-lg bg-gray-100 text-gray-800 text-sm font-medium hover:bg-gray-200 disabled:opacity-50"
+            >
               Request Evidence
             </button>
-            <button type="button" className="px-4 py-2 rounded-lg bg-red-100 text-red-800 text-sm font-medium hover:bg-red-200">
-              Issue Strike
-            </button>
-            <button type="button" className="px-4 py-2 rounded-lg bg-red-100 text-red-800 text-sm font-medium hover:bg-red-200">
-              Freeze Payout
-            </button>
           </div>
-          <p className="mt-3 text-xs text-muted">Actions require backend implementation.</p>
+          {resolving && <p className="mt-2 text-xs text-muted">Saving…</p>}
         </section>
       </div>
     </AppLayout>

@@ -184,7 +184,7 @@ export default function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section className="py-24 px-4">
+      <section id="how-it-works" className="py-24 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-3 mb-3">
@@ -360,25 +360,25 @@ export default function HomePage() {
             <div>
               <h4 className="text-text font-medium mb-3">For Customers</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-text transition-colors">How It Works</a></li>
-                <li><a href="#" className="hover:text-text transition-colors">Browse Services</a></li>
-                <li><a href="#" className="hover:text-text transition-colors">Safety</a></li>
+                <li><Link href="/#how-it-works" className="hover:text-text transition-colors">How It Works</Link></li>
+                <li><Link href="/occupations" className="hover:text-text transition-colors">Browse Services</Link></li>
+                <li><Link href="/trust-verification" className="hover:text-text transition-colors">Safety</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="text-text font-medium mb-3">For Pros</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-text transition-colors">Join as Pro</a></li>
-                <li><a href="#" className="hover:text-text transition-colors">Pro Resources</a></li>
-                <li><a href="#" className="hover:text-text transition-colors">Pro Support</a></li>
+                <li><Link href="/signup?role=pro" className="hover:text-text transition-colors">Join as Pro</Link></li>
+                <li><Link href="/legal/independent-contractor" className="hover:text-text transition-colors">Pro Resources</Link></li>
+                <li><Link href="/signin?role=pro" className="hover:text-text transition-colors">Pro Support</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="text-text font-medium mb-3">Company</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-text transition-colors">About Us</a></li>
-                <li><a href="#" className="hover:text-text transition-colors">Contact</a></li>
-                <li><a href="#" className="hover:text-text transition-colors">Careers</a></li>
+                <li><Link href="/community-guidelines" className="hover:text-text transition-colors">About Us</Link></li>
+                <li><Link href="/signin" className="hover:text-text transition-colors">Contact</Link></li>
+                <li><Link href="/#pros" className="hover:text-text transition-colors">Careers</Link></li>
               </ul>
             </div>
           </div>

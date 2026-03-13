@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       .from('bookings')
       .update({ refund_status: 'pending' })
       .eq('id', b.id)
-      .in('refund_status', ['none', '']);
+      .or('refund_status.is.null,refund_status.eq.none');
 
     if (updErr) continue; // Already pending or processing
 

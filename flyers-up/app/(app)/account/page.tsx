@@ -33,20 +33,25 @@ export default async function AccountPage() {
 
   const admin = createAdminSupabaseClient();
 
+  const UPCOMING_STATUSES = [
+    'requested', 'accepted', 'payment_required', 'deposit_paid', 'pro_en_route', 'on_the_way', 'arrived',
+    'in_progress', 'completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment', 'fully_paid',
+  ];
   const { data: upcomingRows } = await admin
     .from('bookings')
     .select('id, service_date, service_time, status, pro_id')
     .eq('customer_id', user.id)
-    .in('status', ['requested', 'accepted', 'awaiting_payment'])
+    .in('status', UPCOMING_STATUSES)
     .order('service_date', { ascending: true })
     .order('service_time', { ascending: true })
     .limit(20);
 
+  const PAST_STATUSES = ['completed', 'paid', 'cancelled', 'declined', 'expired_unpaid'];
   const { data: pastRows } = await admin
     .from('bookings')
     .select('id, service_date, service_time, status, pro_id')
     .eq('customer_id', user.id)
-    .in('status', ['completed', 'cancelled', 'declined'])
+    .in('status', PAST_STATUSES)
     .order('service_date', { ascending: false })
     .order('service_time', { ascending: false })
     .limit(20);

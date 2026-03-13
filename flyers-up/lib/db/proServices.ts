@@ -80,7 +80,7 @@ export async function getMyProSubcategorySelections(
  */
 export async function setMyProSubcategorySelections(
   supabase: SupabaseClient,
-  params: { userId: string; serviceSlug: string; subcategoryIds: string[] }
+  params: { userId: string; serviceSlug: string; subcategoryIds: string[]; occupationId?: string }
 ): Promise<{ success: boolean; error?: string; category_id?: string; selections?: ProSubcategorySelection }> {
   if (params.subcategoryIds.length === 0) {
     return { success: false, error: 'At least one subcategory is required.' };
@@ -117,24 +117,34 @@ export async function setMyProSubcategorySelections(
   }
 
   // Validate all subcategoryIds belong to this service and are active
-  const { data: validSubs } = await supabase
+  let validSubsQuery = supabase
     .from('service_subcategories')
-    .select('id')
+    .select('id, occupation_id')
     .eq('service_id', service.id)
     .eq('is_active', true)
     .in('id', params.subcategoryIds);
 
+  if (params.occupationId) {
+    validSubsQuery = validSubsQuery.eq('occupation_id', params.occupationId);
+  }
+
+  const { data: validSubs } = await validSubsQuery;
+
   const validIds = new Set((validSubs ?? []).map((s: { id: string }) => s.id));
   const invalid = params.subcategoryIds.filter((id) => !validIds.has(id));
   if (invalid.length > 0) {
-    return { success: false, error: 'One or more subcategories are invalid or inactive.' };
+    return { success: false, error: params.occupationId ? 'One or more services do not belong to the selected occupation.' : 'One or more subcategories are invalid or inactive.' };
   }
 
-  // Delete existing selections for this service
-  const { data: existingSubs } = await supabase
+  // Delete existing selections for this service (and occupation when occupation-scoped)
+  let existingSubsQuery = supabase
     .from('service_subcategories')
     .select('id')
     .eq('service_id', service.id);
+  if (params.occupationId) {
+    existingSubsQuery = existingSubsQuery.eq('occupation_id', params.occupationId);
+  }
+  const { data: existingSubs } = await existingSubsQuery;
 
   const existingIds = (existingSubs ?? []).map((s: { id: string }) => s.id);
   if (existingIds.length > 0) {

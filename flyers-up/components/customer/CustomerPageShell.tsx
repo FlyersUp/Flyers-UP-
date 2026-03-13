@@ -48,20 +48,20 @@ export function CustomerPageShell({ title, children, userName: userNameProp, sub
           >
             ☰
           </button>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{title}</h1>
+          <h1 className="text-xl font-semibold text-text truncate max-w-[60vw]">{title}</h1>
           <div className="w-10" />
         </div>
       </div>
 
-      <div className="pb-24">
+      <div className="pb-24 safe-area-bottom">
         {subtitle && (
           <div className="max-w-4xl mx-auto px-4 pt-4">
-            <p className="text-sm text-gray-600 dark:text-gray-300">{subtitle}</p>
+            <p className="text-sm text-text3">{subtitle}</p>
           </div>
         )}
         {children}
       </div>
-      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} mode="customer" userName={userName} />
+      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} role="customer" userName={userName} />
     </div>
   );
 }
