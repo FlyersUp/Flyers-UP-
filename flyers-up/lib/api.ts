@@ -2929,7 +2929,7 @@ export async function getProSafetyComplianceSettings(userId: string): Promise<Pr
       .from('pro_safety_compliance_settings')
       .select('*')
       .eq('pro_user_id', userId)
-      .single();
+      .maybeSingle();
     if (error || !data) return fallback;
     const d = data as Record<string, unknown>;
     return {

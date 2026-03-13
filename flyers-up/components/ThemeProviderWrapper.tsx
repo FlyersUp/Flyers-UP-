@@ -20,12 +20,9 @@ function getModeFromPath(pathname: string | null): 'customer' | 'pro' {
     pathname.startsWith('/requests')
   )
     return 'customer';
-  try {
-    const last = typeof window !== 'undefined' ? window.localStorage.getItem('flyersup:lastRole') : null;
-    if (last === 'pro' || last === 'customer') return last;
-  } catch {
-    // ignore
-  }
+  // Do not read localStorage here—causes hydration mismatch (server has no localStorage).
+  // For ambiguous routes (/, /onboarding, /auth), default to customer. ThemeContext
+  // still persists lastRole to localStorage when mode changes.
   return 'customer';
 }
 

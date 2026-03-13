@@ -167,14 +167,25 @@ export default function BusinessSettingsPage() {
         
         // Load service types from Supabase; fall back to localStorage for older sessions.
         if (proData.serviceTypes && proData.serviceTypes.length > 0) {
-          setServiceTypes(proData.serviceTypes);
+          setServiceTypes(
+            proData.serviceTypes.map((s, i) => ({
+              ...s,
+              id: s.id ?? `svc-${i}-${String(s.name).replace(/\s/g, '-')}`,
+            }))
+          );
         } else {
           const servicesStr = localStorage.getItem('proServiceTypes');
           if (servicesStr) {
             setServiceTypes(JSON.parse(servicesStr));
           } else {
             // Default service type
-            setServiceTypes([{ name: proData.categoryName || 'General Service', price: proData.startingPrice.toString() }]);
+            setServiceTypes([
+              {
+                name: proData.categoryName || 'General Service',
+                price: proData.startingPrice.toString(),
+                id: `svc-0-${String(proData.categoryName || 'General').replace(/\s/g, '-')}`,
+              },
+            ]);
           }
         }
       }
@@ -745,7 +756,7 @@ export default function BusinessSettingsPage() {
                         {subcategories.map((sub) => (
                           <label
                             key={sub.id}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:bg-surface2 cursor-pointer"
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:bg-surface2 active:bg-surface2 cursor-pointer transition-colors"
                           >
                             <input
                               type="checkbox"
@@ -778,7 +789,7 @@ export default function BusinessSettingsPage() {
                           }
                         }}
                         disabled={subcategoriesSaving || selectedSubcategoryIds.length === 0}
-                        className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-4 py-2.5 bg-accent text-accentContrast rounded-lg font-medium hover:bg-accent/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
                       >
                         {subcategoriesSaving ? 'Saving…' : 'Save subcategories'}
                       </button>
@@ -809,9 +820,11 @@ export default function BusinessSettingsPage() {
               
               {serviceTypes.length > 0 ? (
                 <div className="space-y-3 mb-6">
-                  {serviceTypes.map((service) => (
-                    <div key={service.id} className="surface-card p-4">
-                      {editingServiceId === service.id ? (
+                  {serviceTypes.map((service, idx) => {
+                    const serviceId = service.id ?? `svc-${idx}-${String(service.name).replace(/\s/g, '-')}`;
+                    return (
+                    <div key={serviceId} className="surface-card p-4">
+                      {editingServiceId === serviceId ? (
                         <div className="space-y-3">
                           <input
                             type="text"
@@ -831,9 +844,10 @@ export default function BusinessSettingsPage() {
                           />
                           <div className="flex gap-2">
                             <button
+                              type="button"
                               onClick={() => {
-                                if (editServiceForm.name && editServiceForm.price && service.id) {
-                                  void handleUpdateService(service.id, editServiceForm.name, editServiceForm.price);
+                                if (editServiceForm.name && editServiceForm.price) {
+                                  void handleUpdateService(serviceId, editServiceForm.name, editServiceForm.price);
                                   setEditingServiceId(null);
                                   setEditServiceForm({ name: '', price: '' });
                                 } else {
@@ -845,6 +859,7 @@ export default function BusinessSettingsPage() {
                               Save
                             </button>
                             <button
+                              type="button"
                               onClick={() => {
                                 setEditingServiceId(null);
                                 setEditServiceForm({ name: '', price: '' });
@@ -862,24 +877,26 @@ export default function BusinessSettingsPage() {
                             <p className="text-sm text-muted">${service.price}</p>
                           </div>
                           <button
+                            type="button"
                             onClick={() => {
-                              setEditingServiceId(service.id ?? null);
+                              setEditingServiceId(serviceId);
                               setEditServiceForm({ name: service.name, price: service.price });
                             }}
-                            className="px-3 py-1 text-sm text-text hover:bg-surface2 rounded-lg transition-colors"
+                            className="px-3 py-1.5 text-sm font-medium text-text hover:bg-surface2 active:bg-surface2 rounded-lg transition-colors cursor-pointer"
                           >
                             Edit
                           </button>
                           <button
-                            onClick={() => service.id && void handleRemoveService(service.id)}
-                            className="px-3 py-1 text-sm text-red-600 hover:bg-danger/10 rounded-lg transition-colors"
+                            type="button"
+                            onClick={() => void handleRemoveService(serviceId)}
+                            className="px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-danger/10 active:bg-danger/15 rounded-lg transition-colors cursor-pointer"
                           >
                             Remove
                           </button>
                         </div>
                       )}
                     </div>
-                  ))}
+                  );})}
                 </div>
               ) : (
                 <p className="text-muted/70 mb-6">No services added yet.</p>

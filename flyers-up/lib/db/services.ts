@@ -23,6 +23,7 @@ export interface ServiceSubcategory {
   sort_order: number;
   is_active: boolean;
   created_at: string;
+  occupation_id?: string | null;
 }
 
 export interface MarketplacePro {
@@ -88,6 +89,35 @@ export async function getActiveSubcategoriesByServiceSlug(
 
   if (error) {
     console.error('getActiveSubcategoriesByServiceSlug error:', error);
+    return [];
+  }
+  const rows = (data ?? []) as ServiceSubcategory[];
+  // Deduplicate by slug (occupation-scoped migration can create same slug per occupation)
+  const seen = new Set<string>();
+  return rows.filter((r) => {
+    if (seen.has(r.slug)) return false;
+    seen.add(r.slug);
+    return true;
+  });
+}
+
+/**
+ * Get active subcategories for an occupation by occupation_id.
+ * Only returns subcategories where occupation_id matches (strict occupation filtering).
+ */
+export async function getSubcategoriesByOccupationId(
+  supabase: SupabaseClient,
+  occupationId: string
+): Promise<ServiceSubcategory[]> {
+  const { data, error } = await supabase
+    .from('service_subcategories')
+    .select('id, service_id, slug, name, description, requires_license, sort_order, is_active, created_at, occupation_id')
+    .eq('occupation_id', occupationId)
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+
+  if (error) {
+    console.error('getSubcategoriesByOccupationId error:', error);
     return [];
   }
   return (data ?? []) as ServiceSubcategory[];

@@ -48,23 +48,23 @@ export function ThemeProvider({
   const DARK_KEY = 'flyersup:darkMode'; // legacy
   const ROLE_KEY = 'flyersup:lastRole';
 
-  // Initialize from storage before first paint (avoids flicker + satisfies strict lint rules).
-  const [theme, setTheme] = useState<ThemePreference>(() => {
-    // Default to light unless the user explicitly picked dark.
-    if (typeof window === 'undefined') return 'light';
+  // Always initialize with 'light' to avoid hydration mismatch (server has no localStorage).
+  // Sync from localStorage in useEffect after mount.
+  const [theme, setTheme] = useState<ThemePreference>('light');
+
+  useEffect(() => {
     try {
       const rawTheme = window.localStorage.getItem(THEME_KEY);
-      if (rawTheme === 'light' || rawTheme === 'dark' || rawTheme === 'system') return rawTheme;
-
-      // Legacy fallback
-      const rawDark = window.localStorage.getItem(DARK_KEY);
-      if (rawDark === '1') return 'dark';
-      if (rawDark === '0') return 'light';
+      if (rawTheme === 'light' || rawTheme === 'dark' || rawTheme === 'system') {
+        setTheme(rawTheme);
+      } else {
+        const rawDark = window.localStorage.getItem(DARK_KEY);
+        if (rawDark === '1') setTheme('dark');
+      }
     } catch {
       // ignore
     }
-    return 'light';
-  });
+  }, []);
 
   // Option C: only enable dark mode when explicitly chosen by the user.
   // `system` is treated as light (prevents OS preference from forcing dark).
