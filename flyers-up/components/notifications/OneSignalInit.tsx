@@ -7,6 +7,7 @@ declare global {
     OneSignalDeferred?: Array<(OneSignal: any) => void>;
     OneSignal?: any;
     __ONESIGNAL_APP_ID__?: string;
+    __ONESIGNAL_INIT_SCHEDULED__?: boolean;
   }
 }
 
@@ -25,6 +26,12 @@ export default function OneSignalInit() {
       console.warn("[OneSignal Debug] Missing NEXT_PUBLIC_ONESIGNAL_APP_ID");
       return;
     }
+
+    // Only schedule init once per page load (avoids "SDK already initialized" when component remounts)
+    if (window.__ONESIGNAL_INIT_SCHEDULED__) {
+      return;
+    }
+    window.__ONESIGNAL_INIT_SCHEDULED__ = true;
 
     window.OneSignalDeferred = window.OneSignalDeferred || [];
 
@@ -63,8 +70,13 @@ export default function OneSignalInit() {
           "[OneSignal Debug] OneSignal.User.PushSubscription.id:",
           OneSignal.User.PushSubscription.id
         );
-      } catch (err) {
-        console.error("[OneSignal Debug] init failed", err);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("already initialized")) {
+          console.log("[OneSignal Debug] Already initialized, skipping");
+        } else {
+          console.error("[OneSignal Debug] init failed", err);
+        }
       }
     });
   }, []);
