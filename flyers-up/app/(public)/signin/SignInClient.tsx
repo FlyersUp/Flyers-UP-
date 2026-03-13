@@ -22,6 +22,7 @@ export function SignInClient() {
   const roleRaw = searchParams.get('role');
   const modeRaw = searchParams.get('mode');
   const nextParam = searchParams.get('next');
+  const messageParam = searchParams.get('message');
 
   const role: UserRole = roleRaw === 'pro' ? 'pro' : 'customer';
   const [isSignUp, setIsSignUp] = useState(modeRaw === 'signup');
@@ -217,6 +218,12 @@ export function SignInClient() {
               Create Account
             </button>
           </div>
+
+          {messageParam && (
+            <div className="mb-4 bg-success/15 text-text px-4 py-3 rounded-lg text-sm border border-success/30">
+              {decodeURIComponent(messageParam)}
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 bg-danger/10 text-text px-4 py-3 rounded-lg text-sm border border-red-100">

@@ -5,13 +5,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Logo from '@/components/Logo';
 import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth, upsertProfile, upsertServicePro } from '@/lib/onboarding';
+import { getOccupationsAction } from '@/app/actions/occupations';
 import {
-  getActiveServicesAction,
   getActiveSubcategoriesByServiceSlugAction,
   getCategoryIdForServiceSlugAction,
   setMyProSubcategorySelectionsAction,
 } from '@/app/actions/services';
-import type { Service, ServiceSubcategory } from '@/lib/db/services';
+import { OCCUPATION_TO_SERVICE_SLUG } from '@/lib/occupations';
+import type { OccupationRow } from '@/lib/occupationData';
+import type { ServiceSubcategory } from '@/lib/db/services';
 
 function isInvalidRefreshToken(err: unknown): boolean {
   const msg = (err as { message?: string } | null)?.message ?? '';
@@ -30,15 +32,17 @@ function ProInner() {
   const [error, setError] = useState<string | null>(null);
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [services, setServices] = useState<Service[]>([]);
+  const [occupations, setOccupations] = useState<OccupationRow[]>([]);
   const [subcategories, setSubcategories] = useState<ServiceSubcategory[]>([]);
   const [subcategoriesLoading, setSubcategoriesLoading] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [businessName, setBusinessName] = useState('');
-  const [primaryServiceSlug, setPrimaryServiceSlug] = useState('');
+  const [primaryOccupationSlug, setPrimaryOccupationSlug] = useState('');
   const [selectedSubcategoryIds, setSelectedSubcategoryIds] = useState<string[]>([]);
   const [serviceAreaZip, setServiceAreaZip] = useState('');
+
+  const primaryServiceSlug = primaryOccupationSlug ? (OCCUPATION_TO_SERVICE_SLUG[primaryOccupationSlug] ?? null) : null;
 
   useEffect(() => {
     const init = async () => {
@@ -66,9 +70,9 @@ function ProInner() {
           return;
         }
 
-        const [profile, svcs] = await Promise.all([
+        const [profile, occs] = await Promise.all([
           getOrCreateProfile(user.id, user.email ?? null),
-          getActiveServicesAction(),
+          getOccupationsAction(),
         ]);
 
         if (!profile) {
@@ -81,7 +85,7 @@ function ProInner() {
           return;
         }
 
-        setServices(svcs);
+        setOccupations(occs);
         setFirstName(profile.first_name || '');
         setLastName(profile.last_name || '');
         setServiceAreaZip(profile.zip_code || '');
@@ -93,14 +97,15 @@ function ProInner() {
   }, [router, safeNext]);
 
   useEffect(() => {
-    if (!primaryServiceSlug) {
+    const serviceSlug = primaryOccupationSlug ? OCCUPATION_TO_SERVICE_SLUG[primaryOccupationSlug] : null;
+    if (!serviceSlug) {
       setSubcategories([]);
       setSelectedSubcategoryIds([]);
       return;
     }
     let cancelled = false;
     setSubcategoriesLoading(true);
-    getActiveSubcategoriesByServiceSlugAction(primaryServiceSlug)
+    getActiveSubcategoriesByServiceSlugAction(serviceSlug)
       .then((subs) => {
         if (!cancelled) {
           setSubcategories(subs);
@@ -111,7 +116,7 @@ function ProInner() {
         if (!cancelled) setSubcategoriesLoading(false);
       });
     return () => { cancelled = true; };
-  }, [primaryServiceSlug]);
+  }, [primaryOccupationSlug]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -143,8 +148,8 @@ function ProInner() {
         setError('Please enter your last name.');
         return;
       }
-      if (!primaryServiceSlug) {
-        setError('Please select a primary service.');
+      if (!primaryOccupationSlug || !primaryServiceSlug) {
+        setError('Please select a primary occupation.');
         return;
       }
       if (selectedSubcategoryIds.length === 0) {
@@ -304,33 +309,31 @@ function ProInner() {
                     <>
                       <div>
                         <label className="block text-sm font-medium text-muted mb-1">Your occupation</label>
-                        <div className="space-y-2 mt-2">
-                          {services.map((s) => (
+                        <div className="space-y-2 mt-2 max-h-64 overflow-y-auto">
+                          {occupations.map((occ) => (
                             <label
-                              key={s.id}
+                              key={occ.id}
                               className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                                primaryServiceSlug === s.slug ? 'border-accent bg-accent/5' : 'border-border bg-surface hover:border-accent/50'
+                                primaryOccupationSlug === occ.slug ? 'border-accent bg-accent/5' : 'border-border bg-surface hover:border-accent/50'
                               }`}
                             >
                               <input
                                 type="radio"
-                                name="primaryService"
-                                value={s.slug}
-                                checked={primaryServiceSlug === s.slug}
-                                onChange={() => setPrimaryServiceSlug(s.slug)}
+                                name="primaryOccupation"
+                                value={occ.slug}
+                                checked={primaryOccupationSlug === occ.slug}
+                                onChange={() => setPrimaryOccupationSlug(occ.slug)}
                                 className="mt-1"
                               />
-                              <div>
-                                <span className="font-medium text-text">{s.name}</span>
-                                {s.description && (
-                                  <p className="text-sm text-muted mt-0.5">{s.description}</p>
-                                )}
+                              <div className="flex items-center gap-2 min-w-0">
+                                {occ.icon && <span className="text-lg shrink-0">{occ.icon}</span>}
+                                <span className="font-medium text-text">{occ.name}</span>
                               </div>
                             </label>
                           ))}
                         </div>
                       </div>
-                      {primaryServiceSlug && (
+                      {primaryOccupationSlug && primaryServiceSlug && (
                         <div>
                           <label className="block text-sm font-medium text-muted mb-1">
                             Select the services you offer (at least one)
@@ -382,7 +385,7 @@ function ProInner() {
                     <div className="rounded-xl border border-border bg-surface2 p-4 text-sm text-muted">
                       <p><strong className="text-text">Your name:</strong> {firstName} {lastName}</p>
                       <p><strong className="text-text">Business name:</strong> {businessName.trim() || `${firstName} ${lastName}`.trim()}</p>
-                      <p><strong className="text-text">Primary service:</strong> {services.find((s) => s.slug === primaryServiceSlug)?.name ?? '—'}</p>
+                      <p><strong className="text-text">Primary occupation:</strong> {occupations.find((o) => o.slug === primaryOccupationSlug)?.name ?? '—'}</p>
                       <p><strong className="text-text">Subcategories:</strong> {subcategories.filter((s) => selectedSubcategoryIds.includes(s.id)).map((s) => s.name).join(', ') || '—'}</p>
                       <p><strong className="text-text">Service zip:</strong> {serviceAreaZip}</p>
                     </div>
@@ -402,13 +405,13 @@ function ProInner() {
                         type="button"
                         onClick={() => {
                           if (step === 1 && (!firstName.trim() || !lastName.trim())) return;
-                          if (step === 2 && (!primaryServiceSlug || selectedSubcategoryIds.length === 0)) return;
+                          if (step === 2 && (!primaryOccupationSlug || selectedSubcategoryIds.length === 0)) return;
                           if (step === 3 && !serviceAreaZip.trim()) return;
                           setStep((s) => (s + 1) as 1 | 2 | 3 | 4);
                         }}
                         disabled={
                           (step === 1 && (!firstName.trim() || !lastName.trim())) ||
-                          (step === 2 && (!primaryServiceSlug || selectedSubcategoryIds.length === 0 || subcategoriesLoading)) ||
+                          (step === 2 && (!primaryOccupationSlug || selectedSubcategoryIds.length === 0 || subcategoriesLoading)) ||
                           (step === 3 && !serviceAreaZip.trim())
                         }
                         className="flex-1 rounded-xl bg-accent px-4 py-3.5 text-base font-medium text-accentContrast disabled:opacity-50"

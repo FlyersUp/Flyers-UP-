@@ -65,9 +65,21 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const email = user?.email;
       const { error: err } = await supabase.auth.updateUser({ password });
       if (err) {
         setError(err.message);
+        return;
+      }
+      // Supabase invalidates the session after password change. Sign back in with the new password.
+      const signInSuccess =
+        email &&
+        (await supabase.auth.signInWithPassword({ email, password })).error == null;
+      if (!signInSuccess) {
+        router.replace(
+          `/signin?next=${encodeURIComponent('/settings/account')}&message=${encodeURIComponent('Password updated. Please sign in with your new password.')}`
+        );
         return;
       }
       router.replace('/settings/account');
