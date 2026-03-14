@@ -474,6 +474,15 @@ export default function BusinessSettingsPage() {
         {/* Edit Business Profile Tab */}
         {activeTab === 'profile' && (
           <>
+            <form onSubmit={handleSaveProfile} className="mb-6">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 px-4 bg-accent text-accentContrast rounded-xl font-medium hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+              >
+                {loading ? 'Saving…' : 'Save profile'}
+              </button>
+            </form>
             <BusinessProfileBuilder
               userId={userId!}
               displayName={displayName}
@@ -507,17 +516,6 @@ export default function BusinessSettingsPage() {
               categories={activeCategories.map((c) => ({ id: c.id, name: c.name }))}
               onEditSchedule={() => setActiveTab('schedule')}
             />
-            <div className="fixed bottom-0 left-0 right-0 z-40 p-4 bg-surface/95 backdrop-blur border-t border-border safe-area-pb md:left-[var(--sidebar-width,0)]">
-              <form onSubmit={handleSaveProfile} className="max-w-2xl mx-auto">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 px-4 bg-accent text-accentContrast rounded-xl font-medium hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-                >
-                  {loading ? 'Saving…' : 'Save profile'}
-                </button>
-              </form>
-            </div>
           </>
         )}
         {/* DEADCODE_START */}
