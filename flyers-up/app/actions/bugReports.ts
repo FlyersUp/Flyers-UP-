@@ -47,6 +47,7 @@ export async function submitBugReport(payload: {
   const userAgent = safeString(payload.userAgent, 500);
   const viewport = safeString(payload.viewport, 100);
   const referrer = safeString(payload.referrer, MAX_STRING);
+  const appVersion = safeString(payload.appVersion, 50);
 
   let userId: string | null = null;
   let role: string | null = null;
@@ -96,7 +97,7 @@ export async function submitBugReport(payload: {
         user_agent: userAgent ?? null,
         viewport: viewport ?? null,
         referrer: referrer ?? null,
-        app_version: appVersion,
+        app_version: appVersion ?? null,
         status: 'open',
       })
       .select('id')

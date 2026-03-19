@@ -8,6 +8,7 @@
  */
 
 import { useEffect } from 'react';
+import { ReportIssueButton } from '@/components/error';
 import './globals.css';
 
 interface GlobalErrorProps {
