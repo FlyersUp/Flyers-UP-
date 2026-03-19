@@ -1,5 +1,8 @@
 'use client';
 
+import { Card } from '@/components/ui/Card';
+import { PriceRow } from '@/components/ui/PriceRow';
+
 export interface QuoteBreakdown {
   amountSubtotal: number;
   amountPlatformFee: number;
@@ -26,49 +29,44 @@ export function PriceBreakdownCard({ quote, showDeposit = true }: { quote: Quote
   const hasDeposit = showDeposit && quote.amountDeposit != null && quote.amountDeposit > 0;
 
   return (
-    <div
-      className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm"
-      style={{ backgroundColor: '#FFFFFF' }}
-    >
-      <h3 className="text-sm font-medium text-[#6A6A6A] mb-3">Price details</h3>
-      <div className="space-y-2 text-sm">
-        <div className="flex justify-between">
-          <span className="text-[#3A3A3A]">Service</span>
-          <span className="text-[#111111]">{formatCents(baseAmount)}</span>
-        </div>
+    <Card className="shadow-[var(--shadow-md)]" padding="lg">
+      <h3 className="mb-3 text-sm font-semibold text-primary">Checkout summary</h3>
+      <div className="space-y-2">
+        <PriceRow label="Service" value={formatCents(baseAmount)} />
         {quote.amountTravelFee > 0 && (
-          <div className="flex justify-between">
-            <span className="text-[#3A3A3A]">Travel fee</span>
-            <span className="text-[#111111]">{formatCents(quote.amountTravelFee)}</span>
-          </div>
+          <PriceRow label="Travel fee" value={formatCents(quote.amountTravelFee)} />
         )}
-        <div className="flex justify-between">
-          <span className="text-[#3A3A3A]">Subtotal</span>
-          <span className="text-[#111111]">{formatCents(quote.amountSubtotal)}</span>
-        </div>
         {quote.amountPlatformFee > 0 && (
-          <div className="flex justify-between">
-            <span className="text-[#3A3A3A]">Platform fee</span>
-            <span className="text-[#111111]">{formatCents(quote.amountPlatformFee)}</span>
-          </div>
+          <>
+            <PriceRow
+              label="Flyers Up Protection & Service Fee"
+              value={formatCents(quote.amountPlatformFee)}
+              subtext="Secure payments, booking protection, and support"
+            />
+            <p className="text-xs text-muted">
+              This fee helps keep Flyers Up safe and reliable. It covers secure payments, fraud protection, customer
+              support, and tools that help ensure your job gets done right.
+            </p>
+          </>
         )}
-        <div className="flex justify-between border-t border-black/5 pt-3 mt-3 font-semibold">
-          <span className="text-[#111111]">Total</span>
-          <span className="text-[#111111]">{formatCents(quote.amountTotal)}</span>
-        </div>
+        <PriceRow
+          className="mt-3 border-t border-border pt-3"
+          label="Total"
+          value={formatCents(quote.amountTotal)}
+          emphasize
+        />
+        <p className="text-xs font-medium text-primary">✔ Covered by Flyers Up Protection</p>
         {hasDeposit && (
           <>
-            <div className="flex justify-between pt-2">
-              <span className="text-[#3A3A3A]">Deposit ({quote.depositPercent ?? 50}%)</span>
-              <span className="text-[#111111]">{formatCents(quote.amountDeposit!)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[#3A3A3A]">Remaining (due after job)</span>
-              <span className="text-[#111111]">{formatCents(quote.amountRemaining ?? 0)}</span>
-            </div>
+            <PriceRow
+              label={`Due now (deposit ${quote.depositPercent ?? 50}%)`}
+              value={formatCents(quote.amountDeposit!)}
+              emphasize
+            />
+            <PriceRow label="Due after job" value={formatCents(quote.amountRemaining ?? 0)} />
           </>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { Card } from '@/components/ui/Card';
 import { Label } from '@/components/ui/Label';
 import { Button } from '@/components/ui/Button';
+import { PriceRow } from '@/components/ui/PriceRow';
 import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -75,26 +76,25 @@ function PayContent() {
           <>
             <Card withRail>
               <Label>SUMMARY</Label>
-              <div className="mt-4 space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted">Status</span>
-                  <span className="text-text font-medium">{booking.status}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">Date</span>
-                  <span className="text-text font-medium">{booking.serviceDate}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">Time</span>
-                  <span className="text-text font-medium">{booking.serviceTime}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">Total</span>
-                  <span className="text-text font-semibold">{booking.price != null ? `$${booking.price}` : 'TBD'}</span>
-                </div>
-                <p className="text-xs text-muted/70 pt-2 border-t border-border mt-3">
-                  15% platform fee. Includes secure payment processing, fraud protection, and platform operations.
+              <div className="mt-4 space-y-3">
+                <PriceRow label="Status" value={booking.status} />
+                <PriceRow label="Date" value={booking.serviceDate} />
+                <PriceRow label="Time" value={booking.serviceTime} />
+                <PriceRow
+                  label="Service"
+                  value={booking.price != null ? `$${booking.price}` : 'TBD'}
+                  emphasize
+                />
+                <PriceRow
+                  label="Flyers Up Protection & Service Fee"
+                  value="Shown at checkout"
+                  subtext="Secure payments, booking protection, and support"
+                />
+                <p className="mt-3 border-t border-border pt-2 text-xs text-muted">
+                  This fee helps keep Flyers Up safe and reliable. It covers secure payments, fraud protection,
+                  customer support, and tools that help ensure your job gets done right.
                 </p>
+                <p className="text-xs font-medium text-primary">Protected by Flyers Up</p>
               </div>
             </Card>
 

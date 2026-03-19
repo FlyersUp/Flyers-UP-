@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, ElementType, createElement } from 'react';
+import { ReactNode, ElementType, createElement, HTMLAttributes } from 'react';
 import { Rail } from './Rail';
 import { cn } from '@/lib/cn';
 
@@ -12,7 +12,7 @@ const PADDING = {
   lg: 'p-6',
 } as const;
 
-export interface CardProps {
+export interface CardProps extends HTMLAttributes<HTMLElement> {
   children: ReactNode;
   className?: string;
   /** Element type (default: div) */
@@ -21,8 +21,6 @@ export interface CardProps {
   padding?: 'sm' | 'md' | 'lg';
   /** Legacy: show left rail + stripe */
   withRail?: boolean;
-  /** Legacy: click handler */
-  onClick?: () => void;
   /** Legacy: selected state */
   selected?: boolean;
   /** Legacy: tone for accent density */
@@ -42,6 +40,7 @@ export function Card({
   onClick,
   selected = false,
   tone = 'default',
+  ...rest
 }: CardProps) {
   const paddingClass = PADDING[padding];
   const interactiveClass = onClick ? 'cursor-pointer hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200' : '';
@@ -72,6 +71,7 @@ export function Card({
         className
       ),
       onClick,
+      ...rest,
     },
     content
   );

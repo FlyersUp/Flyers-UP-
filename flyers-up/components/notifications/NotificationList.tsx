@@ -13,6 +13,8 @@ import { useNotifications, type NotificationItem } from '@/contexts/Notification
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
 import { SignInNotice } from '@/components/ui/SignInNotice';
 import { NotificationIcon } from '@/components/notifications/NotificationIcon';
+import { ListRow } from '@/components/ui/ListRow';
+import { StatusPill } from '@/components/ui/StatusPill';
 import { Bell, CalendarClock, MessageCircle, Receipt, RefreshCw, Wrench } from 'lucide-react';
 
 /** Skip realtime when proxy is used */
@@ -264,10 +266,11 @@ export function NotificationList({ basePath }: NotificationListProps) {
         <div className="mx-auto mb-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-surface2 text-muted">
           <Bell size={20} />
         </div>
-        <div className="text-base font-semibold text-text">Nothing to see yet</div>
+        <div className="text-base font-semibold text-text">No notifications yet</div>
         <div className="mt-1 text-sm text-muted">
-          Booking, message, and payment updates will appear here.
+          Jobs near you are waiting.
         </div>
+        <div className="mt-2 text-xs text-muted">Safe, reliable, and built for your neighborhood</div>
       </div>
     );
   }
@@ -315,44 +318,27 @@ export function NotificationList({ basePath }: NotificationListProps) {
                     key={item.id}
                     href={href}
                     onClick={() => handleClick(item)}
-                    className={[
-                      'block rounded-2xl border p-4 shadow-[var(--shadow-1)] transition-colors',
-                      unread
-                        ? 'border-[hsl(var(--accent-customer)/0.55)] bg-[hsl(var(--accent-customer)/0.15)]'
-                        : 'border-border bg-surface hover:bg-hover/70',
-                    ].join(' ')}
+                    className="block"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface2 text-muted">
-                        <NotificationIcon type={item.type} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className={`text-[15px] ${unread ? 'font-semibold' : 'font-medium'} text-text line-clamp-1`}>
-                              {item.title}
-                            </p>
-                            {item.body ? (
-                              <p className="mt-0.5 text-sm text-text3 line-clamp-2">{item.body}</p>
-                            ) : null}
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-xs text-muted">{formatRelativeTime(item.created_at)}</p>
+                    <ListRow
+                      className={unread ? 'border-[hsl(var(--accent-customer)/0.55)] bg-[hsl(var(--accent-customer)/0.15)]' : 'hover:bg-hover/70'}
+                      icon={<NotificationIcon type={item.type} />}
+                      title={item.title}
+                      subtext={item.body ?? undefined}
+                      rightSlot={
+                        <div className="text-right">
+                          <p className="text-xs text-muted">{formatRelativeTime(item.created_at)}</p>
+                          <div className="mt-1">
                             {unread ? (
-                              <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-text">
-                                <span className="h-1.5 w-1.5 rounded-full bg-accentGreen" aria-hidden />
-                                New
-                              </span>
+                              <StatusPill tone="success">New</StatusPill>
                             ) : (
-                              <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-muted">
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted">
                                 <CalendarClock size={12} />
                                 Read
                               </span>
                             )}
                           </div>
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-surface2 px-2 py-0.5">
+                          <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted">
                             {classify(item.type) === 'bookings' ? (
                               <Wrench size={11} />
                             ) : classify(item.type) === 'messages' ? (
@@ -362,17 +348,10 @@ export function NotificationList({ basePath }: NotificationListProps) {
                             ) : (
                               <Bell size={11} />
                             )}
-                            {classify(item.type) === 'bookings'
-                              ? 'Booking'
-                              : classify(item.type) === 'messages'
-                                ? 'Message'
-                                : classify(item.type) === 'payments'
-                                  ? 'Payment'
-                                  : 'Update'}
-                          </span>
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      }
+                    />
                   </Link>
                 );
               })}
@@ -388,7 +367,7 @@ export function NotificationList({ basePath }: NotificationListProps) {
           </div>
           <div className="text-base font-semibold text-text">No notifications in this view</div>
           <div className="mt-1 text-sm text-muted">
-            Try another filter to view more updates.
+            Try another filter to view booking and payment updates.
           </div>
         </div>
       ) : null}

@@ -40,12 +40,12 @@ export function ConversationInput({
   const canSend = value.trim().length > 0 && !sending && !disabled;
 
   return (
-    <div className="sticky bottom-0 flex items-center gap-2 border-t border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-3 safe-area-pb">
+    <div className="safe-area-pb sticky bottom-0 flex items-center gap-2 border-t border-border bg-surface p-3">
       {showAttachmentPlaceholder && (
         <button
           type="button"
           disabled
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-dashed border-black/15 dark:border-white/10 text-[#8A8A8A] dark:text-[#7A8490] cursor-not-allowed"
+          className="flex h-10 w-10 shrink-0 cursor-not-allowed items-center justify-center rounded-full border border-dashed border-border text-muted"
           aria-label="Attach (coming soon)"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -61,14 +61,14 @@ export function ConversationInput({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className="flex-1 h-11 rounded-xl border border-black/10 dark:border-white/10 bg-[#F7F6F4] dark:bg-[#1D2128] px-4 text-sm text-[#111111] dark:text-[#F5F7FA] placeholder:text-[#8A8A8A] dark:placeholder:text-[#7A8490] focus:outline-none focus:ring-2 focus:ring-[#058954]/50 focus:border-transparent disabled:opacity-60"
+        className="h-11 flex-1 rounded-xl border border-border bg-card px-4 text-sm text-primary placeholder:text-muted focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[hsl(var(--success)/0.5)] disabled:opacity-60"
         aria-label="Message input"
       />
       <button
         type="button"
         onClick={onSend}
         disabled={!canSend}
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#058954] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#047a48] transition-colors focus:outline-none focus:ring-2 focus:ring-[#058954]/50 focus:ring-offset-2"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary transition-colors hover:bg-hover focus:outline-none focus:ring-2 focus:ring-[hsl(var(--success)/0.5)] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
         aria-label={sending ? 'Sending…' : 'Send message'}
       >
         {sending ? (

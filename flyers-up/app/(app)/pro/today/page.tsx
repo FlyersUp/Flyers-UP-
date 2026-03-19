@@ -9,6 +9,8 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/Badge';
+import { StatusPill } from '@/components/ui/StatusPill';
+import { ListRow } from '@/components/ui/ListRow';
 import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 import { getTodayOverview, type TodayAlert, type TodayJob, type TodayOverview, type TodayTask } from '@/lib/today';
@@ -37,7 +39,7 @@ function riskDotClass(risk: TodayJob['risk']) {
 }
 
 function pageStatusChip(alertCount: number) {
-  return alertCount > 0 ? { label: 'Needs attention', variant: 'secondary' as const } : { label: 'On track', variant: 'secondary' as const };
+  return alertCount > 0 ? { label: 'Needs attention', tone: 'warning' as const } : { label: 'On track', tone: 'success' as const };
 }
 
 function TodayHeader({ dateISO, alertCount }: { dateISO: string; alertCount: number }) {
@@ -51,9 +53,9 @@ function TodayHeader({ dateISO, alertCount }: { dateISO: string; alertCount: num
           <div className="text-sm text-muted">{formatHeaderDate(dateISO)}</div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="inline-flex items-center h-7 px-2.5 rounded-full border border-badgeBorder bg-badgeFill text-[11px] uppercase tracking-wide font-medium text-text">
+          <StatusPill tone={status.tone}>
             {status.label}
-          </span>
+          </StatusPill>
           <Button variant="ghost" showArrow={false} className="px-3 py-2 rounded-lg text-sm" disabled>
             Settings
           </Button>
@@ -239,17 +241,19 @@ function TodayMessages({ messages }: { messages: TodayOverview['messages'] }) {
           <Link
             key={m.thread_id}
             href={`/pro/chat/conversation/${m.thread_id}`}
-            className="block surface-item px-3 py-2 hover:bg-surface transition-colors"
+            className="block"
           >
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-text truncate">{m.client_name}</div>
-                <div className="text-xs text-muted truncate mt-0.5">{m.snippet}</div>
-              </div>
-              <div className="text-xs text-muted whitespace-nowrap">
-                {new Date(m.updated_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-              </div>
-            </div>
+            <ListRow
+              className="hover:bg-hover"
+              icon={<span className="text-xs font-semibold">✉</span>}
+              title={m.client_name}
+              subtext={m.snippet}
+              rightSlot={
+                <span className="whitespace-nowrap text-xs text-muted">
+                  {new Date(m.updated_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                </span>
+              }
+            />
           </Link>
         ))}
       </div>
@@ -501,8 +505,8 @@ export default function ProTodayPage() {
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
         {!hasJobs && !showReal ? (
           <Card className="border-l-[3px] border-l-accent">
-            <div className="text-sm font-semibold text-text">No jobs scheduled today</div>
-            <div className="text-sm text-muted mt-1">When you have bookings for today, they’ll appear here.</div>
+            <div className="text-sm font-semibold text-text">No bookings yet</div>
+            <div className="mt-1 text-sm text-muted">Jobs near you are waiting.</div>
             <div className="mt-4">
               <Link href="/pro">
                 <Button variant="secondary" showArrow={false} className="px-3 py-2 rounded-lg text-sm">

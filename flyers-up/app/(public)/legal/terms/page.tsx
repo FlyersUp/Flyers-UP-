@@ -31,7 +31,7 @@ export default function LegalTermsPage() {
           <li><span className="font-medium">Pro</span> means an independent service provider who offers and performs services through the Platform.</li>
           <li><span className="font-medium">Booking</span> means a service request accepted by a Pro through the Platform, creating a direct agreement between the Customer and the Pro.</li>
           <li><span className="font-medium">Content</span> means any text, images, videos, reviews, messages, listings, or other materials submitted through or displayed on the Platform.</li>
-          <li><span className="font-medium">Fees</span> means platform fees, service fees, processing fees, cancellation fees, or other charges disclosed at checkout or within the Platform.</li>
+          <li><span className="font-medium">Fees</span> means the Flyers Up Protection &amp; Service Fee, processing fees, cancellation fees, or other charges disclosed at checkout or within the Platform.</li>
           <li><span className="font-medium">Payment Processor</span> means third-party payment providers, including Stripe, used to process payments and payouts.</li>
           <li><span className="font-medium">Services</span> means the services performed by Pros for Customers, which are not provided by Flyers Up.</li>
         </ul>
@@ -74,7 +74,7 @@ export default function LegalTermsPage() {
         <p>
           By submitting a Booking request, you authorize Flyers Up (via the Payment Processor) to charge your selected
           payment method. Charges may be authorized at acceptance and captured immediately or after service completion, as
-          disclosed at checkout. Fees will be disclosed prior to charge. Platform Fees are non-refundable except where
+          disclosed at checkout.           Fees will be disclosed prior to charge. The Flyers Up Protection &amp; Service Fee is non-refundable except where
           required by applicable law.
         </p>
         <p>
@@ -87,7 +87,7 @@ export default function LegalTermsPage() {
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 6 — Cancellations; Refunds</h2>
         <p>
           Cancellation and refund terms are set forth in our Refund and Cancellation Policy, which is incorporated by
-          reference. Refund eligibility may depend on timing and circumstances. Platform Fees are non-refundable except
+          reference.           Refund eligibility may depend on timing and circumstances. The Protection &amp; Service Fee is non-refundable except
           where required by law.
         </p>
 
@@ -101,7 +101,7 @@ export default function LegalTermsPage() {
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 8 — Prohibited Conduct</h2>
         <p>
-          You agree not to: circumvent platform fees or solicit off-platform payments; commit fraud, misrepresentation, or
+          You agree not to: circumvent the Flyers Up Protection &amp; Service Fee or solicit off-platform payments; commit fraud, misrepresentation, or
           impersonation; scrape, reverse engineer, interfere with, or abuse the Platform; harass, threaten, defame, or
           discriminate; upload false credentials or fraudulent reviews; or violate applicable laws. Violations may result in
           suspension or permanent removal. Our Community Guidelines and Acceptable Use Policy provide additional detail.

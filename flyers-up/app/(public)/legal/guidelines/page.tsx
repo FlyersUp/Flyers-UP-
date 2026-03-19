@@ -39,7 +39,7 @@ export default function CommunityGuidelinesPage() {
           <li>Commit fraud, misrepresentation, or impersonation</li>
           <li>Upload false credentials, misleading listings, or fraudulent reviews</li>
           <li>Abuse the payment or review systems</li>
-          <li>Circumvent platform fees or solicit off-platform payments to avoid fees</li>
+          <li>Circumvent the Flyers Up Protection &amp; Service Fee or solicit off-platform payments</li>
         </ul>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 3 — Prohibited Conduct: Harassment and Discrimination</h2>

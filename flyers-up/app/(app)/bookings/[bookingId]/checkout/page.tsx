@@ -106,11 +106,11 @@ function CheckoutForm({
   return (
     <>
       <div
-        className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-5 shadow-sm"
+        className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]"
         role="region"
         aria-labelledby="payment-method-heading"
       >
-        <h2 id="payment-method-heading" className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-4">
+        <h2 id="payment-method-heading" className="mb-4 text-sm font-medium text-muted">
           Payment method
         </h2>
         <PaymentElement options={{ layout: 'tabs' }} />
@@ -269,48 +269,48 @@ export default function CheckoutPage({
         <div className="max-w-lg md:max-w-xl mx-auto px-4 md:px-6 py-8 pb-40">
           <Link
             href={`/customer/bookings/${bookingId}`}
-            className="text-sm text-[#6A6A6A] dark:text-[#A1A8B3] hover:text-[#111111] dark:hover:text-[#F5F7FA] mb-6 inline-block transition-colors"
+            className="mb-6 inline-block text-sm text-muted transition-colors hover:text-primary"
           >
             ← Back to booking
           </Link>
 
-          <h1 className="text-2xl font-semibold text-[#111111] dark:text-[#F5F7FA] mb-6 tracking-tight">
+          <h1 className="mb-6 text-2xl font-semibold tracking-tight text-primary">
             {isFinalPayment ? 'Pay remaining balance' : 'Review & pay deposit'}
           </h1>
 
           {/* LOADING STATE */}
           {loading && (
             <div className="space-y-4 animate-pulse">
-              <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 h-24" />
-              <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 h-32" />
-              <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 h-40" />
-              <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 h-28" />
+              <div className="h-24 rounded-2xl border border-border bg-surface p-6" />
+              <div className="h-32 rounded-2xl border border-border bg-surface p-6" />
+              <div className="h-40 rounded-2xl border border-border bg-surface p-6" />
+              <div className="h-28 rounded-2xl border border-border bg-surface p-6" />
             </div>
           )}
 
           {/* ERROR STATE */}
           {!loading && error && (
             <div
-              className="rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 shadow-sm"
+              className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]"
               role="alert"
             >
-              <p className="text-sm font-medium text-[#111111] dark:text-[#F5F7FA] mb-2">
+              <p className="mb-2 text-sm font-medium text-primary">
                 Something went wrong
               </p>
-              <p className="text-sm text-[#6A6A6A] dark:text-[#A1A8B3] mb-4">{error}</p>
+              <p className="mb-4 text-sm text-muted">{error}</p>
               {errorStatus === 409 && (
-                <p className="text-xs text-[#6A6A6A] dark:text-[#A1A8B3] mb-4">
+                <p className="mb-4 text-xs text-muted">
                   The booking may not be ready for payment yet, or the pro has not completed payout setup.
                 </p>
               )}
               {errorStatus === 404 && (
-                <p className="text-xs text-[#6A6A6A] dark:text-[#A1A8B3] mb-4">
+                <p className="mb-4 text-xs text-muted">
                   This booking may not exist or you may not have access to it.
                 </p>
               )}
               <Link
                 href={`/customer/bookings/${bookingId}`}
-                className="inline-flex items-center justify-center h-11 px-5 rounded-full text-sm font-semibold bg-[#058954] text-white hover:bg-[#047a48] transition-colors"
+                className="inline-flex h-11 items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.6)] bg-[hsl(var(--accent-pro))] px-5 text-sm font-semibold text-[hsl(var(--accent-contrast))] transition-colors hover:brightness-95"
               >
                 Return to booking
               </Link>
@@ -351,7 +351,7 @@ export default function CheckoutPage({
                     theme: 'stripe',
                     variables: {
                       borderRadius: '12px',
-                      colorPrimary: '#058954',
+                      colorPrimary: 'hsl(var(--success))',
                     },
                   },
                 }}
@@ -369,7 +369,7 @@ export default function CheckoutPage({
           )}
 
           {!loading && !error && !quoteData && !clientSecret && stripePromise === null && (
-            <p className="text-sm text-[#6A6A6A] dark:text-[#A1A8B3]">
+            <p className="text-sm text-muted">
               Payment is not configured. Please contact support.
             </p>
           )}

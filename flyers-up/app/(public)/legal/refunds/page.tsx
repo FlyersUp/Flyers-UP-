@@ -28,8 +28,8 @@ export default function RefundsPage() {
         <h3 className="text-base font-semibold tracking-tight pt-2">1.1 Customer Cancellation (24+ Hours Before Service)</h3>
         <p>
           If a customer cancels at least 24 hours before the scheduled service time, the customer is eligible for a
-          refund of the service amount paid, excluding platform fees. Platform fees are non-refundable except where
-          required by applicable law.
+          refund of the service amount paid, excluding the Flyers Up Protection &amp; Service Fee. The Protection
+          &amp; Service Fee is non-refundable except where required by applicable law.
         </p>
 
         <h3 className="text-base font-semibold tracking-tight pt-2">1.2 Customer Cancellation (Within 24 Hours)</h3>
@@ -41,8 +41,8 @@ export default function RefundsPage() {
 
         <h3 className="text-base font-semibold tracking-tight pt-2">1.3 Pro Cancellation</h3>
         <p>
-          If a Pro cancels a booking, the customer will receive a full refund of amounts paid, including platform fees
-          where applicable. We may take action against Pros who cancel repeatedly.
+          If a Pro cancels a booking, the customer will receive a full refund of amounts paid, including the Protection
+          &amp; Service Fee where applicable. We may take action against Pros who cancel repeatedly.
         </p>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 2 — No-Shows</h2>
@@ -84,11 +84,11 @@ export default function RefundsPage() {
           the circumstances. We are not obligated to resolve disputes in any particular manner.
         </p>
 
-        <h2 className="text-lg font-semibold tracking-tight pt-4">Section 6 — Platform Fees</h2>
+        <h2 className="text-lg font-semibold tracking-tight pt-4">Section 6 — Flyers Up Protection &amp; Service Fee</h2>
         <p>
-          Platform fees are generally non-refundable except where required by applicable law (e.g., when a Pro cancels
-          or when we determine a full refund is appropriate). Processing fees charged by our Payment Processor may also
-          be non-refundable.
+          The Flyers Up Protection &amp; Service Fee is generally non-refundable except where required by applicable law
+          (e.g., when a Pro cancels or when we determine a full refund is appropriate). Processing fees charged by our
+          Payment Processor may also be non-refundable.
         </p>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 7 — Modifications</h2>

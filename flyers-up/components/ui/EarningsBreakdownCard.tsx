@@ -57,12 +57,16 @@ export function EarningsBreakdownCard({
         </div>
 
         <div className="mt-4 divide-y divide-[color:var(--hairline)]">
-          <Row label="Gross today" value={formatMoney(breakdown.grossToday)} />
-          <Row label="Platform fee" value={formatMoney(breakdown.platformFee)} />
+          <Row label="Service earnings today" value={formatMoney(breakdown.grossToday)} />
+          <Row
+            label="Flyers Up Protection & Service Fee"
+            value="Paid separately by customers"
+          />
           {breakdown.holdback != null ? <Row label="Reserve" value={formatMoney(breakdown.holdback)} /> : null}
-          <Row label="Net payout" value={formatMoney(breakdown.netPayout)} emphasize />
+          <Row label="Payout to you" value={formatMoney(breakdown.netPayout)} emphasize />
           <Row label="Payout date" value={formatText(breakdown.payoutDate)} />
         </div>
+        <p className="mt-3 text-xs text-muted">You keep what you earn.</p>
       </div>
     </div>
   );

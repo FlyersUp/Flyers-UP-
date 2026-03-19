@@ -4,14 +4,14 @@ import Link from 'next/link';
 const VERSION = '2026-03-11';
 
 export const metadata = {
-  title: 'Payment and Platform Fee Policy — Flyers Up',
+  title: 'Payment and Protection Fee Policy — Flyers Up',
 };
 
 export default function PaymentsPage() {
   return (
     <LegalPageShell>
       <div className="text-xs text-muted mb-4">Policy v{VERSION}</div>
-      <h1 className="text-2xl font-semibold tracking-tight">Flyers Up LLC — Payment and Platform Fee Policy</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Flyers Up LLC — Payment and Protection Fee Policy</h1>
       <div className="mt-2 text-sm text-muted">
         <div><span className="font-medium text-text">Effective Date:</span> March 11, 2026</div>
         <div><span className="font-medium text-text">Last Updated:</span> March 11, 2026</div>
@@ -19,9 +19,9 @@ export default function PaymentsPage() {
 
       <div className="mt-6 space-y-5 text-sm leading-relaxed text-text">
         <p>
-          This Payment and Platform Fee Policy explains how payments flow through the Flyers Up platform, including
-          platform fees, payouts, refunds, and related matters. This policy is incorporated by reference into our Terms
-          of Service.
+          This Payment and Protection Fee Policy explains how payments flow through the Flyers Up platform, including the
+          Flyers Up Protection &amp; Service Fee, payouts, refunds, and related matters. This policy is incorporated by
+          reference into our Terms of Service.
         </p>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 1 — Payment Flow</h2>
@@ -30,14 +30,14 @@ export default function PaymentsPage() {
         </p>
         <ol className="list-decimal pl-5 space-y-2">
           <li><span className="font-medium">Customer Payment:</span> The customer authorizes payment at checkout. The total
-            charge includes the service price, any applicable taxes, and platform fees.</li>
+            charge includes the service price, any applicable taxes, and the Flyers Up Protection &amp; Service Fee.</li>
           <li><span className="font-medium">Stripe Processing:</span> Payments are processed by Stripe, our payment
-            processor. Stripe may charge processing fees in addition to our platform fees.</li>
-          <li><span className="font-medium">Platform Fee:</span> Flyers Up retains a platform fee from each transaction.
-            The fee percentage is disclosed at checkout and in Pro dashboards. Platform fees are non-refundable except
-            where required by law.</li>
-          <li><span className="font-medium">Pro Payout:</span> The remaining amount, after platform fees and processing
-            costs, is paid to the Pro through Stripe Connect, subject to the terms below.</li>
+            processor. Stripe may charge processing fees in addition to our Protection &amp; Service Fee.</li>
+          <li><span className="font-medium">Flyers Up Protection &amp; Service Fee:</span> The Protection &amp; Service Fee
+            covers secure payments, booking protection, and support. The amount is disclosed at checkout. The Protection
+            &amp; Service Fee is non-refundable except where required by law.</li>
+          <li><span className="font-medium">Pro Payout:</span> Pros keep 100% of their service price. The amount is paid to
+            the Pro through Stripe Connect, subject to the terms below.</li>
         </ol>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 2 — Deposits</h2>
@@ -60,7 +60,7 @@ export default function PaymentsPage() {
         <p>
           Refund eligibility is governed by our Refund and Cancellation Policy. Approved refunds are returned to the
           customer&apos;s original payment method. When a refund is issued, the corresponding Pro payout may be reduced or
-          reversed. Platform fees are generally non-refundable except where required by applicable law.
+          reversed. The Flyers Up Protection &amp; Service Fee is generally non-refundable except where required by applicable law.
         </p>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 5 — Cancellation Charges</h2>
@@ -79,9 +79,9 @@ export default function PaymentsPage() {
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 7 — Fee Transparency</h2>
         <p>
-          All fees are disclosed to customers before payment is authorized and to Pros before they accept a booking.
-          Platform fee percentages may vary by service category or region. We reserve the right to modify fee structures
-          with reasonable notice; continued use after changes indicates acceptance.
+          All fees, including the Flyers Up Protection &amp; Service Fee, are disclosed to customers before payment is
+          authorized and to Pros before they accept a booking. The fee amount may vary by service category or region. We
+          reserve the right to modify fee structures with reasonable notice; continued use after changes indicates acceptance.
         </p>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 8 — Currency and Taxes</h2>

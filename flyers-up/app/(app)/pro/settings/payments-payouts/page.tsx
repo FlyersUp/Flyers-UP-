@@ -119,8 +119,8 @@ export default function ProPaymentsPayoutsSettingsPage() {
               >
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <div className="font-medium text-text">Fees breakdown</div>
-                    <div className="text-sm text-muted">Show platform fee details in earnings.</div>
+                    <div className="font-medium text-text">Earnings clarity</div>
+                    <div className="text-sm text-muted">Show trust-first payout details in earnings.</div>
                   </div>
                   <div className="text-sm font-medium text-muted">{prefs.showFeeBreakdown ? 'On' : 'Off'}</div>
                 </div>

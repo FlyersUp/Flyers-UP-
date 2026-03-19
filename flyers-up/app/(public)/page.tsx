@@ -23,13 +23,13 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
   return (
-    <div className="min-h-screen bg-[#F5F5F5]" style={{ '--accent-customer': '111 91% 82%' } as React.CSSProperties}>
-      {/* Header: premium civic feel - #F5F5F5, 25% accent max */}
+    <div className="min-h-screen bg-[#F7F5F0]" style={{ '--accent-customer': '111 91% 82%' } as React.CSSProperties}>
+      {/* Header */}
       <header
-        className="sticky top-0 z-50 flex items-center justify-between h-16 md:h-[72px] px-6 md:px-6 border-b transition-opacity duration-150 ease-out"
+        className="sticky top-0 z-50 flex items-center justify-between h-16 md:h-[72px] px-6 md:px-6 border-b border-[rgba(0,0,0,0.04)] transition-all duration-200 ease-out"
         style={{
-          backgroundColor: '#F5F5F5',
-          borderColor: '#F5F5F5',
+          backgroundColor: 'rgba(247, 245, 240, 0.94)',
+          backdropFilter: 'blur(10px)',
           boxShadow: '0 1px 0 rgba(0,0,0,0.04)',
         }}
       >
@@ -38,13 +38,13 @@ export default function HomePage() {
           <div className="flex items-center gap-3">
             <Link
               href="/signin"
-              className="px-4 py-2 text-sm font-medium text-[#1A1A1A] hover:opacity-90 transition-opacity duration-150"
+              className="px-4 py-2 text-sm font-medium text-[#1A1A1A] hover:text-[hsl(var(--accent-customer))] transition-colors duration-200"
             >
               Sign In
             </Link>
             <Link
               href="/signup?role=customer"
-              className="px-4 py-2 text-sm font-medium bg-surface hover:bg-surface2 text-[#1A1A1A] rounded-lg transition-colors duration-150 border border-[#F5F5F5]"
+              className="btn-press px-4 py-2 text-sm font-medium bg-[hsl(var(--accent-pro))] hover:brightness-95 text-[hsl(var(--accent-contrast))] rounded-lg transition-all duration-200 border border-[hsl(var(--accent-pro)/0.7)] shadow-[var(--shadow-1)]"
             >
               Book a Pro
             </Link>
@@ -52,9 +52,19 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Hero Section - outcome-driven */}
-      <section className="py-24 px-4">
-        <div className="max-w-6xl mx-auto text-center">
+      {/* Hero Section - radial gradient + dynamic feel */}
+      <section
+        className="relative py-24 px-4 overflow-hidden"
+        style={{
+          background: `
+            radial-gradient(ellipse 80% 50% at 50% -10%, rgba(156, 167, 100, 0.12), transparent 60%),
+            radial-gradient(ellipse 60% 40% at 90% 30%, rgba(229, 156, 92, 0.08), transparent 50%),
+            radial-gradient(ellipse 50% 30% at 10% 60%, rgba(156, 167, 100, 0.06), transparent 45%),
+            #F7F5F0
+          `,
+        }}
+      >
+        <div className="max-w-6xl mx-auto text-center relative">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-text mb-6 leading-tight tracking-tight">
             Book a trusted pro in under 2 minutes.
           </h1>
@@ -64,30 +74,67 @@ export default function HomePage() {
           <p className="text-lg text-muted mb-8 max-w-xl mx-auto">
             Verified local pros in your zip.
           </p>
-          <div className="flex flex-wrap justify-center gap-3 mb-12">
-            <span className="text-sm text-muted border border-[var(--hairline)] rounded-full px-4 py-2 bg-surface">Fulfillment rate %</span>
-            <span className="text-sm text-muted border border-[var(--hairline)] rounded-full px-4 py-2 bg-surface">Avg time to accept</span>
-            <span className="text-sm text-muted border border-[var(--hairline)] rounded-full px-4 py-2 bg-surface">Active pros in your zip</span>
+          <div className="flex flex-wrap justify-center gap-3 mb-10">
+            <span className="text-sm text-text/90 rounded-full px-4 py-2 bg-white/80 border border-[rgba(156,167,100,0.3)] shadow-sm">
+              12 pros available in your zip
+            </span>
+            <span className="text-sm text-text/90 rounded-full px-4 py-2 bg-white/80 border border-[rgba(156,167,100,0.3)] shadow-sm">
+              Next job starts in 18 minutes
+            </span>
+            <span className="text-sm text-text/90 rounded-full px-4 py-2 bg-white/80 border border-[rgba(156,167,100,0.3)] shadow-sm">
+              Avg job booked today: $142
+            </span>
           </div>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link 
-              href="/signup?role=customer" 
-              className="px-8 py-4 bg-[hsl(var(--accent-customer))] hover:opacity-95 text-text text-lg font-medium rounded-[var(--radius-lg)] shadow-[var(--shadow-1)] transition-all duration-[var(--transition-base)] focus-ring"
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
+            <Link
+              href="/signup?role=customer"
+              className="btn-press px-8 py-4 bg-[hsl(var(--accent-pro))] hover:brightness-95 text-[hsl(var(--accent-contrast))] text-lg font-medium rounded-[var(--radius-lg)] shadow-[var(--shadow-1)] border border-[hsl(var(--accent-pro)/0.7)] transition-all duration-200 focus-ring"
             >
               Book a Pro (Free)
             </Link>
-            <a
+            <Link
               href="#pros"
-              className="px-2 py-4 text-text text-lg font-semibold underline underline-offset-4 decoration-border hover:decoration-text transition-colors"
+              className="px-8 py-4 text-lg font-medium rounded-[var(--radius-lg)] border-2 border-[hsl(var(--accent-customer))] text-[hsl(var(--accent-customer))] hover:bg-[hsl(var(--accent-customer)/0.12)] transition-all duration-200 focus-ring"
             >
-              I’m a Service Pro
-            </a>
+              I'm a Service Pro
+            </Link>
+          </div>
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm">
+            <Link href="/occupations" className="text-muted hover:text-[hsl(var(--accent-customer))] transition-colors duration-200">
+              See pros near you
+            </Link>
+            <Link href="/#how-it-works" className="text-muted hover:text-[hsl(var(--accent-customer))] transition-colors duration-200">
+              How pricing works
+            </Link>
+            <Link href="/trust-verification" className="text-muted hover:text-[hsl(var(--accent-customer))] transition-colors duration-200">
+              Trust & verification
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Browse Occupations - bulletin board style */}
-      <section className="py-16 px-4 bg-[#F5F5F5]">
+      {/* Live Activity Strip */}
+      <section className="py-4 px-4 bg-white/60 border-y border-[rgba(0,0,0,0.04)]">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 text-sm">
+            <span className="flex items-center gap-2 text-text/80">
+              <span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-customer))] animate-pulse" />
+              3 jobs booked in last 10 minutes
+            </span>
+            <span className="flex items-center gap-2 text-text/80">
+              <span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-customer))]" />
+              8 pros just came online
+            </span>
+            <span className="flex items-center gap-2 text-text/80">
+              <span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-customer))]" />
+              2 urgent requests nearby
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Browse Occupations */}
+      <section className="py-16 px-4 bg-[#F5F0E8]">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-2xl font-semibold text-zinc-900 mb-6 text-center">
             Browse Occupations
@@ -105,7 +152,7 @@ export default function HomePage() {
       </section>
 
       {/* Risk Kill Zone */}
-      <section className="py-12 bg-surface border-y border-[var(--hairline)]">
+      <section className="py-12 bg-[#F0EBE3] border-y border-[var(--hairline)]">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-10">
             <div className="inline-flex items-center gap-3 mb-3">
@@ -124,7 +171,7 @@ export default function HomePage() {
             ].map((text) => (
               <div
                 key={text}
-                className="bg-surface rounded-[var(--radius-lg)] p-6 border border-[var(--hairline)] shadow-card"
+                className="card-hover bg-surface rounded-[var(--radius-lg)] p-6 border border-[var(--hairline)] shadow-card transition-all duration-200"
               >
                 <p className="text-text font-medium">{text}</p>
               </div>
@@ -144,7 +191,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-surface rounded-[var(--radius-xl)] p-6 border border-[var(--hairline)] shadow-card">
+            <div className="card-hover bg-surface rounded-[var(--radius-xl)] p-6 border border-[var(--hairline)] shadow-card transition-all duration-200">
               <h3 className="text-xl font-medium text-text mb-4">Before Flyers Up</h3>
               <ul className="space-y-3 text-muted">
                 <li className="flex gap-3">
@@ -162,7 +209,7 @@ export default function HomePage() {
               </ul>
             </div>
 
-            <div className="bg-surface rounded-[var(--radius-xl)] p-6 border border-[var(--hairline)] shadow-card">
+            <div className="card-hover bg-surface rounded-[var(--radius-xl)] p-6 border border-[var(--hairline)] shadow-card transition-all duration-200">
               <h3 className="text-xl font-medium text-text mb-4">After Flyers Up</h3>
               <ul className="space-y-3 text-muted">
                 <li className="flex gap-3">
@@ -184,7 +231,7 @@ export default function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="py-24 px-4">
+      <section id="how-it-works" className="py-24 px-4 bg-[#F7F5F0]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-3 mb-3">
@@ -203,7 +250,7 @@ export default function HomePage() {
               { icon: '💬', title: '3. Message', desc: 'Confirm details in writing, in one place.' },
               { icon: '📅', title: '4. Schedule', desc: 'Lock in timing and expectations.' },
             ].map((step) => (
-              <div key={step.title} className="text-center p-6">
+              <div key={step.title} className="card-hover text-center p-6 rounded-xl transition-all duration-200">
                 <div className="w-16 h-16 bg-surface2 rounded-[var(--radius-xl)] flex items-center justify-center mx-auto mb-4 border border-[var(--hairline)]">
                   <span className="text-3xl">{step.icon}</span>
                 </div>
@@ -216,7 +263,7 @@ export default function HomePage() {
           <div className="mt-10 text-center">
             <Link
               href="/signup?role=customer"
-              className="inline-flex items-center justify-center px-8 py-4 bg-[hsl(var(--accent-customer))] hover:opacity-95 text-text text-lg font-medium rounded-[var(--radius-lg)] shadow-[var(--shadow-1)] transition-all duration-[var(--transition-base)] focus-ring"
+              className="btn-press inline-flex items-center justify-center px-8 py-4 bg-[hsl(var(--accent-pro))] hover:brightness-95 text-[hsl(var(--accent-contrast))] text-lg font-medium rounded-[var(--radius-lg)] shadow-[var(--shadow-1)] border border-[hsl(var(--accent-pro)/0.7)] transition-all duration-200 focus-ring"
             >
               Request a Service (Free)
             </Link>
@@ -224,8 +271,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Proof (no fabricated testimonials) */}
-      <section className="py-24 px-4">
+      {/* Proof */}
+      <section className="py-24 px-4 bg-[#F5F0E8]">
         <div className="max-w-6xl mx-auto">
           <div className="rounded-[var(--radius-2xl)] p-8 sm:p-12 text-center bg-surface border border-[var(--hairline)] shadow-card">
             <div className="inline-flex items-center gap-3 mb-4">
@@ -253,7 +300,7 @@ export default function HomePage() {
             </div>
             <Link
               href="/trust-verification"
-              className="inline-flex items-center justify-center rounded-[var(--radius-lg)] px-6 py-3 bg-surface hover:bg-surface2 text-text font-medium border border-[var(--hairline)] transition-colors duration-[var(--transition-base)]"
+              className="btn-press inline-flex items-center justify-center rounded-[var(--radius-lg)] px-6 py-3 bg-surface hover:bg-surface2 text-text font-medium border border-[var(--hairline)] transition-all duration-200"
             >
               Read what “verification” means →
             </Link>
@@ -297,9 +344,9 @@ export default function HomePage() {
                   No hype—just a better workflow
                 </li>
               </ul>
-            <Link 
-              href="/signup?role=pro" 
-              className="inline-flex px-6 py-3 bg-transparent hover:bg-[hsl(var(--accent-pro)/0.10)] text-text font-semibold rounded-xl transition-colors border-2 border-[hsl(var(--accent-pro))] focus-ring"
+            <Link
+              href="/signup?role=pro"
+              className="btn-press inline-flex px-6 py-3 bg-transparent hover:bg-[hsl(var(--accent-pro)/0.10)] text-text font-semibold rounded-xl transition-all duration-200 border-2 border-[hsl(var(--accent-pro))] focus-ring"
             >
               Join as a Pro
             </Link>
@@ -328,7 +375,7 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 px-4">
+      <section className="py-24 px-4 bg-[#F7F5F0]">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-semibold text-text mb-4">
             Ready to request a service without the stress?
@@ -337,9 +384,9 @@ export default function HomePage() {
             Clear expectations up front. A cleaner record after.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link 
-              href="/signup?role=customer" 
-              className="px-8 py-4 bg-[hsl(var(--accent-customer))] hover:opacity-95 text-text text-lg font-medium rounded-[var(--radius-lg)] shadow-[var(--shadow-1)] transition-all duration-[var(--transition-base)] focus-ring"
+            <Link
+              href="/signup?role=customer"
+              className="btn-press px-8 py-4 bg-[hsl(var(--accent-pro))] hover:brightness-95 text-[hsl(var(--accent-contrast))] text-lg font-medium rounded-[var(--radius-lg)] shadow-[var(--shadow-1)] border border-[hsl(var(--accent-pro)/0.7)] transition-all duration-200 focus-ring"
             >
               Request a Service (Free)
             </Link>
@@ -360,34 +407,34 @@ export default function HomePage() {
             <div>
               <h4 className="text-text font-medium mb-3">For Customers</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/#how-it-works" className="hover:text-text transition-colors">How It Works</Link></li>
-                <li><Link href="/occupations" className="hover:text-text transition-colors">Browse Services</Link></li>
-                <li><Link href="/trust-verification" className="hover:text-text transition-colors">Safety</Link></li>
+                <li><Link href="/#how-it-works" className="hover:text-text transition-colors duration-200">How It Works</Link></li>
+                <li><Link href="/occupations" className="hover:text-text transition-colors duration-200">Browse Services</Link></li>
+                <li><Link href="/trust-verification" className="hover:text-text transition-colors duration-200">Safety</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="text-text font-medium mb-3">For Pros</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/signup?role=pro" className="hover:text-text transition-colors">Join as Pro</Link></li>
-                <li><Link href="/legal/independent-contractor" className="hover:text-text transition-colors">Pro Resources</Link></li>
-                <li><Link href="/signin?role=pro" className="hover:text-text transition-colors">Pro Support</Link></li>
+                <li><Link href="/signup?role=pro" className="hover:text-text transition-colors duration-200">Join as Pro</Link></li>
+                <li><Link href="/legal/independent-contractor" className="hover:text-text transition-colors duration-200">Pro Resources</Link></li>
+                <li><Link href="/signin?role=pro" className="hover:text-text transition-colors duration-200">Pro Support</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="text-text font-medium mb-3">Company</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/community-guidelines" className="hover:text-text transition-colors">About Us</Link></li>
-                <li><Link href="/signin" className="hover:text-text transition-colors">Contact</Link></li>
-                <li><Link href="/#pros" className="hover:text-text transition-colors">Careers</Link></li>
+                <li><Link href="/community-guidelines" className="hover:text-text transition-colors duration-200">About Us</Link></li>
+                <li><Link href="/signin" className="hover:text-text transition-colors duration-200">Contact</Link></li>
+                <li><Link href="/#pros" className="hover:text-text transition-colors duration-200">Careers</Link></li>
               </ul>
             </div>
           </div>
           <div className="border-t border-border pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm">© 2024 Flyers Up. All rights reserved.</p>
             <div className="flex gap-6 text-sm">
-              <Link href="/privacy" className="hover:text-text transition-colors">Privacy</Link>
-              <Link href="/terms" className="hover:text-text transition-colors">Terms</Link>
-              <Link href="/privacy#cookies" className="hover:text-text transition-colors">Cookies</Link>
+              <Link href="/privacy" className="hover:text-text transition-colors duration-200">Privacy</Link>
+              <Link href="/terms" className="hover:text-text transition-colors duration-200">Terms</Link>
+              <Link href="/privacy#cookies" className="hover:text-text transition-colors duration-200">Cookies</Link>
             </div>
           </div>
         </div>

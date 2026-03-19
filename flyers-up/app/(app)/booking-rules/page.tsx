@@ -55,7 +55,7 @@ const RULES = [
   {
     icon: Banknote,
     title: 'Pro Gets Paid',
-    body: 'Flyers Up charges a 15% platform fee on each job. The pro receives the remaining amount (total minus fee and any refunds) after confirmation.',
+    body: 'Pros keep 100% of their service price. Customers pay a separate Flyers Up Protection & Service Fee for secure payments, booking protection, and support.',
   },
   {
     icon: AlertCircle,

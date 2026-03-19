@@ -54,7 +54,7 @@ export default function AcceptableUsePage() {
           <li>Commit fraud, misrepresentation, or impersonation</li>
           <li>Use stolen or fraudulent payment methods</li>
           <li>Create fake accounts, reviews, or bookings</li>
-          <li>Circumvent platform fees or solicit off-platform payments to avoid fees</li>
+          <li>Circumvent the Flyers Up Protection &amp; Service Fee or solicit off-platform payments</li>
         </ul>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 5 — Prohibited: Illegal Activities</h2>

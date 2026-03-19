@@ -381,6 +381,20 @@ html.dark body {
   color: #f3ead4;
 }
 
+/* Semantic aliases for consistent app copy */
+.bg-paper {
+  background-color: hsl(var(--bg));
+}
+.bg-surface {
+  background-color: hsl(var(--surface));
+}
+.text-primary {
+  color: hsl(var(--text));
+}
+.text-muted {
+  color: hsl(var(--text-3));
+}
+
 /* ============================================
    UTILITY CLASSES
    ============================================ */

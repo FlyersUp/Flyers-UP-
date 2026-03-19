@@ -100,10 +100,10 @@ export default function ProAgreementPage() {
           you and a customer; or (e) any injury, damage, or loss arising from your conduct or services.
         </p>
 
-        <h2 className="text-lg font-semibold tracking-tight pt-4">Section 10 — Platform Fees</h2>
+        <h2 className="text-lg font-semibold tracking-tight pt-4">Section 10 — Fees and Payouts</h2>
         <p>
-          You agree to pay the platform fees disclosed at the time of each booking. Fees are deducted from payouts. See
-          our <Link href="/legal/payments" className="underline hover:text-text">Payment and Platform Fee Policy</Link> for
+          Customers pay the Flyers Up Protection &amp; Service Fee at checkout. You keep 100% of your service price as
+          disclosed when you accept a booking. See our <Link href="/legal/payments" className="underline hover:text-text">Payment and Protection Fee Policy</Link> for
           details.
         </p>
 

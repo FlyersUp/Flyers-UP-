@@ -13,10 +13,8 @@ import { summarizeBusinessHours } from '@/lib/utils/businessHours';
 import type { BusinessHoursModelV1 } from '@/lib/utils/businessHours';
 import { getProfilePhotoUrl, uploadProfilePhoto } from '@/lib/proProfile';
 import { supabase } from '@/lib/supabaseClient';
-import { PLATFORM_FEE_BPS } from '@/lib/bookings/money';
 import { cn } from '@/lib/cn';
 
-const PLATFORM_FEE_PERCENT = PLATFORM_FEE_BPS / 100;
 const MAX_WORK_PHOTOS = 6;
 const SUGGESTED_PRICE_MIN = 18;
 const SUGGESTED_PRICE_MAX = 35;
@@ -110,9 +108,6 @@ export function BusinessProfileBuilder({
   const [uploadingWorkPhoto, setUploadingWorkPhoto] = useState(false);
 
   const startingPriceNum = parseFloat(startingPrice) || 0;
-  const proReceives = startingPriceNum > 0
-    ? Math.round((startingPriceNum * (1 - PLATFORM_FEE_PERCENT / 100)) * 100) / 100
-    : 0;
 
   const checklist: ProfileStrengthChecklist = {
     businessName: Boolean(displayName?.trim()),
@@ -286,8 +281,12 @@ export function BusinessProfileBuilder({
             <div className="p-4 rounded-xl bg-surface2 border border-border">
               <p className="text-sm font-medium text-text mb-1">Earnings transparency</p>
               <p className="text-sm text-muted">
-                Customer pays: ${startingPriceNum.toFixed(2)} → You receive: ${proReceives.toFixed(2)} after platform fee
+                You keep 100% of your service price (${startingPriceNum.toFixed(2)}).
               </p>
+              <p className="mt-1 text-xs text-muted">
+                Customers pay a small service fee separately. This does not reduce your earnings.
+              </p>
+              <p className="mt-1 text-xs font-medium text-text">No hidden cuts. No surprises.</p>
             </div>
           )}
         </div>

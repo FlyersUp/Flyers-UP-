@@ -6,6 +6,8 @@ import { ProPageShell } from '@/components/pro/ProPageShell';
 import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { PriceRow } from '@/components/ui/PriceRow';
+import { StatusPill } from '@/components/ui/StatusPill';
 import { getProEarnings, getRecentProEarnings, type EarningsSummary, type RecentEarning } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -29,6 +31,13 @@ export default function Earnings() {
   const [summary, setSummary] = useState<EarningsSummary | null>(null);
   const [recent, setRecent] = useState<RecentEarning[]>([]);
   const [loading, setLoading] = useState(true);
+  const thisWeekJobs = recent.filter((item) => {
+    const created = new Date(item.createdAt).getTime();
+    if (Number.isNaN(created)) return false;
+    return created >= Date.now() - (7 * 24 * 60 * 60 * 1000);
+  }).length;
+  const thisWeekEarnings = summary?.thisWeek ?? 0;
+  const avgPerJob = thisWeekJobs > 0 ? thisWeekEarnings / thisWeekJobs : 0;
 
   useEffect(() => {
     let mounted = true;
@@ -55,11 +64,11 @@ export default function Earnings() {
     <AppLayout mode="pro">
       <ProPageShell title="Earnings">
         <div className="max-w-4xl mx-auto px-4 pt-2">
-          <h2 className="text-sm font-semibold text-black/70 uppercase tracking-wide mb-4">Earnings</h2>
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">Earnings</h2>
 
         {connect ? (
           <div className="mb-4 rounded-[18px] border border-hairline bg-surface shadow-card px-5 py-4">
-            <div className="text-sm font-semibold tracking-tight text-text">
+            <div className="flex items-center justify-between gap-3 text-sm font-semibold tracking-tight text-text">
               {connect === 'complete'
                 ? 'Stripe connected'
                 : connect === 'pending'
@@ -69,6 +78,9 @@ export default function Earnings() {
                     : connect === 'missing_account'
                       ? 'Stripe account missing'
                       : 'Stripe connection status'}
+              <StatusPill tone={connect === 'complete' ? 'success' : connect === 'pending' ? 'pending' : 'warning'}>
+                {connect === 'complete' ? 'ready' : connect}
+              </StatusPill>
             </div>
             <div className="mt-1 text-sm text-muted">
               {connect === 'complete'
@@ -84,18 +96,33 @@ export default function Earnings() {
           </div>
         ) : null}
 
+        <Card className="mb-6 shadow-[var(--shadow-md)]" padding="lg">
+          <p className="text-base font-semibold text-primary">This week</p>
+          {loading ? (
+            <p className="mt-3 text-sm text-muted">Loading…</p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              <PriceRow label="Earnings" value={formatMoney(thisWeekEarnings)} emphasize />
+              <PriceRow label="Jobs" value={String(thisWeekJobs)} />
+              <PriceRow label="Avg per job" value={formatMoney(avgPerJob)} />
+            </div>
+          )}
+          <p className="mt-3 text-sm text-muted">
+            Flyers Up brought you {thisWeekJobs} customer{thisWeekJobs === 1 ? '' : 's'} this week
+          </p>
+          <p className="mt-1 text-xs font-medium text-primary">You keep what you earn</p>
+        </Card>
+
         {/* Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2">
           <Card withRail>
-            <div className="text-center py-6">
-              {loading ? (
-                <div className="text-muted">Loading…</div>
-              ) : (
+            <div className="py-6 text-center">
+              {loading ? <div className="text-muted">Loading…</div> : (
                 <>
-                  <div className="text-3xl font-bold text-text mb-1">
-                    {summary ? formatMoney(summary.thisWeek ?? 0) : '$0'}
+                  <div className="mb-1 text-3xl font-bold text-text">
+                    {summary ? formatMoney(summary.thisMonth) : '$0'}
                   </div>
-                  <div className="text-sm text-muted">This Week</div>
+                  <div className="text-sm text-muted">This Month</div>
                 </>
               )}
             </div>
@@ -107,9 +134,9 @@ export default function Earnings() {
               ) : (
                 <>
                   <div className="text-3xl font-bold text-text mb-1">
-                    {summary ? formatMoney(summary.thisMonth) : '$0'}
+                    {summary ? formatMoney(summary.totalEarnings) : '$0'}
                   </div>
-                  <div className="text-sm text-muted">This Month</div>
+                  <div className="text-sm text-muted">All Time</div>
                 </>
               )}
             </div>
@@ -150,7 +177,7 @@ export default function Earnings() {
           ) : recent.length === 0 ? (
             <Card>
               <div className="py-4 text-center text-sm text-muted">
-                No earnings yet. Completed jobs with paid invoices will appear here.
+                No earnings yet. Jobs near you are waiting.
               </div>
             </Card>
           ) : (

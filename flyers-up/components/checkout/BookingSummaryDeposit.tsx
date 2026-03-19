@@ -24,6 +24,8 @@ import React from 'react';
 
 import { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
+import { Card } from '@/components/ui/Card';
+import { PriceRow } from '@/components/ui/PriceRow';
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -88,18 +90,18 @@ function ProSummaryBlock({
 }) {
   return (
     <div className="flex items-center gap-4">
-      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#F7F6F4] dark:bg-[#1D2128]">
+      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-card">
         {proPhotoUrl ? (
           <img src={proPhotoUrl} alt={proName} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs text-[#6A6A6A] dark:text-[#A1A8B3]">
+          <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
             —
           </div>
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="font-semibold text-[#111111] dark:text-[#F5F7FA]">{proName}</p>
-        <p className="text-sm text-[#6A6A6A] dark:text-[#A1A8B3]">{serviceName}</p>
+        <p className="font-semibold text-primary">{proName}</p>
+        <p className="text-sm text-muted">{serviceName}</p>
       </div>
     </div>
   );
@@ -119,16 +121,16 @@ function ServiceDetailsBlock({
 }) {
   return (
     <div className="space-y-1 text-sm">
-      <p className="text-[#3A3A3A] dark:text-[#A1A8B3]">
+      <p className="text-muted">
         {formatDateTime(serviceDate, serviceTime)}
       </p>
       {durationHours != null && durationHours > 0 && (
-        <p className="text-[#6A6A6A] dark:text-[#A1A8B3]">
+        <p className="text-muted">
           {durationHours} hr{durationHours !== 1 ? 's' : ''}
         </p>
       )}
       {address && address.trim() && (
-        <p className="text-[#6A6A6A] dark:text-[#A1A8B3]">{address}</p>
+        <p className="text-muted">{address}</p>
       )}
     </div>
   );
@@ -146,47 +148,30 @@ function PricingBreakdownBlock({
   const hasDeposit = showDeposit && quote.amountDeposit != null && quote.amountDeposit > 0;
 
   return (
-    <div className="space-y-2 text-sm">
-      <div className="flex justify-between">
-        <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Service</span>
-        <span className="text-[#111111] dark:text-[#F5F7FA]">{formatCents(baseAmount)}</span>
-      </div>
+    <div className="space-y-2">
+      <PriceRow label="Service" value={formatCents(baseAmount)} />
       {(quote.amountTravelFee ?? 0) > 0 && (
-        <div className="flex justify-between">
-          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Travel fee</span>
-          <span className="text-[#111111] dark:text-[#F5F7FA]">
-            {formatCents(quote.amountTravelFee!)}
-          </span>
-        </div>
+        <PriceRow label="Travel fee" value={formatCents(quote.amountTravelFee!)} />
       )}
       {(quote.amountPlatformFee ?? 0) > 0 && (
-        <div className="flex justify-between">
-          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Platform fee</span>
-          <span className="text-[#111111] dark:text-[#F5F7FA]">
-            {formatCents(quote.amountPlatformFee!)}
-          </span>
-        </div>
+        <>
+          <PriceRow
+            label="Flyers Up Protection & Service Fee"
+            value={formatCents(quote.amountPlatformFee!)}
+            subtext="Secure payments, booking protection, and support"
+          />
+          <p className="text-xs text-muted">
+            This fee helps keep Flyers Up safe and reliable. It covers secure payments, fraud protection, customer
+            support, and tools that help ensure your job gets done right.
+          </p>
+        </>
       )}
-      <div className="flex justify-between border-t border-black/5 dark:border-white/10 pt-3 mt-3 font-semibold">
-        <span className="text-[#111111] dark:text-[#F5F7FA]">Total</span>
-        <span className="text-[#111111] dark:text-[#F5F7FA]">{formatCents(quote.amountTotal)}</span>
-      </div>
+      <PriceRow className="mt-3 border-t border-border pt-3" label="Total" value={formatCents(quote.amountTotal)} emphasize />
+      <p className="text-xs font-medium text-primary">✔ Covered by Flyers Up Protection</p>
       {hasDeposit && (
         <>
-          <div className="flex justify-between pt-2">
-            <span className="text-[#058954] dark:text-[#058954] font-medium">
-              Due now (deposit {quote.depositPercent ?? 50}%)
-            </span>
-            <span className="font-semibold text-[#058954] dark:text-[#058954]">
-              {formatCents(quote.amountDeposit!)}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Due after job</span>
-            <span className="text-[#111111] dark:text-[#F5F7FA]">
-              {formatCents(quote.amountRemaining ?? 0)}
-            </span>
-          </div>
+          <PriceRow label={`Due now (deposit ${quote.depositPercent ?? 50}%)`} value={formatCents(quote.amountDeposit!)} emphasize />
+          <PriceRow label="Due after job" value={formatCents(quote.amountRemaining ?? 0)} />
         </>
       )}
     </div>
@@ -200,20 +185,21 @@ function TrustBlock() {
       <p className="text-xs font-medium text-[#6A6A6A] dark:text-[#A1A8B3] uppercase tracking-wider">
         Trust & protection
       </p>
-      <ul className="space-y-1.5 text-sm text-[#3A3A3A] dark:text-[#A1A8B3]">
+      <ul className="space-y-1.5 text-sm text-muted">
         <li className="flex items-start gap-2">
-          <span className="text-[#058954] mt-0.5">✓</span>
+          <span className="mt-0.5 text-[hsl(var(--success))]">✓</span>
           <span>Secure payment via Stripe</span>
         </li>
         <li className="flex items-start gap-2">
-          <span className="text-[#058954] mt-0.5">✓</span>
+          <span className="mt-0.5 text-[hsl(var(--success))]">✓</span>
           <span>Payment held until job completion</span>
         </li>
         <li className="flex items-start gap-2">
-          <span className="text-[#058954] mt-0.5">✓</span>
+          <span className="mt-0.5 text-[hsl(var(--success))]">✓</span>
           <span>Dispute resolution available</span>
         </li>
       </ul>
+      <p className="text-xs text-muted">Safe, reliable, and built for your neighborhood</p>
     </div>
   );
 }
@@ -238,10 +224,7 @@ export function BookingSummaryDeposit({
   return (
     <div className={cn('space-y-4', className)} data-role="customer">
       {/* Pro summary */}
-      <section
-        className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-5 shadow-sm"
-        aria-labelledby="summary-pro"
-      >
+      <Card as="section" className="shadow-[var(--shadow-md)]" padding="lg" aria-labelledby="summary-pro">
         <h2 id="summary-pro" className="sr-only">
           Pro & service
         </h2>
@@ -250,14 +233,11 @@ export function BookingSummaryDeposit({
           proPhotoUrl={proPhotoUrl}
           serviceName={serviceName}
         />
-      </section>
+      </Card>
 
       {/* Service details */}
-      <section
-        className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-5 shadow-sm"
-        aria-labelledby="summary-details"
-      >
-        <h2 id="summary-details" className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-3">
+      <Card as="section" className="shadow-[var(--shadow-md)]" padding="lg" aria-labelledby="summary-details">
+        <h2 id="summary-details" className="mb-3 text-sm font-medium text-muted">
           When & where
         </h2>
         <ServiceDetailsBlock
@@ -266,61 +246,52 @@ export function BookingSummaryDeposit({
           address={address}
           durationHours={durationHours}
         />
-      </section>
+      </Card>
 
       {/* Scope summary (optional) */}
       {scopeSummary && scopeSummary.trim() && (
-        <section
-          className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-5 shadow-sm"
-          aria-labelledby="summary-scope"
-        >
-          <h2 id="summary-scope" className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-2">
+        <Card as="section" className="shadow-[var(--shadow-md)]" padding="lg" aria-labelledby="summary-scope">
+          <h2 id="summary-scope" className="mb-2 text-sm font-medium text-muted">
             Scope
           </h2>
-          <p className="text-sm text-[#3A3A3A] dark:text-[#A1A8B3]">{scopeSummary}</p>
-        </section>
+          <p className="text-sm text-muted">{scopeSummary}</p>
+        </Card>
       )}
 
       {/* Add-ons (optional) */}
       {addons && addons.length > 0 && (
-        <section
-          className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-5 shadow-sm"
-          aria-labelledby="summary-addons"
-        >
-          <h2 id="summary-addons" className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-2">
+        <Card as="section" className="shadow-[var(--shadow-md)]" padding="lg" aria-labelledby="summary-addons">
+          <h2 id="summary-addons" className="mb-2 text-sm font-medium text-muted">
             Add-ons
           </h2>
           <ul className="space-y-1 text-sm">
             {addons.map((a, i) => (
               <li key={i} className="flex justify-between">
-                <span className="text-[#3A3A3A] dark:text-[#A1A8B3]">{a.title}</span>
-                <span className="text-[#111111] dark:text-[#F5F7FA]">
+                <span className="text-muted">{a.title}</span>
+                <span className="text-primary">
                   {formatCents(a.priceCents)}
                 </span>
               </li>
             ))}
           </ul>
-        </section>
+        </Card>
       )}
 
       {/* Pricing breakdown */}
-      <section
-        className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-5 shadow-sm"
-        aria-labelledby="summary-pricing"
-      >
-        <h2 id="summary-pricing" className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-3">
+      <Card as="section" className="shadow-[var(--shadow-md)]" padding="lg" aria-labelledby="summary-pricing">
+        <h2 id="summary-pricing" className="mb-3 text-sm font-medium text-muted">
           Price details
         </h2>
         <PricingBreakdownBlock quote={quote} showDeposit={hasDeposit} />
-      </section>
+      </Card>
 
       {/* Payment due countdown (optional) */}
       {paymentDueAt && (
         <div
-          className="rounded-2xl border border-[#058954]/30 bg-[#058954]/5 dark:bg-[#058954]/10 p-4"
+          className="rounded-2xl border border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success)/0.12)] p-4"
           role="status"
         >
-          <p className="text-sm font-medium text-[#058954]">
+          <p className="text-sm font-medium text-primary">
             Pay within 30 minutes to lock your time
           </p>
           <CountdownTimer paymentDueAt={paymentDueAt} />
@@ -328,15 +299,12 @@ export function BookingSummaryDeposit({
       )}
 
       {/* Trust & protection */}
-      <section
-        className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-5 shadow-sm"
-        aria-labelledby="summary-trust"
-      >
+      <Card as="section" className="shadow-[var(--shadow-md)]" padding="lg" aria-labelledby="summary-trust">
         <h2 id="summary-trust" className="sr-only">
           Trust & protection
         </h2>
         <TrustBlock />
-      </section>
+      </Card>
 
       {/* Payment form / CTA slot */}
       {children}
@@ -367,7 +335,7 @@ function CountdownTimer({ paymentDueAt }: { paymentDueAt: string }) {
 
   if (!remaining) return null;
   return (
-    <p className="text-sm text-[#058954] mt-1 font-medium">
+    <p className="mt-1 text-sm font-medium text-primary">
       Time remaining: {remaining}
     </p>
   );

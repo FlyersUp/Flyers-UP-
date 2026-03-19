@@ -1,14 +1,14 @@
 'use client';
 
 /**
- * Payment status card: total, deposit, remaining, deposit/remaining status, countdowns.
- * Pro view: platform fee, net to pro.
+ * Payment status card: total, deposit, remaining, and status/coundowns.
  * CTAs via callbacks (caller wires to checkout/confirm).
  */
 
 import { BookingCountdown } from './BookingCountdown';
 import { RemainingDueCountdown } from './RemainingDueCountdown';
 import { AutoConfirmCountdown } from './AutoConfirmCountdown';
+import { PriceRow } from '@/components/ui/PriceRow';
 
 function formatCents(cents: number | null | undefined): string {
   if (cents == null || Number.isNaN(cents)) return '—';
@@ -27,7 +27,7 @@ export interface BookingPaymentStatusCardProps {
   amountTotal?: number | null;
   platformFeeCents?: number | null;
   refundedTotalCents?: number | null;
-  /** Pro-only: show platform fee and net to pro */
+  /** Pro-only: show trust-first earnings reassurance */
   view?: 'customer' | 'pro';
   onPayDeposit?: () => void;
   onPayRemaining?: () => void;
@@ -47,7 +47,6 @@ export function BookingPaymentStatusCard({
   amountDeposit,
   amountRemaining,
   amountTotal,
-  platformFeeCents,
   refundedTotalCents,
   view = 'customer',
   onPayDeposit,
@@ -60,9 +59,8 @@ export function BookingPaymentStatusCard({
   const total = amountTotal ?? 0;
   const deposit = amountDeposit ?? 0;
   const remaining = amountRemaining ?? 0;
-  const platformFee = platformFeeCents ?? 0;
   const refunded = refundedTotalCents ?? 0;
-  const netToPro = Math.max(0, total - platformFee - refunded);
+  const proTakeHome = Math.max(0, total - refunded);
 
   const awaitingDeposit =
     status === 'awaiting_deposit_payment' ||
@@ -75,38 +73,29 @@ export function BookingPaymentStatusCard({
   const cancelledExpired = status === 'cancelled_expired' || status === 'expired_unpaid';
 
   return (
-    <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm">
-      <h3 className="text-sm font-medium text-[#6A6A6A] mb-3">Payment</h3>
+    <div className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
+      <h3 className="mb-3 text-sm font-medium text-muted">Payment</h3>
 
       {/* Amount breakdown */}
       {total > 0 && (
-        <div className="space-y-1 text-sm mb-4">
-          <div className="flex justify-between">
-            <span className="text-[#6A6A6A]">Total</span>
-            <span className="text-[#111111] font-medium">{formatCents(total)}</span>
-          </div>
+        <div className="mb-4 space-y-1">
+          <PriceRow label="Total" value={formatCents(total)} emphasize />
           {deposit > 0 && (
-            <div className="flex justify-between">
-              <span className="text-[#6A6A6A]">Deposit</span>
-              <span className="text-[#111111]">{formatCents(deposit)}</span>
-            </div>
+            <PriceRow label="Deposit" value={formatCents(deposit)} />
           )}
           {remaining > 0 && (
-            <div className="flex justify-between">
-              <span className="text-[#6A6A6A]">Remaining</span>
-              <span className="text-[#111111]">{formatCents(remaining)}</span>
-            </div>
+            <PriceRow label="Remaining" value={formatCents(remaining)} />
           )}
-          {view === 'pro' && platformFee > 0 && (
-            <div className="flex justify-between text-[#6A6A6A]">
-              <span>Platform fee</span>
-              <span>{formatCents(platformFee)}</span>
-            </div>
-          )}
-          {view === 'pro' && netToPro > 0 && (
-            <div className="flex justify-between font-medium text-[#111111] pt-1 border-t border-black/10">
-              <span>Net to you</span>
-              <span>{formatCents(netToPro)}</span>
+          {view === 'pro' && (
+            <div className="mt-2 rounded-xl border border-border bg-card p-3">
+              <p className="text-sm font-semibold text-primary">You keep 100% of your service price</p>
+              <p className="mt-1 text-xs text-muted">
+                Customers pay a small service fee separately. This does not reduce your earnings.
+              </p>
+              <p className="mt-1 text-xs font-medium text-primary">No hidden cuts. No surprises.</p>
+              {proTakeHome > 0 ? (
+                <p className="mt-2 text-sm font-semibold text-primary">Current earnings: {formatCents(proTakeHome)}</p>
+              ) : null}
             </div>
           )}
         </div>
@@ -115,52 +104,52 @@ export function BookingPaymentStatusCard({
       {/* Status */}
       <div className="text-sm">
         {cancelledExpired && (
-          <p className="font-medium text-[#111111]">Deposit expired — booking cancelled</p>
+          <p className="font-medium text-primary">Deposit expired — booking cancelled</p>
         )}
         {awaitingDeposit && !depositPaid && (
           <>
-            <p className="font-medium text-[#111111]">Deposit due</p>
+            <p className="font-medium text-primary">Deposit due</p>
             {paymentDueAt && (
-              <p className="text-xs text-[#6A6A6A] mt-1">
+              <p className="mt-1 text-xs text-muted">
                 Time remaining: <BookingCountdown status={status} paymentDueAt={paymentDueAt} className="ml-1 text-amber-700 font-medium" />
               </p>
             )}
             {(payDepositSlot || onPayDeposit) && (
-              <div className="mt-3">{payDepositSlot ?? <button type="button" onClick={onPayDeposit} className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95">Pay deposit {deposit > 0 ? formatCents(deposit) : ''}</button>}</div>
+              <div className="mt-3">{payDepositSlot ?? <button type="button" onClick={onPayDeposit} className="inline-flex h-10 items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.6)] bg-[hsl(var(--accent-pro))] px-4 text-sm font-semibold text-[hsl(var(--accent-contrast))] hover:brightness-95">Pay deposit {deposit > 0 ? formatCents(deposit) : ''}</button>}</div>
             )}
           </>
         )}
         {depositPaid && awaitingRemaining && !remainingPaid && (
           <>
-            <p className="font-medium text-[#111111]">Remaining due</p>
+            <p className="font-medium text-primary">Remaining due</p>
             {remainingDueAt && (
-              <p className="text-xs text-[#6A6A6A] mt-1">
+              <p className="mt-1 text-xs text-muted">
                 Due: <RemainingDueCountdown remainingDueAt={remainingDueAt} className="text-amber-700 font-medium" />
               </p>
             )}
             {(payRemainingSlot || onPayRemaining) && (
-              <div className="mt-3">{payRemainingSlot ?? <button type="button" onClick={onPayRemaining} className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95">Pay remaining {remaining > 0 ? formatCents(remaining) : ''}</button>}</div>
+              <div className="mt-3">{payRemainingSlot ?? <button type="button" onClick={onPayRemaining} className="inline-flex h-10 items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.6)] bg-[hsl(var(--accent-pro))] px-4 text-sm font-semibold text-[hsl(var(--accent-contrast))] hover:brightness-95">Pay remaining {remaining > 0 ? formatCents(remaining) : ''}</button>}</div>
             )}
           </>
         )}
         {depositPaid && !awaitingRemaining && !remainingPaid && remaining > 0 && (
-          <p className="text-[#6A6A6A]">Remaining {formatCents(remaining)} due after completion</p>
+          <p className="text-muted">Remaining {formatCents(remaining)} due after completion</p>
         )}
         {awaitingConfirmation && (
           <>
-            <p className="font-medium text-[#111111]">Confirm completion</p>
+            <p className="font-medium text-primary">Confirm completion</p>
             {autoConfirmAt && (
-              <p className="text-xs text-[#6A6A6A] mt-1">
+              <p className="mt-1 text-xs text-muted">
                 <AutoConfirmCountdown autoConfirmAt={autoConfirmAt} />
               </p>
             )}
             {(confirmSlot || onConfirmCompletion) && (
-              <div className="mt-3">{confirmSlot ?? <button type="button" onClick={onConfirmCompletion} className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95">Confirm completion</button>}</div>
+              <div className="mt-3">{confirmSlot ?? <button type="button" onClick={onConfirmCompletion} className="inline-flex h-10 items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.6)] bg-[hsl(var(--accent-pro))] px-4 text-sm font-semibold text-[hsl(var(--accent-contrast))] hover:brightness-95">Confirm completion</button>}</div>
             )}
           </>
         )}
         {remainingPaid && !awaitingConfirmation && (
-          <p className="font-medium text-[#111111]">Fully paid ✓</p>
+          <p className="font-medium text-primary">Fully paid ✓</p>
         )}
       </div>
     </div>
