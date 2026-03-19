@@ -21,6 +21,8 @@ const ITEMS: LegalItem[] = [
   { label: 'Acceptable use', href: '/legal/acceptable-use' },
   { label: 'Security', href: '/legal/security' },
   { label: 'Insurance', href: '/legal/insurance' },
+  { label: 'Background check consent', href: '/legal/background-check-consent' },
+  { label: 'Data processing agreement', href: '/legal/data-processing-agreement' },
 ];
 
 export function LegalLinksList() {

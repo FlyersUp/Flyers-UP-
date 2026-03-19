@@ -58,6 +58,8 @@ export function LegalPageShell({ children, backHref }: LegalPageShellProps) {
             <Link href="/legal/acceptable-use" className="hover:text-text transition-colors">Acceptable Use</Link>
             <Link href="/legal/security" className="hover:text-text transition-colors">Security</Link>
             <Link href="/legal/insurance" className="hover:text-text transition-colors">Insurance</Link>
+            <Link href="/legal/background-check-consent" className="hover:text-text transition-colors">Background Check</Link>
+            <Link href="/legal/data-processing-agreement" className="hover:text-text transition-colors">Data Processing</Link>
             <Link href="/trust-verification" className="hover:text-text transition-colors">Trust & Verification</Link>
           </nav>
           <p className="mt-4 text-center text-xs text-muted/70" suppressHydrationWarning>

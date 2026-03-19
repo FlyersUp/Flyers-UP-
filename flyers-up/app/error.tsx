@@ -1,44 +1,64 @@
 'use client';
 
+/**
+ * ROUTE-LEVEL ERROR BOUNDARY
+ * Catches runtime/render errors in route segments and their children.
+ * Does NOT catch: not-found (use not-found.tsx), layout errors, or fatal root failures (use global-error.tsx).
+ */
+
 import { useEffect } from 'react';
 import Link from 'next/link';
-import Logo from '@/components/Logo';
+import { Home, RotateCw } from 'lucide-react';
+import { ReportIssueButton } from '@/components/error';
+import { ErrorPageCard } from '@/components/error/ErrorPageCard';
 
-export default function Error({
-  error,
-  reset,
-}: {
+interface ErrorProps {
   error: Error & { digest?: string };
   reset: () => void;
-}) {
+}
+
+export default function Error({ error, reset }: ErrorProps) {
   useEffect(() => {
-    console.error('App error:', error);
+    console.error('Route error:', error);
   }, [error]);
 
+  const errorMessage = typeof error?.message === 'string' ? error.message : null;
+  const errorDigest = typeof (error as Error & { digest?: string })?.digest === 'string'
+    ? (error as Error & { digest?: string }).digest
+    : null;
+  const stack = typeof error?.stack === 'string' ? error.stack : null;
+
   return (
-    <div className="min-h-screen bg-bg flex flex-col items-center justify-center px-4">
-      <Logo size="md" linkToHome />
-      <div className="mt-8 max-w-md text-center">
-        <h1 className="text-xl font-semibold text-text mb-2">Something went wrong</h1>
-        <p className="text-muted text-sm mb-6">
-          We encountered an error. Please try again or return home.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <button
-            type="button"
-            onClick={() => reset()}
-            className="px-4 py-2.5 bg-accent text-accentContrast rounded-lg font-medium hover:opacity-95"
-          >
-            Try again
-          </button>
-          <Link
-            href="/"
-            className="px-4 py-2.5 border border-border rounded-lg font-medium text-text hover:bg-surface"
-          >
-            Go home
-          </Link>
-        </div>
-      </div>
+    <div className="min-h-screen bg-bg flex items-center justify-center p-4">
+      <ErrorPageCard
+        headline="Something went wrong"
+        body="This page ran into an unexpected problem. Please report it so we can fix it."
+      >
+        <button
+          type="button"
+          onClick={reset}
+          className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full text-sm font-semibold bg-accent text-accentContrast hover:opacity-95 transition-opacity"
+        >
+          <RotateCw size={18} strokeWidth={2} />
+          Try Again
+        </button>
+        <Link
+          href="/"
+          className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full text-sm font-medium border border-black/15 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+        >
+          <Home size={18} strokeWidth={2} />
+          Go Home
+        </Link>
+        <ReportIssueButton
+          variant="secondary"
+          context={{
+            errorMessage,
+            errorDigest,
+            stack,
+            errorType: 'route_error',
+          }}
+        />
+      </ErrorPageCard>
     </div>
   );
 }
