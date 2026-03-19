@@ -39,6 +39,7 @@
 import { use, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
 
 const ELIGIBLE_STATUSES = ['completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment'];
@@ -119,6 +120,7 @@ export default function JobCompletePage({
 }: {
   params: Promise<{ bookingId: string }>;
 }) {
+  const router = useRouter();
   const { bookingId } = use(params);
   const [state, setState] = useState<PageState>('loading');
   const [booking, setBooking] = useState<BookingData | null>(null);

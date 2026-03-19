@@ -215,22 +215,27 @@ export default function CustomerDashboard() {
   useEffect(() => {
     if (!ready || !userId) return;
     let mounted = true;
-    supabase
-      .from('job_requests')
-      .select('id, title, budget_min, budget_max, preferred_date, preferred_time')
-      .eq('customer_id', userId)
-      .eq('status', 'open')
-      .gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
-      .limit(5)
-      .then(({ data }) => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('job_requests')
+          .select('id, title, budget_min, budget_max, preferred_date, preferred_time')
+          .eq('customer_id', userId)
+          .eq('status', 'open')
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(5);
+
         if (!mounted) return;
         setLiveRequests((data ?? []) as LiveRequest[]);
-      })
-      .catch(() => {})
-      .finally(() => {
+      } catch {
+        if (!mounted) return;
+        setLiveRequests([]);
+      } finally {
         if (mounted) setRequestsLoading(false);
-      });
+      }
+    })();
+
     return () => {
       mounted = false;
     };
