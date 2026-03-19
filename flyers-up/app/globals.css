@@ -15,7 +15,7 @@
      Tailwind uses HSL triplets (no hsl() wrapper) for alpha support
      ============================================ */
   /* Hex for direct var() use; HSL for Tailwind */
-  --bg: 43 56% 85%;        /* #F1E8C7 */
+  --bg: 0 0% 96%;          /* #F5F5F5 */
   --surface: 43 48% 89%;   /* lifted warm surface */
   --surface-2: 43 38% 83%; /* grouped panel surface */
   --muted: 43 34% 78%;
@@ -289,7 +289,7 @@
    ============================================ */
 .public-light {
   /* Core surfaces */
-  --bg: 43 56% 85%;
+  --bg: 0 0% 96%;
   --surface: 43 48% 89%;
   --surface-2: 43 38% 83%;
   --muted: 43 34% 78%;
@@ -355,7 +355,7 @@
   --badge-bg: rgba(96, 82, 49, 0.08);
   --badge-border: rgba(96, 82, 49, 0.2);
   /* Force light background and text on the container */
-  background: #F1E8C7;
+  background: #F5F5F5;
   color: #2B2B24;
 }
 
