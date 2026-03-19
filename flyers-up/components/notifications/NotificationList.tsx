@@ -242,13 +242,13 @@ export function NotificationList({ basePath }: NotificationListProps) {
 
   if (fetchError) {
     return (
-      <div className="rounded-2xl border border-red-200 dark:border-red-900/40 bg-red-50/70 dark:bg-red-950/20 p-5">
-        <div className="text-base font-semibold text-red-800 dark:text-red-300">Couldn&apos;t load notifications</div>
-        <div className="mt-1 text-sm text-red-700 dark:text-red-400">{fetchError}</div>
+      <div className="rounded-2xl border border-danger/35 bg-danger/12 p-5">
+        <div className="text-base font-semibold text-text">Couldn&apos;t load notifications</div>
+        <div className="mt-1 text-sm text-text2">{fetchError}</div>
         <button
           type="button"
           onClick={() => void fetchNotifications()}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-danger/45 bg-surface px-3 py-2 text-sm font-semibold text-text hover:bg-hover"
         >
           <RefreshCw size={14} />
           Retry
@@ -290,8 +290,8 @@ export function NotificationList({ basePath }: NotificationListProps) {
             className={[
               'shrink-0 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors',
               tab === tabDef.key
-                ? 'border-accent bg-accent/10 text-text'
-                : 'border-border bg-surface text-muted hover:text-text',
+                ? 'border-[hsl(var(--accent-customer)/0.58)] bg-[hsl(var(--accent-customer)/0.2)] text-text'
+                : 'border-border bg-surface text-text3 hover:bg-hover hover:text-text',
             ].join(' ')}
             aria-pressed={tab === tabDef.key}
           >
@@ -316,10 +316,10 @@ export function NotificationList({ basePath }: NotificationListProps) {
                     href={href}
                     onClick={() => handleClick(item)}
                     className={[
-                      'block rounded-2xl border p-4 shadow-sm transition-colors',
+                      'block rounded-2xl border p-4 shadow-[var(--shadow-1)] transition-colors',
                       unread
-                        ? 'border-accent/25 bg-[hsl(var(--accent-customer)/0.07)] dark:bg-[hsl(var(--accent-pro)/0.10)]'
-                        : 'border-border bg-surface hover:bg-surface2/60',
+                        ? 'border-[hsl(var(--accent-customer)/0.55)] bg-[hsl(var(--accent-customer)/0.15)]'
+                        : 'border-border bg-surface hover:bg-hover/70',
                     ].join(' ')}
                   >
                     <div className="flex items-start gap-3">
@@ -333,17 +333,14 @@ export function NotificationList({ basePath }: NotificationListProps) {
                               {item.title}
                             </p>
                             {item.body ? (
-                              <p className="mt-0.5 text-sm text-muted line-clamp-2">{item.body}</p>
+                              <p className="mt-0.5 text-sm text-text3 line-clamp-2">{item.body}</p>
                             ) : null}
                           </div>
                           <div className="text-right shrink-0">
                             <p className="text-xs text-muted">{formatRelativeTime(item.created_at)}</p>
                             {unread ? (
                               <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-text">
-                                <span
-                                  className="h-1.5 w-1.5 rounded-full bg-accent"
-                                  aria-hidden
-                                />
+                                <span className="h-1.5 w-1.5 rounded-full bg-accentGreen" aria-hidden />
                                 New
                               </span>
                             ) : (

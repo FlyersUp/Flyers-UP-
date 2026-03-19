@@ -28,7 +28,7 @@ function NavAlertDot({ show }: { show: boolean }) {
   if (!show) return null;
   return (
     <span
-      className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 dark:bg-[#F07A7A] border-2 border-white dark:border-[#171A20] shrink-0"
+      className="absolute -top-0.5 -right-1 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-surface bg-accentOrange"
       aria-label="New"
     />
   );
@@ -64,29 +64,30 @@ interface MorphingNavItemProps {
   label: string;
   badge?: ReactNode;
   ariaLabel: string;
+  mode: 'customer' | 'pro';
 }
 
-function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel }: MorphingNavItemProps) {
+function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel, mode }: MorphingNavItemProps) {
   const base =
     'flex items-center justify-center h-12 sm:h-14 rounded-full border backdrop-blur-md overflow-hidden ' +
     'active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus:outline-none ' +
-    'focus-visible:ring-gray-300 dark:focus-visible:ring-white/20 ' +
-    'shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)] ' +
+    'focus-visible:ring-[var(--ring-green)] focus-visible:ring-offset-bg ' +
+    'shadow-[var(--shadow-2)] ' +
     'transition-colors duration-[220ms] ease-out';
 
-  const inactiveBg = 'bg-[rgba(255,255,255,0.95)] dark:bg-[rgba(23,26,32,0.95)]';
-  const inactiveBorder = 'border-[#E5E5E5] dark:border-white/[0.08]';
-  const inactiveIcon = 'text-[#6B7280] dark:text-[#A1A8B3]';
+  const inactiveBg = 'bg-surface/95';
+  const inactiveBorder = 'border-border';
+  const inactiveIcon = 'text-text3';
 
-  const activeBg = 'bg-[rgba(255,255,255,0.98)] dark:bg-[rgba(29,33,40,0.98)]';
-  const activeBorder = 'border-[#E5E5E5] dark:border-white/[0.08]';
-  const activeIcon = 'text-[#111111] dark:text-[#F5F7FA]';
+  const activeBg = mode === 'pro' ? 'bg-[hsl(var(--accent-pro)/0.22)]' : 'bg-[hsl(var(--accent-customer)/0.22)]';
+  const activeBorder = mode === 'pro' ? 'border-[hsl(var(--accent-pro)/0.58)]' : 'border-[hsl(var(--accent-customer)/0.58)]';
+  const activeIcon = 'text-text';
 
   return (
     <Link
       href={href}
       className={`${base} ${isActive ? activeBg : inactiveBg} ${isActive ? activeBorder : inactiveBorder} ${
-        isActive ? activeIcon : inactiveIcon + ' hover:text-[#111111] dark:hover:text-[#F5F7FA]'
+        isActive ? activeIcon : `${inactiveIcon} hover:text-text hover:bg-hover`
       }`}
       style={{
         width: isActive ? 104 : 48,
@@ -158,6 +159,7 @@ export default function FloatingBottomNav() {
             icon={<Home size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
             label="Home"
             ariaLabel="Home"
+            mode={mode}
           />
           <MorphingNavItem
             href={jobsHref}
@@ -165,6 +167,7 @@ export default function FloatingBottomNav() {
             icon={<Briefcase size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
             label="Jobs"
             ariaLabel="Jobs"
+            mode={mode}
           />
           <MorphingNavItem
             href={messagesHref}
@@ -173,6 +176,7 @@ export default function FloatingBottomNav() {
             label="Messages"
             badge={<NavAlertDot show={hasNewMessages} />}
             ariaLabel="Messages"
+            mode={mode}
           />
           <MorphingNavItem
             href={profileHref}
@@ -180,6 +184,7 @@ export default function FloatingBottomNav() {
             icon={<User size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
             label="Profile"
             ariaLabel="Profile"
+            mode={mode}
           />
         </div>
       </div>
@@ -199,6 +204,7 @@ export default function FloatingBottomNav() {
           icon={<Home size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
           label="Home"
           ariaLabel="Home"
+          mode={mode}
         />
         <MorphingNavItem
           href={exploreHref}
@@ -206,6 +212,7 @@ export default function FloatingBottomNav() {
           icon={<Compass size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
           label="Explore"
           ariaLabel="Explore"
+          mode={mode}
         />
         <MorphingNavItem
           href={messagesHref}
@@ -214,6 +221,7 @@ export default function FloatingBottomNav() {
           label="Messages"
           badge={<NavAlertDot show={hasNewMessages} />}
           ariaLabel="Messages"
+          mode={mode}
         />
         <MorphingNavItem
           href={profileHref}
@@ -221,6 +229,7 @@ export default function FloatingBottomNav() {
           icon={<User size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
           label="Profile"
           ariaLabel="Profile"
+          mode={mode}
         />
       </div>
     </div>

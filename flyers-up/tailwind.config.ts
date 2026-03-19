@@ -15,16 +15,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        bgBase: 'hsl(var(--bg) / <alpha-value>)',
         bg: 'hsl(var(--bg) / <alpha-value>)',
         surface: 'hsl(var(--surface) / <alpha-value>)',
         surface2: 'hsl(var(--surface-2) / <alpha-value>)',
+        hover: 'hsl(var(--hover) / <alpha-value>)',
         border: 'hsl(var(--border) / <alpha-value>)',
+        borderStrong: 'hsl(var(--border-2) / <alpha-value>)',
         text: 'hsl(var(--text) / <alpha-value>)',
         text2: 'hsl(var(--text-2) / <alpha-value>)',
         text3: 'hsl(var(--text-3) / <alpha-value>)',
         muted: 'hsl(var(--text-muted) / <alpha-value>)',
         accent: 'hsl(var(--accent) / <alpha-value>)',
         accentContrast: 'hsl(var(--accent-contrast) / <alpha-value>)',
+        accentGreen: 'hsl(var(--accent-customer) / <alpha-value>)',
+        accentOrange: 'hsl(var(--accent-pro) / <alpha-value>)',
+        selectedGreen: 'hsl(var(--selected-green))',
+        selectedOrange: 'hsl(var(--selected-orange))',
         ring: 'hsl(var(--ring) / <alpha-value>)',
         success: 'hsl(var(--success) / <alpha-value>)',
         warning: 'hsl(var(--warning) / <alpha-value>)',

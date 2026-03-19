@@ -14,11 +14,11 @@ interface BadgeProps {
  */
 export function Badge({ children, variant = 'default', className = '' }: BadgeProps) {
   const variants = {
-    default: 'bg-badgeFill text-muted border-badgeBorder',
-    verified: 'bg-badgeFill text-text border-badgeBorder',
+    default: 'bg-badgeFill text-text2 border-badgeBorder',
+    verified: 'bg-[hsl(var(--accent-customer)/0.16)] text-text border-[hsl(var(--accent-customer)/0.45)]',
     // Accent is an indicator only (not a full outline).
     highlight:
-      "relative bg-badgeFill text-text border-badgeBorder pl-4 before:content-[''] before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-3 before:w-1 before:rounded-full before:bg-accent/80",
+      "relative bg-[hsl(var(--accent-pro)/0.16)] text-text border-[hsl(var(--accent-pro)/0.45)] pl-4 before:content-[''] before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-3 before:w-1 before:rounded-full before:bg-accentOrange/80",
   };
 
   return (
@@ -51,7 +51,7 @@ export function VerifiedBadge({ size = 'sm', className = '' }: VerifiedBadgeProp
 
   return (
     <span
-      className={`inline-flex items-center justify-center rounded-full bg-accent text-accentContrast ${sizeClasses[size]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-full bg-accentGreen text-[hsl(var(--accent-contrast))] ${sizeClasses[size]} ${className}`}
       aria-label="Verified"
     >
       ✓
@@ -74,7 +74,7 @@ export function LevelBadge({ level, title, className = '' }: LevelBadgeProps) {
 
   return (
     <span
-      className={`relative inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border bg-badgeFill border-badgeBorder text-text pl-4 before:content-[''] before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-3 before:w-1 before:rounded-full before:bg-accent/70 ${className}`}
+      className={`relative inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border bg-badgeFill border-badgeBorder text-text pl-4 before:content-[''] before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:h-3 before:w-1 before:rounded-full before:bg-accentGreen/75 ${className}`}
     >
       {title || `Level ${level}`}
     </span>

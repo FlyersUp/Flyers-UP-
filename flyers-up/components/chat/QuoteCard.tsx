@@ -83,14 +83,14 @@ export function QuoteCard({
   };
 
   const cardBg = fromPro
-    ? 'bg-amber-50 border-amber-200'
-    : 'bg-[#e8f5e5] border-[#9ae88d]';
+    ? 'bg-[hsl(var(--accent-pro)/0.2)] border-[hsl(var(--accent-pro)/0.45)]'
+    : 'bg-[hsl(var(--accent-customer)/0.2)] border-[hsl(var(--accent-customer)/0.45)]';
   const label = fromPro ? otherPartyName : 'You';
 
   return (
     <div
       key={id}
-      className={`rounded-xl border px-4 py-3 max-w-[85%] ${cardBg}`}
+      className={`max-w-[85%] rounded-xl border px-4 py-3 shadow-[var(--shadow-1)] ${cardBg}`}
       style={{
         marginLeft: fromPro ? 0 : 'auto',
         marginRight: fromPro ? 'auto' : 0,
@@ -103,16 +103,16 @@ export function QuoteCard({
         </span>
       </div>
       <div className="mt-1">
-        <span className="text-lg font-bold text-[#111]">${Number(amount).toFixed(2)}</span>
+        <span className="text-lg font-bold text-text">${Number(amount).toFixed(2)}</span>
         {round > 1 && (
           <span className="ml-2 text-xs text-muted">Round {round}</span>
         )}
       </div>
       {message && (
-        <p className="mt-2 text-sm text-[#333]">{message}</p>
+        <p className="mt-2 text-sm text-text2">{message}</p>
       )}
       {isAccepted && (
-        <p className="mt-2 text-sm font-medium text-green-700">✓ Accepted</p>
+        <p className="mt-2 text-sm font-medium text-accentGreen">✓ Accepted</p>
       )}
       {isDeclined && (
         <p className="mt-2 text-sm text-muted">Declined</p>
@@ -125,7 +125,7 @@ export function QuoteCard({
               onClick={handleAccept}
               disabled={loading}
               showArrow={false}
-              className="px-4 py-2 text-sm bg-[#B2FBA5] text-black hover:opacity-90"
+              className="px-4 py-2 text-sm"
             >
               {loading ? '…' : 'Accept'}
             </Button>

@@ -24,9 +24,9 @@ export function OccupationCard({
   return (
     <Link
       href={`/occupations/${slug}`}
-      className="group flex items-center gap-3 rounded-2xl bg-surface border border-border p-4 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+      className="group flex items-center gap-3 rounded-2xl border border-border bg-surface p-4 shadow-[var(--shadow-card)] transition-all duration-200 hover:-translate-y-0.5 hover:border-borderStrong hover:shadow-[var(--shadow-card-hover)]"
     >
-      <div className="flex-shrink-0 w-11 h-11 rounded-full bg-surface2 border border-border flex items-center justify-center">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-surface2">
         <IconComponent className="w-5 h-5 text-text3" strokeWidth={1.5} />
       </div>
       <div className="flex-1 min-w-0 pr-2">
@@ -37,7 +37,7 @@ export function OccupationCard({
           {subtitle ?? (countServices != null ? `${countServices} pros` : 'Browse pros')}
         </div>
       </div>
-      <ChevronRight className="w-4 h-4 text-border flex-shrink-0 group-hover:text-text3 transition-colors" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-text3 transition-colors group-hover:text-text2" />
     </Link>
   );
 }

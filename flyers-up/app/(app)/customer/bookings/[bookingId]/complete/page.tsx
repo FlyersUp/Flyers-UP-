@@ -243,12 +243,12 @@ export default function JobCompletePage({
                   style={{ backgroundColor: 'hsl(var(--customer-tint))' }}
                   aria-hidden
                 >
-                  <span className="text-2xl text-[#058954]" aria-hidden>✓</span>
+                  <span className="text-2xl text-accentGreen" aria-hidden>✓</span>
                 </div>
-                <h1 className="text-2xl font-semibold text-[#111111] dark:text-[#F5F7FA] tracking-tight">
+                <h1 className="text-2xl font-semibold text-text tracking-tight">
                   All paid
                 </h1>
-                <p className="text-sm text-[#6A6A6A] dark:text-[#A1A8B3] mt-2">
+                <p className="mt-2 text-sm text-text3">
                   Thank you. Your booking is complete.
                 </p>
               </div>
@@ -257,20 +257,20 @@ export default function JobCompletePage({
                 <div className="flex flex-col gap-3">
                   <Link
                     href="/customer/settings/payments"
-                    className="flex h-12 items-center justify-center rounded-full text-sm font-semibold text-white bg-[#058954] hover:bg-[#047a48] transition-colors"
+                    className="flex h-12 items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.68)] bg-accentOrange text-sm font-semibold text-[hsl(var(--accent-contrast))] transition-colors hover:bg-[hsl(var(--accent-pro)/0.92)]"
                   >
                     View receipt
                   </Link>
                   <Link
                     href={`/customer/bookings/${bookingId}/review`}
-                    className="flex h-11 items-center justify-center rounded-full text-sm font-medium border border-black/10 dark:border-white/10 text-[#111111] dark:text-[#F5F7FA] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                    className="flex h-11 items-center justify-center rounded-full border border-border bg-surface text-sm font-medium text-text transition-colors hover:bg-hover"
                   >
                     Leave a review
                   </Link>
                   {booking.proId && (
                     <Link
                       href={`/book/${booking.proId}?rebook=${bookingId}`}
-                      className="flex h-11 items-center justify-center rounded-full text-sm font-medium border border-black/10 dark:border-white/10 text-[#111111] dark:text-[#F5F7FA] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      className="flex h-11 items-center justify-center rounded-full border border-border bg-surface text-sm font-medium text-text transition-colors hover:bg-hover"
                     >
                       Book again
                     </Link>
@@ -302,32 +302,32 @@ export default function JobCompletePage({
               />
 
               {/* 6. Actions - sticky on mobile */}
-              <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-black/5 dark:border-white/10 bg-white/95 dark:bg-[#171A20]/95 backdrop-blur-sm p-4 pb-[env(safe-area-inset-bottom)] sm:relative sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0 sm:mt-8">
+              <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface/95 backdrop-blur-sm p-4 pb-[env(safe-area-inset-bottom)] sm:relative sm:mt-8 sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0">
                 <div className="max-w-lg mx-auto space-y-3 sm:space-y-4">
                   <Link
                     href={checkoutHref}
-                    className="flex h-12 w-full items-center justify-center rounded-full text-sm font-semibold text-white bg-[#058954] hover:bg-[#047a48] transition-colors focus:outline-none focus:ring-2 focus:ring-[#058954]/50 focus:ring-offset-2"
+                    className="flex h-12 w-full items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.68)] bg-accentOrange text-sm font-semibold text-[hsl(var(--accent-contrast))] transition-colors hover:bg-[hsl(var(--accent-pro)/0.92)] focus:outline-none focus:ring-2 focus:ring-[var(--ring-orange)] focus:ring-offset-2"
                   >
                     Pay remaining balance
                   </Link>
                   <div className="flex gap-3 sm:flex-wrap">
                     <Link
                       href={conversationHref}
-                      className="flex-1 sm:flex-initial flex h-11 items-center justify-center rounded-full text-sm font-medium border border-black/10 dark:border-white/10 text-[#111111] dark:text-[#F5F7FA] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      className="flex h-11 flex-1 items-center justify-center rounded-full border border-border bg-surface text-sm font-medium text-text transition-colors hover:bg-hover sm:flex-initial"
                     >
                       Message pro
                     </Link>
                     <button
                       type="button"
                       onClick={() => router.push(`/customer/bookings/${bookingId}/issues/new`)}
-                      className="flex-1 sm:flex-initial flex h-11 items-center justify-center rounded-full text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      className="flex h-11 flex-1 items-center justify-center rounded-full text-sm font-medium text-text2 transition-colors hover:bg-hover sm:flex-initial"
                     >
                       Report an issue
                     </button>
                   </div>
                   <Link
                     href={`/customer/bookings/${bookingId}`}
-                    className="block text-center text-xs font-medium text-[#6A6A6A] dark:text-[#A1A8B3] hover:text-[#111111] dark:hover:text-[#F5F7FA] pt-2"
+                    className="block pt-2 text-center text-xs font-medium text-text3 hover:text-text"
                   >
                     Back to booking
                   </Link>

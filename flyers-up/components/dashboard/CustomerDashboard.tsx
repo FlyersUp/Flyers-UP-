@@ -74,10 +74,10 @@ function formatStatus(s: string): string {
 
 function getStatusVariant(status: string): string {
   const lower = (status || '').toLowerCase();
-  if (['completed', 'paid'].includes(lower)) return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300';
-  if (['on_the_way', 'pro_en_route', 'in_progress'].includes(lower)) return 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300';
-  if (['awaiting_payment', 'completed_pending_payment'].includes(lower)) return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300';
-  return 'bg-black/5 dark:bg-white/10 text-text dark:text-[#F5F7FA]';
+  if (['completed', 'paid'].includes(lower)) return 'bg-[hsl(var(--accent-customer)/0.2)] text-text border border-[hsl(var(--accent-customer)/0.55)]';
+  if (['on_the_way', 'pro_en_route', 'in_progress'].includes(lower)) return 'bg-[hsl(var(--accent-orange)/0.22)] text-text border border-[hsl(var(--accent-pro)/0.55)]';
+  if (['awaiting_payment', 'completed_pending_payment'].includes(lower)) return 'bg-[hsl(var(--accent-pro)/0.26)] text-text border border-[hsl(var(--accent-pro)/0.62)]';
+  return 'bg-surface2 text-text2 border border-border';
 }
 
 function getInitials(name: string): string {

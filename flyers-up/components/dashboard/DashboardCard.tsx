@@ -12,7 +12,7 @@ interface DashboardCardProps {
 export function DashboardCard({ children, className = '' }: DashboardCardProps) {
   return (
     <Card
-      className={cn('transition-all duration-200 hover:shadow-md hover:-translate-y-0.5', className)}
+      className={cn('transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]', className)}
       padding="md"
     >
       {children}
@@ -22,6 +22,6 @@ export function DashboardCard({ children, className = '' }: DashboardCardProps) 
 
 export function DashboardSectionSkeleton() {
   return (
-    <div className="rounded-2xl bg-gray-200 dark:bg-gray-700 animate-pulse border border-gray-200 dark:border-white/10 shadow-sm h-32" />
+    <div className="h-32 animate-pulse rounded-2xl border border-border bg-surface2/75 shadow-[var(--shadow-1)]" />
   );
 }

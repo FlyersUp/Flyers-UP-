@@ -18,8 +18,8 @@ export function Tabs({
   onChange: (k: TabKey) => void;
 }) {
   return (
-    <div className="border-b border-hairline">
-      <div className="flex items-center justify-between gap-2">
+    <div className="rounded-2xl border border-border bg-surface p-1.5 shadow-[var(--shadow-1)]">
+      <div className="flex items-center justify-between gap-1.5">
         {tabs.map((t) => {
           const isOn = t.key === active;
           return (
@@ -28,9 +28,11 @@ export function Tabs({
               type="button"
               onClick={() => onChange(t.key)}
               className={[
-                'relative flex-1 py-3 text-xs font-medium tracking-wide',
+                'relative flex-1 rounded-xl px-2 py-2.5 text-xs font-medium tracking-wide',
                 'transition-colors',
-                isOn ? 'text-text' : 'text-muted hover:text-text',
+                isOn
+                  ? 'bg-[hsl(var(--accent-customer)/0.2)] text-text'
+                  : 'text-text3 hover:text-text hover:bg-hover/70',
               ].join(' ')}
               aria-current={isOn ? 'page' : undefined}
             >
@@ -40,7 +42,7 @@ export function Tabs({
               </span>
               {isOn ? (
                 <span
-                  className="absolute left-1/2 -bottom-[1px] h-[2px] w-10 -translate-x-1/2 rounded-full bg-[var(--role-border)]"
+                  className="absolute bottom-0 left-1/2 h-[2px] w-10 -translate-x-1/2 rounded-full bg-[hsl(var(--accent-customer)/0.75)]"
                   aria-hidden
                 />
               ) : null}

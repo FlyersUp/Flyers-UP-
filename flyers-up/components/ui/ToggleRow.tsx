@@ -20,11 +20,11 @@ export function ToggleRow({
 }) {
   const id = useId();
   return (
-    <div className="flex min-h-[56px] items-center justify-between gap-4 py-4">
+    <div className="flex min-h-[60px] items-center justify-between gap-4 rounded-xl border border-border bg-surface2/60 px-3.5 py-3">
       <div className="min-w-0 flex-1">
         <label htmlFor={id} className="block cursor-default">
-          <span className="text-sm font-medium text-gray-900 dark:text-white">{title}</span>
-          {description && <span className="mt-0.5 block text-sm text-gray-600 dark:text-gray-300">{description}</span>}
+          <span className="text-sm font-medium text-text">{title}</span>
+          {description && <span className="mt-0.5 block text-sm text-text3">{description}</span>}
         </label>
       </div>
       <div className="flex h-10 shrink-0 items-center">

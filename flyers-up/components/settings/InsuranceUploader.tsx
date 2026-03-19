@@ -60,20 +60,20 @@ export function InsuranceUploader({
           label={hasFile ? 'Uploaded' : 'Not uploaded'}
         />
       </div>
-      <p className="text-xs text-muted">
+      <p className="text-xs text-text3">
         Uploading insurance can improve customer trust. PDF, JPG, or PNG up to {MAX_SIZE_MB}MB.
       </p>
 
       {hasFile ? (
-        <div className="flex items-center gap-3 p-3 rounded-xl border border-black/10 bg-black/[0.02]">
-          <FileCheck size={20} className="text-emerald-600 shrink-0" />
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-[hsl(var(--accent-customer)/0.12)] p-3">
+          <FileCheck size={20} className="shrink-0 text-accentGreen" />
           <span className="text-sm text-text flex-1">Document uploaded</span>
           {!disabled && (
             <button
               type="button"
               onClick={() => void handleRemove()}
               disabled={uploading}
-              className="p-1.5 rounded-lg text-muted hover:text-danger hover:bg-red-50 transition-colors"
+              className="rounded-lg p-1.5 text-text3 transition-colors hover:bg-danger/15 hover:text-danger"
               aria-label="Remove"
             >
               <X size={18} />
@@ -82,7 +82,7 @@ export function InsuranceUploader({
         </div>
       ) : (
         <label
-          className={`flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed border-black/10 bg-black/[0.02] cursor-pointer hover:border-accent/50 hover:bg-accent/5 transition-colors ${disabled || uploading ? 'opacity-60 cursor-not-allowed' : ''}`}
+          className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-surface2/55 p-6 transition-colors hover:border-borderStrong hover:bg-hover/55 ${disabled || uploading ? 'cursor-not-allowed opacity-60' : ''}`}
         >
           <input
             ref={inputRef}
@@ -99,9 +99,7 @@ export function InsuranceUploader({
         </label>
       )}
 
-      {error && (
-        <p className="text-xs text-red-600">{error}</p>
-      )}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );
 }

@@ -156,11 +156,11 @@ const PRO_SECTIONS: MenuSection[] = [
 ];
 
 const SUBTITLE_COLORS = {
-  customer: '#7FAF8F',
-  pro: '#D89A5B',
+  customer: '#7E8952',
+  pro: '#C8854D',
 } as const;
 
-const NEUTRAL_SUBTITLE = '#6B6B69';
+const NEUTRAL_SUBTITLE = '#6A644D';
 
 function Section({
   title,
@@ -185,7 +185,7 @@ function Section({
       >
         {title}
       </div>
-      <div className="mt-3 border-t border-[#D8D8D2] dark:border-white/10" />
+      <div className="mt-3 border-t border-border" />
       <div className="mt-2">
         {items.map((it) => {
           const disabled = Boolean(it.disabled || !it.href);
@@ -194,13 +194,13 @@ function Section({
             <div
               className={`flex items-center justify-between gap-3 rounded-2xl px-4 py-4 text-left transition ${
                 disabled
-                  ? 'cursor-not-allowed opacity-60 text-[#4A4A48] dark:text-gray-400'
-                  : 'text-[#1F2937] dark:text-gray-100 hover:bg-black/[0.03] dark:hover:bg-white/10 active:bg-black/[0.05] dark:active:bg-white/15'
+                  ? 'cursor-not-allowed opacity-60 text-text3'
+                  : 'text-text hover:bg-hover/65 active:bg-hover'
               }`}
               title={disabled ? comingSoon : undefined}
             >
-              <span className="text-[1.1rem] font-medium">{label}</span>
-              <ChevronRight size={20} className="flex-shrink-0 text-[#8C93A1] dark:text-gray-500" aria-hidden />
+              <span className="text-[1.05rem] font-medium">{label}</span>
+              <ChevronRight size={20} className="flex-shrink-0 text-text3" aria-hidden />
             </div>
           );
 
@@ -311,7 +311,7 @@ export function SideMenu({
     >
       {/* Backdrop overlay */}
       <button
-        className={`absolute inset-0 bg-black/30 dark:bg-black/50 transition-opacity duration-300 ease-out ${
+        className={`absolute inset-0 bg-[rgba(58,46,20,0.34)] dark:bg-black/55 transition-opacity duration-300 ease-out ${
           open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => {
@@ -323,25 +323,24 @@ export function SideMenu({
 
       {/* Drawer panel - left-side slide-in */}
       <aside
-        className={`fixed left-0 top-0 z-[61] h-dvh w-[86%] max-w-[430px] flex flex-col shadow-2xl transition-transform duration-300 ease-out
-          bg-[#F7F7F4] dark:bg-[#1C1E24] text-[#1F2937] dark:text-gray-100
-          border-r border-black/5 dark:border-white/10`}
+        className={`fixed left-0 top-0 z-[61] h-dvh w-[86%] max-w-[430px] flex flex-col shadow-[var(--shadow-md)] transition-transform duration-300 ease-out
+          bg-surface text-text border-r border-border`}
         style={{
           transform: open ? 'translateX(0)' : 'translateX(-100%)',
         }}
       >
         {/* Fixed header */}
-        <div className="flex-shrink-0 border-b border-[#D8D8D2] dark:border-white/10 px-6 py-6">
+        <div className="flex-shrink-0 border-b border-border px-6 py-6">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
-              <h2 className="text-[1.9rem] font-semibold tracking-[-0.02em] text-[#1F2937] dark:text-white truncate">
+              <h2 className="text-[1.9rem] font-semibold tracking-[-0.02em] text-text truncate">
                 {userName}
               </h2>
-              <p className="mt-1 text-[1.05rem] text-[#667085] dark:text-gray-400 capitalize">
+              <p className="mt-1 text-[1.05rem] text-text2 capitalize">
                 {roleLabel}
               </p>
               {(identity.email || identity.idShort) && (
-                <p className="mt-1 truncate text-[0.98rem] text-[#6B7280] dark:text-gray-500">
+                <p className="mt-1 truncate text-[0.98rem] text-text3">
                   {identity.email ?? '—'}
                   {identity.idShort ? ` • ${identity.idShort}` : ''}
                 </p>
@@ -349,8 +348,8 @@ export function SideMenu({
             </div>
             <button
               onClick={handleClose}
-              className="flex-shrink-0 h-14 w-14 rounded-full border border-[#D9D9D9] dark:border-white/10 bg-[#EFEFEF] dark:bg-white/10 text-[#1F2937] dark:text-white
-                hover:bg-[#E7E7E7] dark:hover:bg-white/15 active:bg-[#DFDFDF] dark:active:bg-white/20
+              className="flex-shrink-0 h-14 w-14 rounded-full border border-border bg-surface2 text-text
+                hover:bg-hover active:bg-hover/90
                 transition-colors flex items-center justify-center"
               aria-label={t('sidebar.closeMenu')}
             >
@@ -375,18 +374,18 @@ export function SideMenu({
         </div>
 
         {/* Footer with Messages + Logout */}
-        <div className="flex-shrink-0 border-t border-[#D8D8D2] dark:border-white/10 px-6 py-4">
+        <div className="flex-shrink-0 border-t border-border px-6 py-4">
           <div className="flex items-center justify-between gap-3">
             <Link
               href={role === 'pro' ? '/pro/messages' : '/customer/messages'}
-              className="text-[1.1rem] font-medium text-[#667085] dark:text-gray-400 hover:text-[#1F2937] dark:hover:text-white transition-colors"
+              className="text-[1.05rem] font-medium text-text2 hover:text-text transition-colors"
               onClick={handleClose}
             >
               {t('sidebar.messages')}
             </Link>
             <button
               onClick={() => void handleLogout()}
-              className="rounded-2xl px-4 py-4 text-[1.1rem] font-semibold text-[#1F2937] dark:text-white transition hover:bg-black/[0.03] dark:hover:bg-white/10"
+              className="rounded-2xl px-4 py-3.5 text-[1.05rem] font-semibold text-text transition hover:bg-hover"
             >
               {t('sidebar.logout')}
             </button>

@@ -15,26 +15,29 @@
      Tailwind uses HSL triplets (no hsl() wrapper) for alpha support
      ============================================ */
   /* Hex for direct var() use; HSL for Tailwind */
-  --bg: 0 0% 96%;         /* #F5F5F5 neutral light gray */
-  --surface: 0 0% 100%;   /* #FFFFFF */
-  --surface-2: 30 17% 96%;/* #F7F6F4 */
-  --muted: 30 10% 83%;    /* #D9D5D2 Dust Grey */
+  --bg: 43 56% 85%;        /* #F1E8C7 */
+  --surface: 43 48% 89%;   /* lifted warm surface */
+  --surface-2: 43 38% 83%; /* grouped panel surface */
+  --muted: 43 34% 78%;
+  --hover: 43 34% 80%;
 
   /* Text */
-  --text: 0 0% 7%;        /* #111111 */
-  --text-2: 0 0% 23%;     /* #3A3A3A */
-  --text-3: 0 0% 42%;     /* #6A6A6A */
+  --text: 60 9% 15%;       /* #2B2B24 */
+  --text-2: 52 10% 28%;
+  --text-3: 48 9% 40%;
 
   /* Borders */
-  --border: 30 10% 80%;   /* #CEC9C5 */
-  --border-2: 30 9% 74%;  /* #BDB7B2 */
-  --ring: rgba(17, 17, 17, 0.18);
+  --border: 44 35% 76%;    /* #D7CEAE */
+  --border-2: 43 30% 66%;
+  --ring: rgba(156, 167, 100, 0.45);
+  --ring-green: rgba(156, 167, 100, 0.48);
+  --ring-orange: rgba(229, 156, 92, 0.45);
 
   /* Shadows (subtle, Apple-ish) */
-  --shadow-sm: 0 1px 2px rgba(17, 17, 17, 0.06);
-  --shadow-md: 0 6px 18px rgba(17, 17, 17, 0.08);
-  --shadow-1: 0 1px 2px rgba(17, 17, 17, 0.06);
-  --shadow-2: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-sm: 0 1px 2px rgba(58, 46, 20, 0.08);
+  --shadow-md: 0 10px 24px rgba(58, 46, 20, 0.09);
+  --shadow-1: 0 1px 2px rgba(58, 46, 20, 0.08);
+  --shadow-2: 0 4px 14px rgba(58, 46, 20, 0.1);
 
   /* Radius + motion */
   --radius: 14px;
@@ -54,15 +57,15 @@
   --border-thin: 1px;
   --border-medium: 2px;
   --border-accent: 3px;
-  --hairline: rgba(0,0,0,0.06);
-  --shadow-card: 0 1px 0 rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.04);
-  --shadow-card-hover: 0 1px 0 rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.05);
-  --card-border: 1px solid rgba(0,0,0,0.05);
+  --hairline: rgba(94, 78, 45, 0.16);
+  --shadow-card: 0 1px 0 rgba(103, 84, 46, 0.09), 0 4px 14px rgba(103, 84, 46, 0.08);
+  --shadow-card-hover: 0 1px 0 rgba(103, 84, 46, 0.12), 0 8px 18px rgba(103, 84, 46, 0.1);
+  --card-border: 1px solid rgba(128, 106, 68, 0.22);
 
   /* Role accents (hex for color-mix) */
-  --customer-accent: #058954;
-  --pro-accent: #F59E0B;
-  --surface-hex: #FFFFFF;
+  --customer-accent: #9CA764;
+  --pro-accent: #E59C5C;
+  --surface-hex: #F5EED2;
   --customer-border: color-mix(in srgb, var(--customer-accent) 65%, #000 35%);
   --pro-border: color-mix(in srgb, var(--pro-accent) 65%, #000 35%);
   --customer-tint: color-mix(in srgb, var(--customer-accent) 12%, var(--surface-hex) 88%);
@@ -87,20 +90,21 @@
   --role-accent: var(--customer-accent);
   --role-border: var(--customer-border);
   --role-tint: var(--customer-tint);
-  --role-accent-hsl: 158 93% 28%; /* HSL fallback for Tailwind */
-  --accent: 158 93% 28%;
-  --accent-contrast: 0 0% 8%;
-  --accent-customer: 158 93% 28%;
-  --accent-pro: 38 92% 50%;
-  --text-muted: 0 0% 42%;
-  --ring: var(--role-accent);
-  --success: 158 55% 78%;
-  --warning: 30 100% 72%;
-  --info: 211 40% 72%;
-  --danger: 3 59% 70%;
+  --role-accent-hsl: 75 23% 52%;
+  --accent: 75 23% 52%;
+  --accent-contrast: 54 16% 14%;
+  --accent-customer: 75 23% 52%;
+  --accent-pro: 30 72% 63%;
+  --text-muted: 48 9% 40%;
+  --success: 84 28% 63%;
+  --warning: 30 68% 64%;
+  --info: 45 36% 66%;
+  --danger: 9 48% 57%;
+  --selected-green: 75 23% 52% / 0.18;
+  --selected-orange: 30 72% 63% / 0.18;
 
   /* Nav + surfaces */
-  --nav-bg: #F5F5F5;
+  --nav-bg: rgba(245, 238, 210, 0.88);
   --nav-solid: var(--nav-bg);
   --surface-solid: #FFFFFF;
   --surface-border: rgba(0,0,0,0.06);
@@ -123,17 +127,17 @@
   --role-accent: var(--customer-accent);
   --role-border: var(--customer-border);
   --role-tint: var(--customer-tint);
-  --role-accent-hsl: 158 93% 28%;
-  --accent: 158 93% 28%;
-  --accent-customer: 158 93% 28%;
+  --role-accent-hsl: 75 23% 52%;
+  --accent: 75 23% 52%;
+  --accent-customer: 75 23% 52%;
 }
 [data-role="pro"] {
   --role-accent: var(--pro-accent);
   --role-border: var(--pro-border);
   --role-tint: var(--pro-tint);
-  --role-accent-hsl: 38 92% 50%;
-  --accent: 38 92% 50%;
-  --accent-pro: 38 92% 50%;
+  --role-accent-hsl: 30 72% 63%;
+  --accent: 30 72% 63%;
+  --accent-pro: 30 72% 63%;
 }
 
 /* AccentDensity: default vs focus */
@@ -154,22 +158,22 @@
 
 /* .theme-customer / .theme-pro on root (ThemeContext) – fallback when data-role not on layout */
 .theme-customer {
-  --accent: 158 93% 28%;
-  --accent-contrast: 0 0% 8%;
+  --accent: 75 23% 52%;
+  --accent-contrast: 54 16% 14%;
   --ring: var(--accent);
   --role-accent-hsl: var(--accent);
-  --switch-accent: 156 65% 55%;
+  --switch-accent: 75 23% 52%;
   --page-pad-y: 24px;
   --stack-gap: 18px;
   --card-pad: 20px;
   --surface-border: rgba(0,0,0,0.06);
 }
 .theme-pro {
-  --accent: 38 92% 50%;
-  --accent-contrast: 0 0% 8%;
+  --accent: 30 72% 63%;
+  --accent-contrast: 54 16% 14%;
   --ring: var(--accent);
   --role-accent-hsl: var(--accent);
-  --switch-accent: 31 95% 62%;
+  --switch-accent: 30 72% 63%;
   --page-pad-y: 20px;
   --stack-gap: 14px;
   --card-pad: 18px;
@@ -178,38 +182,41 @@
 
 /* Dark mode: soft neutral SaaS (#0F1115 app, #171A20 cards) */
 .dark {
-  /* Core surfaces - no pure black */
-  --bg: 220 14% 6%;        /* #0F1115 app background */
-  --surface: 220 14% 10%;   /* #171A20 card surface */
-  --surface-2: 220 12% 13%; /* #1D2128 muted surface */
-  --muted: 220 12% 11%;
+  /* Warm dark neutrals */
+  --bg: 40 20% 10%;
+  --surface: 37 18% 14%;
+  --surface-2: 35 16% 18%;
+  --muted: 35 14% 20%;
+  --hover: 35 14% 23%;
 
-  /* Text - readable light */
-  --text: 220 20% 98%;     /* #F5F7FA primary */
-  --text-2: 220 12% 68%;   /* #A1A8B3 secondary */
-  --text-3: 220 10% 55%;   /* muted */
+  /* Text */
+  --text: 42 34% 91%;
+  --text-2: 40 20% 78%;
+  --text-3: 36 14% 64%;
 
   /* Borders */
-  --border: 0 0% 100% / 0.08;
-  --border-2: 0 0% 100% / 0.1;
-  --ring: rgba(243, 244, 246, 0.2);
+  --border: 34 16% 28%;
+  --border-2: 34 14% 36%;
+  --ring: rgba(156, 167, 100, 0.4);
+  --ring-green: rgba(156, 167, 100, 0.45);
+  --ring-orange: rgba(229, 156, 92, 0.42);
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.45);
-  --shadow-card: 0 1px 0 rgba(255,255,255,0.04), 0 4px 12px rgba(0,0,0,0.3);
-  --shadow-card-hover: 0 1px 0 rgba(255,255,255,0.06), 0 6px 16px rgba(0,0,0,0.35);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.45);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.42);
+  --shadow-card: 0 1px 0 rgba(255,255,255,0.03), 0 6px 14px rgba(0,0,0,0.28);
+  --shadow-card-hover: 0 1px 0 rgba(255,255,255,0.05), 0 10px 20px rgba(0,0,0,0.34);
 
-  /* Hex for color-mix */
-  --surface-hex: #171A20;
+  --surface-hex: #2c271f;
 
-  /* Accents */
-  --success: 100 60% 65%;   /* #9FE38F */
-  --danger: 0 80% 71%;      /* #F07A7A */
-  --customer-accent: #058954;
-  --pro-accent: #E8B15A;    /* Orange brand accent */
+  --success: 84 28% 60%;
+  --warning: 30 68% 62%;
+  --info: 45 30% 58%;
+  --danger: 9 50% 60%;
+  --customer-accent: #9CA764;
+  --pro-accent: #E59C5C;
 
   /* Role accents: dark-safe borders/tints */
   --customer-border: color-mix(in srgb, var(--customer-accent) 50%, var(--surface-hex) 50%);
@@ -218,56 +225,58 @@
   --pro-tint: color-mix(in srgb, var(--pro-accent) 12%, var(--surface-hex) 88%);
 
   /* Semantic */
-  --background: #0F1115;
-  --card: #171A20;
-  --card-2: #1D2128;
-  --popover: #1D2128;
+  --background: #211d17;
+  --card: #2b261f;
+  --card-2: #332d24;
+  --popover: #332d24;
   --muted-bg: hsl(var(--muted));
-  --foreground: #F5F7FA;
-  --muted-foreground: #A1A8B3;
-  --input: #171A20;
-  --input-border: rgba(255,255,255,0.08);
+  --foreground: #f3ead4;
+  --muted-foreground: #b6ab93;
+  --input: #332d24;
+  --input-border: rgba(255,255,255,0.12);
   --focus-ring: var(--ring);
-  --btn: #F5F7FA;
-  --btn-foreground: #0F1115;
-  --outline: rgba(255,255,255,0.08);
+  --btn: #f3ead4;
+  --btn-foreground: #241f17;
+  --outline: rgba(255,255,255,0.12);
 
   /* Legacy / misc - secondary text #A1A8B3 */
-  --text-muted: 220 12% 68%;
-  --hairline: rgba(255,255,255,0.08);
-  --card-border: 1px solid rgba(255,255,255,0.08);
-  --nav-bg: rgba(23, 26, 32, 0.92);
+  --text-muted: 36 14% 64%;
+  --hairline: rgba(255,255,255,0.12);
+  --card-border: 1px solid rgba(255,255,255,0.12);
+  --nav-bg: rgba(43, 38, 31, 0.88);
   --nav-solid: var(--nav-bg);
-  --surface-solid: #171A20;
-  --surface-border: rgba(255,255,255,0.08);
+  --surface-solid: #2b261f;
+  --surface-border: rgba(255,255,255,0.12);
   --page-pad-x: 16px;
   --page-pad-y: 24px;
   --stack-gap: 16px;
   --card-pad: 20px;
   --panel-pad-x: 20px;
   --panel-pad-y: 20px;
-  --badge-bg: rgba(255,255,255,0.06);
-  --badge-border: rgba(255,255,255,0.08);
-  --accent-customer: 158 93% 28%;
-  --accent-pro: 38 75% 62%;  /* #E8B15A */
+  --badge-bg: rgba(243, 234, 212, 0.08);
+  --badge-border: rgba(243, 234, 212, 0.14);
+  --accent-customer: 75 23% 52%;
+  --accent-pro: 30 72% 63%;
   --role-tint: hsl(var(--role-accent-hsl) / 0.12);
   --role-border: hsl(var(--role-accent-hsl) / 0.35);
+  --selected-green: 75 23% 52% / 0.2;
+  --selected-orange: 30 72% 63% / 0.2;
 }
 
 /* Role-based accents (dark) */
 .dark.theme-customer {
-  --accent: 158 85% 35%;
+  --accent: 75 23% 52%;
   --role-accent-hsl: var(--accent);
-  --switch-accent: 156 60% 58%;
+  --switch-accent: 75 23% 52%;
   --page-pad-y: 24px;
   --stack-gap: 18px;
   --card-pad: 20px;
   --surface-border: rgba(255,255,255,0.06);
 }
 .dark.theme-pro {
-  --accent: 38 90% 55%;
+  --accent: 30 72% 63%;
   --role-accent-hsl: var(--accent);
-  --switch-accent: 31 88% 65%;
+  --switch-accent: 30 72% 63%;
   --page-pad-y: 20px;
   --stack-gap: 14px;
   --card-pad: 18px;
@@ -280,29 +289,29 @@
    ============================================ */
 .public-light {
   /* Core surfaces */
-  --bg: 0 0% 96%;
-  --surface: 0 0% 100%;
-  --surface-2: 30 17% 96%;
-  --muted: 30 10% 83%;
+  --bg: 43 56% 85%;
+  --surface: 43 48% 89%;
+  --surface-2: 43 38% 83%;
+  --muted: 43 34% 78%;
   /* Text */
-  --text: 0 0% 7%;
-  --text-2: 0 0% 23%;
-  --text-3: 0 0% 42%;
+  --text: 60 9% 15%;
+  --text-2: 52 10% 28%;
+  --text-3: 48 9% 40%;
   /* Borders */
-  --border: 30 10% 80%;
-  --border-2: 30 9% 74%;
-  --ring: rgba(17, 17, 17, 0.18);
+  --border: 44 35% 76%;
+  --border-2: 43 30% 66%;
+  --ring: rgba(156, 167, 100, 0.45);
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(17, 17, 17, 0.06);
-  --shadow-md: 0 6px 18px rgba(17, 17, 17, 0.08);
-  --shadow-1: 0 1px 2px rgba(17, 17, 17, 0.06);
-  --shadow-2: 0 2px 8px rgba(0,0,0,0.06);
-  --shadow-card: 0 1px 0 rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.04);
-  --shadow-card-hover: 0 1px 0 rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.05);
+  --shadow-sm: 0 1px 2px rgba(58, 46, 20, 0.08);
+  --shadow-md: 0 10px 24px rgba(58, 46, 20, 0.09);
+  --shadow-1: 0 1px 2px rgba(58, 46, 20, 0.08);
+  --shadow-2: 0 4px 14px rgba(58, 46, 20, 0.1);
+  --shadow-card: 0 1px 0 rgba(103, 84, 46, 0.09), 0 4px 14px rgba(103, 84, 46, 0.08);
+  --shadow-card-hover: 0 1px 0 rgba(103, 84, 46, 0.12), 0 8px 18px rgba(103, 84, 46, 0.1);
   /* Hex for color-mix */
-  --surface-hex: #FFFFFF;
-  --customer-accent: #058954;
-  --pro-accent: #F59E0B;
+  --surface-hex: #F5EED2;
+  --customer-accent: #9CA764;
+  --pro-accent: #E59C5C;
   --customer-border: color-mix(in srgb, var(--customer-accent) 65%, #000 35%);
   --pro-border: color-mix(in srgb, var(--pro-accent) 65%, #000 35%);
   --customer-tint: color-mix(in srgb, var(--customer-accent) 12%, var(--surface-hex) 88%);
@@ -325,29 +334,29 @@
   --role-accent: var(--customer-accent);
   --role-border: var(--customer-border);
   --role-tint: var(--customer-tint);
-  --role-accent-hsl: 158 93% 28%;
-  --accent: 158 93% 28%;
-  --accent-contrast: 0 0% 8%;
-  --accent-customer: 158 93% 28%;
-  --accent-pro: 38 92% 50%;
-  --text-muted: 0 0% 42%;
+  --role-accent-hsl: 75 23% 52%;
+  --accent: 75 23% 52%;
+  --accent-contrast: 54 16% 14%;
+  --accent-customer: 75 23% 52%;
+  --accent-pro: 30 72% 63%;
+  --text-muted: 48 9% 40%;
   --ring: var(--role-accent);
-  --success: 158 55% 78%;
-  --warning: 30 100% 72%;
-  --info: 211 40% 72%;
-  --danger: 3 59% 70%;
+  --success: 84 28% 63%;
+  --warning: 30 68% 64%;
+  --info: 45 36% 66%;
+  --danger: 9 48% 57%;
   /* Nav + surfaces */
-  --nav-bg: #F5F5F5;
+  --nav-bg: rgba(245, 238, 210, 0.88);
   --nav-solid: var(--nav-bg);
   --surface-solid: #FFFFFF;
-  --surface-border: rgba(0,0,0,0.06);
-  --hairline: rgba(0,0,0,0.06);
-  --card-border: 1px solid rgba(0,0,0,0.05);
-  --badge-bg: rgba(0,0,0,0.03);
-  --badge-border: rgba(0,0,0,0.08);
+  --surface-border: rgba(128, 106, 68, 0.22);
+  --hairline: rgba(94, 78, 45, 0.16);
+  --card-border: 1px solid rgba(128, 106, 68, 0.22);
+  --badge-bg: rgba(96, 82, 49, 0.08);
+  --badge-border: rgba(96, 82, 49, 0.2);
   /* Force light background and text on the container */
-  background: #F5F5F5;
-  color: #111111;
+  background: #F1E8C7;
+  color: #2B2B24;
 }
 
 /* Typography - Montserrat (Primary) + Oswald (Labels) */
@@ -365,11 +374,11 @@ body {
   min-height: 100vh;
 }
 html.dark {
-  background: #0F1115;
+  background: #211d17;
 }
 html.dark body {
-  background: #0F1115;
-  color: #F5F7FA;
+  background: #211d17;
+  color: #f3ead4;
 }
 
 /* ============================================

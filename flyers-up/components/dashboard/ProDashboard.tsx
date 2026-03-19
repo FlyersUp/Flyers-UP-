@@ -70,10 +70,10 @@ function formatStatus(s: string): string {
 function getStatusVariant(status: string): string {
   const lower = (status || '').toLowerCase();
   if (['on_the_way', 'pro_en_route', 'in_progress'].includes(lower))
-    return 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300';
+    return 'bg-[hsl(var(--accent-customer)/0.2)] text-text border border-[hsl(var(--accent-customer)/0.55)]';
   if (['awaiting_payment', 'completed_pending_payment'].includes(lower))
-    return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300';
-  return 'bg-black/5 dark:bg-white/10 text-text dark:text-[#F5F7FA]';
+    return 'bg-[hsl(var(--accent-pro)/0.24)] text-text border border-[hsl(var(--accent-pro)/0.58)]';
+  return 'bg-surface2 text-text2 border border-border';
 }
 
 function formatDate(iso: string): string {

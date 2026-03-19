@@ -19,12 +19,21 @@ export function Button({
   className = '',
   ...props 
 }: ButtonProps) {
-  const baseStyles = 'px-6 py-3 rounded-[var(--radius-lg)] font-medium transition-all duration-[var(--transition-base)] focus-ring btn-press flex items-center justify-center gap-2';
+  const baseStyles = [
+    'px-6 py-3 rounded-[var(--radius-lg)] font-medium',
+    'transition-all duration-[var(--transition-base)]',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+    'active:scale-[0.985] disabled:opacity-55 disabled:cursor-not-allowed',
+    'flex items-center justify-center gap-2',
+  ].join(' ');
   
   const variants = {
-    primary: `bg-accent text-accentContrast shadow-[var(--shadow-1)] hover:opacity-95`,
-    secondary: `border border-[var(--surface-border)] bg-surface text-text hover:bg-surface2`,
-    ghost: `bg-transparent text-text hover:bg-surface2`,
+    primary:
+      'bg-accentOrange text-[hsl(var(--accent-contrast))] border border-[hsl(var(--accent-pro)/0.65)] shadow-[var(--shadow-1)] hover:bg-[hsl(var(--accent-pro)/0.92)] focus-visible:ring-[hsl(var(--accent-pro)/0.45)]',
+    secondary:
+      'border border-[hsl(var(--accent-customer)/0.55)] bg-[hsl(var(--accent-customer)/0.16)] text-text hover:bg-[hsl(var(--accent-customer)/0.24)] focus-visible:ring-[hsl(var(--accent-customer)/0.45)]',
+    ghost:
+      'border border-border bg-surface text-text hover:bg-hover focus-visible:ring-[hsl(var(--accent-customer)/0.35)]',
   };
 
   return (

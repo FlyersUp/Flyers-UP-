@@ -16,12 +16,12 @@ export interface StatusChipProps {
 }
 
 const VARIANT_STYLES: Record<StatusVariant, string> = {
-  verified: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  pending: 'bg-amber-50 text-amber-800 border-amber-200',
-  not_started: 'bg-black/5 text-muted border-black/10',
-  needs_attention: 'bg-red-50 text-red-800 border-red-200',
-  good: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  warning: 'bg-amber-50 text-amber-800 border-amber-200',
+  verified: 'bg-[hsl(var(--accent-customer)/0.18)] text-text border-[hsl(var(--accent-customer)/0.45)]',
+  pending: 'bg-[hsl(var(--accent-pro)/0.2)] text-text border-[hsl(var(--accent-pro)/0.48)]',
+  not_started: 'bg-surface2 text-text3 border-border',
+  needs_attention: 'bg-danger/15 text-text border-danger/40',
+  good: 'bg-[hsl(var(--accent-customer)/0.18)] text-text border-[hsl(var(--accent-customer)/0.45)]',
+  warning: 'bg-[hsl(var(--accent-pro)/0.2)] text-text border-[hsl(var(--accent-pro)/0.48)]',
 };
 
 export function StatusChip({ status, label, className = '' }: StatusChipProps) {

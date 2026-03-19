@@ -38,11 +38,11 @@ function LayoutContent({
       className="min-h-screen bg-bg text-text flex pb-[calc(7rem+env(safe-area-inset-bottom,0px))]"
     >
       {showRailForMode && <Rail className="h-screen" showLabel />}
-      <div className="flex-1 relative">
+      <div className="relative flex-1 before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top_right,rgba(156,167,100,0.08),transparent_42%),radial-gradient(circle_at_bottom_left,rgba(229,156,92,0.07),transparent_46%)]">
         <div className="fixed top-4 right-4 z-30">
           <NotificationBell basePath={basePath} />
         </div>
-        {children}
+        <div className="relative z-[1]">{children}</div>
       </div>
       <FloatingBottomNav />
     </div>

@@ -23,8 +23,8 @@ export function ServiceChips({
         onClick={handleAll}
         className={`flex-shrink-0 px-4 py-2 rounded-2xl text-sm font-medium transition-colors ${
           selectedServiceId == null
-            ? 'bg-black text-white'
-            : 'bg-white border border-black/10 text-zinc-700 hover:border-black/20'
+            ? 'border border-[hsl(var(--accent-customer)/0.6)] bg-[hsl(var(--accent-customer)/0.2)] text-text'
+            : 'bg-surface border border-border text-text2 hover:border-borderStrong hover:text-text hover:bg-hover/70'
         }`}
       >
         All
@@ -38,8 +38,8 @@ export function ServiceChips({
             onClick={() => handleService(svc.id)}
             className={`flex-shrink-0 px-4 py-2 rounded-2xl text-sm font-medium transition-colors ${
               isActive
-                ? 'bg-black text-white'
-                : 'bg-white border border-black/10 text-zinc-700 hover:border-black/20'
+                ? 'border border-[hsl(var(--accent-customer)/0.6)] bg-[hsl(var(--accent-customer)/0.2)] text-text'
+                : 'bg-surface border border-border text-text2 hover:border-borderStrong hover:text-text hover:bg-hover/70'
             }`}
           >
             {svc.name}

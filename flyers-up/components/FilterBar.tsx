@@ -45,9 +45,9 @@ export default function FilterBar({
           onChange={handleSearch}
           className="
             w-full pl-11 pr-4 py-3 
-            bg-surface border border-border rounded-xl
-            text-text placeholder:text-muted/70
-            focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-transparent
+            bg-surface border border-border rounded-xl shadow-[var(--shadow-1)]
+            text-text placeholder:text-text3/80
+            focus:outline-none focus:ring-2 focus:ring-[var(--ring-green)] focus:border-borderStrong
             transition-all
           "
         />
@@ -63,8 +63,8 @@ export default function FilterBar({
               flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full
               text-sm font-medium transition-all
               ${selectedCategory === category.slug
-                ? 'bg-accent text-accentContrast shadow-md'
-                : 'bg-surface border border-border text-text hover:bg-surface2 hover:border-border'
+                ? 'bg-[hsl(var(--accent-customer)/0.22)] border border-[hsl(var(--accent-customer)/0.6)] text-text shadow-[var(--shadow-1)]'
+                : 'bg-surface border border-border text-text2 hover:bg-hover hover:text-text'
               }
             `}
           >

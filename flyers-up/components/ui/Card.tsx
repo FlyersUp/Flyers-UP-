@@ -4,7 +4,7 @@ import { ReactNode, ElementType, createElement } from 'react';
 import { Rail } from './Rail';
 import { cn } from '@/lib/cn';
 
-const CARD_BASE = 'bg-surface rounded-2xl border border-border shadow-sm';
+const CARD_BASE = 'bg-surface rounded-2xl border border-border shadow-[var(--shadow-card)]';
 
 const PADDING = {
   sm: 'p-3',
@@ -44,7 +44,7 @@ export function Card({
   tone = 'default',
 }: CardProps) {
   const paddingClass = PADDING[padding];
-  const interactiveClass = onClick ? 'cursor-pointer hover:shadow-md transition-all duration-200' : '';
+  const interactiveClass = onClick ? 'cursor-pointer hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200' : '';
 
   const content = withRail ? (
     <>
