@@ -1,38 +1,51 @@
 'use client';
 
+/**
+ * Booking Confirmed — Post-deposit payment success
+ *
+ * Immediate next screen after Stripe redirect.
+ * Eliminates uncertainty: payment clarity, what happens next, trust, clear actions.
+ *
+ * States: loading, processing (webhook delay), success, error
+ */
+
 import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
+import { BookingConfirmedContent } from '@/components/checkout/BookingConfirmedContent';
 
-function formatDateTime(serviceDate?: string, serviceTime?: string): string {
-  if (!serviceDate) return '—';
-  try {
-    const d = new Date(serviceDate);
-    if (Number.isNaN(d.getTime())) return serviceDate;
-    const dateStr = d.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-    return serviceTime ? `${dateStr} at ${serviceTime}` : dateStr;
-  } catch {
-    return serviceDate;
-  }
-}
-
-type BookingSummary = {
+type BookingData = {
   id: string;
   status: string;
   paymentStatus?: string;
   paidAt?: string | null;
-  price?: number;
+  paidDepositAt?: string | null;
+  amountDeposit?: number | null;
+  amountRemaining?: number | null;
+  amountTotal?: number | null;
   serviceName?: string;
   proName?: string;
+  proPhotoUrl?: string | null;
   serviceDate?: string;
   serviceTime?: string;
-  address?: string;
+  address?: string | null;
 };
+
+async function fetchBooking(bookingId: string): Promise<BookingData | null> {
+  try {
+    const res = await fetch(`/api/customer/bookings/${bookingId}`, { cache: 'no-store' });
+    const json = await res.json();
+    if (!res.ok) return null;
+    return json.booking as BookingData;
+  } catch {
+    return null;
+  }
+}
+
+function toCents(v: unknown): number | null {
+  if (typeof v === 'number' && Number.isFinite(v)) return Math.round(v);
+  return null;
+}
 
 export default function ConfirmedPage({
   params,
@@ -40,27 +53,16 @@ export default function ConfirmedPage({
   params: Promise<{ bookingId: string }>;
 }) {
   const { bookingId } = use(params);
-  const [booking, setBooking] = useState<BookingSummary | null>(null);
+  const [booking, setBooking] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const fetchBooking = async () => {
-    try {
-      const res = await fetch(`/api/customer/bookings/${bookingId}`, { cache: 'no-store' });
-      const json = await res.json();
-      if (!res.ok) return null;
-      return json.booking as BookingSummary;
-    } catch {
-      return null;
-    }
-  };
 
   useEffect(() => {
     let mounted = true;
     const run = async () => {
       setLoading(true);
       setError(null);
-      const b = await fetchBooking();
+      const b = await fetchBooking(bookingId);
       if (!mounted) return;
       if (b) {
         setBooking(b);
@@ -70,14 +72,14 @@ export default function ConfirmedPage({
       setLoading(false);
     };
     void run();
-    return () => { mounted = false; };
+    return () => { mounted = false };
   }, [bookingId]);
 
-  // Poll when payment is still processing
+  // Poll when payment is still processing (webhook delay)
   useEffect(() => {
     if (!booking || booking.paymentStatus === 'PAID') return;
     const interval = setInterval(async () => {
-      const b = await fetchBooking();
+      const b = await fetchBooking(bookingId);
       if (b && b.paymentStatus === 'PAID') {
         setBooking(b);
       }
@@ -85,97 +87,76 @@ export default function ConfirmedPage({
     return () => clearInterval(interval);
   }, [bookingId, booking?.paymentStatus]);
 
+  const isProcessing =
+    booking &&
+    !['PAID', 'FAILED'].includes(booking.paymentStatus ?? '') &&
+    ['REQUIRES_ACTION', 'UNPAID', 'PROCESSING'].includes(booking.paymentStatus ?? '');
+
   return (
     <AppLayout mode="customer">
-      <div className="min-h-screen" style={{ backgroundColor: '#F5F5F5' }}>
-        <div className="max-w-lg mx-auto px-4 py-8">
-          <h1 className="text-2xl font-semibold text-[#111111] mb-6">Booking confirmed</h1>
+      <div className="min-h-screen bg-bg">
+        <div className="max-w-lg md:max-w-xl mx-auto px-4 md:px-6 py-8">
+          {/* LOADING STATE */}
+          {loading && (
+            <div className="space-y-5 animate-pulse">
+              <div className="flex flex-col items-center py-6">
+                <div className="h-14 w-14 rounded-full bg-[#E5E5E5] dark:bg-[#2D2D2D]" />
+                <div className="mt-4 h-6 w-48 rounded bg-[#E5E5E5] dark:bg-[#2D2D2D]" />
+                <div className="mt-2 h-4 w-64 rounded bg-[#E5E5E5] dark:bg-[#2D2D2D]" />
+              </div>
+              <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 h-32" />
+              <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 h-24" />
+              <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 h-40" />
+            </div>
+          )}
 
-          {loading ? (
-            <div className="rounded-2xl border border-black/5 bg-gray-200 p-6 shadow-sm animate-pulse h-48" />
-          ) : error ? (
+          {/* ERROR STATE */}
+          {!loading && error && (
             <div
-              className="rounded-2xl border border-black/10 p-6"
-              style={{ backgroundColor: '#F5F5F5' }}
+              className="rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 shadow-sm"
+              role="alert"
             >
-              <p className="text-sm text-[#3A3A3A] mb-4">{error}</p>
+              <p className="text-sm font-medium text-[#111111] dark:text-[#F5F7FA] mb-2">
+                Something went wrong
+              </p>
+              <p className="text-sm text-[#6A6A6A] dark:text-[#A1A8B3] mb-4">{error}</p>
               <Link
                 href={`/customer/bookings/${bookingId}`}
-                className="text-sm font-medium text-[#111111] hover:underline"
+                className="inline-flex items-center justify-center h-11 px-5 rounded-full text-sm font-semibold bg-[#058954] text-white hover:bg-[#047a48] transition-colors"
               >
-                Return to booking
+                View booking
               </Link>
             </div>
-          ) : booking ? (
-            <div className="space-y-4">
-              <div
-                className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm"
-                style={{ backgroundColor: '#FFFFFF' }}
-              >
-                <div className="space-y-3">
-                  <p className="font-semibold text-[#111111]">{booking.serviceName ?? 'Service'}</p>
-                  <p className="text-sm text-[#6A6A6A]">{booking.proName ?? 'Pro'}</p>
-                  <p className="text-sm text-[#3A3A3A]">
-                    {formatDateTime(booking.serviceDate, booking.serviceTime)}
-                  </p>
-                  {booking.price != null && (
-                    <p className="text-sm font-medium text-[#111111]">
-                      Total: {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(booking.price))}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 pt-2">
-                    <span
-                      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
-                        booking.paymentStatus === 'PAID'
-                          ? 'bg-[#B2FBA5] text-[#111111]'
-                          : ['REQUIRES_ACTION', 'UNPAID', 'PROCESSING'].includes(booking.paymentStatus ?? '')
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-[#F5F5F5] text-[#3A3A3A]'
-                      }`}
-                    >
-                      {booking.paymentStatus === 'PAID'
-                        ? 'Paid'
-                        : ['REQUIRES_ACTION', 'UNPAID', 'PROCESSING'].includes(booking.paymentStatus ?? '')
-                          ? 'Processing…'
-                          : booking.paymentStatus ?? 'Processing…'}
-                    </span>
-                    {booking.paidAt && (
-                      <span className="text-xs text-[#6A6A6A]">
-                        Paid at {new Date(booking.paidAt).toLocaleString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+          )}
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Link
-                  href={`/customer/bookings/${bookingId}`}
-                  className="flex-1 h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all"
-                >
-                  Track booking
-                </Link>
-                <Link
-                  href={`/customer/chat/${bookingId}`}
-                  className="flex-1 h-11 flex items-center justify-center rounded-full text-sm font-medium border border-black/15 text-black/80 hover:bg-black/5 transition-colors"
-                >
-                  Message pro
-                </Link>
-              </div>
+          {/* SUCCESS / PROCESSING STATE */}
+          {!loading && !error && booking && (
+            <BookingConfirmedContent
+              bookingId={bookingId}
+              data={{
+                serviceName: booking.serviceName ?? 'Service',
+                proName: booking.proName ?? 'Pro',
+                proPhotoUrl: booking.proPhotoUrl ?? null,
+                serviceDate: booking.serviceDate ?? '',
+                serviceTime: booking.serviceTime ?? '',
+                address: booking.address,
+                status: booking.status,
+                paymentStatus: booking.paymentStatus ?? 'UNPAID',
+                amountDeposit: toCents(booking.amountDeposit),
+                amountRemaining: toCents(booking.amountRemaining),
+                amountTotal: toCents(booking.amountTotal),
+                paidDepositAt: booking.paidDepositAt ?? booking.paidAt,
+              }}
+              isProcessing={!!isProcessing}
+            />
+          )}
 
-              {!['PAID', 'FAILED'].includes(booking.paymentStatus ?? '') && (
-                <p className="text-xs text-[#6A6A6A] text-center">
-                  Payment is processing. This page will update when the payment completes.
-                </p>
-              )}
-            </div>
-          ) : null}
+          {/* Processing footnote */}
+          {!loading && !error && booking && isProcessing && (
+            <p className="mt-6 text-center text-xs text-[#6A6A6A] dark:text-[#A1A8B3]">
+              Payment is processing. This page will update when the booking is confirmed.
+            </p>
+          )}
         </div>
       </div>
     </AppLayout>

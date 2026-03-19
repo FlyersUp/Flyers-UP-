@@ -1,46 +1,29 @@
 'use client';
 
+/**
+ * Booking flow — Summary + Deposit Payment Step
+ *
+ * STEP 1 — USER INTENT
+ * Pay deposit to lock booking. Reduce uncertainty (deposit vs remaining), make next step obvious.
+ *
+ * STEP 4 — DESIGN SYSTEM
+ * Mobile-first, customer pastel green, warm neutral, spacing > borders, soft shadows.
+ *
+ * STEP 6 — TRUST CHECK
+ * Pricing clear, status clear, next step obvious.
+ *
+ * STEP 7 — PREMIUM CHECK
+ * Stripe/Airbnb/Linear quality.
+ */
+
 import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-
-function CountdownTimer({ paymentDueAt }: { paymentDueAt: string }) {
-  const [remaining, setRemaining] = useState<string>('');
-
-  useEffect(() => {
-    const update = () => {
-      const due = new Date(paymentDueAt).getTime();
-      const now = Date.now();
-      const diff = Math.max(0, due - now);
-      if (diff <= 0) {
-        setRemaining('Expired');
-        return;
-      }
-      const m = Math.floor(diff / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setRemaining(`${m}:${s.toString().padStart(2, '0')}`);
-    };
-    update();
-    const t = setInterval(update, 1000);
-    return () => clearInterval(t);
-  }, [paymentDueAt]);
-
-  if (!remaining) return null;
-  return (
-    <p className="text-sm text-amber-700 mt-2">
-      Time to pay: {remaining}
-    </p>
-  );
-}
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
-import { ProSummaryCard } from '@/components/checkout/ProSummaryCard';
-import { ServiceDetailsCard } from '@/components/checkout/ServiceDetailsCard';
-import { PriceBreakdownCard } from '@/components/checkout/PriceBreakdownCard';
-import { PaymentCard } from '@/components/checkout/PaymentCard';
-import { StickyPayBar } from '@/components/checkout/StickyPayBar';
-import { BookingRulesAccordion } from '@/components/booking/BookingRulesAccordion';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { BookingSummaryDeposit, type QuoteBreakdown } from '@/components/checkout/BookingSummaryDeposit';
+import { DepositPayBar } from '@/components/checkout/DepositPayBar';
 import { QuickRulesSheet } from '@/components/booking/QuickRulesSheet';
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
@@ -49,16 +32,7 @@ const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 
 type QuoteData = {
   bookingId: string;
-  quote: {
-    amountSubtotal: number;
-    amountPlatformFee: number;
-    amountTravelFee: number;
-    amountTotal: number;
-    amountDeposit?: number;
-    amountRemaining?: number;
-    depositPercent?: number;
-    currency: string;
-  };
+  quote: QuoteBreakdown;
   serviceName: string;
   proName: string;
   serviceDate: string;
@@ -72,27 +46,24 @@ type QuoteData = {
 function CheckoutForm({
   bookingId,
   quoteData,
-  clientSecret,
   onSuccess,
-  isFinalPayment,
+  onPaymentError,
 }: {
   bookingId: string;
   quoteData: QuoteData;
-  clientSecret: string;
   onSuccess: () => void;
-  isFinalPayment: boolean;
+  onPaymentError: (message: string) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [quickRulesOpen, setQuickRulesOpen] = useState(false);
 
   const doSubmit = async () => {
     if (!stripe || !elements) return;
 
     setLoading(true);
-    setError(null);
+    onPaymentError('');
 
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.flyersup.app';
     const returnUrl = `${origin}/bookings/${bookingId}/confirmed`;
@@ -108,7 +79,7 @@ function CheckoutForm({
     setLoading(false);
 
     if (confirmError) {
-      setError(confirmError.message ?? 'Payment failed');
+      onPaymentError(confirmError.message ?? 'Payment failed');
       return;
     }
 
@@ -129,32 +100,32 @@ function CheckoutForm({
     void doSubmit();
   };
 
+  const amountCents = quoteData.quote.amountDeposit ?? quoteData.quote.amountRemaining ?? quoteData.quote.amountTotal;
+  const isFinal = (quoteData.quote.amountDeposit ?? 0) <= 0 && (quoteData.quote.amountRemaining ?? 0) > 0;
+
   return (
     <>
-      <form
-        id="checkout-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSubmit();
-        }}
-        className="hidden"
-        aria-label="Payment form"
-      />
-      <PaymentCard />
-      {error && (
-        <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-      <StickyPayBar
-        amountTotal={quoteData.quote.amountDeposit ?? quoteData.quote.amountRemaining ?? quoteData.quote.amountTotal}
-        currency={quoteData.quote.currency}
+      <div
+        className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-5 shadow-sm"
+        role="region"
+        aria-labelledby="payment-method-heading"
+      >
+        <h2 id="payment-method-heading" className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-4">
+          Payment method
+        </h2>
+        <PaymentElement options={{ layout: 'tabs' }} />
+      </div>
+
+      <DepositPayBar
+        amountCents={amountCents}
         disabled={!stripe || !elements}
         loading={loading}
         onSubmit={handleSubmit}
-        label={isFinalPayment ? 'Pay remaining' : (quoteData.quote.amountDeposit ?? 0) > 0 ? 'Pay Deposit' : 'Confirm & Pay'}
+        label={isFinal ? 'Pay remaining' : 'Pay deposit'}
+        backHref={`/customer/bookings/${bookingId}`}
         showBookingRulesLink
       />
+
       <QuickRulesSheet
         open={quickRulesOpen}
         onContinue={handleQuickRulesContinue}
@@ -173,10 +144,12 @@ export default function CheckoutPage({
   const searchParams = useSearchParams();
   const phase = searchParams.get('phase');
   const isFinalPayment = phase === 'final';
+
   const [loading, setLoading] = useState(true);
   const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
 
   useEffect(() => {
@@ -184,10 +157,10 @@ export default function CheckoutPage({
     const run = async () => {
       setLoading(true);
       setError(null);
+      setPaymentError(null);
       setErrorStatus(null);
-      try {
-        let data: QuoteData;
 
+      try {
         if (isFinalPayment) {
           const bookingRes = await fetch(`/api/customer/bookings/${bookingId}`, { cache: 'no-store' });
           const bookingJson = await bookingRes.json();
@@ -199,7 +172,7 @@ export default function CheckoutPage({
             return;
           }
           const b = bookingJson.booking;
-          data = {
+          const data: QuoteData = {
             bookingId,
             quote: {
               amountSubtotal: 0,
@@ -214,62 +187,69 @@ export default function CheckoutPage({
             serviceDate: b.serviceDate ?? '',
             serviceTime: b.serviceTime ?? '',
           };
-        } else {
-          const quoteRes = await fetch(`/api/bookings/${bookingId}/quote`, { cache: 'no-store' });
-          const quoteJson = await quoteRes.json();
+          setQuoteData(data);
+
+          const payRes = await fetch(`/api/bookings/${bookingId}/pay/final`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const payJson = await payRes.json();
           if (!mounted) return;
-          if (!quoteRes.ok) {
-            setError(quoteJson.error ?? 'Could not load quote');
-            setErrorStatus(quoteRes.status);
+          if (!payRes.ok) {
+            setError(payJson.error ?? 'Could not start payment');
+            setErrorStatus(payRes.status);
             setLoading(false);
             return;
           }
-          data = quoteJson.quote as QuoteData;
-        }
+          setClientSecret(payJson.clientSecret ?? null);
+          if (payJson.amountRemaining != null) {
+            setQuoteData((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    quote: {
+                      ...prev.quote,
+                      amountTotal: payJson.amountRemaining,
+                      amountDeposit: 0,
+                      amountRemaining: payJson.amountRemaining,
+                    },
+                  }
+                : prev
+            );
+          }
+        } else {
+          const payUrl = `/api/bookings/${bookingId}/pay/deposit`;
+          const payRes = await fetch(payUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const payJson = await payRes.json();
 
-        setQuoteData(data);
+          if (!mounted) return;
 
-        const status = (data as { status?: string }).status ?? '';
-        const isDepositFlow = !isFinalPayment && ['payment_required', 'accepted'].includes(status);
-        const payUrl = isFinalPayment
-          ? `/api/bookings/${bookingId}/pay/final`
-          : isDepositFlow
-            ? `/api/bookings/${bookingId}/pay/deposit`
-            : `/api/bookings/${bookingId}/pay`;
+          if (!payRes.ok) {
+            setError(payJson.error ?? 'Could not load checkout');
+            setErrorStatus(payRes.status);
+            setLoading(false);
+            return;
+          }
 
-        const payRes = await fetch(payUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        const payJson = await payRes.json();
-
-        if (!mounted) return;
-
-        if (!payRes.ok) {
-          setError(payJson.error ?? 'Could not start payment');
-          setErrorStatus(payRes.status);
-          setLoading(false);
-          return;
-        }
-
-        setClientSecret(payJson.clientSecret ?? null);
-        if (payJson.quote) {
-          setQuoteData((prev) => prev ? { ...prev, ...payJson.quote } : prev);
-        }
-        if (isFinalPayment && payJson.amountRemaining != null) {
-          setQuoteData((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  quote: {
-                    ...prev.quote,
-                    amountTotal: payJson.amountRemaining,
-                    amountDeposit: 0,
-                    amountRemaining: payJson.amountRemaining,
-                  },
-                }
-              : prev
-          );
+          const q = payJson.quote;
+          if (q) {
+            setQuoteData({
+              bookingId,
+              quote: q.quote ?? q,
+              serviceName: q.serviceName ?? 'Service',
+              proName: q.proName ?? 'Pro',
+              serviceDate: q.serviceDate ?? '',
+              serviceTime: q.serviceTime ?? '',
+              address: q.address,
+              durationHours: q.durationHours,
+              proPhotoUrl: q.proPhotoUrl ?? null,
+              paymentDueAt: q.paymentDueAt ?? null,
+            });
+          }
+          setClientSecret(payJson.clientSecret ?? null);
         }
       } catch {
         if (mounted) setError('Could not load checkout');
@@ -278,94 +258,90 @@ export default function CheckoutPage({
       }
     };
     void run();
-    return () => { mounted = false; };
-  }, [bookingId]);
+    return () => { mounted = false };
+  }, [bookingId, isFinalPayment]);
 
-  const pageBg = '#F5F5F5';
+  const pageBg = 'hsl(var(--bg))';
 
   return (
     <AppLayout mode="customer">
-      <div className="min-h-screen" style={{ backgroundColor: pageBg }}>
-        <div className="max-w-lg mx-auto px-4 py-8 pb-32">
+      <div className="min-h-screen bg-bg" style={{ backgroundColor: pageBg }}>
+        <div className="max-w-lg md:max-w-xl mx-auto px-4 md:px-6 py-8 pb-40">
           <Link
             href={`/customer/bookings/${bookingId}`}
-            className="text-sm text-[#6A6A6A] hover:text-[#111111] mb-6 inline-block"
+            className="text-sm text-[#6A6A6A] dark:text-[#A1A8B3] hover:text-[#111111] dark:hover:text-[#F5F7FA] mb-6 inline-block transition-colors"
           >
             ← Back to booking
           </Link>
 
-          <h1 className="text-2xl font-semibold text-[#111111] mb-6">Checkout</h1>
+          <h1 className="text-2xl font-semibold text-[#111111] dark:text-[#F5F7FA] mb-6 tracking-tight">
+            {isFinalPayment ? 'Pay remaining balance' : 'Review & pay deposit'}
+          </h1>
 
-          {loading ? (
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-black/5 bg-gray-200 p-6 shadow-sm animate-pulse h-24" />
-              <div className="rounded-2xl border border-black/5 bg-gray-200 p-6 shadow-sm animate-pulse h-32" />
-              <div className="rounded-2xl border border-black/5 bg-gray-200 p-6 shadow-sm animate-pulse h-40" />
+          {/* LOADING STATE */}
+          {loading && (
+            <div className="space-y-4 animate-pulse">
+              <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 h-24" />
+              <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 h-32" />
+              <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 h-40" />
+              <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 h-28" />
             </div>
-          ) : error ? (
+          )}
+
+          {/* ERROR STATE */}
+          {!loading && error && (
             <div
-              className="rounded-2xl border border-black/10 p-6"
-              style={{ backgroundColor: '#F5F5F5' }}
+              className="rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 shadow-sm"
+              role="alert"
             >
-              <p className="text-sm text-[#3A3A3A] mb-4">{error}</p>
+              <p className="text-sm font-medium text-[#111111] dark:text-[#F5F7FA] mb-2">
+                Something went wrong
+              </p>
+              <p className="text-sm text-[#6A6A6A] dark:text-[#A1A8B3] mb-4">{error}</p>
               {errorStatus === 409 && (
-                <p className="text-xs text-[#6A6A6A] mb-4">
+                <p className="text-xs text-[#6A6A6A] dark:text-[#A1A8B3] mb-4">
                   The booking may not be ready for payment yet, or the pro has not completed payout setup.
                 </p>
               )}
               {errorStatus === 404 && (
-                <p className="text-xs text-[#6A6A6A] mb-4">
+                <p className="text-xs text-[#6A6A6A] dark:text-[#A1A8B3] mb-4">
                   This booking may not exist or you may not have access to it.
                 </p>
               )}
               <Link
                 href={`/customer/bookings/${bookingId}`}
-                className="text-sm font-medium text-[#111111] hover:underline"
+                className="inline-flex items-center justify-center h-11 px-5 rounded-full text-sm font-semibold bg-[#058954] text-white hover:bg-[#047a48] transition-colors"
               >
                 Return to booking
               </Link>
             </div>
-          ) : quoteData && clientSecret && stripePromise ? (
-            <div className="space-y-4">
-              <ProSummaryCard
-                proName={quoteData.proName}
-                proPhotoUrl={quoteData.proPhotoUrl ?? null}
-                serviceName={quoteData.serviceName}
-              />
-              <ServiceDetailsCard
-                serviceName={quoteData.serviceName}
-                serviceDate={quoteData.serviceDate}
-                serviceTime={quoteData.serviceTime}
-                address={quoteData.address}
-                durationHours={quoteData.durationHours}
-              />
-              <PriceBreakdownCard quote={quoteData.quote} showDeposit={!!quoteData.quote.amountDeposit} />
+          )}
 
-              {quoteData.paymentDueAt && (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                  <CountdownTimer paymentDueAt={quoteData.paymentDueAt} />
+          {/* SUCCESS STATE — redirect happens via Stripe return_url; this is fallback */}
+          {/* DEFAULT STATE — summary + payment form */}
+          {!loading && !error && quoteData && clientSecret && stripePromise && (
+            <BookingSummaryDeposit
+              proName={quoteData.proName}
+              proPhotoUrl={quoteData.proPhotoUrl ?? null}
+              serviceName={quoteData.serviceName}
+              serviceDate={quoteData.serviceDate}
+              serviceTime={quoteData.serviceTime}
+              address={quoteData.address}
+              durationHours={quoteData.durationHours}
+              quote={quoteData.quote}
+              paymentDueAt={quoteData.paymentDueAt}
+            >
+              {paymentError && (
+                <div
+                  className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 p-4"
+                  role="alert"
+                >
+                  <p className="text-sm font-medium text-red-700 dark:text-red-400">{paymentError}</p>
+                  <p className="text-xs text-red-600 dark:text-red-500 mt-1">
+                    Please check your payment method and try again.
+                  </p>
                 </div>
               )}
-
-              <div
-                className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm"
-                style={{ backgroundColor: '#FFFFFF' }}
-              >
-                <h3 className="text-sm font-medium text-[#6A6A6A] mb-3">Trust & protection</h3>
-                <ul className="space-y-2 text-sm text-[#3A3A3A]">
-                  <li>• Secure payment via Stripe</li>
-                  <li>• Payment held until job completion</li>
-                  <li>• Dispute resolution available</li>
-                </ul>
-                <Link
-                  href="/booking-rules"
-                  className="mt-3 inline-block text-xs text-[#6A6A6A] hover:text-[#111111] hover:underline"
-                >
-                  Booking Rules
-                </Link>
-              </div>
-
-              <BookingRulesAccordion />
 
               <Elements
                 stripe={stripePromise}
@@ -373,23 +349,29 @@ export default function CheckoutPage({
                   clientSecret,
                   appearance: {
                     theme: 'stripe',
-                    variables: { borderRadius: '12px' },
+                    variables: {
+                      borderRadius: '12px',
+                      colorPrimary: '#058954',
+                    },
                   },
                 }}
               >
                 <CheckoutForm
                   bookingId={bookingId}
                   quoteData={quoteData}
-                  clientSecret={clientSecret}
                   onSuccess={() => {
                     window.location.href = `/bookings/${bookingId}/confirmed`;
                   }}
-                  isFinalPayment={isFinalPayment}
+                  onPaymentError={setPaymentError}
                 />
               </Elements>
-            </div>
-          ) : (
-            <p className="text-sm text-[#6A6A6A]">Stripe is not configured.</p>
+            </BookingSummaryDeposit>
+          )}
+
+          {!loading && !error && !quoteData && !clientSecret && stripePromise === null && (
+            <p className="text-sm text-[#6A6A6A] dark:text-[#A1A8B3]">
+              Payment is not configured. Please contact support.
+            </p>
           )}
         </div>
       </div>

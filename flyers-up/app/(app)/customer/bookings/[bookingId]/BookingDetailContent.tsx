@@ -3,16 +3,18 @@
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { BookingStatusBadge } from '@/components/bookings/BookingStatusBadge';
-import { LatestUpdateCard } from '@/components/bookings/LatestUpdateCard';
 import { TrackBookingRealtime, type TrackBookingData } from '@/components/bookings/TrackBookingRealtime';
-import { BookingEventsAccordion } from '@/components/bookings/BookingEventsAccordion';
-import { BookingRulesAccordion } from '@/components/booking/BookingRulesAccordion';
 import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
-import { BookingHeaderCard } from '@/components/bookings/customer/BookingHeaderCard';
+import { TrackBookingStatusHeader } from '@/components/bookings/customer/TrackBookingStatusHeader';
+import { TrackBookingSummaryCard } from '@/components/bookings/customer/TrackBookingSummaryCard';
 import { BookingProgressTimeline } from '@/components/bookings/customer/BookingProgressTimeline';
-import { PaymentStatusModule } from '@/components/bookings/customer/PaymentStatusModule';
+import { TrackBookingMessagingEntry } from '@/components/bookings/customer/TrackBookingMessagingEntry';
+import { TrackBookingPaymentSummary } from '@/components/bookings/customer/TrackBookingPaymentSummary';
+import { TrackBookingTrustSection } from '@/components/bookings/customer/TrackBookingTrustSection';
 import { BookingActionsBar } from '@/components/bookings/customer/BookingActionsBar';
+import { RescheduleModal } from '@/components/bookings/customer/RescheduleModal';
+import { CancelBookingModal } from '@/components/bookings/customer/CancelBookingModal';
+import { BookingRulesAccordion } from '@/components/booking/BookingRulesAccordion';
 import { ArrivalVerificationCard } from '@/components/marketplace/ArrivalVerificationCard';
 import { InstantRebookCard } from '@/components/marketplace/InstantRebookCard';
 import { JobCompletedFlyer } from '@/components/marketplace/JobCompletedFlyer';
@@ -63,23 +65,6 @@ export interface BookingDetailData {
     completionNote?: string | null;
     completedAt: string;
   } | null;
-}
-
-function getLatestTimestamp(status: string, data: TrackBookingData): string | null {
-  const ts = buildTimestampsFromBooking(
-    data.createdAt,
-    data.statusHistory,
-    {
-      acceptedAt: data.acceptedAt,
-      onTheWayAt: data.onTheWayAt ?? data.enRouteAt,
-      enRouteAt: data.enRouteAt,
-      startedAt: data.startedAt,
-      completedAt: data.completedAt,
-      paidAt: data.paidAt,
-    }
-  );
-  const s = mapDbStatusToTimeline(status);
-  return ts[s] ?? null;
 }
 
 function toTrackBookingData(b: BookingDetailData): TrackBookingData {
@@ -156,17 +141,31 @@ function getPrimaryAction(booking: BookingDetailData & TrackBookingData, booking
   if (needsRemaining) {
     return (
       <Link
-        href={`/customer/bookings/${bookingId}/checkout?phase=final`}
+        href={`/customer/bookings/${bookingId}/complete`}
         className="flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all"
       >
         Pay remaining {booking.amountRemaining != null ? `$${(booking.amountRemaining / 100).toFixed(2)}` : ''}
       </Link>
     );
   }
-  if (booking.status === 'awaiting_customer_confirmation') {
-    return null; // handled by confirm button
-  }
   return null;
+}
+
+function getLastUpdatedTimestamp(booking: TrackBookingData): string | null {
+  const ts = buildTimestampsFromBooking(
+    booking.createdAt,
+    booking.statusHistory,
+    {
+      acceptedAt: booking.acceptedAt,
+      onTheWayAt: booking.onTheWayAt ?? booking.enRouteAt,
+      enRouteAt: booking.enRouteAt,
+      startedAt: booking.startedAt,
+      completedAt: booking.completedAt,
+      paidAt: booking.paidAt,
+    }
+  );
+  const s = mapDbStatusToTimeline(booking.status);
+  return ts[s] ?? null;
 }
 
 export function BookingDetailContent({
@@ -178,6 +177,8 @@ export function BookingDetailContent({
 }) {
   const router = useRouter();
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const fetchBooking = useCallback(async (): Promise<TrackBookingData | null> => {
     try {
@@ -200,105 +201,49 @@ export function BookingDetailContent({
     >
       {(booking) => {
         const status = mapDbStatusToTimeline(booking.status);
-        const timestamps = buildTimestampsFromBooking(
-          booking.createdAt,
-          booking.statusHistory,
-          {
-            acceptedAt: booking.acceptedAt,
-            onTheWayAt: booking.onTheWayAt,
-            startedAt: booking.startedAt,
-            completedAt: booking.completedAt,
-          }
-        );
         const fullBooking = { ...initialBooking, ...booking } as BookingDetailData & TrackBookingData;
         const hasAddressOrNotes = !!(fullBooking.address || fullBooking.notes);
         const primaryAction = getPrimaryAction(fullBooking, bookingId);
         const showConfirmSlot = booking.status === 'awaiting_customer_confirmation';
 
         return (
-          <div className={primaryAction ? 'pb-24' : ''}>
-            {/* A) Top bar */}
+          <div className={primaryAction ? 'pb-24' : ''} data-role="customer">
+            {/* Back + page title */}
             <div className="flex items-center justify-between gap-4 mb-6">
               <Link
                 href="/customer/bookings"
-                className="text-sm text-muted hover:text-text transition-colors"
+                className="text-sm text-[#6A6A6A] dark:text-[#A1A8B3] hover:text-[#111111] dark:hover:text-[#F5F7FA] transition-colors"
               >
                 ← Back to bookings
               </Link>
-              <h1 className="text-lg font-semibold text-text">Track booking</h1>
-              <BookingStatusBadge status={booking.status} />
+              <h1 className="text-lg font-semibold text-[#111111] dark:text-[#F5F7FA]">Track booking</h1>
             </div>
 
-            {/* B) Header card */}
-            <div className="mb-6">
-              <BookingHeaderCard
-                serviceName={booking.serviceName || 'Service'}
+            {/* 1. Status header */}
+            <section className="mb-5">
+              <TrackBookingStatusHeader
+                status={booking.status}
+                lastUpdatedAt={getLastUpdatedTimestamp(booking)}
+              />
+            </section>
+
+            {/* 2. Booking summary card */}
+            <section className="mb-5">
+              <TrackBookingSummaryCard
                 proName={booking.proName || 'Pro'}
+                proPhotoUrl={(fullBooking as { proPhotoUrl?: string | null }).proPhotoUrl}
+                serviceName={booking.serviceName || 'Service'}
                 categoryName={(fullBooking as { categoryName?: string }).categoryName}
                 serviceDate={booking.serviceDate}
                 serviceTime={booking.serviceTime}
-                status={booking.status}
-                proPhotoUrl={(fullBooking as { proPhotoUrl?: string | null }).proPhotoUrl}
+                address={fullBooking.address}
+                scopeSummary={fullBooking.notes}
               />
-            </div>
-
-            {/* C) Payment status (critical - show first) */}
-            <section className="mb-6">
-              <h2 className="text-base font-semibold text-text mb-4">Payment</h2>
-              <div className="space-y-4">
-                <PaymentStatusModule
-                  bookingId={bookingId}
-                  status={booking.status}
-                  paymentStatus={booking.paymentStatus}
-                  finalPaymentStatus={booking.finalPaymentStatus}
-                  paymentDueAt={booking.paymentDueAt}
-                  amountDeposit={booking.amountDeposit}
-                  amountRemaining={booking.amountRemaining}
-                  amountTotal={booking.amountTotal}
-                  paidAt={booking.paidAt}
-                  fullyPaidAt={booking.fullyPaidAt}
-                />
-                {showConfirmSlot && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const res = await fetch(`/api/bookings/${bookingId}/confirm`, { method: 'POST' });
-                      if (res.ok) router.refresh();
-                    }}
-                    className="w-full flex h-11 items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95"
-                  >
-                    Confirm completion
-                  </button>
-                )}
-                <div className="mt-4">
-                  <BookingRulesAccordion />
-                </div>
-              </div>
             </section>
 
-            {/* D) Arrival verification (when Pro has arrived) */}
-            {Boolean(fullBooking.arrival || (booking as { arrival?: unknown }).arrival) && (
-              <section className="mb-6">
-                <ArrivalVerificationCard
-                  arrivalTimestamp={
-                    (fullBooking.arrival ?? (booking as { arrival?: { arrivalTimestamp: string } }).arrival)
-                    ?.arrivalTimestamp ?? ''
-                  }
-                  locationVerified={
-                    (fullBooking.arrival ?? (booking as { arrival?: { locationVerified: boolean } }).arrival)
-                    ?.locationVerified ?? false
-                  }
-                  arrivalPhotoUrl={
-                    (fullBooking.arrival ?? (booking as { arrival?: { arrivalPhotoUrl?: string | null } }).arrival)
-                    ?.arrivalPhotoUrl ?? undefined
-                  }
-                />
-              </section>
-            )}
-
-            {/* E) Progress timeline */}
-            <section className="mb-6">
-              <h2 className="text-base font-semibold text-text mb-4">Progress</h2>
+            {/* 3. Progress / timeline */}
+            <section className="mb-5">
+              <h2 className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-3">Progress</h2>
               <BookingProgressTimeline
                 status={booking.status}
                 createdAt={booking.createdAt}
@@ -313,84 +258,142 @@ export function BookingDetailContent({
               />
             </section>
 
-            {/* E) Latest update card */}
-            <section className="mb-6">
-              <LatestUpdateCard
-                status={status}
-                timestamp={getLatestTimestamp(booking.status, booking)}
+            {/* 4. Messaging entry */}
+            <section className="mb-5">
+              <TrackBookingMessagingEntry bookingId={bookingId} />
+            </section>
+
+            {/* 5. Payment summary */}
+            <section className="mb-5">
+              <TrackBookingPaymentSummary
+                bookingId={bookingId}
+                status={booking.status}
+                paymentStatus={booking.paymentStatus}
+                paymentDueAt={booking.paymentDueAt}
+                amountDeposit={booking.amountDeposit}
+                amountRemaining={booking.amountRemaining}
+                amountTotal={booking.amountTotal}
+                paidAt={booking.paidAt}
+                fullyPaidAt={booking.fullyPaidAt}
+                primaryAction={
+                  showConfirmSlot ? (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const res = await fetch(`/api/bookings/${bookingId}/confirm`, { method: 'POST' });
+                        if (res.ok) router.refresh();
+                      }}
+                      className="w-full flex h-11 items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95"
+                    >
+                      Confirm completion
+                    </button>
+                  ) : undefined
+                }
               />
             </section>
 
-            {/* G) Need Help */}
-            <section className="mb-6">
-              <h2 className="text-base font-semibold text-text mb-4">Need Help</h2>
-              <div className="rounded-2xl border border-black/5 p-4 space-y-2" style={{ backgroundColor: '#FFFFFF' }}>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { type: 'pro_late', label: 'Pro is late' },
-                    { type: 'work_incomplete', label: 'Work incomplete' },
-                    { type: 'wrong_service', label: 'Wrong service' },
-                    { type: 'dispute', label: 'Dispute' },
-                    { type: 'contact_support', label: 'Contact Support' },
-                  ].map(({ type, label }) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          const res = await fetch(`/api/bookings/${bookingId}/issues`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ issueType: type, notes: type === 'dispute' ? 'User initiated dispute' : undefined }),
-                          });
-                          if (res.ok) {
-                            alert('Thanks for reporting. We\'ll look into it.');
-                          }
-                        } catch {
-                          alert('Could not submit. Please try again.');
-                        }
-                      }}
-                      className="px-4 py-2 rounded-lg text-sm font-medium border border-black/10 bg-white hover:bg-black/[0.03] transition-colors"
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* 6. Trust / support */}
+            <section className="mb-5">
+              <TrackBookingTrustSection bookingId={bookingId} />
             </section>
 
-            {/* H) Service details (collapsible) */}
+            {/* 7. Action area */}
+            <section className="mb-6">
+              <h2 className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-3">Actions</h2>
+              <BookingActionsBar
+                bookingId={bookingId}
+                status={booking.status}
+                primaryAction={primaryAction}
+                proId={fullBooking.proId}
+                serviceName={fullBooking.serviceName}
+                address={fullBooking.address}
+                notes={fullBooking.notes}
+                onRescheduleClick={() => setRescheduleOpen(true)}
+                onCancelClick={() => setCancelOpen(true)}
+              />
+            </section>
+
+            {/* Reschedule modal */}
+            <RescheduleModal
+              open={rescheduleOpen}
+              onClose={() => setRescheduleOpen(false)}
+              bookingId={bookingId}
+              currentDate={booking.serviceDate}
+              currentTime={booking.serviceTime}
+              onSuccess={() => {
+                setRescheduleOpen(false);
+                router.refresh();
+              }}
+            />
+
+            {/* Cancel modal */}
+            <CancelBookingModal
+              open={cancelOpen}
+              onClose={() => setCancelOpen(false)}
+              bookingId={bookingId}
+              amountDeposit={fullBooking.amountDeposit}
+              onSuccess={() => {
+                setCancelOpen(false);
+                router.refresh();
+              }}
+            />
+
+            {/* Arrival verification (when Pro has arrived) */}
+            {Boolean(fullBooking.arrival || (booking as { arrival?: unknown }).arrival) && (
+              <section className="mb-5">
+                <ArrivalVerificationCard
+                  arrivalTimestamp={
+                    (fullBooking.arrival ?? (booking as { arrival?: { arrivalTimestamp: string } }).arrival)
+                      ?.arrivalTimestamp ?? ''
+                  }
+                  locationVerified={
+                    (fullBooking.arrival ?? (booking as { arrival?: { locationVerified: boolean } }).arrival)
+                      ?.locationVerified ?? false
+                  }
+                  arrivalPhotoUrl={
+                    (fullBooking.arrival ?? (booking as { arrival?: { arrivalPhotoUrl?: string | null } }).arrival)
+                      ?.arrivalPhotoUrl ?? undefined
+                  }
+                />
+              </section>
+            )}
+
+            {/* Service details (collapsible) */}
             {(hasAddressOrNotes || booking.id) && (
-              <section className="mb-6">
-                <h2 className="text-base font-semibold text-text mb-4">Service details</h2>
-                <div className="rounded-2xl border border-black/5 bg-white overflow-hidden shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
+              <section className="mb-5">
+                <h2 className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-3">Service details</h2>
+                <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] overflow-hidden shadow-sm">
                   <button
                     type="button"
                     onClick={() => setDetailsOpen(!detailsOpen)}
-                    className="w-full flex items-center justify-between px-6 py-4 text-left text-sm font-medium text-text hover:bg-black/[0.02] transition-colors"
+                    className="w-full flex items-center justify-between px-5 py-4 text-left text-sm font-medium text-[#111111] dark:text-[#F5F7FA] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
                   >
                     <span>Address, notes, booking ID</span>
-                    <span className="text-muted">{detailsOpen ? '−' : '+'}</span>
+                    <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">{detailsOpen ? '−' : '+'}</span>
                   </button>
                   {detailsOpen && (
-                    <div className="px-6 pb-6 pt-0 space-y-3 text-sm text-muted border-t border-black/5">
+                    <div className="px-5 pb-5 pt-0 space-y-3 text-sm text-[#6A6A6A] dark:text-[#A1A8B3] border-t border-black/5 dark:border-white/10">
                       {fullBooking.address && (
                         <div>
-                          <span className="font-medium text-text">Address:</span> {fullBooking.address}
+                          <span className="font-medium text-[#111111] dark:text-[#F5F7FA]">Address:</span>{' '}
+                          {fullBooking.address}
                         </div>
                       )}
                       {fullBooking.notes && (
                         <div>
-                          <span className="font-medium text-text">Notes:</span> {fullBooking.notes}
+                          <span className="font-medium text-[#111111] dark:text-[#F5F7FA]">Notes:</span>{' '}
+                          {fullBooking.notes}
                         </div>
                       )}
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-text">Booking ID:</span>
-                        <code className="text-xs bg-black/5 px-2 py-1 rounded font-mono">{booking.id}</code>
+                        <span className="font-medium text-[#111111] dark:text-[#F5F7FA]">Booking ID:</span>
+                        <code className="text-xs bg-black/5 dark:bg-white/5 px-2 py-1 rounded font-mono">
+                          {booking.id}
+                        </code>
                         <button
                           type="button"
                           onClick={() => navigator.clipboard?.writeText(booking.id)}
-                          className="text-xs text-accent hover:underline"
+                          className="text-xs text-[#058954] hover:underline"
                         >
                           Copy
                         </button>
@@ -401,57 +404,46 @@ export function BookingDetailContent({
               </section>
             )}
 
-            {/* Events accordion (debug) */}
-            <div className="mb-6">
-              <BookingEventsAccordion bookingId={bookingId} />
-            </div>
+            {/* Booking rules accordion */}
+            <section className="mb-5">
+              <BookingRulesAccordion />
+            </section>
 
             {/* Instant Rebook + Job Completed Flyer (when completed) */}
-            {(status === 'COMPLETED' || status === 'PAID') && fullBooking.proId && fullBooking.proName && fullBooking.serviceName && (
-              <section className="mb-6 space-y-4">
-                <InstantRebookCard
-                  proName={fullBooking.proName}
-                  proId={fullBooking.proId}
-                  lastServiceType={fullBooking.serviceName}
-                  lastDate={
-                    fullBooking.serviceDate && fullBooking.serviceTime
-                      ? `${fullBooking.serviceDate} ${fullBooking.serviceTime}`
-                      : fullBooking.completedAt ?? ''
-                  }
-                  rating={5}
-                  bookingId={bookingId}
-                />
-                {fullBooking.completion && fullBooking.completion.afterPhotoUrls.length >= 2 && (
-                  <JobCompletedFlyer
+            {(status === 'COMPLETED' || status === 'PAID') &&
+              fullBooking.proId &&
+              fullBooking.proName &&
+              fullBooking.serviceName && (
+                <section className="mb-6 space-y-4">
+                  <InstantRebookCard
                     proName={fullBooking.proName}
-                    serviceType={fullBooking.serviceName}
-                    neighborhood={fullBooking.address ?? 'Local'}
+                    proId={fullBooking.proId}
+                    lastServiceType={fullBooking.serviceName}
+                    lastDate={
+                      fullBooking.serviceDate && fullBooking.serviceTime
+                        ? `${fullBooking.serviceDate} ${fullBooking.serviceTime}`
+                        : fullBooking.completedAt ?? ''
+                    }
                     rating={5}
-                    beforePhotoUrls={[]}
-                    afterPhotoUrls={fullBooking.completion.afterPhotoUrls}
-                    completionId={fullBooking.completion.id}
+                    bookingId={bookingId}
                   />
-                )}
-              </section>
-            )}
-
-            {/* I) Actions */}
-            <section className="mb-6">
-              <h2 className="text-base font-semibold text-text mb-4">Actions</h2>
-              <BookingActionsBar
-                bookingId={bookingId}
-                status={booking.status}
-                primaryAction={primaryAction}
-                proId={fullBooking.proId}
-                serviceName={fullBooking.serviceName}
-                address={fullBooking.address}
-                notes={fullBooking.notes}
-              />
-            </section>
+                  {fullBooking.completion && fullBooking.completion.afterPhotoUrls.length >= 2 && (
+                    <JobCompletedFlyer
+                      proName={fullBooking.proName}
+                      serviceType={fullBooking.serviceName}
+                      neighborhood={fullBooking.address ?? 'Local'}
+                      rating={5}
+                      beforePhotoUrls={[]}
+                      afterPhotoUrls={fullBooking.completion.afterPhotoUrls}
+                      completionId={fullBooking.completion.id}
+                    />
+                  )}
+                </section>
+              )}
 
             {/* Sticky bottom bar for primary action (mobile) */}
             {primaryAction && (
-              <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-black/5 bg-white/95 backdrop-blur-sm px-4 py-3 safe-area-pb sm:hidden">
+              <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-black/5 dark:border-white/10 bg-white/95 dark:bg-[#171A20]/95 backdrop-blur-sm px-4 py-3 safe-area-pb sm:hidden">
                 {primaryAction}
               </div>
             )}

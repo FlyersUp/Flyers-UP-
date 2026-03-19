@@ -18,6 +18,8 @@ export {
 
 export { useUnreadNotifications } from './useUnreadNotifications';
 
+export { useSignOutRedirect } from './useSignOutRedirect';
+
 
 
 

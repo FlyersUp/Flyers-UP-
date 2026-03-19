@@ -41,7 +41,7 @@ export function BookingProgressTimeline({
   });
 
   return (
-    <div className="rounded-2xl border border-black/5 p-6 shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
+    <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 shadow-sm">
       <BookingTimeline
         status={timelineStatus}
         timestamps={{

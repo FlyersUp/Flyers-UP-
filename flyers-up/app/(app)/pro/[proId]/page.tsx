@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabaseServer';
 import { getPublicProProfileByIdServer } from '@/lib/profileData';
 import { ProfilePageShell } from '@/components/profile/ProfilePageShell';
-import { ProfileTopBar } from '@/components/profile/ProfileTopBar';
+import { ProProfileTopBar } from '@/components/profile/ProProfileTopBar';
 import { ProProfileView } from '@/components/profile/ProProfileView';
 
 export const dynamic = 'force-dynamic';
@@ -52,16 +52,23 @@ export default async function PublicProProfilePage({ params }: { params: Promise
 
   const callHref = profile.phonePublic && profile.phone ? `tel:${profile.phone}` : null;
 
+  const bookHref = `/book/${encodeURIComponent(profile.id)}`;
+
   return (
     <ProfilePageShell>
-      <ProfileTopBar title={profile.businessName} />
+      <ProProfileTopBar
+        title={profile.businessName}
+        messageHref={messageHref}
+        shareUrl={null}
+      />
       <div className="pt-4">
         <ProProfileView
           profile={profile}
-          bookHref={`/book/${encodeURIComponent(profile.id)}`}
+          bookHref={bookHref}
           messageHref={messageHref}
           messageTitle={messageTitle}
           callHref={callHref}
+          shareUrl={null}
           aboveBottomNav={false}
         />
       </div>

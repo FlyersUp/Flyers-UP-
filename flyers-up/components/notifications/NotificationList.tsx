@@ -12,6 +12,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { useNotifications, type NotificationItem } from '@/contexts/NotificationContext';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
 import { SignInNotice } from '@/components/ui/SignInNotice';
+import { NotificationIcon } from '@/components/notifications/NotificationIcon';
+import { Bell, CalendarClock, MessageCircle, Receipt, RefreshCw, Wrench } from 'lucide-react';
 
 /** Skip realtime when proxy is used */
 function shouldSkipRealtime(): boolean {
@@ -26,13 +28,92 @@ interface NotificationListProps {
   basePath: string;
 }
 
+type NotificationTab = 'all' | 'bookings' | 'messages' | 'payments';
+
+interface NotificationRow extends NotificationItem {
+  data?: Record<string, unknown> | null;
+}
+
+function toDateKey(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+function bucketByTime(createdAt: string): 'today' | 'yesterday' | 'earlier' {
+  const now = new Date();
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return 'earlier';
+  const todayKey = toDateKey(now);
+  const dateKey = toDateKey(date);
+  if (todayKey === dateKey) return 'today';
+  const y = new Date(now);
+  y.setDate(y.getDate() - 1);
+  if (toDateKey(y) === dateKey) return 'yesterday';
+  return 'earlier';
+}
+
+function classify(type: string): NotificationTab {
+  if (type.startsWith('message.')) return 'messages';
+  if (type.startsWith('payment.') || type.startsWith('payout.')) return 'payments';
+  if (type.startsWith('booking.') || type === 'nearby_pro_alert') return 'bookings';
+  return 'all';
+}
+
+function getFallbackHref(basePath: string, item: NotificationRow): string {
+  const isPro = basePath === '/pro';
+  const data = (item.data ?? {}) as Record<string, unknown>;
+  const conversationId = typeof data.conversation_id === 'string' ? data.conversation_id : null;
+
+  // booking notifications should deep-link into booking tracking/details
+  if (item.type.startsWith('booking.')) {
+    if (item.booking_id) {
+      return isPro ? `/pro/bookings/${item.booking_id}` : `/customer/bookings/${item.booking_id}/track`;
+    }
+    return `${basePath}/bookings`;
+  }
+
+  // message notifications should deep-link into chat thread
+  if (item.type.startsWith('message.')) {
+    if (conversationId) {
+      return isPro
+        ? `/pro/chat/conversation/${encodeURIComponent(conversationId)}`
+        : `/customer/chat/conversation/${encodeURIComponent(conversationId)}`;
+    }
+    if (item.booking_id) {
+      return isPro
+        ? `/pro/chat/${encodeURIComponent(item.booking_id)}`
+        : `/customer/chat/${encodeURIComponent(item.booking_id)}`;
+    }
+    return isPro ? '/pro/messages' : '/customer/messages';
+  }
+
+  // payment notifications should deep-link into payment/receipt surface
+  if (item.type.startsWith('payment.')) {
+    if (!isPro && item.booking_id) {
+      return `/customer/bookings/${encodeURIComponent(item.booking_id)}/complete`;
+    }
+    return isPro ? '/pro/earnings' : '/customer/bookings';
+  }
+  if (item.type.startsWith('payout.')) return '/pro/earnings';
+
+  return item.booking_id ? `${basePath}/bookings/${item.booking_id}` : `${basePath}/notifications`;
+}
+
+function sectionLabel(key: 'today' | 'yesterday' | 'earlier'): string {
+  if (key === 'today') return 'Today';
+  if (key === 'yesterday') return 'Yesterday';
+  return 'Earlier';
+}
+
 export function NotificationList({ basePath }: NotificationListProps) {
-  const [items, setItems] = useState<NotificationItem[]>([]);
+  const [items, setItems] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null | undefined>(undefined);
+  const [tab, setTab] = useState<NotificationTab>('all');
   const { markAsRead, refreshUnreadCount } = useNotifications();
 
   const fetchNotifications = useCallback(async () => {
+    setFetchError(null);
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -43,16 +124,17 @@ export function NotificationList({ basePath }: NotificationListProps) {
     }
     const { data, error } = await supabase
       .from('notifications')
-      .select('id, user_id, type, title, body, booking_id, deep_link, read, read_at, created_at')
+      .select('id, user_id, type, title, body, booking_id, deep_link, data, read, read_at, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(50);
     if (error) {
       console.warn('NotificationList: fetch failed', error);
+      setFetchError('Unable to load notifications right now.');
       setLoading(false);
       return;
     }
-    setItems((data as NotificationItem[]) ?? []);
+    setItems((data as NotificationRow[]) ?? []);
     setLoading(false);
   }, []);
 
@@ -101,23 +183,53 @@ export function NotificationList({ basePath }: NotificationListProps) {
   const isUnread = (item: NotificationItem) =>
     item.read_at == null && !item.read;
 
-  const handleClick = async (item: NotificationItem) => {
+  const handleClick = async (item: NotificationRow) => {
     if (isUnread(item)) {
       await markAsRead(item.id);
       await refreshUnreadCount();
+      setItems((prev) =>
+        prev.map((n) =>
+          n.id === item.id
+            ? {
+                ...n,
+                read: true,
+                read_at: new Date().toISOString(),
+              }
+            : n
+        )
+      );
     }
+  };
+
+  const filteredItems = items.filter((item) => {
+    if (tab === 'all') return true;
+    return classify(item.type) === tab;
+  });
+
+  const grouped = {
+    today: filteredItems.filter((n) => bucketByTime(n.created_at) === 'today'),
+    yesterday: filteredItems.filter((n) => bucketByTime(n.created_at) === 'yesterday'),
+    earlier: filteredItems.filter((n) => bucketByTime(n.created_at) === 'earlier'),
   };
 
   if (loading) {
     return (
-      <div className="space-y-3">
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="rounded-2xl border border-black/5 bg-gray-200 p-4 animate-pulse"
-          >
-            <div className="h-4 bg-[#F5F5F5] rounded w-3/4 mb-2" />
-            <div className="h-3 bg-[#EBEBEB] rounded w-1/2" />
+      <div className="space-y-4">
+        <div className="flex gap-2">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-9 w-20 rounded-full bg-surface2 animate-pulse" />
+          ))}
+        </div>
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="rounded-2xl border border-border bg-surface p-4 animate-pulse">
+            <div className="flex gap-3">
+              <div className="h-9 w-9 rounded-full bg-surface2" />
+              <div className="flex-1">
+                <div className="h-4 bg-surface2 rounded w-3/4 mb-2" />
+                <div className="h-3 bg-surface2 rounded w-2/3 mb-2" />
+                <div className="h-3 bg-surface2 rounded w-1/4" />
+              </div>
+            </div>
           </div>
         ))}
       </div>
@@ -128,63 +240,161 @@ export function NotificationList({ basePath }: NotificationListProps) {
     return <SignInNotice nextHref={basePath === '/pro' ? '/pro/notifications' : '/customer/notifications'} />;
   }
 
-  if (items.length === 0) {
+  if (fetchError) {
     return (
-      <div
-        className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm border-l-4 border-l-accent"
-        style={{ borderLeftColor: 'var(--role-accent, #FFC067)' }}
-      >
-        <div className="text-base font-semibold text-text">No notifications yet</div>
+      <div className="rounded-2xl border border-red-200 dark:border-red-900/40 bg-red-50/70 dark:bg-red-950/20 p-5">
+        <div className="text-base font-semibold text-red-800 dark:text-red-300">Couldn&apos;t load notifications</div>
+        <div className="mt-1 text-sm text-red-700 dark:text-red-400">{fetchError}</div>
+        <button
+          type="button"
+          onClick={() => void fetchNotifications()}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+        >
+          <RefreshCw size={14} />
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const hasAny = items.length > 0;
+  if (!hasAny) {
+    return (
+      <div className="rounded-2xl border border-border bg-surface p-8 text-center shadow-sm">
+        <div className="mx-auto mb-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-surface2 text-muted">
+          <Bell size={20} />
+        </div>
+        <div className="text-base font-semibold text-text">Nothing to see yet</div>
         <div className="mt-1 text-sm text-muted">
-          When you book a pro or get updates on your bookings, you&apos;ll see them here.
+          Booking, message, and payment updates will appear here.
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {items.map((item) => {
-        const href =
-          item.deep_link ||
-          (item.booking_id ? `${basePath}/bookings/${item.booking_id}` : `${basePath}/notifications`);
-        return (
-          <Link
-            key={item.id}
-            href={href}
-            onClick={() => handleClick(item)}
-            className={`block rounded-2xl border border-black/5 p-4 shadow-sm transition-colors hover:opacity-90 ${
-              isUnread(item)
-                ? 'bg-white border-l-4 border-l-[#FFC067]'
-                : 'bg-white'
-            }`}
-            style={isUnread(item) ? { borderLeftColor: 'var(--role-accent, #FFC067)' } : undefined}
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {(
+          [
+            { key: 'all' as const, label: 'All' },
+            { key: 'bookings' as const, label: 'Bookings' },
+            { key: 'messages' as const, label: 'Messages' },
+            { key: 'payments' as const, label: 'Payments' },
+          ] as const
+        ).map((tabDef) => (
+          <button
+            key={tabDef.key}
+            type="button"
+            onClick={() => setTab(tabDef.key)}
+            className={[
+              'shrink-0 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors',
+              tab === tabDef.key
+                ? 'border-accent bg-accent/10 text-text'
+                : 'border-border bg-surface text-muted hover:text-text',
+            ].join(' ')}
+            aria-pressed={tab === tabDef.key}
           >
-            <div className="flex items-start gap-3">
-              {isUnread(item) && (
-                <span
-                  className="mt-1.5 w-2 h-2 rounded-full bg-[#FFC067] shrink-0"
-                  style={{ backgroundColor: 'var(--role-accent, #FFC067)' }}
-                  aria-hidden
-                />
-              )}
-              <div className="flex-1 min-w-0">
-                <div
-                  className={`text-base ${isUnread(item) ? 'font-semibold' : 'font-normal'} text-text`}
-                >
-                  {item.title}
-                </div>
-                {item.body && (
-                  <div className="mt-1 text-sm text-muted line-clamp-2">{item.body}</div>
-                )}
-                <div className="mt-2 text-xs text-muted">
-                  {formatRelativeTime(item.created_at)}
-                </div>
-              </div>
+            {tabDef.label}
+          </button>
+        ))}
+      </div>
+
+      {(['today', 'yesterday', 'earlier'] as const).map((bucket) => {
+        const sectionItems = grouped[bucket];
+        if (sectionItems.length === 0) return null;
+        return (
+          <section key={bucket} aria-label={sectionLabel(bucket)} className="space-y-2.5">
+            <h2 className="text-sm font-semibold text-text2">{sectionLabel(bucket)}</h2>
+            <div className="space-y-2">
+              {sectionItems.map((item) => {
+                const href = item.deep_link || getFallbackHref(basePath, item);
+                const unread = isUnread(item);
+                return (
+                  <Link
+                    key={item.id}
+                    href={href}
+                    onClick={() => handleClick(item)}
+                    className={[
+                      'block rounded-2xl border p-4 shadow-sm transition-colors',
+                      unread
+                        ? 'border-accent/25 bg-[hsl(var(--accent-customer)/0.07)] dark:bg-[hsl(var(--accent-pro)/0.10)]'
+                        : 'border-border bg-surface hover:bg-surface2/60',
+                    ].join(' ')}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface2 text-muted">
+                        <NotificationIcon type={item.type} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className={`text-[15px] ${unread ? 'font-semibold' : 'font-medium'} text-text line-clamp-1`}>
+                              {item.title}
+                            </p>
+                            {item.body ? (
+                              <p className="mt-0.5 text-sm text-muted line-clamp-2">{item.body}</p>
+                            ) : null}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs text-muted">{formatRelativeTime(item.created_at)}</p>
+                            {unread ? (
+                              <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-text">
+                                <span
+                                  className="h-1.5 w-1.5 rounded-full bg-accent"
+                                  aria-hidden
+                                />
+                                New
+                              </span>
+                            ) : (
+                              <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-muted">
+                                <CalendarClock size={12} />
+                                Read
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-surface2 px-2 py-0.5">
+                            {classify(item.type) === 'bookings' ? (
+                              <Wrench size={11} />
+                            ) : classify(item.type) === 'messages' ? (
+                              <MessageCircle size={11} />
+                            ) : classify(item.type) === 'payments' ? (
+                              <Receipt size={11} />
+                            ) : (
+                              <Bell size={11} />
+                            )}
+                            {classify(item.type) === 'bookings'
+                              ? 'Booking'
+                              : classify(item.type) === 'messages'
+                                ? 'Message'
+                                : classify(item.type) === 'payments'
+                                  ? 'Payment'
+                                  : 'Update'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
-          </Link>
+          </section>
         );
       })}
+
+      {filteredItems.length === 0 ? (
+        <div className="rounded-2xl border border-border bg-surface p-8 text-center shadow-sm">
+          <div className="mx-auto mb-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-surface2 text-muted">
+            <Bell size={20} />
+          </div>
+          <div className="text-base font-semibold text-text">No notifications in this view</div>
+          <div className="mt-1 text-sm text-muted">
+            Try another filter to view more updates.
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

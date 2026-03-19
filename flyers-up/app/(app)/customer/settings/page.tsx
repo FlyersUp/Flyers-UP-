@@ -2,72 +2,73 @@
 
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { CustomerPageShell } from '@/components/customer/CustomerPageShell';
-import { Label } from '@/components/ui/Label';
-import { Card } from '@/components/ui/Card';
-import { TrustRow } from '@/components/ui/TrustRow';
-import Link from 'next/link';
-import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
-import { useTranslations } from 'next-intl';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { SettingsHome, type SettingsHomeSection } from '@/components/settings/SettingsHome';
+import { useSignOutRedirect } from '@/hooks/useSignOutRedirect';
 
 /**
- * Customer Settings - Screen 12
- * Settings sections with rail + stripe
+ * Customer Settings Home
+ * Apple/Stripe/Linear-style grouped settings rows.
  */
 export default function CustomerSettings() {
-  const t = useTranslations('settings');
-  const sections = [
-    { id: 'account-profile', labelKey: 'accountProfile', href: '/customer/settings/account-profile', icon: 'user' as const },
-    { id: 'addresses', labelKey: 'addresses', href: '/customer/settings/addresses', icon: 'map-pin' as const },
-    { id: 'payment-methods', labelKey: 'paymentMethods', href: '/customer/settings/payment-methods', icon: 'credit-card' as const },
-    { id: 'booking-preferences', labelKey: 'bookingPreferences', href: '/customer/settings/booking-preferences', icon: 'calendar' as const },
-    { id: 'ratings-reviews', labelKey: 'ratingsReviews', href: '/customer/settings/ratings-reviews', icon: 'star' as const },
-    { id: 'notifications', labelKey: 'notifications', href: '/customer/settings/notifications', icon: 'bell' as const },
-    { id: 'safety-preferences', labelKey: 'safetyPreferences', href: '/customer/settings/safety-preferences', icon: 'safety-check' as const },
-    { id: 'app-preferences', labelKey: 'appPreferences', href: '/customer/settings/app-preferences', icon: 'settings' as const },
-    { id: 'support-legal', labelKey: 'supportLegal', href: '/customer/settings/support-legal', icon: 'file-text' as const },
+  const { signingOut, signOutError, signOut } = useSignOutRedirect('/auth');
+
+  const sections: SettingsHomeSection[] = [
+    {
+      title: 'Account',
+      rows: [
+        { label: 'Profile', href: '/customer/settings/account-profile' },
+        { label: 'Login & Security', href: '/customer/settings/privacy-security' },
+        { label: 'Verification', href: '/customer/settings/safety-preferences' },
+      ],
+    },
+    {
+      title: 'Notifications',
+      rows: [
+        { label: 'Push', href: '/customer/settings/notifications' },
+        { label: 'Email', href: '/customer/settings/notifications' },
+        { label: 'SMS', href: '/customer/settings/notifications' },
+        { label: 'Booking, Message & Payment Preferences', href: '/customer/settings/booking-preferences' },
+      ],
+    },
+    {
+      title: 'Payments',
+      rows: [
+        { label: 'Payment methods', href: '/customer/settings/payment-methods' },
+        { label: 'Receipts & Billing', href: '/customer/settings/payments' },
+      ],
+    },
+    {
+      title: 'Location',
+      rows: [{ label: 'Saved addresses', href: '/customer/settings/addresses' }],
+    },
+    {
+      title: 'Help & Support',
+      rows: [
+        { label: 'Help center', href: '/customer/settings/help-support' },
+        { label: 'Report an issue', href: '/customer/settings/help-support' },
+        { label: 'Contact support', href: '/customer/settings/help-support' },
+      ],
+    },
+    {
+      title: 'Legal & Trust',
+      rows: [
+        { label: 'Privacy policy', href: '/customer/settings/support-legal' },
+        { label: 'Terms', href: '/customer/settings/support-legal' },
+        { label: 'Dispute policy', href: '/customer/settings/support-legal' },
+        { label: 'Verification & background checks', href: '/customer/settings/safety-preferences' },
+      ],
+    },
   ];
 
   return (
     <AppLayout mode="customer">
-      <CustomerPageShell
-        title={t('title')}
-        subtitle={t('customerSubtitle')}
-      >
-        <div className="max-w-4xl mx-auto px-4 pt-2">
-          <div className="mb-6">
-            <TrustRow />
-          </div>
-
-          {/* Language section - first */}
-          <Card withRail className="mb-3">
-            <Label variant="card" className="mb-3">
-              <span className="inline-flex items-center gap-2">
-                <AppIcon name="globe" size={18} className="text-text3" alt="" />
-                <span className="text-text font-medium">{t('language')}</span>
-              </span>
-            </Label>
-            <LanguageSwitcher variant="list" />
-          </Card>
-
-          <div className="flex flex-col gap-3">
-            {sections.map((section) => (
-              <Link key={section.id} href={section.href} className="block">
-                <Card withRail>
-                  <div className="flex items-center justify-between">
-                    <Label variant="card">
-                      <span className="inline-flex items-center gap-2">
-                        <AppIcon name={section.icon as AppIconName} size={18} className="text-text3" alt="" />
-                        <span className="text-text font-medium">{t(section.labelKey)}</span>
-                      </span>
-                    </Label>
-                    <span className="text-muted">→</span>
-                  </div>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </div>
+      <CustomerPageShell title="Settings" subtitle="Manage your account and preferences">
+        <SettingsHome
+          sections={sections}
+          onSignOut={() => void signOut()}
+          signingOut={signingOut}
+          signOutError={signOutError}
+        />
       </CustomerPageShell>
     </AppLayout>
   );

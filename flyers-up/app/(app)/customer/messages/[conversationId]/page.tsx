@@ -1,38 +1,26 @@
 'use client';
 
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { AppLayout } from '@/components/layouts/AppLayout';
-import { Card } from '@/components/ui/Card';
-import { Label } from '@/components/ui/Label';
+import { use, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-export default function CustomerConversationPage() {
-  const params = useParams();
-  const conversationId = params.conversationId as string;
+/**
+ * Redirect to canonical chat route. Do not maintain a third chat pattern.
+ */
+export default function CustomerMessagesConversationRedirect({
+  params,
+}: {
+  params: Promise<{ conversationId: string }>;
+}) {
+  const { conversationId } = use(params);
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace(`/customer/chat/conversation/${conversationId}`);
+  }, [conversationId, router]);
 
   return (
-    <AppLayout mode="customer">
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <Label className="mb-2 block">CUSTOMER CONVERSATION</Label>
-            <h1 className="text-2xl font-semibold text-gray-900">Conversation</h1>
-          </div>
-          <Link href="/customer/messages" className="text-sm text-gray-500 hover:text-gray-900">
-            Back to Messages →
-          </Link>
-        </div>
-
-        <Card withRail>
-          <p className="text-sm text-gray-500">
-            Conversation ID: <span className="font-mono">{conversationId}</span>
-          </p>
-          <p className="text-gray-900 mt-3">
-            Chat UI wiring is next. For now this page confirms navigation works and stays in Customer mode.
-          </p>
-        </Card>
-      </div>
-    </AppLayout>
+    <div className="flex min-h-[200px] items-center justify-center">
+      <p className="text-sm text-[#6A6A6A]">Redirecting…</p>
+    </div>
   );
 }
-

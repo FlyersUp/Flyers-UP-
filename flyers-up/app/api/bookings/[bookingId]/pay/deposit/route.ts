@@ -52,7 +52,7 @@ export async function POST(
 
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, service_date, service_time, address, job_request_id, scope_confirmed_at')
+    .select('id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, service_date, service_time, address, duration_hours, job_request_id, scope_confirmed_at')
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();
@@ -175,6 +175,13 @@ export async function POST(
   const serviceName = (cat?.name ?? 'Service').trim();
   const proName = (proRow.display_name ?? 'Pro').trim();
 
+  const { data: profileRow } = await admin
+    .from('profiles')
+    .select('avatar_url')
+    .eq('id', proRow.user_id)
+    .maybeSingle();
+  const proPhotoUrl = (profileRow as { avatar_url?: string | null })?.avatar_url ?? null;
+
   const quoteResult = computeQuote(
     {
       id: booking.id,
@@ -282,6 +289,11 @@ export async function POST(
   return NextResponse.json({
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,
-    quote: quoteResult,
+    quote: {
+      ...quoteResult,
+      proPhotoUrl,
+      address: booking.address ?? undefined,
+      durationHours: (booking as { duration_hours?: number | null }).duration_hours ?? undefined,
+    },
   });
 }

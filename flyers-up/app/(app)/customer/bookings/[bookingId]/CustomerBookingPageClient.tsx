@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { BookingDetailContent } from './BookingDetailContent';
 import { BookingSignInPrompt } from '@/components/bookings/customer/BookingSignInPrompt';
+import { TrackBookingSkeleton } from '@/components/bookings/customer/TrackBookingSkeleton';
 import type { BookingDetailData } from './BookingDetailContent';
 
 /**
@@ -79,7 +80,7 @@ export function CustomerBookingPageClient({
     return (
       <AppLayout mode="customer">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <p className="text-sm text-gray-500">Loading booking…</p>
+          <TrackBookingSkeleton />
         </div>
       </AppLayout>
     );

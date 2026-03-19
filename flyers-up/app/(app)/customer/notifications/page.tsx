@@ -2,7 +2,7 @@
 
 import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { useUnreadNotifications } from '@/hooks/useUnreadNotifications';
 import { NotificationList } from '@/components/notifications/NotificationList';
@@ -14,27 +14,27 @@ import { NotificationList } from '@/components/notifications/NotificationList';
 export default function CustomerNotifications() {
   const { clearMessagesAlert } = useNavAlerts();
   const { markAllRead, error } = useUnreadNotifications();
-  const hasMarkedRead = useRef(false);
 
   useEffect(() => {
     clearMessagesAlert();
   }, [clearMessagesAlert]);
 
-  useEffect(() => {
-    if (hasMarkedRead.current) return;
-    hasMarkedRead.current = true;
-    void markAllRead();
-  }, [markAllRead]);
-
   return (
     <AppLayout mode="customer">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-semibold text-[#2C2C2C] tracking-[0.2px] mb-6">
-          Notifications
-        </h1>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold text-text tracking-[0.2px]">Notifications</h1>
+          <button
+            type="button"
+            onClick={() => void markAllRead()}
+            className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-muted hover:text-text"
+          >
+            Mark all read
+          </button>
+        </div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
             {error}
           </div>
         )}

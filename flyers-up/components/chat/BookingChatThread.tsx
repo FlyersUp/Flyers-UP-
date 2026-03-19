@@ -2,9 +2,10 @@
 
 /**
  * Unified chat thread: messages + quote cards interleaved by created_at.
- * Used by both customer and pro chat pages.
+ * Uses shared MessageBubble for consistency with conversation chat.
  */
 import { QuoteCard } from './QuoteCard';
+import { MessageBubble } from './MessageBubble';
 
 export type ChatMessage = {
   id: string;
@@ -103,28 +104,15 @@ export function BookingChatThread({
         const mine =
           (isCustomer && msg.sender_role === 'customer') ||
           (!isCustomer && msg.sender_role === 'pro');
-        const bubbleStyle =
-          msg.sender_role === 'customer'
-            ? 'bg-[#b2fba5] text-gray-900 border border-[#9ae88d]'
-            : 'bg-amber-100 text-gray-900 border border-amber-200';
-        const senderName = mine ? 'You' : otherPartyName;
 
         return (
-          <div
+          <MessageBubble
             key={`msg-${msg.id}`}
-            className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}
-          >
-            <span className="text-xs font-medium text-muted mb-0.5">{senderName}</span>
-            <div className={`max-w-xs rounded-xl px-4 py-2 ${bubbleStyle}`}>
-              <p>{msg.message}</p>
-              <div className="text-xs text-gray-600 mt-1">
-                {new Date(msg.created_at).toLocaleTimeString([], {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                })}
-              </div>
-            </div>
-          </div>
+            id={msg.id}
+            message={msg.message}
+            createdAt={msg.created_at}
+            isMine={mine}
+          />
         );
       })}
     </div>

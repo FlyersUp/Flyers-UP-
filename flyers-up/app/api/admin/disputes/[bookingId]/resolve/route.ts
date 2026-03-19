@@ -79,6 +79,68 @@ export async function POST(
     });
   }
 
+  // Mirror decision into latest customer-visible booking issue status.
+  const { data: latestIssue } = await admin
+    .from('booking_issues')
+    .select('id')
+    .eq('booking_id', id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latestIssue?.id) {
+    const statusPayload =
+      decision === 'request_evidence'
+        ? {
+            status: 'waiting_for_pro',
+            status_reason: 'We requested additional context from the pro before final resolution.',
+            updated_at: now.toISOString(),
+            resolution_outcome: null,
+            resolved_at: null,
+          }
+        : decision === 'split_refund'
+          ? {
+              status: 'resolved',
+              status_reason: 'Case resolved with a partial refund.',
+              updated_at: now.toISOString(),
+              resolution_outcome: 'partial_refund',
+              resolved_at: now.toISOString(),
+            }
+          : decision === 'uphold_customer'
+            ? {
+                status: 'resolved',
+                status_reason: 'Case resolved in your favor.',
+                updated_at: now.toISOString(),
+                resolution_outcome: 'refund',
+                resolved_at: now.toISOString(),
+              }
+            : {
+                status: 'resolved',
+                status_reason: 'Case reviewed and closed.',
+                updated_at: now.toISOString(),
+                resolution_outcome: 'denied',
+                resolved_at: now.toISOString(),
+              };
+
+    await admin.from('booking_issues').update(statusPayload).eq('id', latestIssue.id);
+
+    await admin.from('booking_issue_updates').insert({
+      issue_id: latestIssue.id,
+      booking_id: id,
+      author_user_id: user.id,
+      author_role: 'support',
+      message:
+        decision === 'request_evidence'
+          ? 'We requested additional context from the pro and will continue review once received.'
+          : decision === 'split_refund'
+            ? 'Your case was resolved with a partial refund decision.'
+            : decision === 'uphold_customer'
+              ? 'Your case was resolved in your favor.'
+              : 'Your case has been reviewed and closed.',
+      attachment_urls: [],
+    });
+  }
+
   if (body.issue_strike && booking.pro_id) {
     const { data: pro } = await admin.from('service_pros').select('user_id').eq('id', booking.pro_id).maybeSingle();
     if (pro?.user_id) {

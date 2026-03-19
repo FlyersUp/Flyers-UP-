@@ -1,21 +1,31 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+/**
+ * Pro Profile View — Full layout
+ * Airbnb warmth, Stripe clarity, Apple polish, Linear spacing
+ * Mobile-first, single scroll, conversion-focused
+ *
+ * Section order (highest-conviction first):
+ * 1. Hero / identity
+ * 2. Trust badges (visible early)
+ * 3. Services + pricing (highest conviction)
+ * 4. Reviews summary + cards (highest conviction)
+ * 5. Gallery
+ * 6. Availability preview
+ * 7. About / service area
+ * 8. Sticky CTA (Book primary, Message supportive)
+ */
+
 import type { PublicProProfileModel } from '@/lib/profileData';
-import { ProHeaderCard } from '@/components/pro-profile/ProHeaderCard';
+import { ProfileHeroCard } from '@/components/pro-profile/ProfileHeroCard';
 import { TrustBadgesRow } from '@/components/pro-profile/TrustBadgesRow';
-import { PricingCard } from '@/components/pro-profile/PricingCard';
-import { ServiceAreaCard } from '@/components/pro-profile/ServiceAreaCard';
-import { AvailabilityCard } from '@/components/pro-profile/AvailabilityCard';
+import { ServicesAndPricingSection } from '@/components/pro-profile/ServicesAndPricingSection';
+import { AvailabilityPreviewCard } from '@/components/pro-profile/AvailabilityPreviewCard';
 import { StickyBookingBar } from '@/components/pro-profile/StickyBookingBar';
-import { Tabs, type TabKey } from '@/components/profile/Tabs';
-import { PhotoGrid } from '@/components/profile/PhotoGrid';
-import { ServicesList } from '@/components/profile/ServicesList';
-import { ReviewsList } from '@/components/profile/ReviewsList';
-import { AboutPanel } from '@/components/profile/AboutPanel';
-import { parseBusinessHoursModel, summarizeBusinessHours } from '@/lib/utils/businessHours';
+import { GallerySection } from '@/components/profile/GallerySection';
+import { ProReviewSection } from '@/components/profile/ProReviewSection';
+import { AboutServiceAreaSection } from '@/components/profile/AboutServiceAreaSection';
 import { ReportUserBlockUser } from '@/components/moderation/ReportUserBlockUser';
-import { ProReputationCardWithFetch } from '@/components/marketplace/ProReputationCardWithFetch';
 
 export function ProProfileView({
   profile,
@@ -32,96 +42,70 @@ export function ProProfileView({
   messageTitle?: string | null;
   callHref: string | null;
   shareUrl?: string | null;
-  /** When true, StickyBookingBar sits above BottomNav */
   aboveBottomNav?: boolean;
 }) {
-  const [tab, setTab] = useState<TabKey>('work');
-
-  const businessHoursSummary = useMemo(() => {
-    try {
-      return summarizeBusinessHours(parseBusinessHoursModel(profile.businessHours || ''));
-    } catch {
-      return null;
-    }
-  }, [profile.businessHours]);
-
-  const tabs = useMemo(
-    () => [
-      { key: 'work' as const, label: 'Work', icon: '▦' },
-      { key: 'services' as const, label: 'Services', icon: '≡' },
-      { key: 'reviews' as const, label: 'Reviews', icon: '★' },
-      { key: 'about' as const, label: 'About', icon: 'ℹ︎' },
-    ],
-    []
-  );
-
   const messageDisabled = !messageHref;
 
   return (
-    <div className="space-y-5 pb-28">
-      {/* B) Header Trust Card */}
-      <section className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm relative">
-        <div className="absolute top-4 right-4">
+    <div className="space-y-6 pb-36">
+      {/* 1. Hero / identity block */}
+      <section className="relative">
+        <div className="absolute top-4 right-4 z-10">
           <ReportUserBlockUser
             targetUserId={profile.userId}
             targetDisplayName={profile.businessName}
             variant="menu"
           />
         </div>
-        <ProHeaderCard profile={profile} />
-        <div className="mt-4">
-          <TrustBadgesRow trust={profile.trust} />
-        </div>
-        {profile.bio && (
-          <div className="mt-4 text-sm text-text/90 line-clamp-4 whitespace-pre-line">
-            {profile.bio}
-          </div>
-        )}
+        <ProfileHeroCard profile={profile} />
       </section>
 
-      {/* C) Reputation depth */}
-      <ProReputationCardWithFetch
-        proId={profile.id}
-        fallbackRating={profile.stats?.avgRating ?? 0}
-        fallbackJobsCompleted={profile.stats?.reviewCount ?? 0}
-      />
-
-      {/* D) Pricing Card */}
-      <PricingCard pricing={profile.pricing} />
-
-      {/* E) Service Area + Availability */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <ServiceAreaCard serviceRadiusMiles={profile.serviceRadiusMiles} />
-        <AvailabilityCard businessHours={profile.businessHours} />
-      </div>
-
-      {/* G) Tabs */}
-      <section className="rounded-2xl border border-black/5 bg-white overflow-hidden shadow-sm">
-        <Tabs tabs={tabs} active={tab} onChange={setTab} />
-        <div className="p-4">
-          {tab === 'work' ? (
-            <PhotoGrid photos={profile.photos} />
-          ) : tab === 'services' ? (
-            <ServicesList proId={profile.id} services={profile.services} />
-          ) : tab === 'reviews' ? (
-            <ReviewsList
-              avgRating={profile.stats.avgRating}
-              reviewCount={profile.stats.reviewCount}
-              reviews={profile.reviews}
-            />
-          ) : (
-            <AboutPanel
-              aboutLong={profile.aboutLong}
-              bio={profile.bio}
-              credentials={profile.credentials}
-              serviceRadiusMiles={profile.serviceRadiusMiles}
-              businessHoursSummary={businessHoursSummary}
-            />
-          )}
-        </div>
+      {/* 2. Trust badges / verification — visible early */}
+      <section>
+        <TrustBadgesRow trust={profile.trust} />
       </section>
 
-      {/* F) Sticky Booking Bar */}
+      {/* 3. Services + pricing — highest conviction */}
+      <section>
+        <ServicesAndPricingSection profile={profile} />
+      </section>
+
+      {/* 4. Reviews summary + review cards — highest conviction */}
+      <section>
+        <ProReviewSection
+          proId={profile.id}
+          fallbackAvgRating={profile.stats.avgRating}
+          fallbackReviewCount={profile.stats.reviewCount}
+        />
+      </section>
+
+      {/* 5. Gallery / work samples */}
+      <section>
+        <GallerySection photos={profile.photos} />
+      </section>
+
+      {/* 6. Availability preview */}
+      <section>
+        <AvailabilityPreviewCard businessHours={profile.businessHours} bookHref={bookHref} />
+      </section>
+
+      {/* 7. About / service area */}
+      {(profile.bio ||
+        profile.aboutLong ||
+        profile.locationLabel ||
+        (profile.serviceRadiusMiles != null && profile.serviceRadiusMiles > 0)) && (
+        <section>
+          <AboutServiceAreaSection
+            bio={profile.bio}
+            aboutLong={profile.aboutLong}
+            locationLabel={profile.locationLabel}
+            categoryName={profile.categoryName}
+            serviceRadiusMiles={profile.serviceRadiusMiles}
+          />
+        </section>
+      )}
+
+      {/* 8. Sticky Book CTA + Message Pro (supportive) */}
       <StickyBookingBar
         bookHref={bookHref}
         messageHref={messageHref}

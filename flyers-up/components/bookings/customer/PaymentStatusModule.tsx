@@ -45,6 +45,7 @@ export interface PaymentStatusModuleProps {
 }
 
 const checkoutBase = (id: string) => `/customer/bookings/${id}/checkout`;
+const completeBase = (id: string) => `/customer/bookings/${id}/complete`;
 
 export function PaymentStatusModule({
   bookingId,
@@ -155,7 +156,7 @@ export function PaymentStatusModule({
         <h3 className="text-sm font-medium text-[#6A6A6A] mb-2">Payment &amp; status</h3>
         <p className="text-sm font-medium text-[#111111]">Job completed — pay remaining balance</p>
         <Link
-          href={`${checkoutBase(bookingId)}?phase=final`}
+          href={completeBase(bookingId)}
           className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 mt-3"
         >
           Pay remaining {amountRemaining != null ? formatCents(amountRemaining) : ''}

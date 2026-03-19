@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import { mapDbStatusToTimeline } from '@/components/jobs/jobStatus';
 
+const NO_RESCHEDULE_STATUSES = ['pro_en_route', 'on_the_way', 'arrived', 'in_progress', 'completed', 'paid', 'cancelled', 'declined'];
+const NO_CANCEL_STATUSES = ['cancelled', 'declined', 'completed', 'awaiting_customer_confirmation', 'paid', 'fully_paid'];
+
 export interface BookingActionsBarProps {
   bookingId: string;
   status: string;
@@ -11,6 +14,8 @@ export interface BookingActionsBarProps {
   serviceName?: string | null;
   address?: string | null;
   notes?: string | null;
+  onRescheduleClick?: () => void;
+  onCancelClick?: () => void;
 }
 
 export function BookingActionsBar({
@@ -21,9 +26,13 @@ export function BookingActionsBar({
   serviceName,
   address,
   notes,
+  onRescheduleClick,
+  onCancelClick,
 }: BookingActionsBarProps) {
   const timelineStatus = mapDbStatusToTimeline(status);
   const isCompleted = timelineStatus === 'COMPLETED' || timelineStatus === 'PAID';
+  const canReschedule = !NO_RESCHEDULE_STATUSES.includes(status);
+  const canCancel = !NO_CANCEL_STATUSES.includes(status);
 
   const rebookParams = new URLSearchParams();
   if (address) rebookParams.set('address', address);
@@ -32,23 +41,45 @@ export function BookingActionsBar({
   const rebookHref = proId ? `/book/${proId}${rebookParams.toString() ? `?${rebookParams}` : ''}` : null;
 
   return (
-    <div className="flex flex-col sm:flex-row gap-3">
+    <div className="flex flex-col gap-3">
+      {/* Primary: Message pro */}
       <Link
         href={`/customer/chat/${bookingId}`}
-        className="flex-1 h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all"
+        className="h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all"
       >
         Message pro
       </Link>
+      {/* Secondary: Reschedule — visible, trustworthy */}
+      {canReschedule && onRescheduleClick && (
+        <button
+          type="button"
+          onClick={onRescheduleClick}
+          className="h-11 flex items-center justify-center rounded-full text-sm font-medium border-2 border-[#058954]/30 bg-[#058954]/5 dark:bg-[#058954]/10 text-[#058954] dark:text-[#2dd68a] hover:bg-[#058954]/10 dark:hover:bg-[#058954]/15 transition-colors"
+        >
+          Reschedule
+        </button>
+      )}
+      {/* Tertiary: Cancel — lowest emphasis until confirmation */}
+      {canCancel && onCancelClick && (
+        <button
+          type="button"
+          onClick={onCancelClick}
+          className="h-11 flex items-center justify-center rounded-full text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] hover:text-[#111111] dark:hover:text-[#F5F7FA] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
+        >
+          Cancel booking
+        </button>
+      )}
+      {/* Utility */}
       <Link
         href="/customer/settings/help-support"
-        className="flex-1 h-11 flex items-center justify-center rounded-full text-sm font-medium border border-black/15 text-black/80 hover:bg-black/5 transition-colors"
+        className="h-11 flex items-center justify-center rounded-full text-sm font-medium border border-black/10 dark:border-white/10 text-[#6A6A6A] dark:text-[#A1A8B3] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
       >
         Help / Support
       </Link>
       {isCompleted && rebookHref && (
         <Link
           href={rebookHref}
-          className="flex-1 h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black border-2 border-[#B2FBA5] bg-[#B2FBA5]/20 hover:bg-[#B2FBA5]/30 transition-all"
+          className="h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black border-2 border-[#B2FBA5] bg-[#B2FBA5]/20 hover:bg-[#B2FBA5]/30 transition-all"
         >
           Rebook Same Pro
         </Link>
@@ -56,13 +87,13 @@ export function BookingActionsBar({
       {isCompleted && (
         <Link
           href={`/jobs/${bookingId}`}
-          className="flex-1 h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all"
+          className="h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all"
         >
           Leave a review
         </Link>
       )}
       {primaryAction && (
-        <div className="w-full sm:flex-1">{primaryAction}</div>
+        <div className="w-full">{primaryAction}</div>
       )}
     </div>
   );

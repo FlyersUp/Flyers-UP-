@@ -1,5 +1,19 @@
 'use client';
 
+/**
+ * Pro Dashboard — Uber Driver / TaskRabbit / delivery driver
+ * Help pros manage jobs, accept work, and track earnings quickly.
+ *
+ * Structure:
+ * 1. Today's overview (earnings + jobs count)
+ * 2. Today's jobs (priority)
+ * 3. Incoming requests
+ * 4. Upcoming jobs
+ * 5. Earnings summary
+ *
+ * States: loading, empty, error
+ */
+
 import { useEffect, useMemo, useState } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { DashboardCard, DashboardSectionSkeleton } from '@/components/dashboard/DashboardCard';
@@ -7,6 +21,7 @@ import Link from 'next/link';
 import { SideMenu } from '@/components/ui/SideMenu';
 import { getProJobs, getProEarnings, type Booking } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
+import { ChevronRight, DollarSign, Briefcase, Calendar } from 'lucide-react';
 
 type JobRequestRow = {
   id: string;
@@ -27,17 +42,62 @@ type TodayJob = {
   time: string;
   total: number;
   status: string;
+  statusLabel: string;
 };
+
+type UpcomingJob = {
+  id: string;
+  service: string;
+  customerName: string;
+  date: string;
+  time: string;
+  total: number;
+  status: string;
+};
+
+const TODAY_STATUSES =
+  'requested,pending,accepted,pro_en_route,on_the_way,arrived,in_progress,completed_pending_payment,awaiting_payment,awaiting_remaining_payment';
+
+function formatStatus(s: string): string {
+  const lower = (s || '').toLowerCase();
+  if (lower === 'accepted') return 'Scheduled';
+  if (lower === 'on_the_way' || lower === 'pro_en_route') return 'On the way';
+  if (lower === 'in_progress') return 'In progress';
+  if (lower === 'awaiting_payment' || lower === 'completed_pending_payment') return 'Payment due';
+  return s.replace(/_/g, ' ');
+}
+
+function getStatusVariant(status: string): string {
+  const lower = (status || '').toLowerCase();
+  if (['on_the_way', 'pro_en_route', 'in_progress'].includes(lower))
+    return 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300';
+  if (['awaiting_payment', 'completed_pending_payment'].includes(lower))
+    return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300';
+  return 'bg-black/5 dark:bg-white/10 text-text dark:text-[#F5F7FA]';
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
 
 export default function ProDashboard({ userName }: { userName: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [jobs, setJobs] = useState<Booking[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
-  const [proRating, setProRating] = useState<number | null>(null);
-  const [jobsCompleted, setJobsCompleted] = useState<number>(0);
   const [requests, setRequests] = useState<JobRequestRow[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(true);
-  const [earnings, setEarnings] = useState<{ thisWeek: number } | null>(null);
+  const [earnings, setEarnings] = useState<{
+    thisWeek?: number;
+    thisMonth?: number;
+    totalEarnings?: number;
+    completedJobs?: number;
+  } | null>(null);
   const [earningsLoading, setEarningsLoading] = useState(true);
 
   useEffect(() => {
@@ -53,22 +113,14 @@ export default function ProDashboard({ userName }: { userName: string }) {
         const data = await getProJobs(user.id);
         if (!mounted) return;
         setJobs(data);
-
-        const { data: proRow } = await supabase
-          .from('service_pros')
-          .select('rating, jobs_completed')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        if (mounted && proRow) {
-          setProRating(typeof (proRow as { rating?: number }).rating === 'number' ? (proRow as { rating: number }).rating : null);
-          setJobsCompleted(Number((proRow as { jobs_completed?: number }).jobs_completed ?? 0));
-        }
       } finally {
         if (mounted) setJobsLoading(false);
       }
     };
     void load();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -77,7 +129,9 @@ export default function ProDashboard({ userName }: { userName: string }) {
       try {
         const { data } = await supabase
           .from('job_requests')
-          .select('id, title, description, service_category, budget_min, budget_max, location, preferred_date, preferred_time')
+          .select(
+            'id, title, description, service_category, budget_min, budget_max, location, preferred_date, preferred_time'
+          )
           .eq('status', 'open')
           .gt('expires_at', new Date().toISOString())
           .order('created_at', { ascending: false })
@@ -90,7 +144,9 @@ export default function ProDashboard({ userName }: { userName: string }) {
         if (mounted) setRequestsLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -100,23 +156,31 @@ export default function ProDashboard({ userName }: { userName: string }) {
         if (mounted) setEarningsLoading(false);
         return;
       }
-      getProEarnings(user.id).then((e) => {
-        if (!mounted) return;
-        setEarnings({ thisWeek: e.thisWeek ?? 0 });
-      }).catch(() => {}).finally(() => {
-        if (mounted) setEarningsLoading(false);
-      });
+      getProEarnings(user.id)
+        .then((e) => {
+          if (!mounted) return;
+          setEarnings({
+            thisWeek: e.thisWeek ?? 0,
+            thisMonth: e.thisMonth ?? 0,
+            totalEarnings: e.totalEarnings ?? 0,
+            completedJobs: e.completedJobs ?? 0,
+          });
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (mounted) setEarningsLoading(false);
+        });
     });
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const todayJobs = useMemo((): TodayJob[] => {
     return jobs
       .filter((j) => j.date === todayIso)
-      .filter((j) =>
-        ['requested', 'pending', 'accepted', 'pro_en_route', 'on_the_way', 'in_progress', 'completed_pending_payment', 'awaiting_payment'].includes(j.status)
-      )
+      .filter((j) => TODAY_STATUSES.split(',').includes(j.status))
       .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))
       .map((j) => ({
         id: j.id,
@@ -125,8 +189,30 @@ export default function ProDashboard({ userName }: { userName: string }) {
         time: j.time,
         total: Number(j.price ?? 0),
         status: j.status,
+        statusLabel: formatStatus(j.status),
       }));
   }, [jobs, todayIso]);
+
+  const upcomingJobs = useMemo((): UpcomingJob[] => {
+    return jobs
+      .filter((j) => j.date > todayIso)
+      .filter((j) => TODAY_STATUSES.split(',').includes(j.status))
+      .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))
+      .slice(0, 5)
+      .map((j) => ({
+        id: j.id,
+        service: j.category || 'Service',
+        customerName: j.customerName || 'Customer',
+        date: j.date,
+        time: j.time,
+        total: Number(j.price ?? 0),
+        status: j.status,
+      }));
+  }, [jobs, todayIso]);
+
+  const todayEarnings = useMemo(() => {
+    return todayJobs.reduce((sum, j) => sum + j.total, 0);
+  }, [todayJobs]);
 
   return (
     <AppLayout mode="pro">
@@ -136,20 +222,59 @@ export default function ProDashboard({ userName }: { userName: string }) {
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
-              className="h-10 w-10 rounded-xl bg-surface2 border border-border text-gray-900 dark:text-white hover:bg-surface2/80"
+              className="h-10 w-10 rounded-xl bg-surface2 border border-border text-text hover:bg-surface2/80 flex items-center justify-center"
               aria-label="Open menu"
             >
               ☰
             </button>
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{userName}</h1>
+            <h1 className="text-xl font-semibold text-text truncate max-w-[60vw]">{userName}</h1>
             <div className="w-10" />
           </div>
         </div>
 
-        <div className="w-full max-w-4xl mx-auto px-4 py-6 space-y-6 min-w-0">
-          {/* 1. TODAY'S JOBS */}
+        <div className="w-full max-w-4xl mx-auto px-4 py-6 space-y-8 min-w-0 pb-24">
+          {/* 1. TODAY'S OVERVIEW (earnings + jobs) */}
           <section>
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">Today&apos;s Jobs</h2>
+            <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+              Today
+            </h2>
+            {jobsLoading || earningsLoading ? (
+              <DashboardSectionSkeleton />
+            ) : (
+              <DashboardCard>
+                <div className="p-5">
+                  <div className="flex items-center justify-between gap-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                        <DollarSign size={24} className="text-amber-600 dark:text-amber-400" strokeWidth={2} />
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-text">
+                          ${todayEarnings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </div>
+                        <div className="text-sm text-muted">Today&apos;s earnings</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center">
+                        <Briefcase size={24} className="text-accent" strokeWidth={2} />
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-text">{todayJobs.length}</div>
+                        <div className="text-sm text-muted">Jobs today</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </DashboardCard>
+            )}
+          </section>
+
+          {/* 2. TODAY'S JOBS (priority) */}
+          <section>
+            <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+              Today&apos;s jobs
+            </h2>
             {jobsLoading ? (
               <DashboardSectionSkeleton />
             ) : todayJobs.length > 0 ? (
@@ -158,129 +283,192 @@ export default function ProDashboard({ userName }: { userName: string }) {
                   <Link key={job.id} href={`/pro/jobs/${job.id}`}>
                     <DashboardCard>
                       <div className="p-4 flex items-center justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="font-semibold text-gray-900 dark:text-white">{job.service}</div>
-                          <div className="text-sm text-gray-600 dark:text-gray-300">{job.customerName} • {job.time}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-text">{job.service}</div>
+                          <div className="text-sm text-muted mt-0.5">
+                            {job.customerName} • {job.time}
+                          </div>
+                          <span
+                            className={`inline-block mt-2 px-2.5 py-1 rounded-full text-xs font-medium ${getStatusVariant(job.status)}`}
+                          >
+                            {job.statusLabel}
+                          </span>
                         </div>
-                        <div className="text-right shrink-0">
-                          <div className="text-lg font-bold text-amber-600 dark:text-amber-400">${job.total}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">{job.status.replace(/_/g, ' ')}</div>
+                        <div className="shrink-0 text-right">
+                          <div className="text-lg font-bold text-amber-600 dark:text-amber-400">
+                            ${job.total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          </div>
+                          <ChevronRight size={18} className="text-muted mt-0.5" />
                         </div>
                       </div>
                     </DashboardCard>
                   </Link>
                 ))}
-                <Link href="/pro/bookings" className="block text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+                <Link
+                  href="/pro/today"
+                  className="block text-sm font-medium text-muted hover:text-text transition-colors"
+                >
+                  View today&apos;s schedule →
+                </Link>
+              </div>
+            ) : (
+              <DashboardCard>
+                <div className="p-5">
+                  <div className="font-semibold text-text">No jobs today</div>
+                  <div className="text-sm text-muted mt-1">When you accept work, it will show here.</div>
+                  <Link
+                    href="/pro/requests"
+                    className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+                  >
+                    Check requests <ChevronRight size={16} />
+                  </Link>
+                </div>
+              </DashboardCard>
+            )}
+          </section>
+
+          {/* 3. INCOMING REQUESTS */}
+          <section>
+            <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+              Incoming requests
+            </h2>
+            {requestsLoading ? (
+              <DashboardSectionSkeleton />
+            ) : requests.length > 0 ? (
+              <div className="space-y-2">
+                {requests.slice(0, 3).map((r) => (
+                  <Link key={r.id} href="/pro/requests">
+                    <DashboardCard>
+                      <div className="p-4 flex items-center justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-text truncate">{r.title}</div>
+                          <div className="text-sm text-muted mt-0.5">
+                            {r.location}
+                            {(r.budget_min != null || r.budget_max != null) && (
+                              <span>
+                                {' '}
+                                • ${r.budget_min ?? '?'}–${r.budget_max ?? '?'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <ChevronRight size={18} className="text-muted shrink-0" />
+                      </div>
+                    </DashboardCard>
+                  </Link>
+                ))}
+                <Link
+                  href="/pro/requests"
+                  className="block text-sm font-medium text-muted hover:text-text transition-colors"
+                >
+                  View all requests →
+                </Link>
+              </div>
+            ) : (
+              <DashboardCard>
+                <div className="p-4">
+                  <div className="text-sm font-medium text-text">No open requests</div>
+                  <div className="text-xs text-muted mt-0.5">New requests will appear here.</div>
+                  <Link href="/pro/requests" className="mt-2 inline-block text-sm text-accent hover:underline">
+                    View demand board →
+                  </Link>
+                </div>
+              </DashboardCard>
+            )}
+          </section>
+
+          {/* 4. UPCOMING JOBS */}
+          <section>
+            <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+              Upcoming jobs
+            </h2>
+            {jobsLoading ? (
+              <DashboardSectionSkeleton />
+            ) : upcomingJobs.length > 0 ? (
+              <div className="space-y-2">
+                {upcomingJobs.map((job) => (
+                  <Link key={job.id} href={`/pro/jobs/${job.id}`}>
+                    <DashboardCard>
+                      <div className="p-4 flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-surface2 shrink-0 flex items-center justify-center">
+                          <Calendar size={18} className="text-muted" strokeWidth={2} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-text truncate">{job.service}</div>
+                          <div className="text-sm text-muted">
+                            {job.customerName} • {formatDate(job.date)} at {job.time}
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <div className="text-sm font-semibold text-text">
+                            ${job.total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          </div>
+                          <ChevronRight size={18} className="text-muted mt-0.5" />
+                        </div>
+                      </div>
+                    </DashboardCard>
+                  </Link>
+                ))}
+                <Link
+                  href="/pro/bookings"
+                  className="block text-sm font-medium text-muted hover:text-text transition-colors"
+                >
                   View all bookings →
                 </Link>
               </div>
             ) : (
               <DashboardCard>
                 <div className="p-4">
-                  <div className="font-semibold text-gray-900 dark:text-white">No jobs scheduled yet</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">When you accept work, it will show up here.</div>
-                  <Link href="/pro/jobs" className="mt-3 inline-block text-sm font-medium text-gray-900 dark:text-white hover:underline">
-                    Check requests →
-                  </Link>
+                  <div className="text-sm font-medium text-text">No upcoming jobs</div>
+                  <div className="text-xs text-muted mt-0.5">Future bookings will appear here.</div>
                 </div>
               </DashboardCard>
             )}
           </section>
 
-          {/* 2. REQUESTS NEAR YOU */}
+          {/* 5. EARNINGS SUMMARY */}
           <section>
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">Requests Near You</h2>
-            {requestsLoading ? (
-              <DashboardSectionSkeleton />
-            ) : requests.length > 0 ? (
-              <div className="space-y-2">
-                {requests.slice(0, 3).map((r) => (
-                  <DashboardCard key={r.id}>
-                    <Link href="/pro/jobs" className="block p-4">
-                      <div className="font-semibold text-gray-900 dark:text-white">{r.title}</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                        {r.location}
-                        {(r.budget_min != null || r.budget_max != null) && (
-                          <span> • ${r.budget_min ?? '?'}–${r.budget_max ?? '?'}</span>
-                        )}
-                      </div>
-                    </Link>
-                  </DashboardCard>
-                ))}
-                <Link href="/pro/jobs">
-                  <DashboardCard>
-                    <div className="p-4 text-center font-semibold text-gray-900 dark:text-white">View Requests</div>
-                  </DashboardCard>
-                </Link>
-              </div>
-            ) : (
-              <DashboardCard>
-                <div className="p-4">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">No open requests</div>
-                  <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">New requests will appear here.</div>
-                  <Link href="/pro/jobs" className="mt-2 inline-block text-sm text-gray-900 dark:text-white hover:underline">
-                    View Demand Board →
-                  </Link>
-                </div>
-              </DashboardCard>
-            )}
-          </section>
-
-          {/* 3. WEEKLY EARNINGS */}
-          <section>
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">Weekly Earnings</h2>
+            <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+              Earnings
+            </h2>
             {earningsLoading ? (
               <DashboardSectionSkeleton />
             ) : (
-              <DashboardCard>
-                <Link href="/pro/earnings" className="block p-4">
-                  <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                    ${(earnings?.thisWeek ?? 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              <Link href="/pro/earnings">
+                <DashboardCard>
+                  <div className="p-5">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                        <DollarSign size={24} className="text-amber-600 dark:text-amber-400" strokeWidth={2} />
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-text">
+                          $
+                          {(earnings?.thisWeek ?? earnings?.thisMonth ?? 0).toLocaleString('en-US', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          })}
+                        </div>
+                        <div className="text-sm text-muted">
+                          This week
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted">Total earned</span>
+                      <span className="font-semibold text-text">
+                        ${(earnings?.totalEarnings ?? 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm mt-1">
+                      <span className="text-muted">Jobs completed</span>
+                      <span className="font-semibold text-text">{earnings?.completedJobs ?? 0}</span>
+                    </div>
+                    <div className="mt-3 text-sm font-medium text-accent">View earnings →</div>
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">This week</div>
-                  <div className="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">View earnings →</div>
-                </Link>
-              </DashboardCard>
+                </DashboardCard>
+              </Link>
             )}
-          </section>
-
-          {/* 4. REPUTATION */}
-          <section>
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">Reputation</h2>
-            <DashboardCard>
-              <div className="p-4 flex gap-6">
-                <div>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {proRating != null ? proRating.toFixed(1) : '—'}
-                  </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-300">Average rating</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{jobsCompleted}</div>
-                  <div className="text-xs text-gray-600 dark:text-gray-300">Jobs completed</div>
-                </div>
-              </div>
-            </DashboardCard>
-          </section>
-
-          {/* Keep existing quick links for onboarding */}
-          <section>
-            <div className="grid grid-cols-2 gap-3">
-              <Link href="/pro/settings/business">
-                <DashboardCard>
-                  <div className="p-4 text-center">
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white">My Business</div>
-                  </div>
-                </DashboardCard>
-              </Link>
-              <Link href="/pro/credentials">
-                <DashboardCard>
-                  <div className="p-4 text-center">
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white">Credentials</div>
-                  </div>
-                </DashboardCard>
-              </Link>
-            </div>
           </section>
         </div>
       </div>

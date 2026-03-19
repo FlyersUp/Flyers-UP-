@@ -60,14 +60,14 @@ export function TrustBadgesRow({ trust }: TrustBadgesRowProps) {
   const badges = [...verifiedBadges, ...standardBadges] as Array<{ icon: typeof Shield; label: string; status: BadgeStatus }>;
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-wrap gap-2">
       {badges.map((b) => (
         <div
           key={b.label}
-          className="flex items-center gap-2 rounded-xl border border-black/5 bg-white/50 px-3 py-2"
+          className="flex items-center gap-2 rounded-xl border border-black/6 dark:border-white/10 bg-white dark:bg-[#1D2128] px-3 py-2 shadow-sm shadow-black/5 dark:shadow-black/20"
         >
-          <b.icon size={16} className="shrink-0 text-black/50" strokeWidth={1.5} />
-          <span className="text-xs font-medium text-black/70">{b.label}</span>
+          <b.icon size={14} className="shrink-0 text-[#6A6A6A] dark:text-[#A1A8B3]" strokeWidth={1.5} />
+          <span className="text-xs font-medium text-[#111111] dark:text-[#F5F7FA]">{b.label}</span>
           <span
             className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${statusClass(b.status)}`}
           >

@@ -22,7 +22,8 @@ export async function submitReviewAction(
   bookingId: string,
   rating: number,
   comment: string | null,
-  accessToken?: string
+  accessToken?: string,
+  options?: { tags?: string[]; isPublic?: boolean }
 ): Promise<SubmitReviewResult> {
   try {
     const { userId } = await requireCustomerUser({ accessToken });
@@ -52,13 +53,34 @@ export async function submitReviewAction(
       return { success: false, error: 'You can only review completed bookings.' };
     }
 
-    const { error } = await supabase.from('booking_reviews').insert({
+    const tags = Array.isArray(options?.tags) ? options.tags.filter((t) => typeof t === 'string' && t.trim()).slice(0, 10) : [];
+    const isPublic = options?.isPublic !== false;
+
+    const insertPayload: Record<string, unknown> = {
       booking_id: bookingId,
       customer_id: userId,
       pro_id: booking.pro_id,
       rating: Math.round(rating),
       comment: comment?.trim() || null,
-    });
+    };
+    // Extended columns (migration 073) - include if present
+    insertPayload.is_public = isPublic;
+    if (tags.length > 0) insertPayload.tags = tags;
+
+    let { error } = await supabase.from('booking_reviews').insert(insertPayload);
+    // Fallback if migration 073 not applied: retry without extended columns
+    const colError = error?.message?.includes('is_public') || error?.message?.includes('does not exist') || error?.code === '42703';
+    if (colError) {
+      const basicPayload = {
+        booking_id: bookingId,
+        customer_id: userId,
+        pro_id: booking.pro_id,
+        rating: Math.round(rating),
+        comment: comment?.trim() || null,
+      };
+      const retry = await supabase.from('booking_reviews').insert(basicPayload);
+      error = retry.error;
+    }
 
     if (error) {
       if (error.code === '23505') {
