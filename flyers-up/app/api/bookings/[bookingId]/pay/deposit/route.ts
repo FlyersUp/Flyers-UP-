@@ -27,6 +27,7 @@ export async function POST(
   _req: Request,
   { params }: { params: Promise<{ bookingId: string }> }
 ) {
+  try {
   if (!stripe) {
     return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
   }
@@ -297,4 +298,11 @@ export async function POST(
       durationHours: (booking as { duration_hours?: number | null }).duration_hours ?? undefined,
     },
   });
+  } catch (err) {
+    const { bookingId: bid } = await params;
+    console.error('[pay/deposit] unhandled error', { bookingId: bid, err });
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    const safeMessage = message.includes('SUPABASE_SERVICE_ROLE_KEY') ? 'Server configuration error' : message;
+    return NextResponse.json({ error: safeMessage }, { status: 500 });
+  }
 }
