@@ -86,7 +86,7 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-export default function ProDashboard({ userName }: { userName: string }) {
+export default function ProDashboard({ userName, proId }: { userName: string; proId?: string | null }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [jobs, setJobs] = useState<Booking[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
@@ -233,6 +233,42 @@ export default function ProDashboard({ userName }: { userName: string }) {
         </div>
 
         <div className="w-full max-w-4xl mx-auto px-4 py-6 space-y-8 min-w-0 pb-24">
+          {/* 0. Share profile link */}
+          {proId && (
+            <section>
+              <DashboardCard>
+                <div className="p-4 flex items-center justify-between gap-4">
+                  <div>
+                    <div className="font-semibold text-text">Share your profile</div>
+                    <div className="text-sm text-muted mt-0.5">Customers can rebook you directly</div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <a
+                      href={`/book/${proId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-surface2"
+                    >
+                      View
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/book/${proId}`;
+                        void navigator.clipboard.writeText(url).then(() => {
+                          // Optional: show toast
+                        });
+                      }}
+                      className="px-3 py-2 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20"
+                    >
+                      Copy link
+                    </button>
+                  </div>
+                </div>
+              </DashboardCard>
+            </section>
+          )}
+
           {/* 1. TODAY'S OVERVIEW (earnings + jobs) */}
           <section>
             <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">

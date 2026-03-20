@@ -53,7 +53,7 @@ export default async function ProDashboardPage() {
   // Require customer-visible pro info before showing the dashboard.
   const { data: proRow } = await supabase
     .from('service_pros')
-    .select('user_id, display_name, category_id, service_area_zip')
+    .select('id, user_id, display_name, category_id, service_area_zip')
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -66,6 +66,7 @@ export default async function ProDashboardPage() {
   const fallbackName = (user.email ? user.email.split('@')[0] : 'Account') || 'Account';
   const userName = [profile.first_name?.trim(), profile.last_name?.trim()].filter(Boolean).join(' ') || fallbackName;
 
-  return <ProDashboard userName={userName} />;
+  const proId = proRow?.id ?? null;
+  return <ProDashboard userName={userName} proId={proId} />;
 }
 

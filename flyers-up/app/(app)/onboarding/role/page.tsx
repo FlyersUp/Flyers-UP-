@@ -197,7 +197,7 @@ function RoleInner() {
                   <div className="text-4xl leading-none shrink-0">🪜</div>
                   <div className="min-w-0">
                     <div className="font-semibold text-lg text-text">Pro</div>
-                    <div className="text-muted mt-1">I offer services. Create a profile and start taking bookings.</div>
+                    <div className="text-muted mt-1">Build your service business. Set your pricing, control your schedule, and grow repeat customers.</div>
                   </div>
                 </div>
               </button>
