@@ -62,11 +62,13 @@ export function NavAlertsProvider({ children }: { children: React.ReactNode }) {
             table: 'booking_messages',
           },
           (payload) => {
-            const row = payload.new as { sender_id?: string };
-            if (row?.sender_id && row.sender_id !== user.id) {
-              setHasNewMessages(true);
-              setHasNewNotifications(true);
-            }
+            queueMicrotask(() => {
+              const row = payload.new as { sender_id?: string };
+              if (row?.sender_id && row.sender_id !== user.id) {
+                setHasNewMessages(true);
+                setHasNewNotifications(true);
+              }
+            });
           }
         )
         .on(
@@ -77,11 +79,13 @@ export function NavAlertsProvider({ children }: { children: React.ReactNode }) {
             table: 'conversation_messages',
           },
           (payload) => {
-            const row = payload.new as { sender_id?: string };
-            if (row?.sender_id && row.sender_id !== user.id) {
-              setHasNewMessages(true);
-              setHasNewNotifications(true);
-            }
+            queueMicrotask(() => {
+              const row = payload.new as { sender_id?: string };
+              if (row?.sender_id && row.sender_id !== user.id) {
+                setHasNewMessages(true);
+                setHasNewNotifications(true);
+              }
+            });
           }
         )
         .subscribe((status) => {

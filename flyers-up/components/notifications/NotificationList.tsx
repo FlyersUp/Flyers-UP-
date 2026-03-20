@@ -167,10 +167,12 @@ export function NotificationList({ basePath }: NotificationListProps) {
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
-            const row = payload.new as NotificationItem;
-            if (row?.user_id === user.id) {
-              setItems((prev) => [row, ...prev]);
-            }
+            queueMicrotask(() => {
+              const row = payload.new as NotificationItem;
+              if (row?.user_id === user.id) {
+                setItems((prev) => [row, ...prev]);
+              }
+            });
           }
         )
         .subscribe();

@@ -144,19 +144,21 @@ export default function CustomerRequestsPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'job_requests', filter: `customer_id=eq.${userId}` },
         (payload) => {
-          if (payload.new) {
-            setRequests((prev) => {
-              const next = [...prev];
-              const idx = next.findIndex((r) => r.id === (payload.new as { id: string }).id);
-              const normalized = normalizeRequest(payload.new as Record<string, unknown>);
-              if (idx >= 0) next[idx] = normalized;
-              else next.unshift(normalized);
-              return next;
-            });
-          }
-          if (payload.old) {
-            setRequests((prev) => prev.filter((r) => r.id !== (payload.old as { id: string }).id));
-          }
+          queueMicrotask(() => {
+            if (payload.new) {
+              setRequests((prev) => {
+                const next = [...prev];
+                const idx = next.findIndex((r) => r.id === (payload.new as { id: string }).id);
+                const normalized = normalizeRequest(payload.new as Record<string, unknown>);
+                if (idx >= 0) next[idx] = normalized;
+                else next.unshift(normalized);
+                return next;
+              });
+            }
+            if (payload.old) {
+              setRequests((prev) => prev.filter((r) => r.id !== (payload.old as { id: string }).id));
+            }
+          });
         }
       )
       .subscribe();

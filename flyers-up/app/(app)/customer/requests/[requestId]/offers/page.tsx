@@ -136,10 +136,12 @@ export default function RequestOffersPage() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'job_offers', filter: `request_id=eq.${requestId}` },
         (payload) => {
-          if (payload.new) {
-            const newOffer = payload.new as JobOffer & { pro?: unknown };
-            setOffers((prev) => [newOffer, ...prev]);
-          }
+          queueMicrotask(() => {
+            if (payload.new) {
+              const newOffer = payload.new as JobOffer & { pro?: unknown };
+              setOffers((prev) => [newOffer, ...prev]);
+            }
+          });
         }
       )
       .subscribe();

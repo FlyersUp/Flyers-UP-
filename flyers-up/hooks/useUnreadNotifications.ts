@@ -96,7 +96,7 @@ export function useUnreadNotifications(): UseUnreadNotificationsResult {
             filter: `user_id=eq.${user.id}`,
           },
           () => {
-            void refreshUnreadCount();
+            queueMicrotask(() => void refreshUnreadCount());
           }
         )
         .subscribe((status) => {

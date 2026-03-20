@@ -74,7 +74,7 @@ export function BookingRealtimeProvider({
           table: 'bookings',
           filter: `id=eq.${bookingId}`,
         },
-        () => void refresh()
+        () => queueMicrotask(() => void refresh())
       )
       .subscribe();
 

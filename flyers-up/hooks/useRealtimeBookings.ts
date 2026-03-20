@@ -93,11 +93,11 @@ export function useCustomerBookingsRealtime(
           table: 'bookings',
           filter: `customer_id=eq.${customerId}`,
         },
-        async (payload) => {
-          console.log('New booking received:', payload);
-          // Refetch to get the fully joined data (with pro name, category, etc.)
-          // This is simpler than trying to construct the Booking object from raw payload
-          await fetchBookings();
+        (payload) => {
+          queueMicrotask(() => {
+            console.log('New booking received:', payload);
+            void fetchBookings();
+          });
         }
       )
       .on(
@@ -108,28 +108,27 @@ export function useCustomerBookingsRealtime(
           table: 'bookings',
           filter: `customer_id=eq.${customerId}`,
         },
-        async (payload) => {
-          console.log('Booking updated:', payload);
-          // Update the specific booking in state with status and status_history
-          const updatedRow = payload.new as {
-            id: string;
-            status: string;
-            price?: number;
-            status_history?: StatusHistoryEntry[];
-          };
-          
-          setBookings((prev) =>
-            prev.map((booking) =>
-              booking.id === updatedRow.id
-                ? {
-                    ...booking,
-                    status: updatedRow.status as Booking['status'],
-                    price: updatedRow.price,
-                    statusHistory: updatedRow.status_history,
-                  }
-                : booking
-            )
-          );
+        (payload) => {
+          queueMicrotask(() => {
+            const updatedRow = payload.new as {
+              id: string;
+              status: string;
+              price?: number;
+              status_history?: StatusHistoryEntry[];
+            };
+            setBookings((prev) =>
+              prev.map((booking) =>
+                booking.id === updatedRow.id
+                  ? {
+                      ...booking,
+                      status: updatedRow.status as Booking['status'],
+                      price: updatedRow.price,
+                      statusHistory: updatedRow.status_history,
+                    }
+                  : booking
+              )
+            );
+          });
         }
       )
       .on(
@@ -141,9 +140,10 @@ export function useCustomerBookingsRealtime(
           filter: `customer_id=eq.${customerId}`,
         },
         (payload) => {
-          console.log('Booking deleted:', payload);
-          const deletedId = (payload.old as { id: string }).id;
-          setBookings((prev) => prev.filter((booking) => booking.id !== deletedId));
+          queueMicrotask(() => {
+            const deletedId = (payload.old as { id: string }).id;
+            setBookings((prev) => prev.filter((booking) => booking.id !== deletedId));
+          });
         }
       )
       .subscribe((status) => {
@@ -328,10 +328,8 @@ export function useProBookingsRealtime(
               table: 'bookings',
               filter: `pro_id=eq.${resolvedProId}`,
             },
-            async (payload) => {
-              console.log('New job received:', payload);
-              // Refetch to get fully joined data
-              await fetchJobs();
+            (payload) => {
+              queueMicrotask(() => void fetchJobs());
             }
           )
         .on(
@@ -342,27 +340,27 @@ export function useProBookingsRealtime(
             table: 'bookings',
             filter: `pro_id=eq.${resolvedProId}`,
           },
-          async (payload) => {
-            console.log('Job updated:', payload);
-            const updatedRow = payload.new as {
-              id: string;
-              status: string;
-              price?: number;
-              status_history?: StatusHistoryEntry[];
-            };
-
-            setJobs((prev) =>
-              prev.map((job) =>
-                job.id === updatedRow.id
-                  ? {
-                      ...job,
-                      status: updatedRow.status as Booking['status'],
-                      price: updatedRow.price,
-                      statusHistory: updatedRow.status_history,
-                    }
-                  : job
-              )
-            );
+          (payload) => {
+            queueMicrotask(() => {
+              const updatedRow = payload.new as {
+                id: string;
+                status: string;
+                price?: number;
+                status_history?: StatusHistoryEntry[];
+              };
+              setJobs((prev) =>
+                prev.map((job) =>
+                  job.id === updatedRow.id
+                    ? {
+                        ...job,
+                        status: updatedRow.status as Booking['status'],
+                        price: updatedRow.price,
+                        statusHistory: updatedRow.status_history,
+                      }
+                    : job
+                )
+              );
+            });
           }
         )
         .on(
@@ -374,9 +372,10 @@ export function useProBookingsRealtime(
             filter: `pro_id=eq.${resolvedProId}`,
           },
           (payload) => {
-            console.log('Job deleted:', payload);
-            const deletedId = (payload.old as { id: string }).id;
-            setJobs((prev) => prev.filter((job) => job.id !== deletedId));
+            queueMicrotask(() => {
+              const deletedId = (payload.old as { id: string }).id;
+              setJobs((prev) => prev.filter((job) => job.id !== deletedId));
+            });
           }
         )
         .subscribe((status) => {

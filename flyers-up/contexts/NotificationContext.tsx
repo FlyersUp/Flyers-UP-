@@ -181,11 +181,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
-            const row = payload.new as NotificationItem;
-            if (row?.user_id === user.id) {
-              setUnreadCount((c) => c + 1);
-              showToastFor(row);
-            }
+            queueMicrotask(() => {
+              const row = payload.new as NotificationItem;
+              if (row?.user_id === user.id) {
+                setUnreadCount((c) => c + 1);
+                showToastFor(row);
+              }
+            });
           }
         )
         .subscribe((status) => {

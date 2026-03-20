@@ -163,12 +163,14 @@ export default function CustomerConversationChat({ params }: { params: Promise<{
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          const row = payload.new as MessageRow;
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === row.id)) return prev;
-            return [...prev, row].sort(
-              (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-            );
+          queueMicrotask(() => {
+            const row = payload.new as MessageRow;
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === row.id)) return prev;
+              return [...prev, row].sort(
+                (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              );
+            });
           });
         }
       )

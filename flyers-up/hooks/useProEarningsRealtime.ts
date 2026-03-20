@@ -195,21 +195,20 @@ export function useProEarningsRealtime(
               table: 'pro_earnings',
               filter: `pro_id=eq.${resolvedProId}`,
             },
-            async (payload) => {
-              console.log('New earning received:', payload);
-              const newEarning = payload.new as { amount: number };
-              
-              // Optimistically update the earnings totals
-              setEarnings((prev) => {
-              if (!prev) return prev;
-              return {
-                ...prev,
-                totalEarnings: prev.totalEarnings + newEarning.amount,
-                thisMonth: prev.thisMonth + newEarning.amount,
-                completedJobs: prev.completedJobs + 1,
-              };
-            });
-          }
+            (payload) => {
+              queueMicrotask(() => {
+                const newEarning = payload.new as { amount: number };
+                setEarnings((prev) => {
+                  if (!prev) return prev;
+                  return {
+                    ...prev,
+                    totalEarnings: prev.totalEarnings + newEarning.amount,
+                    thisMonth: prev.thisMonth + newEarning.amount,
+                    completedJobs: prev.completedJobs + 1,
+                  };
+                });
+              });
+            }
         )
         .on(
           'postgres_changes',
@@ -219,10 +218,8 @@ export function useProEarningsRealtime(
             table: 'pro_earnings',
             filter: `pro_id=eq.${resolvedProId}`,
           },
-          async () => {
-            // For updates, just refetch to avoid complex diff logic
-            console.log('Earning updated, refetching...');
-            await fetchEarnings();
+          () => {
+            queueMicrotask(() => void fetchEarnings());
           }
         )
         .on(
@@ -233,10 +230,8 @@ export function useProEarningsRealtime(
             table: 'pro_earnings',
             filter: `pro_id=eq.${resolvedProId}`,
           },
-          async () => {
-            // For deletes, just refetch to avoid complex diff logic
-            console.log('Earning deleted, refetching...');
-            await fetchEarnings();
+          () => {
+            queueMicrotask(() => void fetchEarnings());
           }
         )
         .subscribe((status) => {
