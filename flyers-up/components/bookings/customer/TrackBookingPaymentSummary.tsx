@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 function formatCents(cents: number): string {
@@ -34,6 +35,8 @@ export function TrackBookingPaymentSummary({
   primaryAction,
   className = '',
 }: TrackBookingPaymentSummaryProps) {
+  const [computedDeposit, setComputedDeposit] = useState<number | null>(null);
+
   const isExpired = status === 'expired_unpaid';
   const isFullyPaid = status === 'fully_paid' || status === 'paid' || fullyPaidAt;
   const isDepositPaid = paidAt && !isFullyPaid;
@@ -44,7 +47,23 @@ export function TrackBookingPaymentSummary({
     ['completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment'].includes(status) &&
     !fullyPaidAt;
 
-  const total = amountTotal ?? (amountDeposit ?? 0) + (amountRemaining ?? 0);
+  // When amountDeposit is null but we need deposit, fetch computed quote so user sees the amount.
+  useEffect(() => {
+    if (!needsDeposit || (amountDeposit != null && amountDeposit > 0)) return;
+    let cancelled = false;
+    fetch(`/api/bookings/${bookingId}/checkout-quote`, { cache: 'no-store', credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const dep = data?.quote?.quote?.amountDeposit ?? data?.quote?.amountDeposit;
+        if (typeof dep === 'number' && dep > 0) setComputedDeposit(dep);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [bookingId, needsDeposit, amountDeposit]);
+
+  const displayDeposit = amountDeposit ?? computedDeposit;
+  const total = amountTotal ?? (displayDeposit ?? 0) + (amountRemaining ?? 0);
   const rem = amountRemaining ?? 0;
 
   if (isExpired) {
@@ -91,7 +110,7 @@ export function TrackBookingPaymentSummary({
             <div className="flex justify-between">
               <span className="text-[#058954] font-medium">Deposit paid</span>
               <span className="font-semibold text-[#058954]">
-                {amountDeposit ? formatCents(amountDeposit) : '—'}
+                {displayDeposit ? formatCents(displayDeposit) : '—'}
               </span>
             </div>
             {rem > 0 && (
@@ -107,7 +126,7 @@ export function TrackBookingPaymentSummary({
             <div className="flex justify-between">
               <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Deposit</span>
               <span className="text-[#111111] dark:text-[#F5F7FA]">
-                {amountDeposit ? formatCents(amountDeposit) : '—'}
+                {displayDeposit ? formatCents(displayDeposit) : '—'}
               </span>
             </div>
             {rem > 0 && (
@@ -123,7 +142,7 @@ export function TrackBookingPaymentSummary({
             <div className="flex justify-between">
               <span className="text-[#058954] font-medium">Deposit paid</span>
               <span className="font-semibold text-[#058954]">
-                {amountDeposit ? formatCents(amountDeposit) : '—'}
+                {displayDeposit ? formatCents(displayDeposit) : '—'}
               </span>
             </div>
             <div className="flex justify-between">

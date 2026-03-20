@@ -23,12 +23,9 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-  if (!profile || profile.role !== 'customer') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   const admin = createAdminSupabaseClient();
+
+  // Same as deposit: allow any user who is the booking's customer (including pros who booked another pro).
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select('id, customer_id, pro_id, status, price, payment_due_at, service_date, service_time, address, duration_hours, miles_distance')
