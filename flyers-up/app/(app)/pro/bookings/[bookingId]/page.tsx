@@ -202,9 +202,51 @@ export default function ProBookingDetailPage({
                   {booking.notes && (
                     <p className="mt-2 text-sm text-muted">Notes: {booking.notes}</p>
                   )}
-                  <p className="mt-2 text-sm font-semibold text-text">
-                    {booking.price != null ? `$${booking.price}` : 'TBD'}
-                  </p>
+                  <div className="mt-3 pt-3 border-t border-border">
+                    {booking.amountTotal != null && booking.amountTotal > 0 ? (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted">Subtotal (your rate)</span>
+                          <span className="text-text">
+                            ${(((booking.amountTotal - (booking.platformFeeCents ?? 0)) / 100)).toFixed(2)}
+                          </span>
+                        </div>
+                        {(booking.platformFeeCents ?? 0) > 0 && (
+                          <div className="flex justify-between text-sm mt-1">
+                            <span className="text-muted">Flyers Up Protection Fee (15%)</span>
+                            <span className="text-text">
+                              ${((booking.platformFeeCents ?? 0) / 100).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-sm font-semibold mt-2 pt-2 border-t border-border">
+                          <span className="text-text">Total (customer pays)</span>
+                          <span className="text-text">${(booking.amountTotal / 100).toFixed(2)}</span>
+                        </div>
+                      </>
+                    ) : booking.price != null && booking.price > 0 ? (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted">Subtotal (your rate)</span>
+                          <span className="text-text">${Number(booking.price).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm mt-1">
+                          <span className="text-muted">Flyers Up Protection Fee (15%)</span>
+                          <span className="text-text">
+                            ${(Math.round(Number(booking.price) * 100 * 0.15) / 100).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm font-semibold mt-2 pt-2 border-t border-border">
+                          <span className="text-text">Total (customer pays)</span>
+                          <span className="text-text">
+                            ${(Number(booking.price) * 1.15).toFixed(2)}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm font-semibold text-text">TBD</p>
+                    )}
+                  </div>
                 </div>
 
                 <section className="mb-6">

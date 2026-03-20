@@ -121,11 +121,53 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
                 <p className="text-text">{booking.notes || '—'}</p>
               </div>
 
-              <div className="rounded-lg p-4 border border-border bg-surface2 border-l-[3px] border-l-accent">
-                <div className="flex justify-between items-center">
-                  <Label>TOTAL</Label>
-                  <div className="text-2xl font-bold text-text">{booking.price != null ? `$${booking.price}` : 'TBD'}</div>
-                </div>
+              <div className="rounded-lg p-4 border border-border bg-surface2 border-l-[3px] border-l-accent space-y-2">
+                {booking.amountTotal != null && booking.amountTotal > 0 ? (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted">Subtotal (your rate)</span>
+                      <span className="text-text">
+                        ${(((booking.amountTotal - (booking.platformFeeCents ?? 0)) / 100)).toFixed(2)}
+                      </span>
+                    </div>
+                    {(booking.platformFeeCents ?? 0) > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted">Flyers Up Protection Fee (15%)</span>
+                        <span className="text-text">
+                          ${((booking.platformFeeCents ?? 0) / 100).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-border">
+                      <Label>Total (customer pays)</Label>
+                      <div className="text-2xl font-bold text-text">${(booking.amountTotal / 100).toFixed(2)}</div>
+                    </div>
+                  </>
+                ) : booking.price != null && booking.price > 0 ? (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted">Subtotal (your rate)</span>
+                      <span className="text-text">${Number(booking.price).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted">Flyers Up Protection Fee (15%)</span>
+                      <span className="text-text">
+                        ${(Math.round(Number(booking.price) * 100 * 0.15) / 100).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-border">
+                      <Label>Total (customer pays)</Label>
+                      <div className="text-2xl font-bold text-text">
+                        ${(Number(booking.price) * 1.15).toFixed(2)}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <Label>TOTAL</Label>
+                    <div className="text-2xl font-bold text-text">TBD</div>
+                  </div>
+                )}
               </div>
             </div>
           </Card>

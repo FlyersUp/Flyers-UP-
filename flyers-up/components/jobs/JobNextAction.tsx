@@ -28,6 +28,28 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
   const nextStatus = getNextStatus(timelineStatus);
   const isCompleted = timelineStatus === 'COMPLETED' || timelineStatus === 'PAID';
 
+  const handleAccept = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/bookings/${jobId}/accept`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || 'Failed to accept booking');
+        return;
+      }
+      const updated = await getBookingById(booking.id);
+      if (updated) onUpdated(updated);
+    } catch {
+      setError('Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAdvance = async () => {
     if (!nextStatus) return;
     setLoading(true);
@@ -65,7 +87,18 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
   if (timelineStatus === 'BOOKED') {
     return (
       <div className="border-t border-border bg-[hsl(var(--card-neutral))] px-6 py-5">
-        <p className="text-sm text-muted">Waiting for acceptance</p>
+        <div className="space-y-3">
+          <p className="text-sm text-muted">Review the details and accept to confirm this booking.</p>
+          <button
+            type="button"
+            onClick={handleAccept}
+            disabled={loading}
+            className="w-full h-11 flex items-center justify-center rounded-full text-sm font-semibold text-[hsl(var(--accent-contrast))] bg-[hsl(var(--accent-pro))] hover:brightness-95 disabled:opacity-70 transition-all"
+          >
+            {loading ? 'Accepting…' : 'Accept Booking'}
+          </button>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+        </div>
       </div>
     );
   }
