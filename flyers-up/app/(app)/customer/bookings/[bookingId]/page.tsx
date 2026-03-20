@@ -26,19 +26,31 @@ async function getCustomerBooking(bookingId: string) {
     .eq('id', user.id)
     .maybeSingle();
 
-  if (!profile || profile.role !== 'customer') return { error: 'forbidden' as const };
+  if (!profile) return { error: 'forbidden' as const };
 
+  const role = profile.role ?? 'customer';
   const admin = createAdminSupabaseClient();
 
-  // Fetch booking without join first (avoids service_pros/service_categories join issues)
-  const { data: booking, error } = await admin
+  let bookingQuery = admin
     .from('bookings')
     .select(
       'id, customer_id, pro_id, payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_deposit, amount_remaining, amount_total, service_date, service_time, address, notes, status, price, created_at, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, cancelled_at, status_history, job_request_id, scope_confirmed_at'
     )
-    .eq('id', id)
-    .eq('customer_id', user.id)
-    .maybeSingle();
+    .eq('id', id);
+
+  if (role === 'pro') {
+    const { data: proRow } = await admin
+      .from('service_pros')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (!proRow?.id) return { error: 'forbidden' as const };
+    bookingQuery = bookingQuery.or(`customer_id.eq.${user.id},pro_id.eq.${proRow.id}`);
+  } else {
+    bookingQuery = bookingQuery.eq('customer_id', user.id);
+  }
+
+  const { data: booking, error } = await bookingQuery.maybeSingle();
 
   if (error) {
     console.error('[getCustomerBooking] Supabase error:', error.message, { bookingId: id });

@@ -16,7 +16,12 @@ export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
-const ELIGIBLE_STATUSES = ['accepted', 'payment_required', 'awaiting_deposit_payment'];
+const ELIGIBLE_STATUSES = [
+  'accepted',
+  'accepted_pending_payment',
+  'payment_required',
+  'awaiting_deposit_payment',
+];
 
 export async function POST(
   _req: Request,
@@ -38,18 +43,10 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (!profile || profile.role !== 'customer') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   const admin = createAdminSupabaseClient();
 
+  // Any user who is the booking's customer may pay (including pros who booked another pro).
+  // Do not require profile.role === 'customer' — that blocked valid payers with role "pro".
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select('id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, service_date, service_time, address, duration_hours, job_request_id, scope_confirmed_at')
@@ -57,7 +54,11 @@ export async function POST(
     .eq('customer_id', user.id)
     .maybeSingle();
 
-  if (bErr || !booking) {
+  if (bErr) {
+    console.error('[pay/deposit] booking query error', { bookingId: id, code: bErr.code, message: bErr.message });
+    return NextResponse.json({ error: 'Failed to load booking' }, { status: 500 });
+  }
+  if (!booking) {
     return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
   }
 

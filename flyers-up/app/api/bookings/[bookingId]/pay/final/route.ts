@@ -37,18 +37,9 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (!profile || profile.role !== 'customer') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   const admin = createAdminSupabaseClient();
 
+  // Same as deposit: pros who are the customer on a booking must be able to pay remaining balance.
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select('id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address')
@@ -56,7 +47,11 @@ export async function POST(
     .eq('customer_id', user.id)
     .maybeSingle();
 
-  if (bErr || !booking) {
+  if (bErr) {
+    console.error('[pay/final] booking query error', { bookingId: id, code: bErr.code, message: bErr.message });
+    return NextResponse.json({ error: 'Failed to load booking' }, { status: 500 });
+  }
+  if (!booking) {
     return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
   }
 

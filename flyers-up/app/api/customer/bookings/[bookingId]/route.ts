@@ -73,8 +73,12 @@ export async function GET(
 
     const runBookingQuery = async (columns: string) => {
       let q = admin.from('bookings').select(columns).eq('id', id);
-      if (role === 'customer') q = q.eq('customer_id', user.id);
-      else if (role === 'pro' && proIdForQuery) q = q.eq('pro_id', proIdForQuery);
+      if (role === 'customer') {
+        q = q.eq('customer_id', user.id);
+      } else if (role === 'pro' && proIdForQuery) {
+        // Pro may view jobs they serve OR bookings they made as a customer (another pro's service).
+        q = q.or(`customer_id.eq.${user.id},pro_id.eq.${proIdForQuery}`);
+      }
       return q.maybeSingle();
     };
 
