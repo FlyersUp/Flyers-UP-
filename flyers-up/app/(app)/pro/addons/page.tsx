@@ -121,7 +121,7 @@ export default function ProAddonsPage() {
 
       setSuccess('Add-on updated successfully!');
       setEditingId(null);
-      setFormData({ title: '', priceDollars: '' });
+      setFormData({ title: '', priceDollars: '', description: '' });
       await loadData();
     } catch (err) {
       console.error('Error updating add-on:', err);
