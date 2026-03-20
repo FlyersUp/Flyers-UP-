@@ -169,6 +169,7 @@ function Section({
   subtitleColor,
   getLabel,
   comingSoon,
+  role,
 }: {
   title: string;
   items: MenuItem[];
@@ -176,7 +177,11 @@ function Section({
   subtitleColor: string;
   getLabel: (key: string) => string;
   comingSoon: string;
+  role?: 'customer' | 'pro';
 }) {
+  const hoverClass = role === 'customer'
+    ? 'hover:bg-[hsl(var(--accent-customer)/0.08)] active:bg-[hsl(var(--accent-customer)/0.12)]'
+    : 'hover:bg-hover/65 active:bg-hover';
   return (
     <div className="mb-8">
       <div
@@ -195,7 +200,7 @@ function Section({
               className={`flex items-center justify-between gap-3 rounded-2xl px-4 py-4 text-left transition ${
                 disabled
                   ? 'cursor-not-allowed opacity-60 text-text3'
-                  : 'text-text hover:bg-hover/65 active:bg-hover'
+                  : `text-text ${hoverClass}`
               }`}
               title={disabled ? comingSoon : undefined}
             >
@@ -369,6 +374,7 @@ export function SideMenu({
               subtitleColor={s.titleKey === 'sidebar.admin' ? NEUTRAL_SUBTITLE : subtitleColor}
               getLabel={getLabel}
               comingSoon={t('common.comingSoon')}
+              role={role}
             />
           ))}
         </div>

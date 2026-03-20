@@ -35,7 +35,7 @@ export function OccupationCard({
   return (
     <Link
       href={`/occupations/${slug}`}
-      className="group card-hover btn-press flex items-center gap-3 rounded-2xl border border-border bg-[hsl(var(--card-neutral))] p-4 shadow-[var(--shadow-card)] transition-all duration-[200ms] hover:-translate-y-1 hover:border-[hsl(var(--accent-customer)/0.4)] hover:bg-[hsl(var(--accent-customer)/0.06)] active:border-[hsl(var(--accent-pro)/0.4)] active:bg-[hsl(var(--accent-pro)/0.06)]"
+      className="group card-hover btn-press flex items-center gap-3 rounded-2xl border border-border bg-[hsl(var(--card-neutral))] p-4 shadow-[var(--shadow-card)] transition-all duration-[200ms] hover:-translate-y-1 hover:border-[hsl(var(--accent-customer)/0.4)] hover:bg-[hsl(var(--accent-customer)/0.08)] active:border-[hsl(var(--accent-customer)/0.4)] active:bg-[hsl(var(--accent-customer)/0.1)]"
     >
       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-surface2">
         <IconComponent className="w-5 h-5 text-text3" strokeWidth={1.5} />

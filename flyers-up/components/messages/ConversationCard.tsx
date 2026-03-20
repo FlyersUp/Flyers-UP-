@@ -40,7 +40,7 @@ export function ConversationCard({ item, href, unread = false }: ConversationCar
   return (
     <Link
       href={href}
-      className={`block rounded-2xl bg-surface border border-border shadow-sm hover:shadow-md active:scale-[0.99] transition-all duration-150 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus:outline-none ${accentBorder} ${unread ? 'shadow-md' : ''}`}
+      className={`block rounded-2xl bg-surface border border-border shadow-sm hover:shadow-md hover:bg-[hsl(var(--accent-customer)/0.08)] active:scale-[0.99] transition-all duration-150 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus:outline-none ${accentBorder} ${unread ? 'shadow-md' : ''}`}
     >
       <div className="flex items-center gap-4 p-4">
         {/* Avatar */}

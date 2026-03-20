@@ -41,7 +41,7 @@ export function SettingsHome({
                 href={row.href}
                 className={[
                   'flex items-center justify-between gap-3 px-4 py-3.5 text-sm',
-                  'hover:bg-surface2/60 transition-colors',
+                  'hover:bg-[hsl(var(--accent-customer)/0.08)] transition-colors',
                   idx > 0 ? 'border-t border-border' : '',
                 ].join(' ')}
               >
@@ -61,7 +61,7 @@ export function SettingsHome({
           type="button"
           onClick={onSignOut}
           disabled={signingOut}
-          className="w-full h-11 rounded-2xl border border-border bg-surface text-sm font-semibold text-text hover:bg-surface2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+          className="w-full h-11 rounded-2xl border border-border bg-surface text-sm font-semibold text-text hover:bg-[hsl(var(--accent-customer)/0.08)] transition-colors disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
         >
           <LogOut size={16} />
           {signingOut ? 'Signing out…' : 'Sign out'}
