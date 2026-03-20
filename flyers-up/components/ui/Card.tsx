@@ -4,7 +4,7 @@ import { ReactNode, ElementType, createElement, HTMLAttributes } from 'react';
 import { Rail } from './Rail';
 import { cn } from '@/lib/cn';
 
-const CARD_BASE = 'bg-surface rounded-2xl border border-border shadow-[var(--shadow-card)]';
+const CARD_BASE = 'rounded-2xl border border-border shadow-[var(--shadow-card)]';
 
 const PADDING = {
   sm: 'p-3',
@@ -65,7 +65,7 @@ export function Card({
       'data-tone': tone,
       className: cn(
         CARD_BASE,
-        'surface-card',
+        'bg-[hsl(var(--card-neutral))]',
         interactiveClass,
         withRail && 'flex overflow-hidden',
         className

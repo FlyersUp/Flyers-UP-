@@ -92,8 +92,8 @@ const CONFIG: Record<string, StatusConfig> = {
   },
   awaiting_customer_confirmation: {
     state: 'completed',
-    headline: 'Confirm completion',
-    explanation: 'Please confirm the job is complete so we can finalize.',
+    headline: 'Job completed',
+    explanation: 'Confirm everything looks good so we can release payment.',
   },
   completed: {
     state: 'completed',

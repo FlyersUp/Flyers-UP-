@@ -44,7 +44,7 @@ export default function HomePage() {
             </Link>
             <Link
               href="/signup?role=customer"
-              className="btn-press px-4 py-2 text-sm font-medium bg-[hsl(var(--accent-pro))] hover:brightness-95 text-[hsl(var(--accent-contrast))] rounded-lg transition-all duration-200 border border-[hsl(var(--accent-pro)/0.7)] shadow-[var(--shadow-1)]"
+              className="btn-press px-4 py-2 text-sm font-medium bg-[hsl(var(--accent-customer))] hover:brightness-95 text-[hsl(var(--accent-contrast))] rounded-lg transition-all duration-200 border border-[hsl(var(--accent-customer)/0.7)] shadow-[var(--shadow-1)]"
             >
               Book a Pro
             </Link>
@@ -88,13 +88,13 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
             <Link
               href="/signup?role=customer"
-              className="btn-press px-8 py-4 bg-[hsl(var(--accent-pro))] hover:brightness-95 text-[hsl(var(--accent-contrast))] text-lg font-medium rounded-[var(--radius-lg)] shadow-[var(--shadow-1)] border border-[hsl(var(--accent-pro)/0.7)] transition-all duration-200 focus-ring"
+              className="btn-press px-8 py-4 bg-[hsl(var(--accent-customer))] hover:brightness-95 text-[hsl(var(--accent-contrast))] text-lg font-medium rounded-[var(--radius-lg)] shadow-[var(--shadow-1)] border border-[hsl(var(--accent-customer)/0.7)] transition-all duration-200 focus-ring"
             >
               Book a Pro (Free)
             </Link>
             <Link
               href="#pros"
-              className="px-8 py-4 text-lg font-medium rounded-[var(--radius-lg)] border-2 border-[hsl(var(--accent-customer))] text-[hsl(var(--accent-customer))] hover:bg-[hsl(var(--accent-customer)/0.12)] transition-all duration-200 focus-ring"
+              className="btn-press px-8 py-4 bg-[hsl(var(--accent-pro))] hover:brightness-95 text-[hsl(var(--accent-contrast))] text-lg font-medium rounded-[var(--radius-lg)] shadow-[var(--shadow-1)] border border-[hsl(var(--accent-pro)/0.7)] transition-all duration-200 focus-ring"
             >
               I'm a Service Pro
             </Link>
@@ -263,7 +263,7 @@ export default function HomePage() {
           <div className="mt-10 text-center">
             <Link
               href="/signup?role=customer"
-              className="btn-press inline-flex items-center justify-center px-8 py-4 bg-[hsl(var(--accent-pro))] hover:brightness-95 text-[hsl(var(--accent-contrast))] text-lg font-medium rounded-[var(--radius-lg)] shadow-[var(--shadow-1)] border border-[hsl(var(--accent-pro)/0.7)] transition-all duration-200 focus-ring"
+              className="btn-press inline-flex items-center justify-center px-8 py-4 bg-[hsl(var(--accent-customer))] hover:brightness-95 text-[hsl(var(--accent-contrast))] text-lg font-medium rounded-[var(--radius-lg)] shadow-[var(--shadow-1)] border border-[hsl(var(--accent-customer)/0.7)] transition-all duration-200 focus-ring"
             >
               Request a Service (Free)
             </Link>
@@ -386,7 +386,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/signup?role=customer"
-              className="btn-press px-8 py-4 bg-[hsl(var(--accent-pro))] hover:brightness-95 text-[hsl(var(--accent-contrast))] text-lg font-medium rounded-[var(--radius-lg)] shadow-[var(--shadow-1)] border border-[hsl(var(--accent-pro)/0.7)] transition-all duration-200 focus-ring"
+              className="btn-press px-8 py-4 bg-[hsl(var(--accent-customer))] hover:brightness-95 text-[hsl(var(--accent-contrast))] text-lg font-medium rounded-[var(--radius-lg)] shadow-[var(--shadow-1)] border border-[hsl(var(--accent-customer)/0.7)] transition-all duration-200 focus-ring"
             >
               Request a Service (Free)
             </Link>

@@ -61,6 +61,7 @@ interface BookingData {
   amountDeposit?: number | null;
   amountRemaining?: number | null;
   amountTotal?: number | null;
+  platformFeeCents?: number | null;
   serviceName?: string;
   proName?: string;
   proPhotoUrl?: string | null;
@@ -296,19 +297,19 @@ export default function JobCompletePage({
               <PaymentSummaryCard booking={booking} />
 
               {/* 5. Protection section */}
-              <ProtectionSection
-                onReportIssue={() => router.push(`/customer/bookings/${bookingId}/issues/new`)}
-                supportHref="/customer/settings/help-support"
-              />
+              <ProtectionSection supportHref="/customer/settings/help-support" />
 
               {/* 6. Actions - sticky on mobile */}
               <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface/95 backdrop-blur-sm p-4 pb-[env(safe-area-inset-bottom)] sm:relative sm:mt-8 sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0">
                 <div className="max-w-lg mx-auto space-y-3 sm:space-y-4">
+                  <p className="text-xs text-muted text-center -mt-2">
+                    Your payment is protected until you confirm
+                  </p>
                   <Link
                     href={checkoutHref}
                     className="flex h-12 w-full items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.68)] bg-accentOrange text-sm font-semibold text-[hsl(var(--accent-contrast))] transition-colors hover:bg-[hsl(var(--accent-pro)/0.92)] focus:outline-none focus:ring-2 focus:ring-[var(--ring-orange)] focus:ring-offset-2"
                   >
-                    Pay remaining balance
+                    Release remaining payment
                   </Link>
                   <div className="flex gap-3 sm:flex-wrap">
                     <Link
@@ -317,17 +318,16 @@ export default function JobCompletePage({
                     >
                       Message pro
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => router.push(`/customer/bookings/${bookingId}/issues/new`)}
-                      className="flex h-11 flex-1 items-center justify-center rounded-full text-sm font-medium text-text2 transition-colors hover:bg-hover sm:flex-initial"
-                    >
-                      Report an issue
-                    </button>
                   </div>
                   <Link
+                    href={`/customer/bookings/${bookingId}/issues/new`}
+                    className="block pt-2 text-center text-xs text-muted hover:text-text"
+                  >
+                    Report an issue
+                  </Link>
+                  <Link
                     href={`/customer/bookings/${bookingId}`}
-                    className="block pt-2 text-center text-xs font-medium text-text3 hover:text-text"
+                    className="block text-center text-xs font-medium text-text3 hover:text-text"
                   >
                     Back to booking
                   </Link>
@@ -355,8 +355,10 @@ function CompletionHeader() {
         Job completed
       </h1>
       <p className="text-sm text-[#6A6A6A] dark:text-[#A1A8B3] mt-2">
-        Your pro marked this booking complete. Review the summary below and pay the remaining balance
-        when you&apos;re ready.
+        Confirm everything looks good
+      </p>
+      <p className="flex items-center gap-2 text-sm text-[hsl(var(--accent-customer))] mt-3">
+        <span aria-hidden>✔</span> Protected by Flyers Up
       </p>
     </header>
   );
@@ -479,6 +481,8 @@ function PaymentSummaryCard({ booking }: { booking: BookingData }) {
   const total = booking.amountTotal ?? 0;
   const deposit = booking.amountDeposit ?? 0;
   const remaining = booking.amountRemaining ?? 0;
+  const platformFee = booking.platformFeeCents ?? 0;
+  const serviceAmount = Math.max(0, total - platformFee);
 
   return (
     <section
@@ -490,34 +494,48 @@ function PaymentSummaryCard({ booking }: { booking: BookingData }) {
       </h2>
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Service total</span>
+          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Service</span>
+          <span className="text-[#111111] dark:text-[#F5F7FA]">{formatCents(serviceAmount)}</span>
+        </div>
+        {platformFee > 0 && (
+          <div className="flex justify-between">
+            <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Flyers Up Protection Fee</span>
+            <span className="text-[#111111] dark:text-[#F5F7FA]">{formatCents(platformFee)}</span>
+          </div>
+        )}
+        <div className="flex justify-between border-t border-black/5 dark:border-white/10 pt-3 mt-3 font-medium">
+          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Total</span>
           <span className="text-[#111111] dark:text-[#F5F7FA]">{formatCents(total)}</span>
         </div>
         {deposit > 0 && (
-          <div className="flex justify-between">
-            <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Deposit paid</span>
-            <span className="text-[#058954]">{formatCents(deposit)}</span>
+          <>
+            <div className="flex justify-between pt-2">
+              <span className="text-[#058954]">Deposit paid</span>
+              <span className="text-[#058954] font-medium">{formatCents(deposit)}</span>
+            </div>
+            <div className="flex justify-between font-semibold pt-2">
+              <span className="text-[#111111] dark:text-[#F5F7FA]">Remaining due now</span>
+              <span className="text-[#111111] dark:text-[#F5F7FA]">{formatCents(remaining)}</span>
+            </div>
+            <p className="text-xs text-[#6A6A6A] dark:text-[#A1A8B3] mt-3">
+              Your deposit has already been applied to this booking.
+            </p>
+          </>
+        )}
+        {deposit === 0 && remaining > 0 && (
+          <div className="flex justify-between font-semibold pt-2">
+            <span className="text-[#111111] dark:text-[#F5F7FA]">Due now</span>
+            <span className="text-[#111111] dark:text-[#F5F7FA]">{formatCents(remaining)}</span>
           </div>
         )}
-        <div className="flex justify-between border-t border-black/5 dark:border-white/10 pt-3 mt-3 font-semibold">
-          <span className="text-[#111111] dark:text-[#F5F7FA]">Remaining due now</span>
-          <span className="text-[#111111] dark:text-[#F5F7FA]">{formatCents(remaining)}</span>
-        </div>
       </div>
-      {deposit > 0 && (
-        <p className="text-xs text-[#6A6A6A] dark:text-[#A1A8B3] mt-3">
-          Your deposit has already been applied to this booking.
-        </p>
-      )}
     </section>
   );
 }
 
 function ProtectionSection({
-  onReportIssue,
   supportHref,
 }: {
-  onReportIssue: () => void;
   supportHref: string;
 }) {
   return (
@@ -525,25 +543,18 @@ function ProtectionSection({
       className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-5 shadow-sm mb-4"
       aria-labelledby="protection-heading"
     >
-      <h2 id="protection-heading" className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-3">
+      <h2 id="protection-heading" className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-2">
         Need help before paying?
       </h2>
-      <p className="text-sm text-[#3A3A3A] dark:text-[#A1A8B3] mb-4">
-        If something wasn&apos;t completed as expected, report an issue and our team can review the
-        booking details.
+      <p className="text-sm text-[#3A3A3A] dark:text-[#A1A8B3]">
+        If something wasn&apos;t completed as expected, our team can review. Issues are handled discreetly.
       </p>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={onReportIssue}
-          className="text-sm font-medium text-[#058954] hover:underline focus:outline-none focus:ring-2 focus:ring-[#058954]/50 focus:ring-offset-2 rounded"
-        >
-          Report an issue
-        </button>
-        <Link href={supportHref} className="text-sm font-medium text-[#058954] hover:underline">
-          Contact support
-        </Link>
-      </div>
+      <Link
+        href={supportHref}
+        className="inline-block mt-2 text-xs text-muted hover:text-text transition-colors"
+      >
+        Contact support
+      </Link>
     </section>
   );
 }

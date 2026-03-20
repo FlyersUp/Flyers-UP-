@@ -223,6 +223,7 @@ export interface ServiceAddon {
   title: string;
   priceCents: number;
   isActive: boolean;
+  description?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -940,9 +941,14 @@ export async function getHoardingPros(): Promise<ServicePro[]> {
 
 /**
  * Get service pro by user ID (for pro dashboard).
+ * Resolves category from occupation slug when category is missing (occupation-based flow).
  */
 export async function getProByUserId(userId: string): Promise<ServicePro | null> {
-  const { data, error } = await supabase.from('service_pros').select('*').eq('user_id', userId).maybeSingle();
+  const { data, error } = await supabase
+    .from('service_pros')
+    .select('*, occupations(slug)')
+    .eq('user_id', userId)
+    .maybeSingle();
 
   if (error || !data) {
     console.error('Error fetching pro by user ID:', error);
@@ -961,6 +967,16 @@ export async function getProByUserId(userId: string): Promise<ServicePro | null>
     if (cat?.name) categoryName = cat.name;
   } catch {
     // ignore
+  }
+
+  // Fallback: occupation slug → category slug (occupation-based flow)
+  if (categorySlug === 'general' || !categorySlug) {
+    const occSlug = (data as { occupations?: { slug?: string } | null })?.occupations?.slug;
+    if (occSlug) {
+      const { OCCUPATION_TO_SERVICE_SLUG } = await import('@/lib/occupations');
+      const mapped = OCCUPATION_TO_SERVICE_SLUG[occSlug];
+      if (mapped) categorySlug = mapped;
+    }
   }
 
   return {
@@ -3063,34 +3079,124 @@ export async function setDefaultUserPaymentMethod(
 }
 
 // ============================================
+// PRO SERVICE TYPES (occupation_services via pro_services)
+// ============================================
+
+export interface ProServiceType {
+  id: string;
+  serviceId: string;
+  name: string;
+  slug: string;
+  description: string | null;
+}
+
+/**
+ * Get pro's selected service types (from pro_services + occupation_services).
+ */
+export async function getProServiceTypes(userId: string): Promise<ProServiceType[]> {
+  try {
+    const { data: pro } = await supabase
+      .from('service_pros')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (!pro) return [];
+
+    const { data, error } = await supabase
+      .from('pro_services')
+      .select('id, service_id, occupation_services(id, slug, name, description)')
+      .eq('pro_id', (pro as { id: string }).id);
+
+    if (error) {
+      console.error('Error fetching pro service types:', error);
+      return [];
+    }
+
+    return (data || [])
+      .filter((row: Record<string, unknown>) => row.occupation_services)
+      .map((row: Record<string, unknown>) => {
+        const os = row.occupation_services as { id: string; slug: string; name: string; description?: string | null };
+        return {
+          id: (row.id as string),
+          serviceId: (row.service_id as string),
+          name: os.name,
+          slug: os.slug,
+          description: os.description ?? null,
+        };
+      });
+  } catch (err) {
+    console.error('Error in getProServiceTypes:', err);
+    return [];
+  }
+}
+
+/**
+ * Get pro's occupation slug (for specialty presets etc).
+ */
+export async function getProOccupationSlug(userId: string): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .from('service_pros')
+      .select('occupation_id, occupations(slug)')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const occ = (data as { occupations?: { slug?: string } | null } | null)?.occupations;
+    return occ?.slug ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get pro's specialties (from pro_specialties).
+ */
+export async function getProSpecialties(userId: string): Promise<Array<{ id: string; label: string }>> {
+  try {
+    const { data, error } = await supabase
+      .from('pro_specialties')
+      .select('id, label')
+      .eq('pro_id', userId)
+      .eq('active', true)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching pro specialties:', error);
+      return [];
+    }
+    return (data || []).map((r: { id: string; label: string }) => ({ id: r.id, label: r.label }));
+  } catch (err) {
+    console.error('Error in getProSpecialties:', err);
+    return [];
+  }
+}
+
+// ============================================
 // SERVICE ADD-ONS
 // ============================================
 
 /**
  * Get all add-ons for a pro (both active and inactive).
  * Used in pro dashboard for management.
+ * serviceCategory: when omitted, fetches all addons for pro. When provided, filters by category.
+ * For occupation-based pros, pass category slug (from getProByUserId) or resolve via OCCUPATION_TO_SERVICE_SLUG.
  */
 export async function getProAddons(proUserId: string, serviceCategory?: string): Promise<ServiceAddon[]> {
   try {
-    // Get the pro's profile ID
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', proUserId)
-      .single();
-
-    if (!profile) {
-      return [];
+    let categoryFilter = serviceCategory?.trim();
+    if (!categoryFilter) {
+      // Resolve category from pro's occupation when not provided
+      const pro = await getProByUserId(proUserId);
+      if (pro?.categorySlug) categoryFilter = pro.categorySlug;
     }
 
     let query = supabase
       .from('service_addons')
       .select('*')
-      .eq('pro_id', profile.id)
+      .eq('pro_id', proUserId)
       .order('created_at', { ascending: false });
 
-    if (serviceCategory) {
-      query = query.eq('service_category', serviceCategory);
+    if (categoryFilter) {
+      query = query.eq('service_category', categoryFilter);
     }
 
     const { data, error } = await query;
@@ -3100,15 +3206,16 @@ export async function getProAddons(proUserId: string, serviceCategory?: string):
       return [];
     }
 
-    return (data || []).map(addon => ({
-      id: addon.id,
-      proId: addon.pro_id,
-      serviceCategory: addon.service_category,
-      title: addon.title,
-      priceCents: addon.price_cents,
-      isActive: addon.is_active,
-      createdAt: addon.created_at,
-      updatedAt: addon.updated_at,
+    return (data || []).map((addon: Record<string, unknown>) => ({
+      id: addon.id as string,
+      proId: addon.pro_id as string,
+      serviceCategory: addon.service_category as string,
+      title: addon.title as string,
+      priceCents: addon.price_cents as number,
+      isActive: addon.is_active as boolean,
+      description: (addon.description as string | null) ?? null,
+      createdAt: addon.created_at as string,
+      updatedAt: addon.updated_at as string,
     }));
   } catch (err) {
     console.error('Unexpected error fetching pro add-ons:', err);

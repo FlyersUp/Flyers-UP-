@@ -1,8 +1,8 @@
 'use client';
 
-const STEPS = ['Role', 'Occupation', 'Services', 'Setup'] as const;
+const STEPS = ['Role', 'Occupation', 'Services', 'Specialties', 'Add-ons', 'Setup'] as const;
 
-export function OnboardingProgress({ currentStep }: { currentStep: 1 | 2 | 3 | 4 }) {
+export function OnboardingProgress({ currentStep }: { currentStep: 1 | 2 | 3 | 4 | 5 | 6 }) {
   const stepIndex = currentStep - 1;
   return (
     <nav aria-label="Onboarding progress" className="mb-6">

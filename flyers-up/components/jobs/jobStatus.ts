@@ -132,8 +132,10 @@ export function mapDbStatusToTimeline(dbStatus: string): Status {
     case 'awaiting_customer_confirmation':
     case 'completed':
     case 'review_pending':
-    case 'paid':
       return 'COMPLETED';
+    case 'paid':
+    case 'fully_paid':
+      return 'PAID';
     default:
       return 'BOOKED';
   }

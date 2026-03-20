@@ -55,16 +55,17 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
 
   if (isCompleted) {
     return (
-      <div className="border-t border-black/10 bg-white/40 px-6 py-5">
-        <p className="text-sm text-black/70 font-medium">Completed</p>
+      <div className="border-t border-border bg-[hsl(var(--card-neutral))] px-6 py-5">
+        <p className="text-sm font-medium text-[hsl(var(--accent-customer))]">✓ Job completed</p>
+        <p className="text-xs text-muted mt-1">You keep 100% of your service price</p>
       </div>
     );
   }
 
   if (timelineStatus === 'BOOKED') {
     return (
-      <div className="border-t border-black/10 bg-white/40 px-6 py-5">
-        <p className="text-sm text-black/70">Waiting for acceptance</p>
+      <div className="border-t border-border bg-[hsl(var(--card-neutral))] px-6 py-5">
+        <p className="text-sm text-muted">Waiting for acceptance</p>
       </div>
     );
   }

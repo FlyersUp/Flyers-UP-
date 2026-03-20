@@ -17,11 +17,13 @@ export function PayoutStatusBadge({
   const label =
     status === 'succeeded' || status === 'paid'
       ? 'Paid'
-      : status === 'pending' || status === 'in_transit'
-        ? 'Pending'
-        : status === 'failed'
-          ? 'Failed'
-          : '—';
+      : status === 'pending'
+        ? 'Payout processing'
+        : status === 'in_transit'
+          ? 'Payout on the way'
+          : status === 'failed'
+            ? 'Failed'
+            : '—';
 
   if (status === 'none' || status === '' || !label || label === '—') {
     return null;

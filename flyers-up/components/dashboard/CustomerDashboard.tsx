@@ -23,6 +23,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 import { ChevronRight, Calendar, MessageCircle } from 'lucide-react';
+import { BookingStatusPill } from '@/components/bookings/BookingStatusPill';
 
 type ActiveBooking = {
   id: string;
@@ -70,14 +71,6 @@ function formatStatus(s: string): string {
   if (lower === 'awaiting_payment' || lower === 'completed_pending_payment') return 'Payment due';
   if (lower === 'completed' || lower === 'paid') return 'Completed';
   return s.replace(/_/g, ' ');
-}
-
-function getStatusVariant(status: string): string {
-  const lower = (status || '').toLowerCase();
-  if (['completed', 'paid'].includes(lower)) return 'bg-[hsl(var(--accent-customer)/0.2)] text-text border border-[hsl(var(--accent-customer)/0.55)]';
-  if (['on_the_way', 'pro_en_route', 'in_progress'].includes(lower)) return 'bg-[hsl(var(--accent-orange)/0.22)] text-text border border-[hsl(var(--accent-pro)/0.55)]';
-  if (['awaiting_payment', 'completed_pending_payment'].includes(lower)) return 'bg-[hsl(var(--accent-pro)/0.26)] text-text border border-[hsl(var(--accent-pro)/0.62)]';
-  return 'bg-surface2 text-text2 border border-border';
 }
 
 function getInitials(name: string): string {
@@ -306,11 +299,9 @@ export default function CustomerDashboard() {
                           <Calendar size={14} strokeWidth={2} />
                           {activeBooking.dateTime}
                         </div>
-                        <span
-                          className={`inline-block mt-2 px-2.5 py-1 rounded-full text-xs font-medium ${getStatusVariant(activeBooking.status)}`}
-                        >
-                          {activeBooking.statusLabel}
-                        </span>
+                        <div className="mt-2">
+                          <BookingStatusPill status={activeBooking.status} />
+                        </div>
                       </div>
                       <ChevronRight size={20} className="text-muted shrink-0" />
                     </div>
@@ -399,13 +390,14 @@ export default function CustomerDashboard() {
               </div>
             ) : (
               <DashboardCard>
-                <div className="p-4">
+                <div className="p-5">
                   <div className="text-sm font-medium text-text">No pending requests</div>
+                  <div className="text-xs text-muted mt-1">Open requests awaiting offers will appear here.</div>
                   <Link
                     href="/customer/requests/new"
-                    className="mt-2 inline-block text-sm text-accent hover:underline"
+                    className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
                   >
-                    Post a request →
+                    Post a request <ChevronRight size={16} />
                   </Link>
                 </div>
               </DashboardCard>

@@ -7,10 +7,11 @@
  */
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { usePathname } from 'next/navigation';
 import PageLayout from '@/components/PageLayout';
-import { getCurrentUser, getMyServicePro, getServiceCategories, type ServiceCategory } from '@/lib/api';
+import { getCurrentUser, getMyServicePro, getServiceCategories, getProServiceTypes, getProSpecialties, getProAddons, type ServiceCategory } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { updateMyServiceProAction } from '@/app/actions/servicePro';
 import { WeeklySchedulePicker } from '@/components/ui/WeeklySchedulePicker';
@@ -65,6 +66,9 @@ export default function ProProfilePage() {
   });
   const [businessHoursModel, setBusinessHoursModel] = useState(() => defaultBusinessHoursModel());
   const [showInactiveCategoryBanner, setShowInactiveCategoryBanner] = useState(false);
+  const [serviceTypes, setServiceTypes] = useState<Array<{ id: string; name: string; slug: string }>>([]);
+  const [specialties, setSpecialties] = useState<Array<{ id: string; label: string }>>([]);
+  const [addons, setAddons] = useState<Array<{ id: string; title: string; priceCents: number; isActive: boolean }>>([]);
 
   useEffect(() => {
     void loadProfile();
@@ -99,6 +103,14 @@ export default function ProProfilePage() {
         const hasInactiveCategory = proData.categoryId && !category;
         setShowInactiveCategoryBanner(!!hasInactiveCategory);
         setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
+        const [svcTypes, specs, addonsList] = await Promise.all([
+          getProServiceTypes(user.id),
+          getProSpecialties(user.id),
+          getProAddons(user.id),
+        ]);
+        setServiceTypes(svcTypes.map((s) => ({ id: s.id, name: s.name, slug: s.slug })));
+        setSpecialties(specs);
+        setAddons(addonsList.map((a) => ({ id: a.id, title: a.title, priceCents: a.priceCents, isActive: a.isActive })));
         setFormData({
           displayName: proData.displayName || '',
           bio: proData.bio || '',
@@ -473,7 +485,73 @@ export default function ProProfilePage() {
             </div>
           </div>
 
-          {/* Services Offered */}
+          {/* Service Types */}
+          {serviceTypes.length > 0 && (
+            <div className="bg-surface rounded-xl border border-border p-6">
+              <h2 className="text-lg font-semibold text-text mb-4">Service Types</h2>
+              <div className="flex flex-wrap gap-2">
+                {serviceTypes.map((s) => (
+                  <span
+                    key={s.id}
+                    className="px-3 py-1.5 rounded-lg bg-surface2 border border-border text-sm text-text"
+                  >
+                    {s.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Specialties */}
+          <div className="bg-surface rounded-xl border border-border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-text">Specialties</h2>
+              <Link href="/pro/specialties" className="text-sm text-accent hover:underline">
+                Manage
+              </Link>
+            </div>
+            {specialties.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {specialties.map((s) => (
+                  <span
+                    key={s.id}
+                    className="px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/30 text-sm text-text"
+                  >
+                    {s.label}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted">No specialties yet. Add some to stand out.</p>
+            )}
+          </div>
+
+          {/* Add-ons */}
+          <div className="bg-surface rounded-xl border border-border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-text">Add-ons</h2>
+              <Link href="/pro/addons" className="text-sm text-accent hover:underline">
+                Manage
+              </Link>
+            </div>
+            {addons.length > 0 ? (
+              <div className="space-y-2">
+                {addons.map((a) => (
+                  <div key={a.id} className="flex justify-between items-center py-2 border-b border-border last:border-0">
+                    <span className="text-text">{a.title}</span>
+                    <span className="text-sm text-muted">
+                      ${(a.priceCents / 100).toFixed(2)}
+                      {!a.isActive && ' (inactive)'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted">No add-ons yet. Add optional extras customers can choose during booking.</p>
+            )}
+          </div>
+
+          {/* Services Offered (legacy categories) */}
           <div className="bg-surface rounded-xl border border-border p-6">
             <h2 className="text-lg font-semibold text-text mb-4">Services Offered</h2>
             <div className="flex flex-wrap gap-3">

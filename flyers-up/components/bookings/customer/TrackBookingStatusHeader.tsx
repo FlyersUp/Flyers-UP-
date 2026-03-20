@@ -1,6 +1,6 @@
 'use client';
 
-import { BookingStatusBadge } from '@/components/bookings/BookingStatusBadge';
+import { BookingStatusPill } from '@/components/bookings/BookingStatusPill';
 import { getStatusConfig } from './trackBookingStatusConfig';
 
 export interface TrackBookingStatusHeaderProps {
@@ -44,7 +44,7 @@ export function TrackBookingStatusHeader({
         <h2 id="track-status-headline" className="text-lg font-semibold text-[#111111] dark:text-[#F5F7FA] tracking-tight">
           {config.headline}
         </h2>
-        <BookingStatusBadge status={status} />
+        <BookingStatusPill status={status} />
       </div>
       <p className="text-sm text-[#6A6A6A] dark:text-[#A1A8B3] leading-relaxed">
         {config.explanation}

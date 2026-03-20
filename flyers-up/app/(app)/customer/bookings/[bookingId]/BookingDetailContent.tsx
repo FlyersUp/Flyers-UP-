@@ -7,6 +7,7 @@ import { TrackBookingRealtime, type TrackBookingData } from '@/components/bookin
 import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 import { TrackBookingStatusHeader } from '@/components/bookings/customer/TrackBookingStatusHeader';
 import { TrackBookingSummaryCard } from '@/components/bookings/customer/TrackBookingSummaryCard';
+import { BookingProgressTracker } from '@/components/bookings/BookingProgressTracker';
 import { BookingProgressTimeline } from '@/components/bookings/customer/BookingProgressTimeline';
 import { TrackBookingMessagingEntry } from '@/components/bookings/customer/TrackBookingMessagingEntry';
 import { TrackBookingPaymentSummary } from '@/components/bookings/customer/TrackBookingPaymentSummary';
@@ -219,6 +220,11 @@ export function BookingDetailContent({
               <h1 className="text-lg font-semibold text-[#111111] dark:text-[#F5F7FA]">Track booking</h1>
             </div>
 
+            {/* Progress tracker */}
+            <section className="mb-5">
+              <BookingProgressTracker status={booking.status} />
+            </section>
+
             {/* 1. Status header */}
             <section className="mb-5">
               <TrackBookingStatusHeader
@@ -277,16 +283,19 @@ export function BookingDetailContent({
                 fullyPaidAt={booking.fullyPaidAt}
                 primaryAction={
                   showConfirmSlot ? (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const res = await fetch(`/api/bookings/${bookingId}/confirm`, { method: 'POST' });
-                        if (res.ok) router.refresh();
-                      }}
-                      className="w-full flex h-11 items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95"
-                    >
-                      Confirm completion
-                    </button>
+                    <div>
+                      <p className="text-xs text-muted mb-2">Your payment is protected until you confirm</p>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const res = await fetch(`/api/bookings/${bookingId}/confirm`, { method: 'POST' });
+                          if (res.ok) router.refresh();
+                        }}
+                        className="w-full flex h-11 items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95"
+                      >
+                        Release remaining payment
+                      </button>
+                    </div>
                   ) : undefined
                 }
               />

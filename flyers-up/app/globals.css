@@ -75,6 +75,8 @@
   --background: hsl(var(--bg));
   --card: hsl(var(--surface));
   --card-2: hsl(var(--surface-2));
+  /* Neutral card: toned-down warm, premium (less orange) */
+  --card-neutral: 40 12% 97%;
   --popover: hsl(var(--surface));
   --muted-bg: hsl(var(--muted));
   --foreground: hsl(var(--text));

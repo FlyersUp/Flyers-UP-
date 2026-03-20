@@ -68,7 +68,7 @@ export default function OccupationsPage() {
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
                   <div
                     key={i}
-                    className="rounded-2xl bg-surface border border-border p-4 h-24 animate-pulse"
+                    className="rounded-2xl bg-[hsl(var(--card-neutral))] border border-border p-4 h-24 animate-pulse"
                   />
                 ))}
               </div>
@@ -90,7 +90,7 @@ export default function OccupationsPage() {
           </section>
 
           {!loading && filtered.length === 0 && (
-            <div className="rounded-2xl bg-surface border border-border p-8 text-center text-text3 mt-4">
+            <div className="rounded-2xl bg-[hsl(var(--card-neutral))] border border-border p-8 text-center text-text3 mt-4">
               No occupations found.
             </div>
           )}

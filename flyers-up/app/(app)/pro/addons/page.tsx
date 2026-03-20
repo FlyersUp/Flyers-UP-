@@ -35,6 +35,7 @@ export default function ProAddonsPage() {
   const [formData, setFormData] = useState({
     title: '',
     priceDollars: '',
+    description: '',
   });
 
   useEffect(() => {
@@ -90,12 +91,18 @@ export default function ProAddonsPage() {
         setError('Price must be a valid number.');
         return;
       }
-      const result = await createAddonAction(serviceCategory, formData.title.trim(), price, session?.access_token ?? undefined);
+      const result = await createAddonAction(
+        serviceCategory,
+        formData.title.trim(),
+        price,
+        session?.access_token ?? undefined,
+        { description: formData.description.trim() || undefined }
+      );
       if (!result.success) return setError(result.error || 'Failed to create add-on.');
 
       setSuccess('Add-on created successfully!');
       setIsCreating(false);
-      setFormData({ title: '', priceDollars: '' });
+      setFormData({ title: '', priceDollars: '', description: '' });
       await loadData();
     } catch (err) {
       console.error('Error creating add-on:', err);
@@ -103,7 +110,7 @@ export default function ProAddonsPage() {
     }
   };
 
-  const handleUpdate = async (addonId: string, updates: { title?: string; priceDollars?: number; isActive?: boolean }) => {
+  const handleUpdate = async (addonId: string, updates: { title?: string; priceDollars?: number; isActive?: boolean; description?: string }) => {
     try {
       setError(null);
       const {
@@ -148,13 +155,14 @@ export default function ProAddonsPage() {
     setFormData({
       title: addon.title,
       priceDollars: centsToDollars(addon.priceCents).toFixed(2),
+      description: addon.description ?? '',
     });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setIsCreating(false);
-    setFormData({ title: '', priceDollars: '' });
+    setFormData({ title: '', priceDollars: '', description: '' });
   };
 
   const activeCount = addons.filter(a => a.isActive).length;
@@ -213,6 +221,12 @@ export default function ProAddonsPage() {
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
               <Input
+                label="Description (optional)"
+                placeholder="Brief description of this add-on"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+              <Input
                 label="Price ($)"
                 type="number"
                 step="0.01"
@@ -252,6 +266,11 @@ export default function ProAddonsPage() {
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     />
                     <Input
+                      label="Description (optional)"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    />
+                    <Input
                       label="Price ($)"
                       type="number"
                       step="0.01"
@@ -289,6 +308,7 @@ export default function ProAddonsPage() {
                           handleUpdate(addon.id, {
                             title: formData.title.trim(),
                             priceDollars: price,
+                            description: formData.description.trim() || undefined,
                           });
                         }}
                       >

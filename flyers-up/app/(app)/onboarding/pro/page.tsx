@@ -11,7 +11,11 @@ import {
   setProOccupationAndServicesAction,
   getCategoryIdForOccupationSlugAction,
 } from '@/app/actions/proOnboarding';
+import { setProSpecialtiesAction } from '@/app/actions/proSpecialties';
+import { createAddonsBulkAction } from '@/app/actions/addons';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
+import { SpecialtyTagInput } from '@/components/onboarding/SpecialtyTagInput';
+import { AddOnBuilder, type AddOnDraft } from '@/components/onboarding/AddOnBuilder';
 import type { OccupationRow } from '@/lib/occupationData';
 import type { OccupationServiceRow } from '@/lib/occupationData';
 
@@ -20,7 +24,7 @@ function isInvalidRefreshToken(err: unknown): boolean {
   return /invalid refresh token/i.test(msg) || /refresh token not found/i.test(msg);
 }
 
-type Step = 2 | 3 | 4; // Role=1 done on role page; Pro flow: Occupation(2), Services(3), Setup(4)
+type Step = 2 | 3 | 4 | 5 | 6; // Role=1; Pro: Occupation(2), Services(3), Specialties(4), Add-ons(5), Setup(6)
 
 function ProInner() {
   const router = useRouter();
@@ -43,6 +47,8 @@ function ProInner() {
   const [businessName, setBusinessName] = useState('');
   const [selectedOccupationSlug, setSelectedOccupationSlug] = useState('');
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [specialtyLabels, setSpecialtyLabels] = useState<string[]>([]);
+  const [addonDrafts, setAddonDrafts] = useState<AddOnDraft[]>([]);
   const [serviceAreaZip, setServiceAreaZip] = useState('');
 
   const selectedOccupation = selectedOccupationSlug ? occupations.find((o) => o.slug === selectedOccupationSlug) : null;
@@ -218,6 +224,32 @@ function ProInner() {
         return;
       }
 
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? undefined;
+
+      if (specialtyLabels.length > 0) {
+        const specRes = await setProSpecialtiesAction(specialtyLabels, token);
+        if (!specRes.success) {
+          setError(specRes.error || 'Could not save specialties. Please try again.');
+          return;
+        }
+      }
+
+      const activeAddons = addonDrafts.filter((a) => a.title.trim() && a.isActive !== false);
+      if (activeAddons.length > 0) {
+        const addonPayload = activeAddons.map((a) => ({
+          title: a.title.trim(),
+          priceDollars: parseFloat(a.priceDollars) || 0,
+          description: a.description || undefined,
+          isActive: true,
+        }));
+        const addonRes = await createAddonsBulkAction(addonPayload, selectedOccupationSlug, token);
+        if (!addonRes.success) {
+          setError(addonRes.error || 'Could not save add-ons. Please try again.');
+          return;
+        }
+      }
+
       window.location.href = destination;
     } catch (err) {
       console.error(err);
@@ -235,7 +267,7 @@ function ProInner() {
   function goNext() {
     if (step === 2 && !canProceedOccupation) return;
     if (step === 3 && !canProceedServices) return;
-    setStep((s) => Math.min(4, s + 1) as Step);
+    setStep((s) => Math.min(6, s + 1) as Step);
   }
 
   if (loading) {
@@ -262,12 +294,16 @@ function ProInner() {
             <h1 className="text-2xl font-semibold tracking-tight">
               {step === 2 && 'Choose your occupation'}
               {step === 3 && 'Select your services'}
-              {step === 4 && 'Almost there'}
+              {step === 4 && 'Add your specialties'}
+              {step === 5 && 'Add-ons (optional)'}
+              {step === 6 && 'Almost there'}
             </h1>
             <p className="text-muted mt-2">
               {step === 2 && 'Select the occupation that best describes what you do.'}
               {step === 3 && 'Pick the services you offer. You can add more later.'}
-              {step === 4 && 'Verification and payouts can be completed later.'}
+              {step === 4 && 'Add specialties customers may care about. These do not replace your main service types.'}
+              {step === 5 && 'Add optional extras customers can choose during booking.'}
+              {step === 6 && 'Verification and payouts can be completed later.'}
             </p>
 
             {error && (
@@ -333,7 +369,7 @@ function ProInner() {
                       <span className="font-medium text-text">{selectedOccupation.name}</span>
                     </div>
                     <label className="block text-sm font-medium text-muted mb-3">
-                      Select the services you offer (at least one)
+                      Select the official service types you offer (at least one). These determine how customers find you.
                     </label>
                     {servicesLoading ? (
                       <p className="text-sm text-muted py-6">Loading services…</p>
@@ -376,8 +412,30 @@ function ProInner() {
               </div>
             )}
 
-            {/* Step 4: Setup (Verification + Payouts) */}
-            {step === 4 && (
+            {/* Step 4: Specialties */}
+            {step === 4 && selectedOccupation && (
+              <div className="mt-6">
+                <SpecialtyTagInput
+                  value={specialtyLabels}
+                  onChange={setSpecialtyLabels}
+                  occupationSlug={selectedOccupationSlug}
+                />
+              </div>
+            )}
+
+            {/* Step 5: Add-ons */}
+            {step === 5 && selectedOccupation && (
+              <div className="mt-6">
+                <AddOnBuilder
+                  addons={addonDrafts}
+                  onChange={setAddonDrafts}
+                  compact
+                />
+              </div>
+            )}
+
+            {/* Step 6: Setup (Verification + Payouts) */}
+            {step === 6 && (
               <div className="mt-6 space-y-6">
                 <div className="rounded-xl border border-border bg-surface2/30 p-4 space-y-4">
                   <p className="text-sm font-medium text-text">Basic info</p>
@@ -483,8 +541,8 @@ function ProInner() {
               </div>
             )}
 
-            {/* Navigation: Back + Next (steps 2 & 3 only) */}
-            {(step === 2 || step === 3) && (
+            {/* Navigation: Back + Next (steps 2–5) */}
+            {(step === 2 || step === 3 || step === 4 || step === 5) && (
               <div className="flex gap-3 mt-8 pt-6 border-t border-border">
                 {step > 2 && (
                   <button

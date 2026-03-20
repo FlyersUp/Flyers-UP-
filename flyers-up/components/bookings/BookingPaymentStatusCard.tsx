@@ -87,10 +87,10 @@ export function BookingPaymentStatusCard({
             <PriceRow label="Remaining" value={formatCents(remaining)} />
           )}
           {view === 'pro' && (
-            <div className="mt-2 rounded-xl border border-border bg-card p-3">
-              <p className="text-sm font-semibold text-primary">You keep 100% of your service price</p>
+            <div className="mt-2 rounded-xl border border-[hsl(var(--accent-customer)/0.2)] bg-[hsl(var(--accent-customer)/0.06)] p-3">
+              <p className="text-sm font-semibold text-[hsl(var(--accent-customer))]">You keep what you earn</p>
               <p className="mt-1 text-xs text-muted">
-                Customers pay a small service fee separately. This does not reduce your earnings.
+                You keep 100% of your service price. Customers pay the Flyers Up Protection Fee separately.
               </p>
               <p className="mt-1 text-xs font-medium text-primary">No hidden cuts. No surprises.</p>
               {proTakeHome > 0 ? (

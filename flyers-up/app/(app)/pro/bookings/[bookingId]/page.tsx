@@ -2,12 +2,15 @@
 
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { BookingTimeline } from '@/components/bookings/BookingTimeline';
-import { BookingStatusBadge } from '@/components/bookings/BookingStatusBadge';
+import { BookingStatusPill } from '@/components/bookings/BookingStatusPill';
+import { BookingProgressTracker } from '@/components/bookings/BookingProgressTracker';
+import { ProJobCompletedCard } from '@/components/bookings/ProJobCompletedCard';
+import { PayoutTimeline } from '@/components/bookings/PayoutTimeline';
+import { ProYouGotPaidCard } from '@/components/bookings/ProYouGotPaidCard';
 import { JobNextAction } from '@/components/jobs/JobNextAction';
 import { ProBookingRealtime } from '@/components/bookings/ProBookingRealtime';
 import { PaymentStatusModule } from '@/components/booking/PaymentStatusModule';
 import { BookingPaymentStatusCard } from '@/components/bookings/BookingPaymentStatusCard';
-import { PayoutStatusBadge } from '@/components/bookings/PayoutStatusBadge';
 import { BookingEventsAccordion } from '@/components/bookings/BookingEventsAccordion';
 import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 import { getBookingById, getCurrentUser, type BookingDetails } from '@/lib/api';
@@ -139,6 +142,15 @@ export default function ProBookingDetailPage({
               }
             );
 
+            const isJobCompleted =
+              ['completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment', 'awaiting_customer_confirmation'].includes(booking.status);
+            const isPayoutSucceeded = (booking.payoutStatus ?? '').toLowerCase() === 'succeeded' || (booking.payoutStatus ?? '').toLowerCase() === 'paid';
+            const customerPaid = !!booking.fullyPaidAt || !!booking.paidRemainingAt;
+            const proEarnings = Math.max(
+              0,
+              (booking.amountTotal ?? 0) - (booking.platformFeeCents ?? 0) - (booking.refundedTotalCents ?? 0)
+            );
+
             return (
               <>
                 <header className="mb-6">
@@ -150,9 +162,33 @@ export default function ProBookingDetailPage({
                     Created {new Date(booking.createdAt).toLocaleDateString()}
                   </p>
                   <div className="mt-3">
-                    <BookingStatusBadge status={booking.status} />
+                    <BookingStatusPill status={booking.status} />
                   </div>
                 </header>
+
+                {/* Progress tracker */}
+                <section className="mb-6">
+                  <BookingProgressTracker status={booking.status} />
+                </section>
+
+                {/* Pro "You got paid" celebration */}
+                {isPayoutSucceeded && proEarnings > 0 && (
+                  <section className="mb-6">
+                    <ProYouGotPaidCard amountCents={proEarnings} />
+                  </section>
+                )}
+
+                {/* Pro "Job completed" moment */}
+                {isJobCompleted && !isPayoutSucceeded && (
+                  <section className="mb-6">
+                    <ProJobCompletedCard
+                      amountTotal={booking.amountTotal ?? 0}
+                      platformFeeCents={booking.platformFeeCents ?? 0}
+                      refundedTotalCents={booking.refundedTotalCents ?? 0}
+                      awaitingConfirmation={booking.status === 'awaiting_customer_confirmation'}
+                    />
+                  </section>
+                )}
 
                 <div
                   className="rounded-2xl border border-[var(--hairline)] p-5 mb-6"
@@ -173,8 +209,11 @@ export default function ProBookingDetailPage({
 
                 <section className="mb-6">
                   <h2 className="text-base font-semibold text-text mb-4">Payment</h2>
-                  <div className="flex items-center gap-2 mb-3">
-                    <PayoutStatusBadge payoutStatus={booking.payoutStatus} />
+                  <div className="mb-4">
+                    <PayoutTimeline
+                      payoutStatus={booking.payoutStatus}
+                      customerPaid={customerPaid}
+                    />
                   </div>
                   <div className="space-y-4">
                     <BookingPaymentStatusCard
