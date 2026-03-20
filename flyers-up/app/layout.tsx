@@ -10,17 +10,16 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   icons: {
     icon: [
-      { url: "/icons/flyer-icon.png?v=2", type: "image/png" },
-      { url: "/icons/icon-192.png?v=2", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png?v=2", sizes: "512x512", type: "image/png" },
-      { url: "/icons/icon-1024.png?v=2", sizes: "1024x1024", type: "image/png" },
-      { url: "/icons/icon-180.png?v=2", sizes: "180x180", type: "image/png" },
-      { url: "/icons/icon-167.png?v=2", sizes: "167x167", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icons/icon-1024.png", sizes: "1024x1024", type: "image/png" },
+      { url: "/icons/icon-180.png", sizes: "180x180", type: "image/png" },
+      { url: "/icons/icon-167.png", sizes: "167x167", type: "image/png" },
     ],
     apple: [
-      { url: "/icons/icon-180.png?v=2", sizes: "180x180", type: "image/png" },
-      { url: "/icons/icon-167.png?v=2", sizes: "167x167", type: "image/png" },
-      { url: "/icons/flyer-icon.png?v=2", type: "image/png" },
+      { url: "/icons/icon-180.png", sizes: "180x180", type: "image/png" },
+      { url: "/icons/icon-167.png", sizes: "167x167", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
   },
 };

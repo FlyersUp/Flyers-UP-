@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   FileText,
   Store,
+  ImageIcon,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -218,6 +219,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     {
       title: 'System & Logs',
       tools: [
+        {
+          href: '/admin/icons-preview',
+          title: 'Icon Preview',
+          description: 'PWA app icon preview (maskable, circle, squircle).',
+          icon: <ImageIcon className="h-4 w-4" />,
+        },
         {
           href: '/admin/errors',
           title: 'Error logs',
