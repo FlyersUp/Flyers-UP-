@@ -19,17 +19,35 @@ export type Json =
 // Role type matching the database CHECK constraint
 export type UserRole = 'customer' | 'pro' | 'admin';
 
-// Booking status matching the database CHECK constraint
-// 'declined' is treated as a type of cancellation (pro refused the request)
+// Booking status matching the database CHECK constraint (migrations 042, 047)
 export type BookingStatus =
   | 'requested'
   | 'accepted'
+  | 'pending'
+  | 'payment_required'
+  | 'deposit_paid'
+  | 'fully_paid'
+  | 'pending_pro_acceptance'
+  | 'awaiting_deposit_payment'
   | 'on_the_way'
+  | 'pro_en_route'
+  | 'arrived'
   | 'in_progress'
+  | 'completed_pending_payment'
   | 'awaiting_payment'
+  | 'work_completed_by_pro'
+  | 'awaiting_remaining_payment'
+  | 'awaiting_customer_confirmation'
   | 'completed'
+  | 'review_pending'
+  | 'paid'
+  | 'expired_unpaid'
   | 'cancelled'
-  | 'declined';
+  | 'declined'
+  | 'cancelled_expired'
+  | 'cancelled_by_customer'
+  | 'cancelled_by_pro'
+  | 'cancelled_admin';
 
 export interface Database {
   public: {

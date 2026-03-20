@@ -204,14 +204,13 @@ export function AddOnBuilder({
                   </div>
                   {!disabled && (
                     <div className="flex gap-1 shrink-0">
-                      <Button variant="ghost" size="sm" onClick={() => startEdit(a)}>
+                      <Button variant="ghost" onClick={() => startEdit(a)} className="px-3 py-1.5 text-sm">
                         Edit
                       </Button>
                       <Button
                         variant="ghost"
-                        size="sm"
                         onClick={() => handleRemove(a.id)}
-                        className="text-danger hover:text-danger"
+                        className="text-danger hover:text-danger px-3 py-1.5 text-sm"
                       >
                         <Trash2 className="size-4" />
                       </Button>

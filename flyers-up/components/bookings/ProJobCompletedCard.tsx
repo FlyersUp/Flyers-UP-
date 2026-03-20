@@ -22,14 +22,17 @@ export interface ProJobCompletedCardProps {
 }
 
 export function ProJobCompletedCard({
-  amountTotal = 0,
-  platformFeeCents = 0,
-  refundedTotalCents = 0,
+  amountTotal,
+  platformFeeCents,
+  refundedTotalCents,
   awaitingConfirmation = false,
   className,
 }: ProJobCompletedCardProps) {
-  const servicePrice = Math.max(0, amountTotal - platformFeeCents); // What pro earns (before refunds)
-  const proEarnings = Math.max(0, servicePrice - refundedTotalCents);
+  const total = amountTotal ?? 0;
+  const fee = platformFeeCents ?? 0;
+  const refunded = refundedTotalCents ?? 0;
+  const servicePrice = Math.max(0, total - fee); // What pro earns (before refunds)
+  const proEarnings = Math.max(0, servicePrice - refunded);
 
   return (
     <div
@@ -62,11 +65,11 @@ export function ProJobCompletedCard({
       <div className="mt-4 rounded-xl border border-border bg-[hsl(var(--card-neutral))] p-4 space-y-2">
         <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">Customer paid</p>
         <PriceRow label="Service" value={formatCents(servicePrice)} />
-        {platformFeeCents > 0 && (
-          <PriceRow label="Flyers Up Protection Fee" value={formatCents(platformFeeCents)} />
+        {fee > 0 && (
+          <PriceRow label="Flyers Up Protection Fee" value={formatCents(fee)} />
         )}
         <div className={cn('pt-2 border-t border-border')}>
-          <PriceRow label="Total paid" value={formatCents(amountTotal)} emphasize />
+          <PriceRow label="Total paid" value={formatCents(total)} emphasize />
         </div>
       </div>
     </div>
