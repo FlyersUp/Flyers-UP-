@@ -132,7 +132,7 @@ function getPrimaryAction(booking: BookingDetailData & TrackBookingData, booking
   if (needsDeposit) {
     return (
       <Link
-        href={`/customer/bookings/${bookingId}/checkout`}
+        href={`/customer/bookings/${bookingId}/deposit`}
         className="flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all"
       >
         Pay deposit {booking.amountDeposit != null ? `$${(booking.amountDeposit / 100).toFixed(2)}` : ''}

@@ -47,7 +47,7 @@ export default function ScopeLockPage() {
           return;
         }
         if (b.scope_confirmed_at) {
-          router.replace(`/customer/bookings/${bookingId}/checkout`);
+          router.replace(`/customer/bookings/${bookingId}/deposit`);
           return;
         }
         if (!b.job_request_id) {
@@ -80,7 +80,7 @@ export default function ScopeLockPage() {
     const res = await fetch(`/api/bookings/${bookingId}/scope-lock`, { method: 'POST' });
     const json = await res.json();
     if (res.ok) {
-      router.push(`/customer/bookings/${bookingId}/checkout`);
+      router.push(`/customer/bookings/${bookingId}/deposit`);
     } else {
       setError(json.error ?? 'Failed to confirm scope');
     }

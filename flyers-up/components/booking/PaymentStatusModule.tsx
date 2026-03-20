@@ -108,7 +108,7 @@ export function PaymentStatusModule({
             Time remaining: <CountdownDisplay paymentDueAt={paymentDueAt} />
           </p>
           <Link
-            href={`/customer/bookings/${bookingId}/checkout`}
+            href={`/customer/bookings/${bookingId}/deposit`}
             className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 mt-3"
           >
             Pay deposit {amountDeposit != null ? formatCents(amountDeposit) : ''}

@@ -44,7 +44,7 @@ export interface PaymentStatusModuleProps {
   fullyPaidAt?: string | null;
 }
 
-const checkoutBase = (id: string) => `/customer/bookings/${id}/checkout`;
+const checkoutBase = (id: string) => `/customer/bookings/${id}/deposit`;
 const completeBase = (id: string) => `/customer/bookings/${id}/complete`;
 
 export function PaymentStatusModule({

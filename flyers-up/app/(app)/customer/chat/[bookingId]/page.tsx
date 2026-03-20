@@ -222,7 +222,7 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
           <div className="mx-4 mt-3 px-4 py-3 rounded-xl bg-[#B2FBA5]/30 border border-[#9ae88d] dark:border-[#058954]/30">
             <p className="font-semibold text-[#111111] dark:text-[#F5F7FA]">Price agreed!</p>
             <Link
-              href={`/customer/bookings/${bookingId}/checkout`}
+              href={`/customer/bookings/${bookingId}/deposit`}
               className="mt-2 inline-block px-4 py-2 rounded-lg bg-[#058954] text-white font-semibold text-sm hover:bg-[#047a48]"
             >
               Pay deposit
