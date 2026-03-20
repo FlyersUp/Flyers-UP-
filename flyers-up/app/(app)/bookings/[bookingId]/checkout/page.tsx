@@ -24,6 +24,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { BookingSummaryDeposit, type QuoteBreakdown } from '@/components/checkout/BookingSummaryDeposit';
 import { DepositPayBar } from '@/components/checkout/DepositPayBar';
+import { BookingLoadErrorPage } from '@/components/checkout/BookingLoadErrorPage';
 import { QuickRulesSheet } from '@/components/booking/QuickRulesSheet';
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
@@ -146,6 +147,7 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -276,7 +278,7 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
     };
     void run();
     return () => { mounted = false };
-  }, [bookingId, isFinalPayment]);
+  }, [bookingId, isFinalPayment, retryKey]);
 
   return (
     <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0d0d0f]">
@@ -305,48 +307,29 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
             </div>
           )}
 
-          {/* ERROR STATE */}
+          {/* ERROR STATE — premium Apple/Uber/Airbnb style */}
           {!loading && error && (
-            <div
-              className="rounded-2xl bg-white dark:bg-[#1a1d24] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]"
-              role="alert"
-            >
-              <p className="mb-2 text-sm font-medium text-[#222] dark:text-white">
-                Something went wrong
-              </p>
-              <p className="mb-4 text-sm text-[#717171] dark:text-white/70">{error}</p>
-              {errorStatus === 409 && (
-                <p className="mb-4 text-xs text-muted">
-                  The booking may not be ready for payment yet, or the pro has not completed payout setup.
-                </p>
-              )}
-              {errorStatus === 404 && (
-                <p className="mb-4 text-xs text-muted">
-                  This booking may not exist or you may not have access to it. Try refreshing or sign in again.
-                </p>
-              )}
-              {errorStatus === 401 && (
-                <p className="mb-4 text-xs text-muted">
-                  Sign in to pay for this booking.
-                </p>
-              )}
-              <div className="flex flex-wrap gap-3">
-                {errorStatus === 401 && (
-                  <Link
-                    href={`/auth?next=${encodeURIComponent(`/bookings/${bookingId}/checkout`)}`}
-                    className="inline-flex h-11 items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.6)] bg-[hsl(var(--accent-pro))] px-5 text-sm font-semibold text-[hsl(var(--accent-contrast))] transition-colors hover:brightness-95"
-                  >
-                    Sign in
-                  </Link>
-                )}
-                <Link
-                  href={`/customer/bookings/${bookingId}`}
-                  className="inline-flex h-11 items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.6)] bg-[hsl(var(--accent-pro))] px-5 text-sm font-semibold text-[hsl(var(--accent-contrast))] transition-colors hover:brightness-95"
-                >
-                  Return to booking
-                </Link>
-              </div>
-            </div>
+            <BookingLoadErrorPage
+              title="Couldn't load this booking"
+              message={error}
+              errorStatus={errorStatus}
+              primaryHref={`/customer/bookings/${bookingId}`}
+              primaryLabel="Return to booking"
+              secondaryHref="/customer/bookings"
+              secondaryLabel="View all bookings"
+              signInHref={
+                errorStatus === 401
+                  ? `/auth?next=${encodeURIComponent(`/bookings/${bookingId}/checkout`)}`
+                  : undefined
+              }
+              onRetry={() => {
+                setError(null);
+                setErrorStatus(null);
+                setLoading(true);
+                setRetryKey((k) => k + 1);
+              }}
+              compact={false}
+            />
           )}
 
           {/* SUCCESS STATE — redirect happens via Stripe return_url; this is fallback */}

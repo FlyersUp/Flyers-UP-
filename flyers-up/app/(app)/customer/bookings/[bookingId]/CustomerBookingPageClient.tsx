@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { BookingDetailContent } from './BookingDetailContent';
 import { BookingSignInPrompt } from '@/components/bookings/customer/BookingSignInPrompt';
+import { BookingLoadErrorPage } from '@/components/checkout/BookingLoadErrorPage';
 import { TrackBookingSkeleton } from '@/components/bookings/customer/TrackBookingSkeleton';
 import type { BookingDetailData } from './BookingDetailContent';
 
@@ -91,16 +92,16 @@ export function CustomerBookingPageClient({
   if (!loading && apiError === 'not_found') {
     return (
       <AppLayout mode="customer">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm">
-            <p className="text-sm text-gray-500">Booking not found or you don&apos;t have access.</p>
-            <Link
-              href="/customer/bookings"
-              className="mt-4 inline-block text-sm font-medium text-gray-900 hover:underline"
-            >
-              ← Back to bookings
-            </Link>
-          </div>
+        <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col items-center min-h-[50vh]">
+          <BookingLoadErrorPage
+            title="Couldn't load this booking"
+            errorStatus={404}
+            primaryHref="/customer/bookings"
+            primaryLabel="View all bookings"
+            secondaryHref="/customer/categories"
+            secondaryLabel="Find a pro"
+            compact={false}
+          />
         </div>
       </AppLayout>
     );
