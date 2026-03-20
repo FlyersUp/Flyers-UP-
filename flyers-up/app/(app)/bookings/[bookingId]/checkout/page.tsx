@@ -162,7 +162,10 @@ export default function CheckoutPage({
 
       try {
         if (isFinalPayment) {
-          const bookingRes = await fetch(`/api/customer/bookings/${bookingId}`, { cache: 'no-store' });
+          const bookingRes = await fetch(`/api/customer/bookings/${bookingId}`, {
+            cache: 'no-store',
+            credentials: 'include',
+          });
           const bookingJson = await bookingRes.json();
           if (!mounted) return;
           if (!bookingRes.ok) {
@@ -192,6 +195,7 @@ export default function CheckoutPage({
           const payRes = await fetch(`/api/bookings/${bookingId}/pay/final`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
           });
           const payJson = await payRes.json();
           if (!mounted) return;
@@ -222,6 +226,7 @@ export default function CheckoutPage({
           const payRes = await fetch(payUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
           });
           const payJson = await payRes.json();
 
