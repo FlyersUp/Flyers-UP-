@@ -217,6 +217,23 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
             );
           }
         } else {
+          // Pre-check: ensure we can access the booking before deposit API
+          const preCheckRes = await fetch(`/api/customer/bookings/${bookingId}`, {
+            cache: 'no-store',
+            credentials: 'include',
+          });
+          if (!mounted) return;
+          if (!preCheckRes.ok) {
+            const preJson = await preCheckRes.json().catch(() => ({}));
+            setError(preJson.error ?? 'Could not load booking');
+            setErrorStatus(preCheckRes.status);
+            if (preCheckRes.status === 401) {
+              setError('Session may have expired. Please sign in again.');
+            }
+            setLoading(false);
+            return;
+          }
+
           const payUrl = `/api/bookings/${bookingId}/pay/deposit`;
           const payRes = await fetch(payUrl, {
             method: 'POST',
@@ -303,15 +320,30 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
               )}
               {errorStatus === 404 && (
                 <p className="mb-4 text-xs text-muted">
-                  This booking may not exist or you may not have access to it.
+                  This booking may not exist or you may not have access to it. Try refreshing or sign in again.
                 </p>
               )}
-              <Link
-                href={`/customer/bookings/${bookingId}`}
-                className="inline-flex h-11 items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.6)] bg-[hsl(var(--accent-pro))] px-5 text-sm font-semibold text-[hsl(var(--accent-contrast))] transition-colors hover:brightness-95"
-              >
-                Return to booking
-              </Link>
+              {errorStatus === 401 && (
+                <p className="mb-4 text-xs text-muted">
+                  Sign in to pay for this booking.
+                </p>
+              )}
+              <div className="flex flex-wrap gap-3">
+                {errorStatus === 401 && (
+                  <Link
+                    href={`/auth?next=${encodeURIComponent(`/bookings/${bookingId}/checkout`)}`}
+                    className="inline-flex h-11 items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.6)] bg-[hsl(var(--accent-pro))] px-5 text-sm font-semibold text-[hsl(var(--accent-contrast))] transition-colors hover:brightness-95"
+                  >
+                    Sign in
+                  </Link>
+                )}
+                <Link
+                  href={`/customer/bookings/${bookingId}`}
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.6)] bg-[hsl(var(--accent-pro))] px-5 text-sm font-semibold text-[hsl(var(--accent-contrast))] transition-colors hover:brightness-95"
+                >
+                  Return to booking
+                </Link>
+              </div>
             </div>
           )}
 
