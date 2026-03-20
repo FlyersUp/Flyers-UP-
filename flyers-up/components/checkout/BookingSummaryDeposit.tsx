@@ -1,30 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 /**
- * Booking Summary + Deposit Payment Step
+ * Review & pay deposit — Airbnb/Uber/Apple style
  *
- * STEP 1 — USER INTENT
- * - User wants to pay the deposit to lock their booking
- * - Friction: "How much do I pay now vs later?" "Is this safe?" "What happens next?"
- * - Hesitation: unclear pricing, fear of overpaying, trust in platform
- *
- * STEP 2 — UI REFERENCE MAP
- * - Stripe: payment clarity, minimal checkout
- * - Airbnb: booking summary warmth, trust
- * - Linear: spacing, precision
- * - Apple: polish, calm
- *
- * STEP 3 — PRODUCT PSYCHOLOGY
- * - Reduce uncertainty: show deposit vs remaining explicitly
- * - Next step obvious: single primary CTA
- * - What happens next: trust copy
- * - Reinforce trust: protection cues
+ * - Compact trip card (thumbnail + details in one row)
+ * - Clean price breakdown
+ * - Trust inline
+ * - Mobile-first, premium feel
  */
 
 import { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
-import { Card } from '@/components/ui/Card';
 import { PriceRow } from '@/components/ui/PriceRow';
 
 function formatCents(cents: number): string {
@@ -40,10 +27,9 @@ function formatDateTime(serviceDate?: string, serviceTime?: string): string {
     const d = new Date(serviceDate);
     if (Number.isNaN(d.getTime())) return serviceDate;
     const dateStr = d.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
+      weekday: 'short',
+      month: 'short',
       day: 'numeric',
-      year: 'numeric',
     });
     return serviceTime ? `${dateStr} at ${serviceTime}` : dateStr;
   } catch {
@@ -78,128 +64,111 @@ export interface BookingSummaryDepositProps {
   className?: string;
 }
 
-/** Pro summary card — compact, trust-building */
-function ProSummaryBlock({
+/** Airbnb-style compact trip card: thumbnail + pro + service + date */
+function TripSummaryCard({
   proName,
   proPhotoUrl,
   serviceName,
-}: {
-  proName: string;
-  proPhotoUrl: string | null;
-  serviceName: string;
-}) {
-  return (
-    <div className="flex items-center gap-4">
-      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-card">
-        {proPhotoUrl ? (
-          <img src={proPhotoUrl} alt={proName} className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-            —
-          </div>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="font-semibold text-primary">{proName}</p>
-        <p className="text-sm text-muted">{serviceName}</p>
-      </div>
-    </div>
-  );
-}
-
-/** Service details — date, time, address */
-function ServiceDetailsBlock({
   serviceDate,
   serviceTime,
   address,
   durationHours,
 }: {
+  proName: string;
+  proPhotoUrl: string | null;
+  serviceName: string;
   serviceDate: string;
   serviceTime: string;
   address?: string | null;
   durationHours?: number | null;
 }) {
   return (
-    <div className="space-y-1 text-sm">
-      <p className="text-muted">
-        {formatDateTime(serviceDate, serviceTime)}
-      </p>
-      {durationHours != null && durationHours > 0 && (
-        <p className="text-muted">
-          {durationHours} hr{durationHours !== 1 ? 's' : ''}
+    <div className="flex gap-4 rounded-2xl bg-white dark:bg-[#1a1d24] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
+      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[#f0f0f0] dark:bg-white/10">
+        {proPhotoUrl ? (
+          <img src={proPhotoUrl} alt={proName} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-2xl text-[#999] dark:text-white/40">👤</div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold text-[#222] dark:text-white truncate">{proName}</p>
+        <p className="text-sm text-[#717171] dark:text-white/70 truncate">{serviceName}</p>
+        <p className="mt-1 text-sm text-[#717171] dark:text-white/70">
+          {formatDateTime(serviceDate, serviceTime)}
         </p>
-      )}
-      {address && address.trim() && (
-        <p className="text-muted">{address}</p>
-      )}
+        {durationHours != null && durationHours > 0 && (
+          <p className="text-xs text-[#717171] dark:text-white/60">{durationHours} hr{durationHours !== 1 ? 's' : ''}</p>
+        )}
+        {address && address.trim() && (
+          <p className="mt-0.5 text-xs text-[#717171] dark:text-white/60 line-clamp-1">{address}</p>
+        )}
+      </div>
     </div>
   );
 }
 
-/** Pricing breakdown — Stripe-style clarity */
-function PricingBreakdownBlock({
+/** Airbnb-style price details — clean rows */
+function PriceDetailsBlock({
   quote,
   showDeposit,
+  defaultExpanded = true,
 }: {
   quote: QuoteBreakdown;
   showDeposit: boolean;
+  defaultExpanded?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const baseAmount = quote.amountSubtotal - (quote.amountTravelFee ?? 0);
   const hasDeposit = showDeposit && quote.amountDeposit != null && quote.amountDeposit > 0;
 
   return (
-    <div className="space-y-2">
-      <PriceRow label="Service" value={formatCents(baseAmount)} />
-      {(quote.amountTravelFee ?? 0) > 0 && (
-        <PriceRow label="Travel fee" value={formatCents(quote.amountTravelFee!)} />
-      )}
-      {(quote.amountPlatformFee ?? 0) > 0 && (
-        <>
-          <PriceRow
-            label="Flyers Up Protection & Service Fee"
-            value={formatCents(quote.amountPlatformFee!)}
-            subtext="Secure payments, booking protection, and support"
-          />
-          <p className="text-xs text-muted">
-            This fee helps keep Flyers Up safe and reliable. It covers secure payments, fraud protection, customer
-            support, and tools that help ensure your job gets done right.
-          </p>
-        </>
-      )}
-      <PriceRow className="mt-3 border-t border-border pt-3" label="Total" value={formatCents(quote.amountTotal)} emphasize />
-      <p className="text-xs font-medium text-primary">✔ Covered by Flyers Up Protection</p>
-      {hasDeposit && (
-        <>
-          <PriceRow label={`Due now (deposit ${quote.depositPercent ?? 50}%)`} value={formatCents(quote.amountDeposit!)} emphasize />
-          <PriceRow label="Due after job" value={formatCents(quote.amountRemaining ?? 0)} />
-        </>
+    <div className="rounded-2xl bg-white dark:bg-[#1a1d24] shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)] overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between p-4 text-left hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
+        aria-expanded={expanded}
+      >
+        <span className="text-sm font-medium text-[#222] dark:text-white">Price details</span>
+        <span className="text-sm font-medium text-[#222] dark:text-white">
+          {formatCents(hasDeposit ? quote.amountDeposit! : quote.amountTotal)}
+        </span>
+      </button>
+      {expanded && (
+        <div className="border-t border-[#ebebeb] dark:border-white/10 px-4 pb-4 pt-3 space-y-2.5">
+          <PriceRow label="Service" value={formatCents(baseAmount)} />
+          {(quote.amountTravelFee ?? 0) > 0 && (
+            <PriceRow label="Travel fee" value={formatCents(quote.amountTravelFee!)} />
+          )}
+          {(quote.amountPlatformFee ?? 0) > 0 && (
+            <PriceRow
+              label="Flyers Up Protection"
+              value={formatCents(quote.amountPlatformFee!)}
+              subtext="Secure payments, support & dispute resolution"
+            />
+          )}
+          <PriceRow className="pt-3 border-t border-[#ebebeb] dark:border-white/10" label="Total" value={formatCents(quote.amountTotal)} emphasize />
+          {hasDeposit && (
+            <>
+              <PriceRow label={`Due now (${quote.depositPercent ?? 50}% deposit)`} value={formatCents(quote.amountDeposit!)} emphasize />
+              <PriceRow label="Due after job" value={formatCents(quote.amountRemaining ?? 0)} />
+            </>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-/** Trust & protection — Airbnb-style reassurance */
-function TrustBlock() {
+/** Compact trust line — Uber/Apple style */
+function TrustLine() {
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-medium text-[#6A6A6A] dark:text-[#A1A8B3] uppercase tracking-wider">
-        Trust & protection
-      </p>
-      <ul className="space-y-1.5 text-sm text-muted">
-        <li className="flex items-start gap-2">
-          <span className="mt-0.5 text-[hsl(var(--success))]">✓</span>
-          <span>Secure payment via Stripe</span>
-        </li>
-        <li className="flex items-start gap-2">
-          <span className="mt-0.5 text-[hsl(var(--success))]">✓</span>
-          <span>Payment held until job completion</span>
-        </li>
-        <li className="flex items-start gap-2">
-          <span className="mt-0.5 text-[hsl(var(--success))]">✓</span>
-          <span>Dispute resolution available</span>
-        </li>
-      </ul>
-      <p className="text-xs text-muted">Safe, reliable, and built for your neighborhood</p>
+    <div className="flex items-center gap-2 text-xs text-[#717171] dark:text-white/60">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      </svg>
+      <span>Secure payment · Held until job completion</span>
     </div>
   );
 }
@@ -223,90 +192,64 @@ export function BookingSummaryDeposit({
 
   return (
     <div className={cn('space-y-4', className)} data-role="customer">
-      {/* Pro summary */}
-      <Card as="section" className="shadow-[var(--shadow-md)]" padding="lg" aria-labelledby="summary-pro">
-        <h2 id="summary-pro" className="sr-only">
-          Pro & service
-        </h2>
-        <ProSummaryBlock
+      {/* Trip summary — Airbnb compact card */}
+      <section aria-labelledby="trip-summary">
+        <h2 id="trip-summary" className="sr-only">Your booking</h2>
+        <TripSummaryCard
           proName={proName}
           proPhotoUrl={proPhotoUrl}
           serviceName={serviceName}
-        />
-      </Card>
-
-      {/* Service details */}
-      <Card as="section" className="shadow-[var(--shadow-md)]" padding="lg" aria-labelledby="summary-details">
-        <h2 id="summary-details" className="mb-3 text-sm font-medium text-muted">
-          When & where
-        </h2>
-        <ServiceDetailsBlock
           serviceDate={serviceDate}
           serviceTime={serviceTime}
           address={address}
           durationHours={durationHours}
         />
-      </Card>
+      </section>
 
-      {/* Scope summary (optional) */}
-      {scopeSummary && scopeSummary.trim() && (
-        <Card as="section" className="shadow-[var(--shadow-md)]" padding="lg" aria-labelledby="summary-scope">
-          <h2 id="summary-scope" className="mb-2 text-sm font-medium text-muted">
-            Scope
-          </h2>
-          <p className="text-sm text-muted">{scopeSummary}</p>
-        </Card>
-      )}
-
-      {/* Add-ons (optional) */}
-      {addons && addons.length > 0 && (
-        <Card as="section" className="shadow-[var(--shadow-md)]" padding="lg" aria-labelledby="summary-addons">
-          <h2 id="summary-addons" className="mb-2 text-sm font-medium text-muted">
-            Add-ons
-          </h2>
-          <ul className="space-y-1 text-sm">
-            {addons.map((a, i) => (
-              <li key={i} className="flex justify-between">
-                <span className="text-muted">{a.title}</span>
-                <span className="text-primary">
-                  {formatCents(a.priceCents)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      {/* Pricing breakdown */}
-      <Card as="section" className="shadow-[var(--shadow-md)]" padding="lg" aria-labelledby="summary-pricing">
-        <h2 id="summary-pricing" className="mb-3 text-sm font-medium text-muted">
-          Price details
-        </h2>
-        <PricingBreakdownBlock quote={quote} showDeposit={hasDeposit} />
-      </Card>
-
-      {/* Payment due countdown (optional) */}
+      {/* Payment due banner */}
       {paymentDueAt && (
         <div
-          className="rounded-2xl border border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success)/0.12)] p-4"
+          className="rounded-xl bg-[#dcfce7] dark:bg-emerald-500/15 border border-emerald-200/60 dark:border-emerald-500/30 px-4 py-3"
           role="status"
         >
-          <p className="text-sm font-medium text-primary">
-            Pay within 30 minutes to lock your time
-          </p>
+          <p className="text-sm font-medium text-emerald-800 dark:text-emerald-400">Pay within 30 minutes to lock your time</p>
           <CountdownTimer paymentDueAt={paymentDueAt} />
         </div>
       )}
 
-      {/* Trust & protection */}
-      <Card as="section" className="shadow-[var(--shadow-md)]" padding="lg" aria-labelledby="summary-trust">
-        <h2 id="summary-trust" className="sr-only">
-          Trust & protection
-        </h2>
-        <TrustBlock />
-      </Card>
+      {/* Scope summary (optional) */}
+      {scopeSummary && scopeSummary.trim() && (
+        <div className="rounded-2xl bg-white dark:bg-[#1a1d24] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
+          <p className="text-xs font-medium text-[#717171] dark:text-white/60 uppercase tracking-wider mb-2">Scope</p>
+          <p className="text-sm text-[#222] dark:text-white/90">{scopeSummary}</p>
+        </div>
+      )}
 
-      {/* Payment form / CTA slot */}
+      {/* Add-ons (optional) */}
+      {addons && addons.length > 0 && (
+        <div className="rounded-2xl bg-white dark:bg-[#1a1d24] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
+          <p className="text-xs font-medium text-[#717171] dark:text-white/60 uppercase tracking-wider mb-2">Add-ons</p>
+          <ul className="space-y-1.5 text-sm">
+            {addons.map((a, i) => (
+              <li key={i} className="flex justify-between">
+                <span className="text-[#717171] dark:text-white/70">{a.title}</span>
+                <span className="font-medium text-[#222] dark:text-white">{formatCents(a.priceCents)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Price details — expandable Airbnb-style */}
+      <section aria-labelledby="price-details">
+        <h2 id="price-details" className="sr-only">Price breakdown</h2>
+        <PriceDetailsBlock quote={quote} showDeposit={hasDeposit} />
+      </section>
+
+      {/* Trust line */}
+      <TrustLine />
+
+      {/* Payment form slot */}
       {children}
     </div>
   );
@@ -335,9 +278,8 @@ function CountdownTimer({ paymentDueAt }: { paymentDueAt: string }) {
 
   if (!remaining) return null;
   return (
-    <p className="mt-1 text-sm font-medium text-primary">
+    <p className="mt-1 text-sm font-medium text-emerald-700 dark:text-emerald-400">
       Time remaining: {remaining}
     </p>
   );
 }
-

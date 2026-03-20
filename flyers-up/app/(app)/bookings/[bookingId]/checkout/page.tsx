@@ -106,11 +106,11 @@ function CheckoutForm({
   return (
     <>
       <div
-        className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]"
+        className="rounded-2xl bg-white dark:bg-[#1a1d24] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]"
         role="region"
         aria-labelledby="payment-method-heading"
       >
-        <h2 id="payment-method-heading" className="mb-4 text-sm font-medium text-muted">
+        <h2 id="payment-method-heading" className="mb-4 text-sm font-medium text-[#222] dark:text-white">
           Payment method
         </h2>
         <PaymentElement options={{ layout: 'tabs' }} />
@@ -278,41 +278,43 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
     return () => { mounted = false };
   }, [bookingId, isFinalPayment]);
 
-  const pageBg = 'hsl(var(--bg))';
   return (
-    <div className="min-h-screen bg-bg" style={{ backgroundColor: pageBg }}>
-        <div className="max-w-lg md:max-w-xl mx-auto px-4 md:px-6 py-8 pb-40">
+    <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0d0d0f]">
+        <div className="max-w-lg md:max-w-xl mx-auto px-4 md:px-6 py-6 pb-44">
           <Link
             href={`/customer/bookings/${bookingId}`}
-            className="mb-6 inline-block text-sm text-muted transition-colors hover:text-primary"
+            className="mb-6 inline-flex items-center gap-1 text-sm text-[#717171] dark:text-white/60 hover:text-[#222] dark:hover:text-white transition-colors"
           >
-            ← Back to booking
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="-ml-0.5">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            Back to booking
           </Link>
 
-          <h1 className="mb-6 text-2xl font-semibold tracking-tight text-primary">
+          <h1 className="mb-6 text-[1.5rem] font-semibold tracking-tight text-[#222] dark:text-white">
             {isFinalPayment ? 'Pay remaining balance' : 'Review & pay deposit'}
           </h1>
 
           {/* LOADING STATE */}
           {loading && (
             <div className="space-y-4 animate-pulse">
-              <div className="h-24 rounded-2xl border border-border bg-surface p-6" />
-              <div className="h-32 rounded-2xl border border-border bg-surface p-6" />
-              <div className="h-40 rounded-2xl border border-border bg-surface p-6" />
-              <div className="h-28 rounded-2xl border border-border bg-surface p-6" />
+              <div className="h-24 rounded-2xl bg-white/80 dark:bg-white/5" />
+              <div className="h-20 rounded-2xl bg-white/80 dark:bg-white/5" />
+              <div className="h-48 rounded-2xl bg-white/80 dark:bg-white/5" />
+              <div className="h-36 rounded-2xl bg-white/80 dark:bg-white/5" />
             </div>
           )}
 
           {/* ERROR STATE */}
           {!loading && error && (
             <div
-              className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]"
+              className="rounded-2xl bg-white dark:bg-[#1a1d24] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]"
               role="alert"
             >
-              <p className="mb-2 text-sm font-medium text-primary">
+              <p className="mb-2 text-sm font-medium text-[#222] dark:text-white">
                 Something went wrong
               </p>
-              <p className="mb-4 text-sm text-muted">{error}</p>
+              <p className="mb-4 text-sm text-[#717171] dark:text-white/70">{error}</p>
               {errorStatus === 409 && (
                 <p className="mb-4 text-xs text-muted">
                   The booking may not be ready for payment yet, or the pro has not completed payout setup.
@@ -381,7 +383,7 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
                     theme: 'stripe',
                     variables: {
                       borderRadius: '12px',
-                      colorPrimary: 'hsl(var(--success))',
+                      colorPrimary: '#058954',
                     },
                   },
                 }}
@@ -399,7 +401,7 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
           )}
 
           {!loading && !error && !quoteData && !clientSecret && stripePromise === null && (
-            <p className="text-sm text-muted">
+            <p className="text-sm text-[#717171] dark:text-white/60">
               Payment is not configured. Please contact support.
             </p>
           )}
@@ -418,7 +420,7 @@ export default function CheckoutPage({
     <AppLayout mode="customer">
       <Suspense
         fallback={
-          <div className="min-h-screen bg-bg" style={{ backgroundColor: 'hsl(var(--bg))' }}>
+          <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0d0d0f]">
             <div className="max-w-lg md:max-w-xl mx-auto px-4 md:px-6 py-8 pb-40">
               <div className="h-4 w-48 rounded bg-surface mb-6" />
               <div className="h-8 w-64 rounded bg-surface mb-6" />

@@ -1,9 +1,8 @@
 'use client';
 
 /**
- * Sticky pay bar for deposit step.
- * Mobile-first: fixed bottom, safe area, single primary CTA.
- * Customer accent (pastel green) for trust.
+ * Sticky pay bar — Uber/Apple style
+ * Full-width CTA, clean typography, safe area
  */
 
 import Link from 'next/link';
@@ -12,6 +11,7 @@ function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
+    minimumFractionDigits: 2,
   }).format(cents / 100);
 }
 
@@ -41,7 +41,7 @@ export function DepositPayBar({
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-black/5 dark:border-white/10 bg-white/95 dark:bg-[#171A20]/95 backdrop-blur-sm p-4 pb-[env(safe-area-inset-bottom)]"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#0d0d0f] border-t border-[#ebebeb] dark:border-white/10 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
       role="region"
       aria-label="Payment"
     >
@@ -50,18 +50,25 @@ export function DepositPayBar({
           type="button"
           onClick={onSubmit}
           disabled={disabled || loading}
-          className="w-full h-12 rounded-full text-sm font-semibold text-white bg-[#058954] hover:bg-[#047a48] disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#058954]/50 focus:ring-offset-2"
+          className="w-full h-14 rounded-[14px] text-base font-semibold text-white bg-[#058954] hover:bg-[#047a48] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#058954]/40 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-[#0d0d0f] active:scale-[0.99]"
         >
-          {loading ? 'Processing…' : `${label} ${displayAmount}`}
+          {loading ? (
+            <>
+              <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden>
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Processing…
+            </>
+          ) : (
+            `${label} ${displayAmount}`
+          )}
         </button>
-        <p className="text-xs text-[#6A6A6A] dark:text-[#A1A8B3] text-center mt-2">
-          Payment held until job completion
-        </p>
-        <div className="flex items-center justify-center gap-4 mt-2">
+        <div className="flex items-center justify-center gap-6 mt-3">
           {backHref && (
             <Link
               href={backHref}
-              className="text-xs font-medium text-[#6A6A6A] dark:text-[#A1A8B3] hover:text-[#111111] dark:hover:text-[#F5F7FA] transition-colors"
+              className="text-sm text-[#717171] dark:text-white/60 hover:text-[#222] dark:hover:text-white transition-colors"
             >
               Edit details
             </Link>
@@ -69,7 +76,7 @@ export function DepositPayBar({
           {showBookingRulesLink && (
             <Link
               href="/booking-rules"
-              className="text-xs font-medium text-[#6A6A6A] dark:text-[#A1A8B3] hover:text-[#111111] dark:hover:text-[#F5F7FA] transition-colors"
+              className="text-sm text-[#717171] dark:text-white/60 hover:text-[#222] dark:hover:text-white transition-colors"
             >
               Booking Rules
             </Link>
