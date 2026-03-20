@@ -3,6 +3,7 @@ import { ErrorReporter } from "@/components/ErrorReporter";
 import { ThemeProviderWrapper } from "@/components/ThemeProviderWrapper";
 import { NextIntlClientProvider } from "next-intl";
 import { LocaleSync } from "@/components/LocaleSync";
+import OneSignalLoader from "@/components/notifications/OneSignalLoader";
 import { getLocale } from "next-intl/server";
 import type { Metadata } from "next";
 
@@ -58,12 +59,9 @@ export default async function RootLayout({
                 : ""),
           }}
         />
-        <script
-          src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
-          defer
-        />
       </head>
       <body className="min-h-screen bg-bg text-text antialiased" suppressHydrationWarning>
+        <OneSignalLoader />
         <NextIntlClientProvider>
           <ThemeProviderWrapper>
             <LocaleSync />

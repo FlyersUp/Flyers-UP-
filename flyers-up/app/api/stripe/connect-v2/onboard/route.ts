@@ -88,16 +88,17 @@ export async function GET(req: NextRequest) {
 
     const linkResult = await createAccountLinkV2(accountId, refreshUrl, returnUrl);
     if ('error' in linkResult) {
-      // Existing accounts may be V1 (created before we switched to V2). Stripe rejects: "V1 Accounts cannot be used in V2 Account APIs"
+      // Fallback to v1 Account Links when v2 fails (V1 accounts, or "applied configurations" / API mismatch)
       const errMsg = (linkResult.error ?? '').toLowerCase();
       const isV1AccountError = errMsg.includes('v1') && errMsg.includes('v2');
-      if (isV1AccountError && stripe) {
+      const isConfigError = errMsg.includes('applied configurations') || errMsg.includes('correctly specify');
+      if ((isV1AccountError || isConfigError) && stripe) {
         try {
           const link = await stripe.accountLinks.create({
             account: accountId,
             type: 'account_onboarding',
             refresh_url: refreshUrl,
-            return_url: `${origin}/api/stripe/connect/return?next=${encodeURIComponent(nextParam)}`,
+            return_url: `${origin}/api/stripe/connect-v2/return?next=${encodeURIComponent(nextParam)}`,
           });
           linkUrl = link?.url ?? null;
         } catch {

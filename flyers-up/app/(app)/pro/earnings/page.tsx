@@ -28,6 +28,10 @@ export default function Earnings() {
     if (typeof window === 'undefined') return null;
     return new URLSearchParams(window.location.search).get('connect');
   });
+  const [connectMsg] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('msg') ?? null;
+  });
   const [summary, setSummary] = useState<EarningsSummary | null>(null);
   const [recent, setRecent] = useState<RecentEarning[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +95,11 @@ export default function Earnings() {
                     ? 'Set STRIPE_SECRET_KEY and enable Connect in Stripe.'
                     : connect === 'missing_account'
                       ? 'Something went wrong. Try connecting again.'
-                      : 'If this looks wrong, try connecting again.'}
+                      : connect === 'error' && connectMsg
+                        ? connectMsg
+                        : connect === 'error'
+                          ? 'Something went wrong. Try connecting again.'
+                          : 'If this looks wrong, try connecting again.'}
             </div>
           </div>
         ) : null}
