@@ -18,7 +18,7 @@
 
 import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
-import { use, useEffect, useState } from 'react';
+import { Suspense, use, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -135,12 +135,7 @@ function CheckoutForm({
   );
 }
 
-export default function CheckoutPage({
-  params,
-}: {
-  params: Promise<{ bookingId: string }>;
-}) {
-  const { bookingId } = use(params);
+function CheckoutContent({ bookingId }: { bookingId: string }) {
   const searchParams = useSearchParams();
   const phase = searchParams.get('phase');
   const isFinalPayment = phase === 'final';
@@ -267,10 +262,8 @@ export default function CheckoutPage({
   }, [bookingId, isFinalPayment]);
 
   const pageBg = 'hsl(var(--bg))';
-
   return (
-    <AppLayout mode="customer">
-      <div className="min-h-screen bg-bg" style={{ backgroundColor: pageBg }}>
+    <div className="min-h-screen bg-bg" style={{ backgroundColor: pageBg }}>
         <div className="max-w-lg md:max-w-xl mx-auto px-4 md:px-6 py-8 pb-40">
           <Link
             href={`/customer/bookings/${bookingId}`}
@@ -380,6 +373,34 @@ export default function CheckoutPage({
           )}
         </div>
       </div>
+  );
+}
+
+export default function CheckoutPage({
+  params,
+}: {
+  params: Promise<{ bookingId: string }>;
+}) {
+  const { bookingId } = use(params);
+  return (
+    <AppLayout mode="customer">
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-bg" style={{ backgroundColor: 'hsl(var(--bg))' }}>
+            <div className="max-w-lg md:max-w-xl mx-auto px-4 md:px-6 py-8 pb-40">
+              <div className="h-4 w-48 rounded bg-surface mb-6" />
+              <div className="h-8 w-64 rounded bg-surface mb-6" />
+              <div className="space-y-4 animate-pulse">
+                <div className="h-24 rounded-2xl border border-border bg-surface p-6" />
+                <div className="h-32 rounded-2xl border border-border bg-surface p-6" />
+                <div className="h-40 rounded-2xl border border-border bg-surface p-6" />
+              </div>
+            </div>
+          </div>
+        }
+      >
+        <CheckoutContent bookingId={bookingId} />
+      </Suspense>
     </AppLayout>
   );
 }
