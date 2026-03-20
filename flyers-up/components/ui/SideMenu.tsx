@@ -251,13 +251,14 @@ export function SideMenu({
     };
   }, [open]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     // Move focus out before closing to avoid "aria-hidden on focused descendant" a11y error
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
-    onClose();
-  };
+    // Defer state update so blur completes before aria-hidden is applied
+    requestAnimationFrame(() => onClose());
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -321,7 +322,7 @@ export function SideMenu({
         }`}
         onClick={() => {
           if (Date.now() - openedAtRef.current < 250) return;
-          onClose();
+          handleClose();
         }}
         aria-label={t('sidebar.closeMenu')}
       />
@@ -370,7 +371,7 @@ export function SideMenu({
               key={s.titleKey}
               title={getLabel(s.titleKey)}
               items={s.items}
-              onNavigate={onClose}
+              onNavigate={handleClose}
               subtitleColor={s.titleKey === 'sidebar.admin' ? NEUTRAL_SUBTITLE : subtitleColor}
               getLabel={getLabel}
               comingSoon={t('common.comingSoon')}
