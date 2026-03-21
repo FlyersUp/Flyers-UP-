@@ -3,6 +3,7 @@
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { getCurrentUser } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
+import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -163,7 +164,7 @@ export default function CustomerRequestsPage() {
       )
       .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      scheduleRemoveSupabaseChannel(supabase, channel);
     };
   }, [ready, userId]);
 

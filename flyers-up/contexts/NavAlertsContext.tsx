@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 
 /** Skip Realtime when using HTTP proxy - WebSockets don't work through it. */
 function isUsingSupabaseHttpProxy(): boolean {
@@ -48,7 +49,7 @@ export function NavAlertsProvider({ children }: { children: React.ReactNode }) {
       if (!mounted || !user) return;
 
       if (channel) {
-        supabase.removeChannel(channel);
+        scheduleRemoveSupabaseChannel(supabase, channel);
         channel = null;
       }
 
@@ -92,7 +93,7 @@ export function NavAlertsProvider({ children }: { children: React.ReactNode }) {
           if (!mounted) return;
           if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
             if (channel) {
-              supabase.removeChannel(channel);
+              scheduleRemoveSupabaseChannel(supabase, channel);
               channel = null;
             }
             retryTimeout = setTimeout(() => subscribe(), 3000);
@@ -104,7 +105,7 @@ export function NavAlertsProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
       if (retryTimeout) clearTimeout(retryTimeout);
-      if (channel) supabase.removeChannel(channel);
+      if (channel) scheduleRemoveSupabaseChannel(supabase, channel);
     };
   }, []);
 

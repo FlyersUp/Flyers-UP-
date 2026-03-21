@@ -3,6 +3,7 @@
  * Creates PaymentIntent for deposit. Customer must pay within payment_due_at (30 min).
  */
 import { NextResponse } from 'next/server';
+import Stripe from 'stripe';
 import { stripe } from '@/lib/stripe';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
@@ -15,6 +16,27 @@ import { validateProAvailability } from '@/lib/operations/availabilityValidation
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
+
+/** Safe JSON error for clients; Stripe auth details only in server logs */
+function depositErrorMessage(err: unknown): string {
+  if (err instanceof Stripe.errors.StripeAuthenticationError) {
+    console.error('[pay/deposit] Stripe authentication failed — verify STRIPE_SECRET_KEY (live vs test, no expiry)');
+    return 'Payments couldn’t be started. Please try again later or contact support.';
+  }
+  if (err instanceof Stripe.errors.StripeInvalidRequestError) {
+    const msg = (err.message || '').toLowerCase();
+    if (msg.includes('api key') || msg.includes('invalid api') || err.code === 'api_key_invalid') {
+      console.error('[pay/deposit] Stripe invalid API key / request:', err.message);
+      return 'Payments couldn’t be started. Please try again later or contact support.';
+    }
+  }
+  if (err instanceof Error) {
+    const m = err.message;
+    if (m.includes('SUPABASE_SERVICE_ROLE_KEY')) return 'Server configuration error';
+    return m;
+  }
+  return 'Internal server error';
+}
 
 const ELIGIBLE_STATUSES = [
   'accepted',
@@ -301,8 +323,7 @@ export async function POST(
   } catch (err) {
     const { bookingId: bid } = await params;
     console.error('[pay/deposit] unhandled error', { bookingId: bid, err });
-    const message = err instanceof Error ? err.message : 'Internal server error';
-    const safeMessage = message.includes('SUPABASE_SERVICE_ROLE_KEY') ? 'Server configuration error' : message;
+    const safeMessage = depositErrorMessage(err);
     return NextResponse.json({ error: safeMessage }, { status: 500 });
   }
 }

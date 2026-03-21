@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
+import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 
 export interface TrackBookingData {
   id: string;
@@ -86,7 +87,7 @@ export function TrackBookingRealtime({
 
     return () => {
       channelRef.current = null;
-      void supabase.removeChannel(channel);
+      scheduleRemoveSupabaseChannel(supabase, channel);
     };
   }, [bookingId, refresh]);
 

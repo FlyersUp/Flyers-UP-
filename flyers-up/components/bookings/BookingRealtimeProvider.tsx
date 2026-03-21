@@ -17,6 +17,7 @@ import {
 } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
+import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 
 export interface BookingRealtimeState {
   id: string;
@@ -82,7 +83,7 @@ export function BookingRealtimeProvider({
 
     return () => {
       channelRef.current = null;
-      void supabase.removeChannel(channel);
+      scheduleRemoveSupabaseChannel(supabase, channel);
     };
   }, [bookingId, refresh]);
 

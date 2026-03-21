@@ -17,6 +17,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
+import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 import { 
   getCustomerBookings, 
   getProJobs,
@@ -161,7 +162,7 @@ export function useCustomerBookingsRealtime(
     return () => {
       if (channelRef.current) {
         console.log('Unsubscribing from customer bookings realtime');
-        supabase.removeChannel(channelRef.current);
+        scheduleRemoveSupabaseChannel(supabase, channelRef.current);
         channelRef.current = null;
       }
     };
@@ -275,7 +276,7 @@ export function useProBookingsRealtime(
   useEffect(() => {
     if (!proUserId) {
       if (channelRef.current) {
-        channelRef.current.unsubscribe();
+        scheduleRemoveSupabaseChannel(supabase, channelRef.current);
         channelRef.current = null;
       }
       setJobs([]);
@@ -291,7 +292,7 @@ export function useProBookingsRealtime(
       if (!resolvedProId) {
         // Not logged in OR user has no pro profile yet
         if (channelRef.current) {
-          channelRef.current.unsubscribe();
+          scheduleRemoveSupabaseChannel(supabase, channelRef.current);
           channelRef.current = null;
         }
         setJobs([]);
@@ -402,7 +403,7 @@ export function useProBookingsRealtime(
       if (channelRef.current) {
         try {
           console.log('Unsubscribing from pro bookings realtime');
-          supabase.removeChannel(channelRef.current);
+          scheduleRemoveSupabaseChannel(supabase, channelRef.current);
           channelRef.current = null;
         } catch (err) {
           // Ignore errors when cleaning up if Supabase isn't available

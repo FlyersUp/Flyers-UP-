@@ -14,30 +14,30 @@
      CORE NEUTRALS (Flyers Up premium base)
      Tailwind uses HSL triplets (no hsl() wrapper) for alpha support
      ============================================ */
-  /* Hex for direct var() use; HSL for Tailwind - neutral tones, less orange */
-  --bg: 0 0% 96%;          /* #F5F5F5 */
-  --surface: 55 18% 92%;   /* lifted neutral surface */
-  --surface-2: 55 14% 88%; /* grouped panel surface */
-  --muted: 55 12% 82%;
-  --hover: 55 14% 85%;
+  /* Cool neutrals – minimal warmth */
+  --bg: 0 0% 97%;
+  --surface: 50 8% 95%;   /* cool lifted surface */
+  --surface-2: 50 6% 91%;
+  --muted: 50 6% 84%;
+  --hover: 50 6% 88%;
 
   /* Text */
-  --text: 60 9% 15%;       /* #2B2B24 */
-  --text-2: 52 10% 28%;
-  --text-3: 48 9% 40%;
+  --text: 50 10% 14%;
+  --text-2: 50 8% 26%;
+  --text-3: 50 6% 38%;
 
-  /* Borders */
-  --border: 55 16% 80%;    /* neutral border */
-  --border-2: 55 12% 72%;
+  /* Borders – cool gray */
+  --border: 50 6% 84%;
+  --border-2: 50 5% 76%;
   --ring: rgba(156, 167, 100, 0.45);
   --ring-green: rgba(156, 167, 100, 0.48);
   --ring-orange: rgba(229, 156, 92, 0.45);
 
-  /* Shadows (subtle, Apple-ish) */
-  --shadow-sm: 0 1px 2px rgba(58, 46, 20, 0.08);
-  --shadow-md: 0 10px 24px rgba(58, 46, 20, 0.09);
-  --shadow-1: 0 1px 2px rgba(58, 46, 20, 0.08);
-  --shadow-2: 0 4px 14px rgba(58, 46, 20, 0.1);
+  /* Shadows – neutral gray */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 10px 24px rgba(0, 0, 0, 0.07);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.07);
 
   /* Radius + motion */
   --radius: 14px;
@@ -57,15 +57,15 @@
   --border-thin: 1px;
   --border-medium: 2px;
   --border-accent: 3px;
-  --hairline: rgba(94, 78, 45, 0.16);
-  --shadow-card: 0 1px 0 rgba(103, 84, 46, 0.09), 0 4px 14px rgba(103, 84, 46, 0.08);
-  --shadow-card-hover: 0 1px 0 rgba(103, 84, 46, 0.12), 0 8px 18px rgba(103, 84, 46, 0.1);
-  --card-border: 1px solid rgba(128, 106, 68, 0.22);
+  --hairline: rgba(0, 0, 0, 0.08);
+  --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.05), 0 4px 14px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 1px 0 rgba(0, 0, 0, 0.06), 0 8px 18px rgba(0, 0, 0, 0.07);
+  --card-border: 1px solid rgba(0, 0, 0, 0.08);
 
   /* Role accents (hex for color-mix) */
   --customer-accent: #9CA764;
   --pro-accent: #E59C5C;
-  --surface-hex: #F5F3ED;
+  --surface-hex: #F6F5F3;
   --customer-border: color-mix(in srgb, var(--customer-accent) 65%, #000 35%);
   --pro-border: color-mix(in srgb, var(--pro-accent) 65%, #000 35%);
   --customer-tint: color-mix(in srgb, var(--customer-accent) 12%, var(--surface-hex) 88%);
@@ -75,8 +75,8 @@
   --background: hsl(var(--bg));
   --card: hsl(var(--surface));
   --card-2: hsl(var(--surface-2));
-  /* Neutral card: cool neutral, premium */
-  --card-neutral: 55 12% 97%;
+  /* Neutral card */
+  --card-neutral: 50 6% 98%;
   --popover: hsl(var(--surface));
   --muted-bg: hsl(var(--muted));
   --foreground: hsl(var(--text));
@@ -290,28 +290,28 @@
    Overrides .dark so landing, signin, signup, auth, privacy stay branded.
    ============================================ */
 .public-light {
-  /* Core surfaces */
-  --bg: 0 0% 96%;
-  --surface: 43 48% 89%;
-  --surface-2: 43 38% 83%;
-  --muted: 43 34% 78%;
+  /* Core surfaces – cool neutrals (no orange) */
+  --bg: 0 0% 97%;
+  --surface: 50 8% 95%;
+  --surface-2: 50 6% 91%;
+  --muted: 50 6% 84%;
   /* Text */
-  --text: 60 9% 15%;
-  --text-2: 52 10% 28%;
-  --text-3: 48 9% 40%;
+  --text: 50 10% 14%;
+  --text-2: 50 8% 26%;
+  --text-3: 50 6% 38%;
   /* Borders */
-  --border: 44 35% 76%;
-  --border-2: 43 30% 66%;
+  --border: 50 6% 84%;
+  --border-2: 50 5% 76%;
   --ring: rgba(156, 167, 100, 0.45);
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(58, 46, 20, 0.08);
-  --shadow-md: 0 10px 24px rgba(58, 46, 20, 0.09);
-  --shadow-1: 0 1px 2px rgba(58, 46, 20, 0.08);
-  --shadow-2: 0 4px 14px rgba(58, 46, 20, 0.1);
-  --shadow-card: 0 1px 0 rgba(103, 84, 46, 0.09), 0 4px 14px rgba(103, 84, 46, 0.08);
-  --shadow-card-hover: 0 1px 0 rgba(103, 84, 46, 0.12), 0 8px 18px rgba(103, 84, 46, 0.1);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 10px 24px rgba(0, 0, 0, 0.07);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.07);
+  --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.05), 0 4px 14px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 1px 0 rgba(0, 0, 0, 0.06), 0 8px 18px rgba(0, 0, 0, 0.07);
   /* Hex for color-mix */
-  --surface-hex: #F5F3ED;
+  --surface-hex: #F6F5F3;
   --customer-accent: #9CA764;
   --pro-accent: #E59C5C;
   --customer-border: color-mix(in srgb, var(--customer-accent) 65%, #000 35%);
@@ -351,14 +351,14 @@
   --nav-bg: rgba(248, 247, 244, 0.94);
   --nav-solid: var(--nav-bg);
   --surface-solid: #FFFFFF;
-  --surface-border: rgba(128, 106, 68, 0.22);
-  --hairline: rgba(94, 78, 45, 0.16);
-  --card-border: 1px solid rgba(128, 106, 68, 0.22);
-  --badge-bg: rgba(96, 82, 49, 0.08);
-  --badge-border: rgba(96, 82, 49, 0.2);
+  --surface-border: rgba(0, 0, 0, 0.08);
+  --hairline: rgba(0, 0, 0, 0.08);
+  --card-border: 1px solid rgba(0, 0, 0, 0.08);
+  --badge-bg: rgba(0, 0, 0, 0.04);
+  --badge-border: rgba(0, 0, 0, 0.08);
   /* Force light background and text on the container */
-  background: #F5F5F5;
-  color: #2B2B24;
+  background: #F6F5F3;
+  color: #252520;
 }
 
 /* Typography - Montserrat (Primary) + Oswald (Labels) */

@@ -12,6 +12,7 @@ import { use, useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { supabase } from '@/lib/supabaseClient';
+import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { useConversationPresence } from '@/hooks/useConversationPresence';
 import { ConversationChatHeader } from '@/components/chat/ConversationChatHeader';
@@ -177,7 +178,7 @@ export default function CustomerConversationChat({ params }: { params: Promise<{
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      scheduleRemoveSupabaseChannel(supabase, channel);
     };
   }, [conversationId]);
 

@@ -33,7 +33,12 @@ export async function GET(
     .eq('customer_id', user.id)
     .maybeSingle();
 
-  if (bErr || !booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+  if (bErr || !booking) {
+    return NextResponse.json(
+      { error: 'Booking not found or you do not have access', code: 'BOOKING_NOT_FOUND' },
+      { status: 404 }
+    );
+  }
 
   const { data: proRow } = await admin
     .from('service_pros')
@@ -41,7 +46,9 @@ export async function GET(
     .eq('id', booking.pro_id)
     .maybeSingle();
 
-  if (!proRow) return NextResponse.json({ error: 'Pro not found' }, { status: 404 });
+  if (!proRow) {
+    return NextResponse.json({ error: 'Service pro not found for this booking', code: 'PRO_NOT_FOUND' }, { status: 404 });
+  }
 
   const { data: proPricing } = await admin
     .from('pro_profiles')

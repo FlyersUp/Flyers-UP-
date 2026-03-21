@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
+import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 import { getBookingById, type BookingDetails } from '@/lib/api';
 
 interface ProBookingRealtimeProps {
@@ -51,7 +52,7 @@ export function ProBookingRealtime({
 
     return () => {
       channelRef.current = null;
-      void supabase.removeChannel(channel);
+      scheduleRemoveSupabaseChannel(supabase, channel);
     };
   }, [bookingId, refresh]);
 

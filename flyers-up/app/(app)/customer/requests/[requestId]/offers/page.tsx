@@ -3,6 +3,7 @@
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { getCurrentUser, createBooking } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
+import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -146,7 +147,7 @@ export default function RequestOffersPage() {
       )
       .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      scheduleRemoveSupabaseChannel(supabase, channel);
     };
   }, [ready, requestId]);
 

@@ -18,6 +18,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
+import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 import { getProEarnings, type EarningsSummary } from '@/lib/api';
 import { logErr } from '@/lib/utils/logErr';
 import { isUuid } from '@/lib/isUuid';
@@ -130,7 +131,7 @@ export function useProEarningsRealtime(
   useEffect(() => {
     if (!proUserId) {
       if (channelRef.current) {
-        channelRef.current.unsubscribe();
+        scheduleRemoveSupabaseChannel(supabase, channelRef.current);
         channelRef.current = null;
       }
       setEarnings(null);
@@ -147,7 +148,7 @@ export function useProEarningsRealtime(
       if (!resolvedProId) {
         // Not logged in OR user has no pro profile yet
         if (channelRef.current) {
-          channelRef.current.unsubscribe();
+          scheduleRemoveSupabaseChannel(supabase, channelRef.current);
           channelRef.current = null;
         }
         setEarnings(null);
@@ -262,7 +263,7 @@ export function useProEarningsRealtime(
       if (channelRef.current) {
         try {
           console.log('Unsubscribing from pro earnings realtime');
-          supabase.removeChannel(channelRef.current);
+          scheduleRemoveSupabaseChannel(supabase, channelRef.current);
           channelRef.current = null;
         } catch (err) {
           // Ignore errors when cleaning up if Supabase isn't available

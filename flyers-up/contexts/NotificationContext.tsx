@@ -19,6 +19,7 @@ import React, {
 } from 'react';
 import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 
 /** Skip realtime when proxy is used - WebSockets don't work through HTTP proxy */
 function shouldSkipRealtime(): boolean {
@@ -166,7 +167,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       if (!mounted || !user) return;
 
       if (channel) {
-        supabase.removeChannel(channel);
+        scheduleRemoveSupabaseChannel(supabase, channel);
         channel = null;
       }
 
@@ -194,7 +195,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           if (!mounted) return;
           if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
             if (channel) {
-              supabase.removeChannel(channel);
+              scheduleRemoveSupabaseChannel(supabase, channel);
               channel = null;
             }
             retryTimeout = setTimeout(() => subscribe(), 3000);
@@ -206,7 +207,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     return () => {
       mounted = false;
       if (retryTimeout) clearTimeout(retryTimeout);
-      if (channel) supabase.removeChannel(channel);
+      if (channel) scheduleRemoveSupabaseChannel(supabase, channel);
     };
   }, [showToastFor]);
 

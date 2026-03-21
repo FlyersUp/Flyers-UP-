@@ -9,6 +9,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 import { useNotifications, type NotificationItem } from '@/contexts/NotificationContext';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
 import { SignInNotice } from '@/components/ui/SignInNotice';
@@ -180,7 +181,7 @@ export function NotificationList({ basePath }: NotificationListProps) {
 
     void subscribe();
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      if (channel) scheduleRemoveSupabaseChannel(supabase, channel);
     };
   }, []);
 

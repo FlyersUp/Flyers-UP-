@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 import {
   getUnreadCount,
   markAllRead as markAllReadQuery,
@@ -110,7 +111,7 @@ export function useUnreadNotifications(): UseUnreadNotificationsResult {
 
     void subscribe();
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      if (channel) scheduleRemoveSupabaseChannel(supabase, channel);
     };
   }, [refreshUnreadCount]);
 
