@@ -83,14 +83,31 @@ export async function POST(
     );
   }
 
-  const { data: proRow } = await admin
+  const { data: proRow, error: proErr } = await admin
     .from('service_pros')
-    .select('id, user_id, display_name, stripe_account_id, stripe_charges_enabled, service_categories(name)')
+    .select('id, user_id, display_name, category_id, stripe_account_id, stripe_charges_enabled')
     .eq('id', booking.pro_id)
     .maybeSingle();
 
+  if (proErr) {
+    console.error('[pay] service_pros query error', { proId: booking.pro_id, message: proErr.message });
+    return NextResponse.json({ error: 'Failed to load service pro' }, { status: 500 });
+  }
   if (!proRow) {
     return NextResponse.json({ error: 'Pro not found' }, { status: 404 });
+  }
+
+  let serviceName = 'Service';
+  const catId = (proRow as { category_id?: string | null }).category_id;
+  if (catId) {
+    const { data: catRow } = await admin
+      .from('service_categories')
+      .select('name')
+      .eq('id', catId)
+      .maybeSingle();
+    if (catRow && typeof (catRow as { name?: string }).name === 'string') {
+      serviceName = String((catRow as { name: string }).name).trim() || 'Service';
+    }
   }
 
   const connectedAccountId =
@@ -111,8 +128,6 @@ export async function POST(
     .eq('user_id', proRow.user_id)
     .maybeSingle();
 
-  const cat = proRow.service_categories as { name?: string } | null;
-  const serviceName = (cat?.name ?? 'Service').trim();
   const proName = (proRow.display_name ?? 'Pro').trim();
 
   const quoteResult = computeQuote(

@@ -123,14 +123,42 @@ export async function POST(
     }
   }
 
-  const { data: proRow } = await admin
+  // Avoid nested service_categories(name) embed — if PostgREST rejects the relationship,
+  // the whole row returns null and we wrongly surfaced "Pro not found" even when the pro exists.
+  const { data: proRow, error: proErr } = await admin
     .from('service_pros')
-    .select('id, user_id, display_name, stripe_account_id, stripe_charges_enabled, available, travel_radius_miles, service_area_mode, service_area_values, lead_time_minutes, buffer_between_jobs_minutes, same_day_enabled, availability_rules, service_categories(name)')
+    .select(
+      'id, user_id, display_name, category_id, stripe_account_id, stripe_charges_enabled, available, travel_radius_miles, service_area_mode, service_area_values, lead_time_minutes, buffer_between_jobs_minutes, same_day_enabled, availability_rules'
+    )
     .eq('id', booking.pro_id)
     .maybeSingle();
 
+  if (proErr) {
+    console.error('[pay/deposit] service_pros query error', {
+      proId: booking.pro_id,
+      code: proErr.code,
+      message: proErr.message,
+    });
+    return NextResponse.json(
+      { error: 'Failed to load service pro', code: 'PRO_QUERY_FAILED' },
+      { status: 500 }
+    );
+  }
   if (!proRow) {
-    return NextResponse.json({ error: 'Pro not found' }, { status: 404 });
+    return NextResponse.json({ error: 'Pro not found', code: 'PRO_NOT_FOUND' }, { status: 404 });
+  }
+
+  let serviceName = 'Service';
+  const catId = (proRow as { category_id?: string | null }).category_id;
+  if (catId) {
+    const { data: catRow } = await admin
+      .from('service_categories')
+      .select('name')
+      .eq('id', catId)
+      .maybeSingle();
+    if (catRow && typeof (catRow as { name?: string }).name === 'string') {
+      serviceName = String((catRow as { name: string }).name).trim() || 'Service';
+    }
   }
 
   const { data: blockedRows } = await admin
@@ -195,8 +223,6 @@ export async function POST(
     .eq('user_id', proRow.user_id)
     .maybeSingle();
 
-  const cat = proRow.service_categories as { name?: string } | null;
-  const serviceName = (cat?.name ?? 'Service').trim();
   const proName = (proRow.display_name ?? 'Pro').trim();
 
   const { data: profileRow } = await admin

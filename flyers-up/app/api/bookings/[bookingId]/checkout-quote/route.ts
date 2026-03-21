@@ -40,12 +40,23 @@ export async function GET(
     );
   }
 
-  const { data: proRow } = await admin
+  const { data: proRow, error: proErr } = await admin
     .from('service_pros')
-    .select('id, user_id, display_name, service_categories(name)')
+    .select('id, user_id, display_name, category_id')
     .eq('id', booking.pro_id)
     .maybeSingle();
 
+  if (proErr) {
+    console.error('[checkout-quote] service_pros query error', {
+      proId: booking.pro_id,
+      code: proErr.code,
+      message: proErr.message,
+    });
+    return NextResponse.json(
+      { error: 'Failed to load service pro', code: 'PRO_QUERY_FAILED' },
+      { status: 500 }
+    );
+  }
   if (!proRow) {
     return NextResponse.json({ error: 'Service pro not found for this booking', code: 'PRO_NOT_FOUND' }, { status: 404 });
   }
@@ -56,8 +67,18 @@ export async function GET(
     .eq('user_id', (proRow as { user_id: string }).user_id)
     .maybeSingle();
 
-  const cat = proRow.service_categories as { name?: string } | null;
-  const serviceName = (cat?.name ?? 'Service').trim();
+  let serviceName = 'Service';
+  const catId = (proRow as { category_id?: string | null }).category_id;
+  if (catId) {
+    const { data: catRow } = await admin
+      .from('service_categories')
+      .select('name')
+      .eq('id', catId)
+      .maybeSingle();
+    if (catRow && typeof (catRow as { name?: string }).name === 'string') {
+      serviceName = String((catRow as { name: string }).name).trim() || 'Service';
+    }
+  }
   const proName = ((proRow as { display_name?: string }).display_name ?? 'Pro').trim();
 
   const proUserId = (proRow as { user_id: string }).user_id;

@@ -97,7 +97,7 @@ export async function POST(
   if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
     const { data: proRowForQuote } = await admin
       .from('service_pros')
-      .select('user_id, display_name, service_categories(name)')
+      .select('user_id, display_name, category_id')
       .eq('id', booking.pro_id)
       .maybeSingle();
     const { data: proPricing } = await admin
@@ -105,8 +105,18 @@ export async function POST(
       .select('pricing_model, starting_price, starting_rate, hourly_rate, min_hours, travel_fee_enabled, travel_fee_base, travel_free_within_miles, travel_extra_per_mile, deposit_percent_default')
       .eq('user_id', proRowForQuote?.user_id ?? '')
       .maybeSingle();
-    const cat = proRowForQuote?.service_categories as { name?: string } | null;
-    const serviceName = (cat?.name ?? 'Service').trim();
+    let serviceName = 'Service';
+    const qCatId = (proRowForQuote as { category_id?: string | null } | null)?.category_id;
+    if (qCatId) {
+      const { data: catRow } = await admin
+        .from('service_categories')
+        .select('name')
+        .eq('id', qCatId)
+        .maybeSingle();
+      if (catRow && typeof (catRow as { name?: string }).name === 'string') {
+        serviceName = String((catRow as { name: string }).name).trim() || 'Service';
+      }
+    }
     const proName = ((proRowForQuote as { display_name?: string })?.display_name ?? 'Pro').trim();
     const quoteResult = computeQuote(
       {
