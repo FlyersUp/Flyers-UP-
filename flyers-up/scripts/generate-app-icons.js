@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Generate PWA app icons from SVG source.
- * Produces: maskable-512.png, icon-512.png, icon-192.png
- * Run: node scripts/generate-app-icons.js
+ * Produces: icon-512.png, icon-192.png (and extra sizes)
+ * Maskable icon: run node scripts/generate-maskable-icon.js (uses flyer PNG)
  * Requires: sharp (npm install sharp)
  */
 const fs = require("fs");
@@ -12,7 +12,6 @@ const SOURCE = path.join(__dirname, "../public/icons/app-icon-source.svg");
 const OUT_DIR = path.join(__dirname, "../public/icons");
 
 const OUTPUTS = [
-  { name: "maskable-512.png", size: 512 },
   { name: "icon-512.png", size: 512 },
   { name: "icon-192.png", size: 192 },
 ];
@@ -53,17 +52,7 @@ async function main() {
     console.log("Created:", outPath);
   }
 
-  // Validate: ensure no transparent pixels in maskable-512
-  const maskablePath = path.join(OUT_DIR, "maskable-512.png");
-  const { data, info } = await sharp(maskablePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-  const hasTransparency = info.channels === 4 && Array.from(data).some((v, i) => i % 4 === 3 && v < 255);
-  if (hasTransparency) {
-    console.warn("Warning: maskable-512.png may contain transparent pixels.");
-  } else {
-    console.log("Validation: no transparent pixels detected.");
-  }
-
-  console.log("Done. Icons have solid background.");
+  console.log("Done. For maskable icon: node scripts/generate-maskable-icon.js");
 }
 
 main().catch((err) => {
