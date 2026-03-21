@@ -10,17 +10,45 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-const ACTIVE_STATUSES = 'requested,pending,accepted,pro_en_route,on_the_way,in_progress,completed_pending_payment,awaiting_payment';
-const COMPLETED_STATUSES = 'completed,paid';
-const CANCELLED_STATUSES = 'cancelled,declined';
+/** All non-terminal pipeline statuses (must stay in sync with booking flow / DB). */
+const ACTIVE_STATUSES = [
+  'requested',
+  'pending',
+  'pending_pro_acceptance',
+  'accepted',
+  'accepted_pending_payment',
+  'payment_required',
+  'awaiting_deposit_payment',
+  'deposit_paid',
+  'pro_en_route',
+  'on_the_way',
+  'arrived',
+  'in_progress',
+  'work_completed_by_pro',
+  'completed_pending_payment',
+  'awaiting_payment',
+  'awaiting_remaining_payment',
+  'awaiting_customer_confirmation',
+].join(',');
+
+const COMPLETED_STATUSES = 'completed,paid,fully_paid,review_pending';
+const CANCELLED_STATUSES =
+  'cancelled,declined,expired_unpaid,cancelled_expired,cancelled_by_customer,cancelled_by_pro,cancelled_admin';
 
 type BookingRow = {
   id: string;
   service_date: string;
   service_time: string;
   status: string;
+  created_at?: string;
   pro?: { displayName: string | null } | null;
 };
+
+function sortByRecent(a: BookingRow, b: BookingRow): number {
+  const ta = a.created_at ? Date.parse(a.created_at) : 0;
+  const tb = b.created_at ? Date.parse(b.created_at) : 0;
+  return tb - ta;
+}
 
 function CustomerBookingsContent() {
   const searchParams = useSearchParams();
@@ -42,13 +70,12 @@ function CustomerBookingsContent() {
     let mounted = true;
     (async () => {
       setLoading(true);
-      const todayISO = new Date().toISOString().slice(0, 10);
       try {
         const [activeRes, completedRes, cancelledRes] = await Promise.all([
-          fetch(
-            `/api/customer/bookings?from=${todayISO}&limit=50&statuses=${encodeURIComponent(ACTIVE_STATUSES)}`,
-            { cache: 'no-store' }
-          ),
+          // Do not filter by service_date: "Active" is workflow state (e.g. deposit paid on a past-dated booking still counts).
+          fetch(`/api/customer/bookings?limit=50&statuses=${encodeURIComponent(ACTIVE_STATUSES)}`, {
+            cache: 'no-store',
+          }),
           fetch(
             `/api/customer/bookings?limit=50&statuses=${encodeURIComponent(COMPLETED_STATUSES)}`,
             { cache: 'no-store' }
@@ -64,9 +91,12 @@ function CustomerBookingsContent() {
         const cancelledJson = (await cancelledRes.json()) as { ok?: boolean; bookings?: BookingRow[] };
 
         if (!mounted) return;
-        setActive(activeJson.ok && activeJson.bookings ? activeJson.bookings : []);
-        setCompleted(completedJson.ok && completedJson.bookings ? completedJson.bookings : []);
-        setCancelled(cancelledJson.ok && cancelledJson.bookings ? cancelledJson.bookings : []);
+        const act = activeJson.ok && activeJson.bookings ? [...activeJson.bookings].sort(sortByRecent) : [];
+        const comp = completedJson.ok && completedJson.bookings ? [...completedJson.bookings].sort(sortByRecent) : [];
+        const canc = cancelledJson.ok && cancelledJson.bookings ? [...cancelledJson.bookings].sort(sortByRecent) : [];
+        setActive(act);
+        setCompleted(comp);
+        setCancelled(canc);
       } catch {
         if (!mounted) return;
         setActive([]);
