@@ -313,7 +313,7 @@
   /* Hex for color-mix */
   --surface-hex: #F6F5F3;
   --customer-accent: #9CA764;
-  --pro-accent: #E59C5C;
+  --pro-accent: #fbbb62;
   --customer-border: color-mix(in srgb, var(--customer-accent) 65%, #000 35%);
   --pro-border: color-mix(in srgb, var(--pro-accent) 65%, #000 35%);
   --customer-tint: color-mix(in srgb, var(--customer-accent) 12%, var(--surface-hex) 88%);
@@ -340,7 +340,7 @@
   --accent: 75 23% 52%;
   --accent-contrast: 54 16% 14%;
   --accent-customer: 75 23% 52%;
-  --accent-pro: 30 72% 63%;
+  --accent-pro: 39 95% 68%;
   --text-muted: 48 9% 40%;
   --ring: var(--role-accent);
   --success: 84 28% 63%;

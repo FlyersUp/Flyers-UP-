@@ -58,7 +58,7 @@ export default function HomePage() {
         style={{
           background: `
             radial-gradient(ellipse 80% 50% at 50% -10%, rgba(156, 167, 100, 0.12), transparent 60%),
-            radial-gradient(ellipse 60% 40% at 90% 30%, rgba(229, 156, 92, 0.08), transparent 50%),
+            radial-gradient(ellipse 60% 40% at 90% 30%, rgba(251, 187, 98, 0.08), transparent 50%),
             radial-gradient(ellipse 50% 30% at 10% 60%, rgba(156, 167, 100, 0.06), transparent 45%),
             #F7F5F0
           `,
