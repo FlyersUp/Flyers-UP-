@@ -217,6 +217,8 @@ export interface Database {
           status: string;
           price: number | null;
           created_at: string;
+          duration_hours?: number | null;
+          miles_distance?: number | null;
         };
         Insert: {
           id?: string;
@@ -229,6 +231,8 @@ export interface Database {
           status?: string;
           price?: number | null;
           created_at?: string;
+          duration_hours?: number | null;
+          miles_distance?: number | null;
         };
         Update: {
           id?: string;
@@ -241,6 +245,8 @@ export interface Database {
           status?: string;
           price?: number | null;
           created_at?: string;
+          duration_hours?: number | null;
+          miles_distance?: number | null;
         };
       };
       pro_earnings: {
