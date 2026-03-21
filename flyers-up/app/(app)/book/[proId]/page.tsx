@@ -27,6 +27,8 @@ export default function BookingPage() {
   const notes = searchParams.get('notes')?.trim() ?? undefined;
   const service = searchParams.get('service')?.trim() ?? undefined;
   const rebookBookingId = searchParams.get('rebook')?.trim() ?? undefined;
+  /** Owner preview iframe on /pro/profile — allow pro to see customer UI without redirect */
+  const customerPreview = searchParams.get('customerPreview') === '1';
   
   const [pro, setPro] = useState<ServicePro | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,6 +47,15 @@ export default function BookingPage() {
       }
 
       const proData = await getProById(proId);
+      if (
+        !customerPreview &&
+        proData &&
+        user.role === 'pro' &&
+        user.id === proData.userId
+      ) {
+        router.replace('/pro/profile');
+        return;
+      }
       setPro(proData);
 
       if (rebookBookingId && proId) {
@@ -66,7 +77,7 @@ export default function BookingPage() {
     };
 
     loadData();
-  }, [proId, router, rebookBookingId, serviceSlug, subcategorySlug]);
+  }, [proId, router, rebookBookingId, serviceSlug, subcategorySlug, customerPreview]);
 
   if (isLoading) {
     return (

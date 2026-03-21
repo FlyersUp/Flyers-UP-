@@ -12,7 +12,7 @@ import { ProBookingRealtime } from '@/components/bookings/ProBookingRealtime';
 import { PaymentStatusModule } from '@/components/booking/PaymentStatusModule';
 import { BookingPaymentStatusCard } from '@/components/bookings/BookingPaymentStatusCard';
 import { BookingEventsAccordion } from '@/components/bookings/BookingEventsAccordion';
-import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
+import { deriveTimelineDisplayStatus, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 import { getBookingById, getCurrentUser, type BookingDetails } from '@/lib/api';
 import Link from 'next/link';
 import { use, useEffect, useMemo, useState } from 'react';
@@ -130,17 +130,28 @@ export default function ProBookingDetailPage({
         <ProBookingRealtime bookingId={bookingId} initialBooking={initialBooking}>
           {(booking) => {
             if (!booking) return null;
-            const status = mapDbStatusToTimeline(booking.status);
+            const paymentCtx = {
+              paidAt: booking.paidAt,
+              paidDepositAt: booking.paidDepositAt,
+              fullyPaidAt: booking.fullyPaidAt,
+            };
+            const status = deriveTimelineDisplayStatus(booking.status, paymentCtx);
             const timestamps = buildTimestampsFromBooking(
               booking.createdAt,
               booking.statusHistory,
               {
                 acceptedAt: booking.acceptedAt,
                 onTheWayAt: booking.onTheWayAt,
+                arrivedAt: booking.arrivedAt,
                 startedAt: booking.startedAt,
                 completedAt: booking.completedAt,
+                paidAt: booking.paidAt,
               }
             );
+            if (status === 'AWAITING_ACCEPTANCE') {
+              const t = booking.paidDepositAt ?? booking.paidAt;
+              if (t) timestamps.AWAITING_ACCEPTANCE = t;
+            }
 
             const isJobCompleted =
               ['completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment', 'awaiting_customer_confirmation'].includes(booking.status);
@@ -168,7 +179,12 @@ export default function ProBookingDetailPage({
 
                 {/* Progress tracker */}
                 <section className="mb-6">
-                  <BookingProgressTracker status={booking.status} />
+                  <BookingProgressTracker
+                    status={booking.status}
+                    paidAt={booking.paidAt}
+                    paidDepositAt={booking.paidDepositAt}
+                    fullyPaidAt={booking.fullyPaidAt}
+                  />
                 </section>
 
                 {/* Pro "You got paid" celebration */}
@@ -307,10 +323,13 @@ export default function ProBookingDetailPage({
                         status={status}
                         timestamps={{
                           booked: timestamps.BOOKED,
+                          awaitingAcceptance: timestamps.AWAITING_ACCEPTANCE,
                           accepted: timestamps.ACCEPTED,
                           onTheWay: timestamps.ON_THE_WAY,
+                          arrived: timestamps.ARRIVED,
                           started: timestamps.IN_PROGRESS,
                           completed: timestamps.COMPLETED,
+                          paid: timestamps.PAID,
                         }}
                       />
                     </div>

@@ -17,25 +17,47 @@ export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
-/** Safe JSON error for clients; Stripe auth details only in server logs */
-function depositErrorMessage(err: unknown): string {
+/** Safe client message + machine code for Network tab / support */
+function depositErrorPayload(err: unknown): { message: string; code: string } {
   if (err instanceof Stripe.errors.StripeAuthenticationError) {
-    console.error('[pay/deposit] Stripe authentication failed — verify STRIPE_SECRET_KEY (live vs test, no expiry)');
-    return 'Payments couldn’t be started. Please try again later or contact support.';
+    console.error(
+      '[pay/deposit] FLYERSUP_DEPOSIT_ERR StripeAuthenticationError — check STRIPE_SECRET_KEY in Vercel (sk_live_ / sk_test_, no spaces, redeploy)'
+    );
+    return {
+      message: 'Payments couldn’t be started. Please try again later or contact support.',
+      code: 'STRIPE_AUTH_FAILED',
+    };
   }
   if (err instanceof Stripe.errors.StripeInvalidRequestError) {
     const msg = (err.message || '').toLowerCase();
     if (msg.includes('api key') || msg.includes('invalid api') || err.code === 'api_key_invalid') {
-      console.error('[pay/deposit] Stripe invalid API key / request:', err.message);
-      return 'Payments couldn’t be started. Please try again later or contact support.';
+      console.error('[pay/deposit] FLYERSUP_DEPOSIT_ERR StripeInvalidRequestError (key):', err.message);
+      return {
+        message: 'Payments couldn’t be started. Please try again later or contact support.',
+        code: 'STRIPE_INVALID_KEY',
+      };
     }
+    // Connect / destination / amount — show type in logs, safe message to user
+    console.error('[pay/deposit] FLYERSUP_DEPOSIT_ERR StripeInvalidRequestError:', err.code, err.message);
+    return {
+      message: err.message || 'Payment could not be started. Check pro Stripe Connect setup.',
+      code: 'STRIPE_INVALID_REQUEST',
+    };
+  }
+  if (err instanceof Stripe.errors.StripeAPIError) {
+    console.error('[pay/deposit] FLYERSUP_DEPOSIT_ERR StripeAPIError:', err.message);
+    return { message: 'Payment service error. Please try again.', code: 'STRIPE_API_ERROR' };
   }
   if (err instanceof Error) {
     const m = err.message;
-    if (m.includes('SUPABASE_SERVICE_ROLE_KEY')) return 'Server configuration error';
-    return m;
+    if (m.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+      return { message: 'Server configuration error', code: 'SERVER_CONFIG' };
+    }
+    console.error('[pay/deposit] FLYERSUP_DEPOSIT_ERR Error:', m);
+    return { message: m, code: 'UNKNOWN' };
   }
-  return 'Internal server error';
+  console.error('[pay/deposit] FLYERSUP_DEPOSIT_ERR non-Error:', err);
+  return { message: 'Internal server error', code: 'UNKNOWN' };
 }
 
 const ELIGIBLE_STATUSES = [
@@ -348,8 +370,8 @@ export async function POST(
   });
   } catch (err) {
     const { bookingId: bid } = await params;
-    console.error('[pay/deposit] unhandled error', { bookingId: bid, err });
-    const safeMessage = depositErrorMessage(err);
-    return NextResponse.json({ error: safeMessage }, { status: 500 });
+    const { message, code } = depositErrorPayload(err);
+    console.error('[pay/deposit] unhandled error', { bookingId: bid, code, err });
+    return NextResponse.json({ error: message, code }, { status: 500 });
   }
 }

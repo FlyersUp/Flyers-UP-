@@ -4,6 +4,7 @@ import type { Status } from '@/components/jobs/jobStatus';
 
 const LATEST_UPDATE_COPY: Record<Status, string> = {
   BOOKED: 'Booked. Waiting for pro to accept.',
+  AWAITING_ACCEPTANCE: 'Deposit secured. Waiting for pro to accept.',
   ACCEPTED: 'Accepted. Pro is preparing to head over.',
   ON_THE_WAY: 'On the way.',
   ARRIVED: 'Pro has arrived.',

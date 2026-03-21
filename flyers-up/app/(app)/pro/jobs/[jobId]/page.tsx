@@ -4,7 +4,7 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { Label } from '@/components/ui/Label';
 import { Card } from '@/components/ui/Card';
 import JobTimelineCard from '@/components/jobs/JobTimelineCard';
-import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
+import { deriveTimelineDisplayStatus, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 import { JobNextAction } from '@/components/jobs/JobNextAction';
 import Link from 'next/link';
 import { use, useEffect, useMemo, useState } from 'react';
@@ -173,31 +173,41 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
           </Card>
         )}
 
-        {booking && (
-          <div className="mb-6 rounded-2xl border border-black/10 shadow-sm overflow-hidden bg-[hsl(var(--surface))]">
-            <JobTimelineCard
-              status={mapDbStatusToTimeline(booking.status)}
-              timestamps={buildTimestampsFromBooking(
-                booking.createdAt,
-                booking.statusHistory,
-                {
-                  acceptedAt: booking.acceptedAt,
-                  onTheWayAt: booking.onTheWayAt,
-                  arrivedAt: booking.arrivedAt,
-                  startedAt: booking.startedAt,
-                  completedAt: booking.completedAt,
-                }
-              )}
-              className="rounded-t-2xl border-0 shadow-none mb-0"
-            />
-
-            <JobNextAction
-              booking={booking}
-              onUpdated={setBooking}
-              jobId={jobId}
-            />
-          </div>
-        )}
+        {booking &&
+          (() => {
+            const paymentCtx = {
+              paidAt: booking.paidAt,
+              paidDepositAt: booking.paidDepositAt,
+              fullyPaidAt: booking.fullyPaidAt,
+            };
+            const timelineStatus = deriveTimelineDisplayStatus(booking.status, paymentCtx);
+            const timestamps = buildTimestampsFromBooking(
+              booking.createdAt,
+              booking.statusHistory,
+              {
+                acceptedAt: booking.acceptedAt,
+                onTheWayAt: booking.onTheWayAt,
+                arrivedAt: booking.arrivedAt,
+                startedAt: booking.startedAt,
+                completedAt: booking.completedAt,
+                paidAt: booking.paidAt,
+              }
+            );
+            if (timelineStatus === 'AWAITING_ACCEPTANCE') {
+              const t = booking.paidDepositAt ?? booking.paidAt;
+              if (t) timestamps.AWAITING_ACCEPTANCE = t;
+            }
+            return (
+              <div className="mb-6 rounded-2xl border border-black/10 shadow-sm overflow-hidden bg-[hsl(var(--surface))]">
+                <JobTimelineCard
+                  status={timelineStatus}
+                  timestamps={timestamps}
+                  className="rounded-t-2xl border-0 shadow-none mb-0"
+                />
+                <JobNextAction booking={booking} onUpdated={setBooking} jobId={jobId} />
+              </div>
+            );
+          })()}
       </div>
     </AppLayout>
   );

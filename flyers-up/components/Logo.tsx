@@ -50,7 +50,7 @@ export default function Logo({
         }}
         aria-label="Flyers Up"
       >
-        FLYERS<span className="border-b-2 border-[#B2FBA5]">UP</span>
+        FLYERS<span className="border-b-2 border-[#bee3ba]">UP</span>
       </span>
     );
     if (linkToHome) {
@@ -85,7 +85,7 @@ export default function Logo({
             'var(--font-oswald), var(--font-montserrat), system-ui, -apple-system, Segoe UI, sans-serif',
         }}
       >
-        FLYERS<span className="border-b-2 border-[#B2FBA5]">UP</span>
+        FLYERS<span className="border-b-2 border-[#bee3ba]">UP</span>
       </span>
     </div>
   );

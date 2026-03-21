@@ -10,6 +10,7 @@
 
 export type Status =
   | 'BOOKED'
+  | 'AWAITING_ACCEPTANCE'
   | 'ACCEPTED'
   | 'ON_THE_WAY'
   | 'ARRIVED'
@@ -30,6 +31,7 @@ export const DB_STATUS_ORDER: string[] = [
 /** Ordered list of stages for the timeline (left-to-right flow). */
 export const STATUS_ORDER: Status[] = [
   'BOOKED',
+  'AWAITING_ACCEPTANCE',
   'ACCEPTED',
   'ON_THE_WAY',
   'ARRIVED',
@@ -41,6 +43,7 @@ export const STATUS_ORDER: Status[] = [
 /** Human-readable labels per stage (customer-facing). */
 export const STATUS_LABELS: Record<Status, string> = {
   BOOKED: 'Requested',
+  AWAITING_ACCEPTANCE: 'Awaiting acceptance',
   ACCEPTED: 'Accepted',
   ON_THE_WAY: 'On the Way',
   ARRIVED: 'Arrived',
@@ -66,12 +69,19 @@ export function getNextDbStatus(currentDbStatus: string): string | null {
 }
 
 /**
- * Returns the next Status (timeline) for the UI, or null if at end.
+ * Returns the next Status for pro PATCH /jobs/.../status (skips display-only AWAITING_ACCEPTANCE).
  */
 export function getNextStatus(currentStatus: Status): Status | null {
-  const idx = STATUS_ORDER.indexOf(currentStatus);
-  if (idx < 0 || idx >= STATUS_ORDER.length - 1) return null;
-  return STATUS_ORDER[idx + 1];
+  const next: Partial<Record<Status, Status>> = {
+    BOOKED: 'ACCEPTED',
+    AWAITING_ACCEPTANCE: 'ACCEPTED',
+    ACCEPTED: 'ON_THE_WAY',
+    ON_THE_WAY: 'ARRIVED',
+    ARRIVED: 'IN_PROGRESS',
+    IN_PROGRESS: 'COMPLETED',
+    COMPLETED: 'PAID',
+  };
+  return next[currentStatus] ?? null;
 }
 
 /**
@@ -118,6 +128,10 @@ export function mapDbStatusToTimeline(dbStatus: string): Status {
     case 'pending':
       return 'BOOKED';
     case 'accepted':
+    case 'payment_required':
+    case 'awaiting_deposit_payment':
+    case 'accepted_pending_payment':
+    case 'deposit_paid':
       return 'ACCEPTED';
     case 'pro_en_route':
     case 'on_the_way':
@@ -139,6 +153,43 @@ export function mapDbStatusToTimeline(dbStatus: string): Status {
     default:
       return 'BOOKED';
   }
+}
+
+export interface BookingTimelinePaymentContext {
+  paidAt?: string | null;
+  paidDepositAt?: string | null;
+  fullyPaidAt?: string | null;
+}
+
+/** True when deposit is captured or booking is in deposit_paid, without implying pro acceptance. */
+export function isDepositSecuredForTimeline(
+  dbStatus: string,
+  ctx?: BookingTimelinePaymentContext
+): boolean {
+  if (dbStatus === 'deposit_paid') return true;
+  const fully =
+    dbStatus === 'paid' || dbStatus === 'fully_paid' || Boolean(ctx?.fullyPaidAt);
+  if (fully) return true;
+  if (ctx?.paidDepositAt) return true;
+  if (ctx?.paidAt && !ctx?.fullyPaidAt && dbStatus !== 'paid' && dbStatus !== 'fully_paid') return true;
+  return false;
+}
+
+/**
+ * Timeline display status: merges operational DB status with deposit/payment so the job timeline
+ * does not stay on "Requested" after the customer has secured the deposit while the pro has not accepted yet.
+ */
+export function deriveTimelineDisplayStatus(
+  dbStatus: string,
+  ctx?: BookingTimelinePaymentContext
+): Status {
+  const preAccept = dbStatus === 'requested' || dbStatus === 'pending';
+  const fully =
+    dbStatus === 'paid' || dbStatus === 'fully_paid' || Boolean(ctx?.fullyPaidAt);
+  if (preAccept && !fully && isDepositSecuredForTimeline(dbStatus, ctx)) {
+    return 'AWAITING_ACCEPTANCE';
+  }
+  return mapDbStatusToTimeline(dbStatus);
 }
 
 /** Booking timestamps from DB columns (optional). */

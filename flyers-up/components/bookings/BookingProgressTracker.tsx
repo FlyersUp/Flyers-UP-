@@ -6,7 +6,7 @@
  * Green for completed, neutral for upcoming, highlighted for current.
  */
 
-import { mapDbStatusToTimeline } from '@/components/jobs/jobStatus';
+import { deriveTimelineDisplayStatus } from '@/components/jobs/jobStatus';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
@@ -18,15 +18,31 @@ const STEPS = [
   { key: 'PAID', label: 'Paid' },
 ] as const;
 
+type PostRequestKey = (typeof STEPS)[number]['key'];
+
 export interface BookingProgressTrackerProps {
   status: string;
+  paidAt?: string | null;
+  paidDepositAt?: string | null;
+  fullyPaidAt?: string | null;
   className?: string;
 }
 
-export function BookingProgressTracker({ status, className }: BookingProgressTrackerProps) {
-  const current = mapDbStatusToTimeline(status);
-  const currentIdx = STEPS.findIndex((s) => s.key === current);
-  const effectiveIdx = currentIdx >= 0 ? Math.min(currentIdx, STEPS.length - 1) : 0;
+export function BookingProgressTracker({
+  status,
+  paidAt,
+  paidDepositAt,
+  fullyPaidAt,
+  className,
+}: BookingProgressTrackerProps) {
+  const current = deriveTimelineDisplayStatus(status, { paidAt, paidDepositAt, fullyPaidAt });
+  const preAccept = current === 'BOOKED' || current === 'AWAITING_ACCEPTANCE';
+  const postIdx = STEPS.findIndex((s) => s.key === current);
+  const effectiveIdx = preAccept
+    ? -1
+    : postIdx >= 0
+      ? Math.min(postIdx, STEPS.length - 1)
+      : 0;
 
   return (
     <nav
@@ -38,8 +54,11 @@ export function BookingProgressTracker({ status, className }: BookingProgressTra
     >
       <div className="flex items-center justify-between">
         {STEPS.map((step, idx) => {
-          const isDone = idx < effectiveIdx || (idx === effectiveIdx && ['COMPLETED', 'PAID'].includes(current));
-          const isActive = idx === effectiveIdx && !isDone;
+          const postKey = current as PostRequestKey;
+          const isDone =
+            effectiveIdx >= 0 &&
+            (idx < effectiveIdx || (idx === effectiveIdx && ['COMPLETED', 'PAID'].includes(postKey)));
+          const isActive = effectiveIdx >= 0 && idx === effectiveIdx && !isDone;
           const isLast = idx === STEPS.length - 1;
           return (
             <div key={step.key} className="flex flex-1 items-center min-w-0">

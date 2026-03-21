@@ -243,14 +243,12 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
                     <div className="text-sm text-muted mt-0.5">Customers can rebook you directly</div>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <a
-                      href={`/book/${proId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-surface2"
+                    <Link
+                      href="/pro/profile"
+                      className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-surface2 inline-flex items-center justify-center"
                     >
                       View
-                    </a>
+                    </Link>
                     <button
                       type="button"
                       onClick={() => {

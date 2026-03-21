@@ -69,10 +69,18 @@ export default function ProProfilePage() {
   const [serviceTypes, setServiceTypes] = useState<Array<{ id: string; name: string; slug: string }>>([]);
   const [specialties, setSpecialties] = useState<Array<{ id: string; label: string }>>([]);
   const [addons, setAddons] = useState<Array<{ id: string; title: string; priceCents: number; isActive: boolean }>>([]);
+  /** Public book flow uses service_pros.id */
+  const [serviceProId, setServiceProId] = useState<string | null>(null);
+  /** Embedded customer booking page — owner preview only */
+  const [previewAsCustomer, setPreviewAsCustomer] = useState(false);
 
   useEffect(() => {
     void loadProfile();
   }, []);
+
+  useEffect(() => {
+    if (previewAsCustomer) setIsEditing(false);
+  }, [previewAsCustomer]);
 
   const loadProfile = async () => {
     try {
@@ -99,6 +107,7 @@ export default function ProProfilePage() {
         .single();
       
       if (proData) {
+        setServiceProId(proData.id);
         const category = cats.find((c: { id: string }) => c.id === proData.categoryId);
         const hasInactiveCategory = proData.categoryId && !category;
         setShowInactiveCategoryBanner(!!hasInactiveCategory);
@@ -132,6 +141,8 @@ export default function ProProfilePage() {
           jobsCompleted: proFullData?.review_count || 0,
           averageRating: proFullData?.rating || 0,
         });
+      } else {
+        setServiceProId(null);
       }
     } catch (err) {
       console.error('Error loading profile:', err);
@@ -285,23 +296,93 @@ export default function ProProfilePage() {
 
   const bioWordCount = formData.bio.trim().split(/\s+/).filter(Boolean).length;
 
+  const bookPreviewSrc = serviceProId
+    ? `/book/${encodeURIComponent(serviceProId)}?customerPreview=1`
+    : null;
+
   return (
     <PageLayout showBackButton backButtonHref="/dashboard/pro">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-text">My Profile</h1>
             <p className="text-muted">Manage your professional profile</p>
           </div>
-          {!isEditing && (
+          {bookPreviewSrc && (
+            <div className="flex items-center justify-end gap-2 shrink-0">
+              <span className="text-sm font-medium text-text" id="preview-customer-label">
+                Preview as customer
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={previewAsCustomer}
+                aria-labelledby="preview-customer-label"
+                onClick={() => setPreviewAsCustomer((v) => !v)}
+                className={`relative inline-flex h-7 w-12 shrink-0 rounded-full border border-border transition-colors ${
+                  previewAsCustomer ? 'bg-accent' : 'bg-surface2'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    previewAsCustomer ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {previewAsCustomer && bookPreviewSrc && (
+          <div className="mb-4 space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-surface2/80 px-4 py-3 text-sm">
+              <p className="text-text">
+                <span className="font-semibold text-accent">Preview mode</span>
+                <span className="text-muted"> — This is what customers see on your booking page. Editing is disabled until you exit preview.</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setPreviewAsCustomer(false)}
+                className="shrink-0 px-3 py-1.5 rounded-lg border border-border text-sm font-medium text-text hover:bg-surface transition-colors"
+              >
+                Exit preview
+              </button>
+            </div>
+            <div className="rounded-xl border border-border overflow-hidden bg-surface min-h-[70vh]">
+              <iframe
+                title="Customer booking preview"
+                src={bookPreviewSrc}
+                className="w-full min-h-[70vh] border-0 bg-bg"
+              />
+            </div>
+          </div>
+        )}
+
+        {!previewAsCustomer && (
+          <>
+        {/* Owner actions — same card language as dashboard */}
+        <div className="bg-surface rounded-xl border border-border p-4 mb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <button
+              type="button"
               onClick={() => setIsEditing(true)}
-              className="px-4 py-2 bg-accent hover:bg-accent text-accentContrast rounded-lg font-medium transition-colors"
+              className="px-4 py-2.5 bg-accent hover:opacity-95 text-accentContrast rounded-lg font-semibold transition-opacity text-center sm:text-left"
             >
               Edit Profile
             </button>
-          )}
+            <nav className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium" aria-label="Profile management">
+              <Link href="/pro/specialties" className="text-accent hover:underline">
+                Edit services
+              </Link>
+              <Link href="/pro/settings/pricing-availability" className="text-accent hover:underline">
+                Edit pricing
+              </Link>
+              <Link href="/pro/profile#availability" className="text-accent hover:underline">
+                Manage availability
+              </Link>
+            </nav>
+          </div>
         </div>
 
         {/* Success/Error Messages */}
@@ -618,7 +699,7 @@ export default function ProProfilePage() {
           </div>
 
           {/* Availability */}
-          <div className="bg-surface rounded-xl border border-border p-6">
+          <div id="availability" className="bg-surface rounded-xl border border-border p-6 scroll-mt-24">
             <h2 className="text-lg font-semibold text-text mb-4">Availability</h2>
             <div className="space-y-4">
               <div>
@@ -656,6 +737,8 @@ export default function ProProfilePage() {
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
     </PageLayout>
   );

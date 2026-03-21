@@ -15,6 +15,7 @@ export interface BookingTimelineProps {
   status: Status;
   timestamps: Partial<Record<Status, string>> & {
     booked?: string;
+    awaitingAcceptance?: string;
     accepted?: string;
     onTheWay?: string;
     arrived?: string;
@@ -43,6 +44,7 @@ function formatTimestamp(raw: string): string {
 export function BookingTimeline({ status, timestamps, compact = false }: BookingTimelineProps) {
   const tsMap: Partial<Record<Status, string>> = {
     BOOKED: timestamps.booked ?? timestamps.BOOKED,
+    AWAITING_ACCEPTANCE: timestamps.awaitingAcceptance ?? timestamps.AWAITING_ACCEPTANCE,
     ACCEPTED: timestamps.accepted ?? timestamps.ACCEPTED,
     ON_THE_WAY: timestamps.onTheWay ?? timestamps.ON_THE_WAY,
     ARRIVED: timestamps.arrived ?? timestamps.ARRIVED,

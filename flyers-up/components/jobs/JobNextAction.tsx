@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { mapDbStatusToTimeline, getNextStatus, type Status } from './jobStatus';
+import { deriveTimelineDisplayStatus, getNextStatus, type Status } from './jobStatus';
 import { getBookingById, type BookingDetails } from '@/lib/api';
 
 /** Next action button labels by current status */
-const NEXT_ACTION_LABELS: Record<Exclude<Status, 'BOOKED'>, string> = {
+const NEXT_ACTION_LABELS: Record<Exclude<Status, 'BOOKED' | 'AWAITING_ACCEPTANCE'>, string> = {
   ACCEPTED: 'On My Way',
   ON_THE_WAY: 'Arrived',
   ARRIVED: 'Start Job',
@@ -24,7 +24,11 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const timelineStatus = mapDbStatusToTimeline(booking.status);
+  const timelineStatus = deriveTimelineDisplayStatus(booking.status, {
+    paidAt: booking.paidAt,
+    paidDepositAt: booking.paidDepositAt,
+    fullyPaidAt: booking.fullyPaidAt,
+  });
   const nextStatus = getNextStatus(timelineStatus);
   const isCompleted = timelineStatus === 'COMPLETED' || timelineStatus === 'PAID';
 
@@ -84,7 +88,7 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
     );
   }
 
-  if (timelineStatus === 'BOOKED') {
+  if (timelineStatus === 'BOOKED' || timelineStatus === 'AWAITING_ACCEPTANCE') {
     return (
       <div className="border-t border-border bg-[hsl(var(--card-neutral))] px-6 py-5">
         <div className="space-y-3">

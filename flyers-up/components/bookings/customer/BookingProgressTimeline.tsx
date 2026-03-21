@@ -1,7 +1,7 @@
 'use client';
 
 import { BookingTimeline } from '@/components/bookings/BookingTimeline';
-import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
+import { deriveTimelineDisplayStatus, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 import type { Status } from '@/components/jobs/jobStatus';
 
 export interface BookingProgressTimelineProps {
@@ -15,6 +15,8 @@ export interface BookingProgressTimelineProps {
   startedAt?: string | null;
   completedAt?: string | null;
   paidAt?: string | null;
+  paidDepositAt?: string | null;
+  fullyPaidAt?: string | null;
 }
 
 export function BookingProgressTimeline({
@@ -28,8 +30,11 @@ export function BookingProgressTimeline({
   startedAt,
   completedAt,
   paidAt,
+  paidDepositAt,
+  fullyPaidAt,
 }: BookingProgressTimelineProps) {
-  const timelineStatus = mapDbStatusToTimeline(status) as Status;
+  const paymentCtx = { paidAt, paidDepositAt, fullyPaidAt };
+  const timelineStatus = deriveTimelineDisplayStatus(status, paymentCtx) as Status;
   const timestamps = buildTimestampsFromBooking(createdAt, statusHistory, {
     acceptedAt,
     onTheWayAt: onTheWayAt ?? enRouteAt,
@@ -39,6 +44,10 @@ export function BookingProgressTimeline({
     completedAt,
     paidAt,
   });
+  if (timelineStatus === 'AWAITING_ACCEPTANCE') {
+    const t = paidDepositAt ?? paidAt;
+    if (t) timestamps.AWAITING_ACCEPTANCE = t;
+  }
 
   return (
     <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 shadow-sm">
@@ -46,6 +55,7 @@ export function BookingProgressTimeline({
         status={timelineStatus}
         timestamps={{
           booked: timestamps.BOOKED,
+          awaitingAcceptance: timestamps.AWAITING_ACCEPTANCE,
           accepted: timestamps.ACCEPTED,
           onTheWay: timestamps.ON_THE_WAY,
           arrived: timestamps.ARRIVED,

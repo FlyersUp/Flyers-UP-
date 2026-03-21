@@ -7,6 +7,10 @@ import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth, upsertProfile, type AppRole } from '@/lib/onboarding';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 
+/** Role picker brand colors (customer = green, pro = orange) */
+const ROLE_GREEN = '#bee3ba';
+const ROLE_ORANGE = '#fbbb62';
+
 function isInvalidRefreshToken(err: unknown): boolean {
   const msg = (err as { message?: string } | null)?.message ?? '';
   return /invalid refresh token/i.test(msg) || /refresh token not found/i.test(msg);
@@ -152,7 +156,10 @@ function RoleInner() {
 
       <main className="px-4 pb-12">
         <div className="max-w-lg mx-auto">
-          <OnboardingProgress currentStep={1} />
+          <OnboardingProgress
+            currentStep={1}
+            accentHex={selected === 'pro' ? ROLE_ORANGE : ROLE_GREEN}
+          />
           <div className="rounded-2xl border border-border bg-surface shadow-sm p-6 sm:p-8">
             <h1 className="text-2xl font-semibold tracking-tight">How will you use Flyers Up?</h1>
             <p className="text-muted mt-2">
@@ -171,14 +178,14 @@ function RoleInner() {
                 onClick={() => setSelected('customer')}
                 className={`w-full text-left rounded-2xl border-2 p-6 sm:p-8 transition-all duration-200 active:scale-[0.99] ${
                   selected === 'customer'
-                    ? 'border-accent bg-accent/20 shadow-md ring-2 ring-accent/30'
-                    : 'border-border bg-surface hover:border-accent/50 hover:bg-surface2 active:bg-surface2'
+                    ? 'border-[#bee3ba] bg-[#bee3ba]/35 shadow-md ring-2 ring-[#bee3ba]/40'
+                    : 'border-border bg-surface hover:border-[#bee3ba]/55 hover:bg-surface2 active:bg-surface2'
                 }`}
               >
                 <div className="flex items-start gap-4">
                   <div className="text-4xl leading-none shrink-0">🧹</div>
                   <div>
-                    <div className="font-semibold text-lg text-text">Customer</div>
+                    <div className="font-semibold text-lg text-text">I&apos;m looking for services</div>
                     <div className="text-muted mt-1">Book local pros, message, and manage jobs.</div>
                   </div>
                 </div>
@@ -189,15 +196,17 @@ function RoleInner() {
                 onClick={() => setSelected('pro')}
                 className={`w-full text-left rounded-2xl border-2 p-6 sm:p-8 transition-all duration-200 active:scale-[0.99] ${
                   selected === 'pro'
-                    ? 'border-accent bg-accent/20 shadow-md ring-2 ring-accent/30'
-                    : 'border-border bg-surface hover:border-accent/50 hover:bg-surface2 active:bg-surface2'
+                    ? 'border-[#fbbb62] bg-[#fbbb62]/35 shadow-md ring-2 ring-[#fbbb62]/45'
+                    : 'border-border bg-surface hover:border-[#fbbb62]/60 hover:bg-surface2 active:bg-surface2'
                 }`}
               >
                 <div className="flex items-start gap-4">
                   <div className="text-4xl leading-none shrink-0">🪜</div>
                   <div className="min-w-0">
-                    <div className="font-semibold text-lg text-text">Pro</div>
-                    <div className="text-muted mt-1">Build your service business. Set your pricing, control your schedule, and grow repeat customers.</div>
+                    <div className="font-semibold text-lg text-text">I offer services</div>
+                    <div className="text-muted mt-1">
+                      Create a simple profile and start taking bookings.
+                    </div>
                   </div>
                 </div>
               </button>
@@ -207,7 +216,13 @@ function RoleInner() {
               type="button"
               disabled={!selected || saving}
               onClick={handleContinue}
-              className="mt-8 w-full rounded-xl bg-accent px-4 py-4 text-base font-medium text-accentContrast hover:opacity-95 active:scale-[0.98] active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
+              className={`mt-8 w-full rounded-xl px-4 py-4 text-base font-medium text-[#111111] hover:opacity-95 active:scale-[0.98] active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 ${
+                selected === 'pro'
+                  ? 'bg-[#fbbb62]'
+                  : selected === 'customer'
+                    ? 'bg-[#bee3ba]'
+                    : 'bg-surface2 text-muted'
+              }`}
             >
               {saving ? 'Saving…' : 'Continue'}
             </button>

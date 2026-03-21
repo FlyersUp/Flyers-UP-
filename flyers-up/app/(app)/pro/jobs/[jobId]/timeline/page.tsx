@@ -3,7 +3,7 @@
 import { AppLayout } from '@/components/layouts/AppLayout';
 import JobTimelineCard from '@/components/jobs/JobTimelineCard';
 import { JobNextAction } from '@/components/jobs/JobNextAction';
-import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
+import { deriveTimelineDisplayStatus, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 import { getBookingById, getCurrentUser, type BookingDetails } from '@/lib/api';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { use, useEffect, useState } from 'react';
@@ -56,14 +56,30 @@ export default function JobTimelinePage({ params }: { params: Promise<{ jobId: s
     };
   }, [jobId]);
 
-  const status = booking ? mapDbStatusToTimeline(booking.status) : 'BOOKED';
+  const paymentCtx = booking
+    ? {
+        paidAt: booking.paidAt,
+        paidDepositAt: booking.paidDepositAt,
+        fullyPaidAt: booking.fullyPaidAt,
+      }
+    : undefined;
+  const status = booking ? deriveTimelineDisplayStatus(booking.status, paymentCtx) : 'BOOKED';
   const timestamps = booking
-    ? buildTimestampsFromBooking(booking.createdAt, booking.statusHistory, {
-        acceptedAt: booking.acceptedAt,
-        onTheWayAt: booking.onTheWayAt,
-        startedAt: booking.startedAt,
-        completedAt: booking.completedAt,
-      })
+    ? (() => {
+        const ts = buildTimestampsFromBooking(booking.createdAt, booking.statusHistory, {
+          acceptedAt: booking.acceptedAt,
+          onTheWayAt: booking.onTheWayAt,
+          arrivedAt: booking.arrivedAt,
+          startedAt: booking.startedAt,
+          completedAt: booking.completedAt,
+          paidAt: booking.paidAt,
+        });
+        if (status === 'AWAITING_ACCEPTANCE') {
+          const t = booking.paidDepositAt ?? booking.paidAt;
+          if (t) ts.AWAITING_ACCEPTANCE = t;
+        }
+        return ts;
+      })()
     : {};
 
   return (

@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { TrackBookingRealtime, type TrackBookingData } from '@/components/bookings/TrackBookingRealtime';
-import { mapDbStatusToTimeline, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
+import { deriveTimelineDisplayStatus, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 import { TrackBookingStatusHeader } from '@/components/bookings/customer/TrackBookingStatusHeader';
 import { TrackBookingSummaryCard } from '@/components/bookings/customer/TrackBookingSummaryCard';
 import { BookingProgressTracker } from '@/components/bookings/BookingProgressTracker';
@@ -165,7 +165,11 @@ function getLastUpdatedTimestamp(booking: TrackBookingData): string | null {
       paidAt: booking.paidAt,
     }
   );
-  const s = mapDbStatusToTimeline(booking.status);
+  const s = deriveTimelineDisplayStatus(booking.status, {
+    paidAt: booking.paidAt,
+    paidDepositAt: booking.paidDepositAt,
+    fullyPaidAt: booking.fullyPaidAt,
+  });
   return ts[s] ?? null;
 }
 
@@ -201,7 +205,11 @@ export function BookingDetailContent({
       fetchBooking={fetchBooking}
     >
       {(booking) => {
-        const status = mapDbStatusToTimeline(booking.status);
+        const status = deriveTimelineDisplayStatus(booking.status, {
+          paidAt: booking.paidAt,
+          paidDepositAt: booking.paidDepositAt,
+          fullyPaidAt: booking.fullyPaidAt,
+        });
         const fullBooking = { ...initialBooking, ...booking } as BookingDetailData & TrackBookingData;
         const hasAddressOrNotes = !!(fullBooking.address || fullBooking.notes);
         const primaryAction = getPrimaryAction(fullBooking, bookingId);
@@ -222,7 +230,12 @@ export function BookingDetailContent({
 
             {/* Progress tracker */}
             <section className="mb-5">
-              <BookingProgressTracker status={booking.status} />
+              <BookingProgressTracker
+                status={booking.status}
+                paidAt={booking.paidAt}
+                paidDepositAt={booking.paidDepositAt}
+                fullyPaidAt={booking.fullyPaidAt}
+              />
             </section>
 
             {/* 1. Status header */}
@@ -261,6 +274,8 @@ export function BookingDetailContent({
                 startedAt={booking.startedAt}
                 completedAt={booking.completedAt}
                 paidAt={booking.paidAt}
+                paidDepositAt={booking.paidDepositAt}
+                fullyPaidAt={booking.fullyPaidAt}
               />
             </section>
 
