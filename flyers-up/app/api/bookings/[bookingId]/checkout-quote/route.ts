@@ -28,7 +28,7 @@ export async function GET(
   // Same as deposit: allow any user who is the booking's customer (including pros who booked another pro).
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, price, payment_due_at, service_date, service_time, address, duration_hours, miles_distance')
+    .select('id, customer_id, pro_id, status, price, payment_due_at, service_date, service_time, address')
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();

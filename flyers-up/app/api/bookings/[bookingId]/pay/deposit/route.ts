@@ -72,7 +72,7 @@ export async function POST(
   // Do not require profile.role === 'customer' — that blocked valid payers with role "pro".
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, service_date, service_time, address, duration_hours, job_request_id, scope_confirmed_at')
+    .select('id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, service_date, service_time, address, job_request_id, scope_confirmed_at')
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();
