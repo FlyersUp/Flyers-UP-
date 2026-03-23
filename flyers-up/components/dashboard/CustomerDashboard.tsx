@@ -120,6 +120,7 @@ export default function CustomerDashboard() {
       }
       const profile = await getOrCreateProfile(user.id, user.email ?? null);
       if (!profile) return;
+      setUserId(user.id);
       const fallbackName = (user.email ? user.email.split('@')[0] : 'Account') || 'Account';
       const first = profile.first_name?.trim();
       const last = profile.last_name?.trim();

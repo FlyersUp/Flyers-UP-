@@ -14,27 +14,27 @@
  * States: loading, empty, error
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { DashboardCard, DashboardSectionSkeleton } from '@/components/dashboard/DashboardCard';
 import Link from 'next/link';
 import { SideMenu } from '@/components/ui/SideMenu';
 import { getProJobs, getProEarnings, type Booking } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
-import { ChevronRight, DollarSign, Briefcase, Calendar } from 'lucide-react';
+import { ChevronRight, DollarSign, Briefcase, Calendar, Inbox, Bell } from 'lucide-react';
 import { MiniScheduleWidget } from '@/components/calendar/MiniScheduleWidget';
 import type { CalendarEvent } from '@/lib/calendar/event-from-booking';
 
-type JobRequestRow = {
+type PendingRequest = {
   id: string;
-  title: string;
-  description: string | null;
-  service_category: string;
-  budget_min: number | null;
-  budget_max: number | null;
-  location: string;
-  preferred_date: string | null;
-  preferred_time: string | null;
+  serviceName: string;
+  address: string;
+  customerName: string;
+  durationHours: number | null;
+  price: number | null;
+  serviceDate: string;
+  serviceTime: string;
+  createdAt: string;
 };
 
 type TodayJob = {
@@ -89,11 +89,148 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+const RESPOND_DEADLINE_MINUTES = 30;
+
+function useCountdown(createdAt: string) {
+  const [text, setText] = useState('');
+  useEffect(() => {
+    const expiresAt = new Date(createdAt).getTime() + RESPOND_DEADLINE_MINUTES * 60 * 1000;
+    const update = () => {
+      const now = Date.now();
+      const diff = expiresAt - now;
+      if (diff <= 0) {
+        setText('Expired');
+        return;
+      }
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setText(mins > 0 ? `Expires in ${mins}m` : `Expires in ${secs}s`);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [createdAt]);
+  return text;
+}
+
+function PendingRequestCard({
+  request,
+  onAccept,
+  onDecline,
+}: {
+  request: PendingRequest;
+  onAccept: () => void;
+  onDecline: () => void;
+}) {
+  const [acceptLoading, setAcceptLoading] = useState(false);
+  const [declineLoading, setDeclineLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const countdown = useCountdown(request.createdAt);
+
+  const handleAccept = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setAcceptLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/bookings/${request.id}/accept`, { method: 'POST', credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? 'Failed to accept');
+        return;
+      }
+      onAccept();
+    } catch {
+      setError('Something went wrong');
+    } finally {
+      setAcceptLoading(false);
+    }
+  };
+
+  const handleDecline = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDeclineLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/bookings/${request.id}/decline`, { method: 'POST', credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? 'Failed to decline');
+        return;
+      }
+      onAccept();
+    } catch {
+      setError('Something went wrong');
+    } finally {
+      setDeclineLoading(false);
+    }
+  };
+
+  const durationStr = request.durationHours != null
+    ? `${request.durationHours} hr${request.durationHours !== 1 ? 's' : ''}`
+    : null;
+
+  return (
+    <DashboardCard>
+      <Link href={`/pro/jobs/${request.id}`} className="block">
+        <div className="p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-text">{request.serviceName}</div>
+              <div className="text-sm text-muted mt-0.5 truncate">{request.address}</div>
+              <div className="text-sm text-muted mt-0.5">{request.customerName}</div>
+              <div className="flex flex-wrap gap-x-2 gap-y-1 mt-1.5 text-xs text-muted">
+                {durationStr && <span>{durationStr}</span>}
+                {request.price != null ? (
+                  <span className="font-medium text-amber-600 dark:text-amber-400">${request.price.toFixed(0)}</span>
+                ) : (
+                  <span>Price TBD</span>
+                )}
+                <span>• {request.serviceDate} at {request.serviceTime}</span>
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200">
+                Waiting for response
+              </span>
+              {countdown && (
+                <div className="text-xs text-muted mt-1">{countdown}</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </Link>
+      <div className="px-4 pb-4 pt-0 space-y-2">
+        <div className="flex gap-2 -mt-1 pt-2 border-t border-border">
+          <button
+            type="button"
+            onClick={handleAccept}
+            disabled={acceptLoading || declineLoading}
+            className="flex-1 py-2.5 rounded-xl bg-accent text-accentContrast text-sm font-semibold hover:opacity-95 disabled:opacity-70 transition-opacity"
+          >
+            {acceptLoading ? 'Accepting…' : 'Accept'}
+          </button>
+          <button
+            type="button"
+            onClick={handleDecline}
+            disabled={acceptLoading || declineLoading}
+            className="flex-1 py-2.5 rounded-xl border border-border text-text text-sm font-semibold hover:bg-surface2 disabled:opacity-70 transition-opacity"
+          >
+            {declineLoading ? 'Declining…' : 'Decline'}
+          </button>
+        </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+      </div>
+    </DashboardCard>
+  );
+}
+
 export default function ProDashboard({ userName, proId }: { userName: string; proId?: string | null }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [jobs, setJobs] = useState<Booking[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
-  const [requests, setRequests] = useState<JobRequestRow[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(true);
   const [earnings, setEarnings] = useState<{
     thisWeek?: number;
@@ -127,31 +264,52 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
     };
   }, []);
 
+  const fetchPendingRequests = useCallback(async () => {
+    try {
+      const res = await fetch(
+        '/api/pro/bookings?statuses=requested,pending&limit=5',
+        { cache: 'no-store', credentials: 'include' }
+      );
+      const json = await res.json().catch(() => ({}));
+      if (!json.ok || !Array.isArray(json.bookings)) return;
+      setPendingRequests(
+        json.bookings.map((b: {
+          id: string;
+          serviceName?: string;
+          address: string;
+          customer?: { fullName?: string | null } | null;
+          duration_hours?: number | null;
+          price: number | null;
+          service_date: string;
+          service_time: string;
+          created_at: string;
+        }) => ({
+          id: b.id,
+          serviceName: b.serviceName ?? 'Service',
+          address: b.address ?? '',
+          customerName: b.customer?.fullName ?? 'Customer',
+          durationHours: b.duration_hours ?? null,
+          price: b.price,
+          serviceDate: b.service_date,
+          serviceTime: b.service_time,
+          createdAt: b.created_at,
+        }))
+      );
+    } catch {
+      // ignore
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from('job_requests')
-          .select(
-            'id, title, description, service_category, budget_min, budget_max, location, preferred_date, preferred_time'
-          )
-          .eq('status', 'open')
-          .gt('expires_at', new Date().toISOString())
-          .order('created_at', { ascending: false })
-          .limit(5);
-        if (!mounted) return;
-        setRequests((data ?? []) as JobRequestRow[]);
-      } catch {
-        // ignore
-      } finally {
-        if (mounted) setRequestsLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    void fetchPendingRequests().then(() => {
+      if (!mounted) return;
+      setRequestsLoading(false);
+    });
+    return () => { mounted = false; };
+  }, [fetchPendingRequests]);
 
   useEffect(() => {
     let mounted = true;
@@ -233,6 +391,28 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
   const todayEarnings = useMemo(() => {
     return todayJobs.reduce((sum, j) => sum + j.total, 0);
   }, [todayJobs]);
+
+  useEffect(() => {
+    if (!proId) return;
+    const channel = supabase
+      .channel('pro-pending-bookings')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+          filter: `pro_id=eq.${proId}`,
+        },
+        () => {
+          void fetchPendingRequests();
+        }
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [proId, fetchPendingRequests]);
 
   return (
     <AppLayout mode="pro">
@@ -389,51 +569,53 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
             <MiniScheduleWidget events={calendarEvents} mode="pro" detailHref="/pro/calendar" />
           </section>
 
-          {/* 3. INCOMING REQUESTS */}
+          {/* 3. PENDING REQUESTS */}
           <section>
             <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
-              Incoming requests
+              Pending requests
             </h2>
             {requestsLoading ? (
               <DashboardSectionSkeleton />
-            ) : requests.length > 0 ? (
-              <div className="space-y-2">
-                {requests.slice(0, 3).map((r) => (
-                  <Link key={r.id} href="/pro/requests">
-                    <DashboardCard>
-                      <div className="p-4 flex items-center justify-between gap-4">
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium text-text truncate">{r.title}</div>
-                          <div className="text-sm text-muted mt-0.5">
-                            {r.location}
-                            {(r.budget_min != null || r.budget_max != null) && (
-                              <span>
-                                {' '}
-                                • ${r.budget_min ?? '?'}–${r.budget_max ?? '?'}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <ChevronRight size={18} className="text-muted shrink-0" />
-                      </div>
-                    </DashboardCard>
-                  </Link>
+            ) : pendingRequests.length > 0 ? (
+              <div className="space-y-3">
+                {pendingRequests.slice(0, 3).map((r) => (
+                  <PendingRequestCard
+                    key={r.id}
+                    request={r}
+                    onAccept={() => void fetchPendingRequests()}
+                    onDecline={() => void fetchPendingRequests()}
+                  />
                 ))}
                 <Link
-                  href="/pro/requests"
+                  href="/pro/jobs"
                   className="block text-sm font-medium text-muted hover:text-text transition-colors"
                 >
-                  View all requests →
+                  View all jobs →
                 </Link>
               </div>
             ) : (
               <DashboardCard>
-                <div className="p-4">
-                  <div className="text-sm font-medium text-text">No open requests</div>
-                  <div className="text-xs text-muted mt-0.5">New requests will appear here.</div>
-                  <Link href="/pro/requests" className="mt-2 inline-block text-sm text-accent hover:underline">
-                    View demand board →
-                  </Link>
+                <div className="p-5 flex flex-col items-center text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-surface2 flex items-center justify-center mb-3">
+                    <Inbox size={24} className="text-muted" strokeWidth={2} />
+                  </div>
+                  <div className="font-semibold text-text">No pending requests</div>
+                  <div className="text-sm text-muted mt-1">New booking requests will appear here.</div>
+                  <div className="flex flex-wrap gap-2 mt-4 justify-center">
+                    <Link
+                      href="/pro/settings/pricing-availability"
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-accent text-accentContrast text-sm font-semibold hover:opacity-95 transition-opacity"
+                    >
+                      Go online
+                    </Link>
+                    <Link
+                      href="/pro/notifications"
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border text-text text-sm font-semibold hover:bg-surface2 transition-colors"
+                    >
+                      <Bell size={16} strokeWidth={2} />
+                      Check notifications
+                    </Link>
+                  </div>
                 </div>
               </DashboardCard>
             )}

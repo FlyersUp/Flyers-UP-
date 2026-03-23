@@ -18,7 +18,9 @@ type BookingRow = {
   notes: string | null;
   status: string;
   price: number | null;
+  duration_hours: number | null;
   created_at: string;
+  subcategory_id?: string | null;
 };
 
 export async function GET(req: Request) {
@@ -58,7 +60,7 @@ export async function GET(req: Request) {
 
     let q = admin
       .from('bookings')
-      .select('id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at')
+      .select('id, customer_id, pro_id, service_date, service_time, address, notes, status, price, duration_hours, created_at, subcategory_id')
       .eq('pro_id', proId)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -110,14 +112,52 @@ export async function GET(req: Request) {
       }
     }
 
+    const subcategoryIds = Array.from(
+      new Set(rows.map((b) => (b as { subcategory_id?: string | null }).subcategory_id).filter(Boolean))
+    ) as string[];
+    const subcategoryById = new Map<string, string>();
+    if (subcategoryIds.length > 0) {
+      const { data: subcats } = await admin
+        .from('service_subcategories')
+        .select('id, name')
+        .in('id', subcategoryIds);
+      if (Array.isArray(subcats)) {
+        subcats.forEach((s: any) => {
+          const id = normalizeUuidOrNull(s?.id);
+          if (id && typeof s?.name === 'string') subcategoryById.set(id, s.name);
+        });
+      }
+    }
+
+    let defaultServiceName = 'Service';
+    const { data: proCat } = await admin
+      .from('service_pros')
+      .select('category_id')
+      .eq('id', proId)
+      .single();
+    const categoryId = (proCat as { category_id?: string } | null)?.category_id;
+    if (categoryId) {
+      const { data: cat } = await admin
+        .from('service_categories')
+        .select('name')
+        .eq('id', categoryId)
+        .single();
+      if (cat && typeof (cat as { name?: string }).name === 'string') {
+        defaultServiceName = (cat as { name: string }).name;
+      }
+    }
+
     return NextResponse.json(
       {
         ok: true,
         bookings: rows.map((b) => {
           const cust = customerById.get(b.customer_id) ?? null;
+          const subcatId = (b as { subcategory_id?: string | null }).subcategory_id;
+          const serviceName = subcatId ? subcategoryById.get(subcatId) ?? defaultServiceName : defaultServiceName;
           return {
             ...b,
             customer: cust,
+            serviceName,
           };
         }),
       },
