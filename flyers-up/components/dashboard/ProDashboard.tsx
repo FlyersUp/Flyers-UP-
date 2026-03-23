@@ -22,6 +22,8 @@ import { SideMenu } from '@/components/ui/SideMenu';
 import { getProJobs, getProEarnings, type Booking } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { ChevronRight, DollarSign, Briefcase, Calendar } from 'lucide-react';
+import { MiniScheduleWidget } from '@/components/calendar/MiniScheduleWidget';
+import type { CalendarEvent } from '@/lib/calendar/event-from-booking';
 
 type JobRequestRow = {
   id: string;
@@ -56,10 +58,11 @@ type UpcomingJob = {
 };
 
 const TODAY_STATUSES =
-  'requested,pending,accepted,pro_en_route,on_the_way,arrived,in_progress,completed_pending_payment,awaiting_payment,awaiting_remaining_payment';
+  'requested,pending,accepted,deposit_paid,pro_en_route,on_the_way,arrived,in_progress,completed_pending_payment,awaiting_payment,awaiting_remaining_payment';
 
 function formatStatus(s: string): string {
   const lower = (s || '').toLowerCase();
+  if (lower === 'deposit_paid') return 'Deposit paid';
   if (lower === 'accepted') return 'Scheduled';
   if (lower === 'on_the_way' || lower === 'pro_en_route') return 'On the way';
   if (lower === 'in_progress') return 'In progress';
@@ -71,7 +74,7 @@ function getStatusVariant(status: string): string {
   const lower = (status || '').toLowerCase();
   if (['on_the_way', 'pro_en_route', 'in_progress'].includes(lower))
     return 'bg-[hsl(var(--accent-customer)/0.2)] text-text border border-[hsl(var(--accent-customer)/0.55)]';
-  if (['awaiting_payment', 'completed_pending_payment'].includes(lower))
+  if (['deposit_paid', 'awaiting_payment', 'completed_pending_payment'].includes(lower))
     return 'bg-[hsl(var(--accent-pro)/0.24)] text-text border border-[hsl(var(--accent-pro)/0.58)]';
   return 'bg-surface2 text-text2 border border-border';
 }
@@ -99,6 +102,7 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
     completedJobs?: number;
   } | null>(null);
   const [earningsLoading, setEarningsLoading] = useState(true);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -147,6 +151,22 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
     return () => {
       mounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const today = new Date().toISOString().slice(0, 10);
+    const end = new Date();
+    end.setDate(end.getDate() + 60);
+    const to = end.toISOString().slice(0, 10);
+    fetch(`/api/calendar/events?role=pro&from=${today}&to=${to}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((json: { ok?: boolean; events?: CalendarEvent[] }) => {
+        if (mounted && json.ok && Array.isArray(json.events)) setCalendarEvents(json.events);
+      })
+      .catch(() => {})
+      .finally(() => {});
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
@@ -359,6 +379,14 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
                 </div>
               </DashboardCard>
             )}
+          </section>
+
+          {/* 2b. MINI SCHEDULE */}
+          <section>
+            <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+              Schedule
+            </h2>
+            <MiniScheduleWidget events={calendarEvents} mode="pro" detailHref="/pro/calendar" />
           </section>
 
           {/* 3. INCOMING REQUESTS */}

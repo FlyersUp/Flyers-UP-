@@ -38,6 +38,7 @@ const CUSTOMER_SECTIONS: MenuSection[] = [
     titleKey: 'sidebar.bookings',
     items: [
       { labelKey: 'sidebar.customer.bookings', href: '/customer/bookings' },
+      { labelKey: 'sidebar.customer.calendar', href: '/customer/calendar' },
       { labelKey: 'sidebar.customer.requests', href: '/customer/requests' },
       { labelKey: 'sidebar.customer.savedPros', href: '/customer/favorites' },
       { labelKey: 'sidebar.customer.bookingRules', href: '/booking-rules' },
@@ -114,7 +115,7 @@ const PRO_SECTIONS: MenuSection[] = [
       { labelKey: 'sidebar.pro.availability', href: '/pro/settings/pricing-availability' },
       { labelKey: 'sidebar.pro.serviceAreas', href: '/pro/settings/business-profile' },
       { labelKey: 'sidebar.pro.pricingServices', href: '/pro/settings/pricing-availability' },
-      { labelKey: 'sidebar.pro.calendar', href: '/pro/today', disabled: true },
+      { labelKey: 'sidebar.pro.calendar', href: '/pro/calendar' },
     ],
   },
   {

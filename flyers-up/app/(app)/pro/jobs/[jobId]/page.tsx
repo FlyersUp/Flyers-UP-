@@ -7,6 +7,8 @@ import JobTimelineCard from '@/components/jobs/JobTimelineCard';
 import { deriveTimelineDisplayStatus, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 import { JobNextAction } from '@/components/jobs/JobNextAction';
 import Link from 'next/link';
+import { AddToCalendarButton } from '@/components/calendar/AddToCalendarButton';
+import { isCalendarCommittedStatus } from '@/lib/calendar/committed-states';
 import { use, useEffect, useMemo, useState } from 'react';
 import { getBookingById, getCurrentUser, type BookingDetails } from '@/lib/api';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
@@ -114,6 +116,27 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
                 <p className="text-text">
                   {formattedDate || '—'} {booking.serviceTime ? `at ${booking.serviceTime}` : ''}
                 </p>
+                <div className="mt-2 flex flex-wrap gap-3">
+                  <Link
+                    href="/pro/calendar"
+                    className="text-sm font-medium text-accent hover:underline"
+                  >
+                    View in calendar →
+                  </Link>
+                  {booking.serviceDate &&
+                    booking.serviceTime &&
+                    isCalendarCommittedStatus(booking.status) && (
+                      <AddToCalendarButton
+                        bookingId={jobId}
+                        booking={{
+                          serviceDate: booking.serviceDate,
+                          serviceTime: booking.serviceTime,
+                          serviceTitle: 'Job',
+                          address: booking.address,
+                        }}
+                      />
+                    )}
+                </div>
               </div>
 
               <div className="border-t border-border pt-4">

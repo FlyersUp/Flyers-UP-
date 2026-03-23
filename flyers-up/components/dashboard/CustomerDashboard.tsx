@@ -24,6 +24,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 import { ChevronRight, Calendar, MessageCircle } from 'lucide-react';
 import { BookingStatusPill } from '@/components/bookings/BookingStatusPill';
+import { MiniScheduleWidget } from '@/components/calendar/MiniScheduleWidget';
+import type { CalendarEvent } from '@/lib/calendar/event-from-booking';
 
 type ActiveBooking = {
   id: string;
@@ -97,6 +99,7 @@ export default function CustomerDashboard() {
 
   const [liveRequests, setLiveRequests] = useState<LiveRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(true);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
 
   const [favorites, setFavorites] = useState<FavoritePro[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(true);
@@ -237,6 +240,22 @@ export default function CustomerDashboard() {
   useEffect(() => {
     if (!ready) return;
     let mounted = true;
+    const today = new Date().toISOString().slice(0, 10);
+    const end = new Date();
+    end.setDate(end.getDate() + 60);
+    const to = end.toISOString().slice(0, 10);
+    fetch(`/api/calendar/events?role=customer&from=${today}&to=${to}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((json: { ok?: boolean; events?: CalendarEvent[] }) => {
+        if (mounted && json.ok && Array.isArray(json.events)) setCalendarEvents(json.events);
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, [ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    let mounted = true;
     fetch('/api/customer/favorites', { cache: 'no-store' })
       .then((r) => r.json())
       .then((json) => {
@@ -339,6 +358,14 @@ export default function CustomerDashboard() {
                 </div>
               </DashboardCard>
             )}
+          </section>
+
+          {/* 1b. MINI SCHEDULE */}
+          <section>
+            <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+              Schedule
+            </h2>
+            <MiniScheduleWidget events={calendarEvents} mode="customer" detailHref="/customer/calendar" />
           </section>
 
           {/* 2. PENDING REQUESTS */}

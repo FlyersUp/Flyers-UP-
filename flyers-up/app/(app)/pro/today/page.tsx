@@ -310,7 +310,7 @@ export default function ProTodayPage() {
   >([]);
 
   const canStartReal = (s: string) =>
-    ['accepted', 'pro_en_route', 'on_the_way', 'pending', 'requested'].includes((s ?? '').toLowerCase());
+    ['deposit_paid', 'accepted', 'pro_en_route', 'on_the_way', 'pending', 'requested'].includes((s ?? '').toLowerCase());
   const canCompleteReal = (s: string) => (s ?? '').toLowerCase() === 'in_progress';
 
   useEffect(() => {
@@ -356,10 +356,22 @@ export default function ProTodayPage() {
         // Replace mock timeline jobs with real bookings for today (if any).
         try {
           const todayISO = new Date().toISOString().slice(0, 10);
+          const todayStatuses = [
+            'deposit_paid',
+            'requested',
+            'accepted',
+            'pro_en_route',
+            'on_the_way',
+            'arrived',
+            'in_progress',
+            'completed_pending_payment',
+            'awaiting_payment',
+            'awaiting_remaining_payment',
+            'awaiting_customer_confirmation',
+            'completed',
+          ];
           const res = await fetch(
-            `/api/pro/bookings?from=${encodeURIComponent(todayISO)}&to=${encodeURIComponent(todayISO)}&limit=50&statuses=${encodeURIComponent(
-              ['requested', 'accepted', 'pro_en_route', 'on_the_way', 'in_progress', 'awaiting_payment', 'awaiting_remaining_payment', 'completed'].join(',')
-            )}`,
+            `/api/pro/bookings?from=${encodeURIComponent(todayISO)}&to=${encodeURIComponent(todayISO)}&limit=50&statuses=${encodeURIComponent(todayStatuses.join(','))}`,
             { cache: 'no-store' }
           );
           const json = (await res.json()) as { ok: boolean; bookings?: any[] };

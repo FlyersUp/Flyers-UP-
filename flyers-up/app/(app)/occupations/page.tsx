@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * All Occupations - premium marketplace discovery
+ * Browse Occupations - high-conversion marketplace discovery
  */
 import { useEffect, useState, useMemo } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
@@ -29,46 +29,60 @@ export default function OccupationsPage() {
     return occupations.filter((o) => o.name.toLowerCase().includes(q));
   }, [occupations, search]);
 
-  const popular = useMemo(() => occupations.filter((o) => o.featured).slice(0, 6), [occupations]);
-  const popularSlugs = useMemo(() => new Set(popular.map((o) => o.slug)), [popular]);
+  const topPicks = useMemo(
+    () => occupations.filter((o) => o.featured).slice(0, 5),
+    [occupations]
+  );
+  const topPicksSlugs = useMemo(() => new Set(topPicks.map((o) => o.slug)), [topPicks]);
   const gridOccupations = useMemo(
-    () => (search.trim() ? filtered : filtered.filter((o) => !popularSlugs.has(o.slug))),
-    [filtered, search, popularSlugs]
+    () => (search.trim() ? filtered : filtered.filter((o) => !topPicksSlugs.has(o.slug))),
+    [filtered, search, topPicksSlugs]
   );
 
   return (
     <AppLayout mode="customer">
       <div className="min-h-screen bg-bg pb-32">
         <div className="max-w-4xl mx-auto px-4">
-          {/* Header */}
-          <div className="pt-6 pb-4">
-            <h1 className="text-2xl font-semibold text-text">All Occupations</h1>
-            <p className="text-sm text-text3 mt-1">Browse services by trade</p>
-          </div>
+          {/* Hero */}
+          <section className="pt-6 pb-5">
+            <h1 className="text-2xl md:text-3xl font-bold text-text tracking-tight">
+              What do you need done today?
+            </h1>
+            <p className="text-base text-text2 mt-1.5">
+              Book trusted local pros in minutes
+            </p>
+            <div className="mt-3 inline-flex items-center px-3 py-1.5 rounded-full bg-[rgba(156,167,100,0.12)] text-[hsl(var(--accent-customer))] text-sm font-medium">
+              Popular in your area
+            </div>
+          </section>
 
           {/* Sticky search bar */}
           <div className="sticky top-0 z-10 -mx-4 px-4 pt-2 pb-4 bg-bg/95 backdrop-blur-sm border-b border-border/50">
             <OccupationSearchBar value={search} onChange={setSearch} />
           </div>
 
-          {/* Popular occupations (optional) */}
-          {!loading && popular.length > 0 && !search.trim() && (
-            <section className="mb-8">
-              <h2 className="text-sm font-semibold text-text2 uppercase tracking-wide mb-3">
-                Popular occupations
+          {/* Top Picks Near You - horizontal scroll */}
+          {!loading && topPicks.length > 0 && !search.trim() && (
+            <section className="mt-6 mb-8">
+              <h2 className="text-sm font-semibold text-text uppercase tracking-wider mb-3">
+                Top Picks Near You
               </h2>
-              <OccupationGrid occupations={popular} variant="all" />
+              <OccupationGrid
+                occupations={topPicks}
+                variant="topPicks"
+                showBadges
+              />
             </section>
           )}
 
-          {/* Full grid */}
+          {/* All occupations - 2-col grid */}
           <section>
             {loading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
                   <div
                     key={i}
-                    className="rounded-2xl bg-[hsl(var(--card-neutral))] border border-border p-4 h-24 animate-pulse"
+                    className="rounded-2xl bg-[hsl(var(--card-neutral))] border border-border p-4 h-36 animate-pulse"
                   />
                 ))}
               </div>

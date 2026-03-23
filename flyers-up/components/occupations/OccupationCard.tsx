@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Star, Zap, DollarSign, Users } from 'lucide-react';
 import { getOccupationIcon } from '@/lib/occupationIcons';
+import type { TopPickBadge } from '@/lib/occupations/presentation';
 
 export interface OccupationCardProps {
   name: string;
@@ -11,12 +12,31 @@ export interface OccupationCardProps {
   featured?: boolean;
   countServices?: number;
   subtitle?: string;
-  /** e.g. "32 pros nearby" */
   prosNearby?: string;
-  /** e.g. "From $40" */
   fromPrice?: string;
-  /** e.g. "Fastest arrival: 45 min" */
   fastestArrival?: string;
+  /** UI-only: new design fields */
+  rating?: number;
+  jobsCount?: number;
+  availabilityMins?: number;
+  fromPriceNum?: number;
+  prosCount?: number;
+  badge?: TopPickBadge;
+}
+
+function BadgePill({ label, variant }: { label: TopPickBadge; variant: 'popular' | 'fast' | 'value' }) {
+  const styles = {
+    popular: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200',
+    fast: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200',
+    value: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200',
+  };
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${styles[variant]}`}
+    >
+      {label}
+    </span>
+  );
 }
 
 export function OccupationCard({
@@ -27,35 +47,76 @@ export function OccupationCard({
   prosNearby,
   fromPrice,
   fastestArrival,
+  rating,
+  jobsCount,
+  availabilityMins,
+  fromPriceNum,
+  prosCount,
+  badge,
 }: OccupationCardProps) {
   const IconComponent = getOccupationIcon(slug);
   const subtext = subtitle ?? (countServices != null ? `${countServices} pros` : 'Browse pros');
-  const hasStats = prosNearby ?? fromPrice ?? fastestArrival;
+  const displayPrice = fromPriceNum != null ? fromPriceNum : fromPrice;
+  const displayPros = prosNearby ?? (prosCount != null ? `${prosCount} pros nearby` : undefined);
+  const hasStats = displayPrice ?? displayPros ?? fastestArrival ?? rating ?? jobsCount ?? availabilityMins;
+
+  const badgeVariant = badge === 'Popular' ? 'popular' : badge === 'Fast' ? 'fast' : 'value';
 
   return (
     <Link
       href={`/occupations/${slug}`}
-      className="group card-hover btn-press flex items-center gap-3 rounded-2xl border border-border bg-[hsl(var(--card-neutral))] p-4 shadow-[var(--shadow-card)] transition-all duration-[200ms] hover:-translate-y-1 hover:border-[hsl(var(--accent-customer)/0.4)] hover:bg-[hsl(var(--accent-customer)/0.08)] active:border-[hsl(var(--accent-customer)/0.4)] active:bg-[hsl(var(--accent-customer)/0.1)]"
+      className="group relative block overflow-hidden rounded-2xl border border-border bg-[hsl(var(--card-neutral))] p-4 shadow-[var(--shadow-card)] transition-all duration-200 hover:scale-[1.02] hover:border-[hsl(var(--accent-customer)/0.5)] hover:shadow-[0_4px_20px_rgba(156,167,100,0.15)] active:scale-[0.99]"
     >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-surface2">
-        <IconComponent className="w-5 h-5 text-text3" strokeWidth={1.5} />
-      </div>
-      <div className="flex-1 min-w-0 pr-2">
-        <div className="font-medium text-text text-[15px] leading-snug line-clamp-2">
-          {name}
+      <div
+        className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[rgba(156,167,100,0.08)] blur-xl"
+        aria-hidden
+      />
+      <div className="relative flex items-start gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(156,167,100,0.18)]">
+          <IconComponent className="h-6 w-6 text-[hsl(var(--accent-customer))]" strokeWidth={1.75} />
         </div>
-        <div className="text-xs text-text3 mt-0.5">
-          {subtext}
-        </div>
-        {hasStats && (
-          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-text3">
-            {prosNearby && <span>{prosNearby}</span>}
-            {fromPrice && <span>{fromPrice}</span>}
-            {fastestArrival && <span>{fastestArrival}</span>}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-text text-[15px] leading-tight line-clamp-2">{name}</span>
+            {badge && <BadgePill label={badge} variant={badgeVariant} />}
           </div>
-        )}
+          {rating != null && jobsCount != null && (
+            <div className="mt-1.5 flex items-center gap-1 text-amber-600 dark:text-amber-500">
+              <Star className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
+              <span className="text-xs font-medium">{rating.toFixed(1)}</span>
+              <span className="text-[11px] text-muted">({jobsCount} jobs)</span>
+            </div>
+          )}
+          <div className="mt-2 space-y-1">
+            {availabilityMins != null && (
+              <div className="flex items-center gap-1.5 text-xs text-text2">
+                <Zap className="h-3.5 w-3.5 text-emerald-600" strokeWidth={2} />
+                <span>Available in {availabilityMins} min</span>
+              </div>
+            )}
+            {(fromPriceNum != null || fromPrice) && (
+              <div className="flex items-center gap-1.5 text-xs text-text2">
+                <DollarSign className="h-3.5 w-3.5 text-text2" strokeWidth={2} />
+                <span>{typeof displayPrice === 'number' ? `From $${displayPrice}` : displayPrice}</span>
+              </div>
+            )}
+            {(displayPros || prosCount != null) && (
+              <div className="flex items-center gap-1.5 text-xs text-text2">
+                <Users className="h-3.5 w-3.5 text-text2" strokeWidth={2} />
+                <span>{displayPros ?? `${prosCount} pros nearby`}</span>
+              </div>
+            )}
+          </div>
+          {hasStats && !rating && !availabilityMins && fromPriceNum == null && prosCount == null && (
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-text3">
+              {prosNearby && <span>{prosNearby}</span>}
+              {fromPrice && <span>{fromPrice}</span>}
+              {fastestArrival && <span>{fastestArrival}</span>}
+            </div>
+          )}
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-text3 transition-colors group-hover:text-[hsl(var(--accent-customer))]" />
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-text3 transition-colors group-hover:text-text2" />
     </Link>
   );
 }

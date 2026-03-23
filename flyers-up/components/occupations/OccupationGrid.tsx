@@ -1,6 +1,7 @@
 'use client';
 
 import { OccupationCard } from './OccupationCard';
+import { getOccupationPresentation, getTopPickBadge } from '@/lib/occupations/presentation';
 
 export type Occupation = {
   id: string;
@@ -13,41 +14,53 @@ export type Occupation = {
 
 interface OccupationGridProps {
   occupations: Occupation[];
-  variant: 'featured' | 'all';
+  variant: 'featured' | 'all' | 'topPicks';
+  /** When variant=topPicks, show badges */
+  showBadges?: boolean;
 }
 
-export function OccupationGrid({ occupations, variant }: OccupationGridProps) {
+export function OccupationGrid({
+  occupations,
+  variant,
+  showBadges = variant === 'topPicks',
+}: OccupationGridProps) {
   const items = variant === 'featured' ? occupations.slice(0, 5) : occupations;
 
   return (
     <div
       className={
-        variant === 'featured'
-          ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4'
-          : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'
+        variant === 'topPicks'
+          ? 'flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide'
+          : 'grid grid-cols-2 gap-4'
       }
     >
       {items.map((occ, i) => {
-        const stats = variant === 'featured' ? [
-          { prosNearby: '32 pros nearby', fromPrice: 'From $40', fastestArrival: '45 min' },
-          { prosNearby: '28 pros nearby', fromPrice: 'From $55', fastestArrival: '30 min' },
-          { prosNearby: '24 pros nearby', fromPrice: 'From $35', fastestArrival: '60 min' },
-          { prosNearby: '19 pros nearby', fromPrice: 'From $50', fastestArrival: '50 min' },
-          { prosNearby: '15 pros nearby', fromPrice: 'From $45', fastestArrival: '40 min' },
-        ][i % 5] : undefined;
+        const pres = getOccupationPresentation(occ.slug, i);
+        const badge = showBadges ? getTopPickBadge(i) : undefined;
         return (
-          <OccupationCard
+          <div
             key={occ.id}
-            name={occ.name}
-            slug={occ.slug}
-            icon={occ.icon}
-            featured={occ.featured}
-            countServices={occ.countServices}
-            subtitle={variant === 'featured' ? 'Browse pros near you' : undefined}
-            prosNearby={stats?.prosNearby}
-            fromPrice={stats?.fromPrice}
-            fastestArrival={stats ? `Fastest: ${stats.fastestArrival}` : undefined}
-          />
+            className={
+              variant === 'topPicks'
+                ? 'w-[min(280px,85vw)] shrink-0 snap-start'
+                : undefined
+            }
+          >
+            <OccupationCard
+              name={occ.name}
+              slug={occ.slug}
+              icon={occ.icon}
+              featured={occ.featured}
+              countServices={occ.countServices}
+              subtitle={variant === 'featured' ? 'Browse pros near you' : undefined}
+              rating={pres.rating}
+              jobsCount={pres.jobs}
+              availabilityMins={pres.availability}
+              fromPriceNum={pres.fromPrice}
+              prosCount={pres.pros}
+              badge={badge}
+            />
+          </div>
         );
       })}
     </div>

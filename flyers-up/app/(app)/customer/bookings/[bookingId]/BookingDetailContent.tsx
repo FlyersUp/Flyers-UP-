@@ -17,6 +17,8 @@ import { RescheduleModal } from '@/components/bookings/customer/RescheduleModal'
 import { CancelBookingModal } from '@/components/bookings/customer/CancelBookingModal';
 import { BookingRulesAccordion } from '@/components/booking/BookingRulesAccordion';
 import { ArrivalVerificationCard } from '@/components/marketplace/ArrivalVerificationCard';
+import { AddToCalendarButton } from '@/components/calendar/AddToCalendarButton';
+import { isCalendarCommittedStatus } from '@/lib/calendar/committed-states';
 import { InstantRebookCard } from '@/components/marketplace/InstantRebookCard';
 import { JobCompletedFlyer } from '@/components/marketplace/JobCompletedFlyer';
 
@@ -248,6 +250,21 @@ export function BookingDetailContent({
 
             {/* 2. Booking summary card */}
             <section className="mb-5">
+              {booking.serviceDate &&
+                booking.serviceTime &&
+                isCalendarCommittedStatus(booking.status) && (
+                  <div className="mb-3">
+                    <AddToCalendarButton
+                      bookingId={bookingId}
+                      booking={{
+                        serviceDate: booking.serviceDate,
+                        serviceTime: booking.serviceTime,
+                        serviceTitle: booking.serviceName || 'Service',
+                        address: fullBooking.address,
+                      }}
+                    />
+                  </div>
+                )}
               <TrackBookingSummaryCard
                 proName={booking.proName || 'Pro'}
                 proPhotoUrl={(fullBooking as { proPhotoUrl?: string | null }).proPhotoUrl}

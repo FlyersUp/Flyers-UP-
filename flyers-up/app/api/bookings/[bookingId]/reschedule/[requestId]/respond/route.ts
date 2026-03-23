@@ -3,6 +3,7 @@
  * Pro or Customer accepts/declines a reschedule request.
  */
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
@@ -96,6 +97,13 @@ export async function POST(
 
     if (bUpdErr) {
       console.error('Booking reschedule update failed', bUpdErr);
+    }
+    try {
+      revalidatePath('/pro/calendar');
+      revalidatePath('/customer/calendar');
+      revalidatePath('/pro/today');
+    } catch {
+      // ignore
     }
   }
 

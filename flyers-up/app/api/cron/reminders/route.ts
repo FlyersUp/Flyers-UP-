@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireCronSecret } from '@/lib/cron/auth';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 import { createNotification } from '@/lib/notify/create-notification';
+import { parseBookingStart } from '@/lib/calendar/time-utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -94,7 +95,7 @@ export async function GET(req: NextRequest) {
   for (const b of upcoming24h ?? []) {
     const svcDate = (b as { service_date?: string }).service_date;
     const svcTime = (b as { service_time?: string }).service_time;
-    const dt = svcDate && svcTime ? new Date(`${svcDate}T${svcTime}`) : null;
+    const dt = svcDate && svcTime ? parseBookingStart(svcDate, svcTime) : null;
     if (!dt || Number.isNaN(dt.getTime())) continue;
     const diffHours = (dt.getTime() - now.getTime()) / (60 * 60 * 1000);
     if (diffHours < 23 || diffHours > 25) continue;
@@ -141,7 +142,7 @@ export async function GET(req: NextRequest) {
   for (const b of upcoming1h ?? []) {
     const svcDate = (b as { service_date?: string }).service_date;
     const svcTime = (b as { service_time?: string }).service_time;
-    const dt = svcDate && svcTime ? new Date(`${svcDate}T${svcTime}`) : null;
+    const dt = svcDate && svcTime ? parseBookingStart(svcDate, svcTime) : null;
     if (!dt || Number.isNaN(dt.getTime())) continue;
     const diffMins = (dt.getTime() - now.getTime()) / (60 * 1000);
     if (diffMins < 55 || diffMins > 65) continue;
@@ -176,6 +177,48 @@ export async function GET(req: NextRequest) {
       });
     }
     sent++;
+  }
+
+  // 3b) 2h before, 30m before, starts now
+  const { data: upcoming2h } = await admin
+    .from('bookings')
+    .select('id, customer_id, service_date, service_time, service_pros(user_id)')
+    .in('status', ['accepted', 'pro_en_route', 'on_the_way', 'arrived', 'in_progress', 'deposit_paid'])
+    .gte('service_date', now.toISOString().slice(0, 10))
+    .lte('service_date', new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10));
+
+  for (const b of upcoming2h ?? []) {
+    const svcDate = (b as { service_date?: string }).service_date;
+    const svcTime = (b as { service_time?: string }).service_time;
+    const dt = svcDate && svcTime ? parseBookingStart(svcDate, svcTime) : null;
+    if (!dt || Number.isNaN(dt.getTime())) continue;
+    const diffMins = (dt.getTime() - now.getTime()) / (60 * 1000);
+
+    const customerId = (b as { customer_id?: string }).customer_id;
+    const proUserId = (b.service_pros as { user_id?: string })?.user_id;
+
+    if (diffMins >= 110 && diffMins <= 130) {
+      const { data: recent } = await admin.from('booking_events').select('id').eq('booking_id', b.id).eq('type', 'BOOKING_REMINDER_2H').limit(1);
+      if (recent?.length) continue;
+      await admin.from('booking_events').insert({ booking_id: b.id, type: 'BOOKING_REMINDER_2H', data: {} });
+      if (customerId) await createNotification({ userId: customerId, bookingId: b.id, type: 'booking_reminder', title: 'Booking in 2 hours', body: 'Your booking starts in 2 hours.' });
+      if (proUserId) await createNotification({ userId: proUserId, bookingId: b.id, type: 'booking_reminder', title: 'Job in 2 hours', body: 'Your job starts in 2 hours.' });
+      sent++;
+    } else if (diffMins >= 25 && diffMins <= 35) {
+      const { data: recent } = await admin.from('booking_events').select('id').eq('booking_id', b.id).eq('type', 'BOOKING_REMINDER_30M').limit(1);
+      if (recent?.length) continue;
+      await admin.from('booking_events').insert({ booking_id: b.id, type: 'BOOKING_REMINDER_30M', data: {} });
+      if (customerId) await createNotification({ userId: customerId, bookingId: b.id, type: 'booking_reminder', title: 'Booking in 30 minutes', body: 'Your booking starts in 30 minutes.' });
+      if (proUserId) await createNotification({ userId: proUserId, bookingId: b.id, type: 'booking_reminder', title: 'Job in 30 minutes', body: 'Your job starts in 30 minutes.' });
+      sent++;
+    } else if (diffMins >= -5 && diffMins <= 5) {
+      const { data: recent } = await admin.from('booking_events').select('id').eq('booking_id', b.id).eq('type', 'BOOKING_REMINDER_NOW').limit(1);
+      if (recent?.length) continue;
+      await admin.from('booking_events').insert({ booking_id: b.id, type: 'BOOKING_REMINDER_NOW', data: {} });
+      if (customerId) await createNotification({ userId: customerId, bookingId: b.id, type: 'booking_reminder', title: 'Booking starting now', body: 'Your booking is scheduled to start now.' });
+      if (proUserId) await createNotification({ userId: proUserId, bookingId: b.id, type: 'booking_reminder', title: 'Job starting now', body: 'Your job is scheduled to start now.' });
+      sent++;
+    }
   }
 
   // 4) Remaining: overdue (remaining_due_at < now)

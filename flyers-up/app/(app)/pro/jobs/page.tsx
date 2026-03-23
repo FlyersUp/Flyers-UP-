@@ -12,6 +12,7 @@ import { SideMenu } from '@/components/ui/SideMenu';
 import { getCurrentUser } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 type BoardService = {
   serviceSlug: string;
@@ -58,6 +59,19 @@ export default function ProJobsPage() {
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
 
+  const [incomingBookings, setIncomingBookings] = useState<
+    Array<{
+      id: string;
+      service_date: string;
+      service_time: string;
+      address: string;
+      status: string;
+      price: number | null;
+      customer?: { fullName: string | null; phone: string | null } | null;
+    }>
+  >([]);
+  const [incomingLoading, setIncomingLoading] = useState(false);
+
   useProPresence({ enabled: ready });
 
   useEffect(() => {
@@ -100,6 +114,31 @@ export default function ProJobsPage() {
     };
     void load();
   }, [ready]);
+
+  useEffect(() => {
+    if (!ready || tab !== 'incoming') return;
+    setIncomingLoading(true);
+    const statuses = [
+      'requested',
+      'deposit_paid',
+      'awaiting_deposit_payment',
+      'payment_required',
+      'accepted',
+      'pending_pro_acceptance',
+      'accepted_pending_payment',
+    ].join(',');
+    fetch(`/api/pro/bookings?limit=50&statuses=${encodeURIComponent(statuses)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((json: { ok?: boolean; bookings?: any[] }) => {
+        if (json.ok && Array.isArray(json.bookings)) {
+          setIncomingBookings(json.bookings);
+        } else {
+          setIncomingBookings([]);
+        }
+      })
+      .catch(() => setIncomingBookings([]))
+      .finally(() => setIncomingLoading(false));
+  }, [ready, tab]);
 
   async function handleClaim(requestId: string) {
     setClaimError(null);
@@ -185,14 +224,53 @@ export default function ProJobsPage() {
           )}
 
           {tab === 'incoming' && (
-            <DashboardCard>
-              <div className="p-6 text-center">
-                <p className="text-base font-medium text-gray-900 dark:text-white">No incoming requests</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Requests sent directly to you will appear here.
-                </p>
-              </div>
-            </DashboardCard>
+            <>
+              {incomingLoading ? (
+                <div className="space-y-4">
+                  <DashboardSectionSkeleton />
+                  <DashboardSectionSkeleton />
+                </div>
+              ) : incomingBookings.length > 0 ? (
+                <div className="space-y-2">
+                  {incomingBookings.map((b) => (
+                    <Link key={b.id} href={`/pro/jobs/${b.id}`}>
+                      <DashboardCard>
+                        <div className="p-4 flex items-center justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-gray-900 dark:text-white">
+                              {b.customer?.fullName || 'Customer'} • {b.service_date} {b.service_time}
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 truncate">
+                              {b.address}
+                            </div>
+                            <span className="inline-block mt-2 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200">
+                              {b.status.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            {b.price != null && b.price > 0 && (
+                              <div className="text-lg font-bold text-amber-600 dark:text-amber-400">
+                                ${Number(b.price).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                              </div>
+                            )}
+                            <span className="text-muted">→</span>
+                          </div>
+                        </div>
+                      </DashboardCard>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <DashboardCard>
+                  <div className="p-6 text-center">
+                    <p className="text-base font-medium text-gray-900 dark:text-white">No incoming requests</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      Requests sent directly to you will appear here.
+                    </p>
+                  </div>
+                </DashboardCard>
+              )}
+            </>
           )}
 
           {tab === 'open' && (

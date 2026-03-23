@@ -21,6 +21,7 @@ import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { isCancelled } from '@/lib/bookings/booking-status';
 import { applyDisputeHold } from '@/lib/payoutRisk';
+import { revalidatePath } from 'next/cache';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -228,6 +229,7 @@ export async function POST(req: NextRequest) {
             }
 
             if (paymentType === 'deposit') {
+              const oldStatus = booking.status;
               const updatePayload: Record<string, unknown> = {
                 payment_intent_id: paymentIntent.id,
                 stripe_payment_intent_deposit_id: paymentIntent.id,
@@ -249,6 +251,7 @@ export async function POST(req: NextRequest) {
                 bookingId,
                 basePath: 'customer',
               });
+              const notificationCreated = !!proUserId;
               if (proUserId) {
                 void createNotificationEvent({
                   userId: proUserId,
@@ -258,6 +261,24 @@ export async function POST(req: NextRequest) {
                   bodyOverride: 'Customer paid the deposit.',
                   basePath: 'pro',
                 });
+              }
+              console.log('[webhook:deposit_paid]', {
+                bookingId,
+                proId: proId ?? null,
+                oldStatus,
+                newStatus: 'deposit_paid',
+                paymentStatus: 'PAID',
+                notificationCreated,
+              });
+              try {
+                revalidatePath('/pro');
+                revalidatePath('/pro/today');
+                revalidatePath('/pro/jobs');
+                revalidatePath('/pro/calendar');
+                revalidatePath('/customer');
+                revalidatePath('/customer/calendar');
+              } catch (revErr) {
+                console.warn('[webhook:deposit_paid] revalidatePath failed', revErr);
               }
             } else if (paymentType === 'remaining' || paymentType === 'final') {
               const isAwaitingRemaining = booking.status === 'awaiting_remaining_payment';
