@@ -146,9 +146,9 @@ export default function FloatingBottomNav() {
   const profileHref = mode === 'pro' ? '/pro/settings' : '/customer/settings';
 
   const iconClass = 'shrink-0 text-current';
-  const labels = NAV_LABELS[mode];
 
   if (mode === 'pro') {
+    const labels = NAV_LABELS.pro;
     return (
       <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center">
         <div
@@ -193,6 +193,7 @@ export default function FloatingBottomNav() {
     );
   }
 
+  const labels = NAV_LABELS.customer;
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center">
       <div
