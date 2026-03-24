@@ -3440,23 +3440,4 @@ export async function getBookingAddons(bookingId: string): Promise<BookingAddonS
 // SETTINGS (continued)
 // ============================================
 
-/**
- * Deactivate account (placeholder - no hard deletion).
- */
-export async function deactivateAccount(userId: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    // PLACEHOLDER: In production, you might:
-    // - Set a deactivated_at timestamp
-    // - Soft delete by updating a status field
-    // - Send a confirmation email
-    // - Schedule actual deletion after a grace period
-    
-    // For now, just return success
-    console.log('Account deactivation requested for user:', userId);
-    return { success: true };
-  } catch (err) {
-    console.error('Unexpected error deactivating account:', err);
-    return { success: false, error: 'An unexpected error occurred' };
-  }
-}
 

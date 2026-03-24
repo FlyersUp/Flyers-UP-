@@ -208,7 +208,7 @@ export interface Database {
       bookings: {
         Row: {
           id: string;
-          customer_id: string;
+          customer_id: string | null;
           pro_id: string;
           service_date: string;
           service_time: string;
@@ -222,7 +222,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          customer_id: string;
+          customer_id?: string;
           pro_id: string;
           service_date: string;
           service_time: string;

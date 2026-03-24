@@ -2,23 +2,53 @@
 
 /**
  * Privacy & Security Settings Page
- * Allows users to manage password, 2FA, and account security
+ * Password, account deletion (customers), 2FA placeholder.
  */
 
-import { useState } from 'react';
-import { changePassword, deactivateAccount } from '@/lib/api';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { changePassword } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { TrustRow } from '@/components/ui/TrustRow';
+
+const DELETE_CONFIRM_PHRASE = 'DELETE MY ACCOUNT';
 
 export default function PrivacySecurityPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePhrase, setDeletePhrase] = useState('');
+  const [accountKind, setAccountKind] = useState<'loading' | 'customer' | 'pro' | 'admin'>('loading');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) {
+        if (!cancelled) setAccountKind('customer');
+        return;
+      }
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      if (cancelled) return;
+      if (profile?.role === 'admin') {
+        setAccountKind('admin');
+        return;
+      }
+      const { data: sp } = await supabase.from('service_pros').select('id').eq('user_id', user.id).maybeSingle();
+      if (cancelled) return;
+      setAccountKind(sp ? 'pro' : 'customer');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -48,35 +78,37 @@ export default function PrivacySecurityPage() {
       } else {
         setError(result.error || 'Failed to change password');
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleDeactivateAccount() {
+  async function handleDeleteAccount() {
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setError('Not authenticated');
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ confirmPhrase: deletePhrase.trim() }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; ok?: boolean };
+
+      if (!res.ok) {
+        setError(data.error || 'Could not delete account');
         setLoading(false);
         return;
       }
 
-      const result = await deactivateAccount(user.id);
-      if (result.success) {
-        setSuccess('Account deactivation request submitted. You will receive a confirmation email.');
-        setShowDeactivateConfirm(false);
-      } else {
-        setError(result.error || 'Failed to deactivate account');
-      }
-    } catch (err) {
+      await supabase.auth.signOut();
+      window.location.href = '/';
+    } catch {
       setError('An unexpected error occurred');
-    } finally {
       setLoading(false);
     }
   }
@@ -107,7 +139,7 @@ export default function PrivacySecurityPage() {
       <form onSubmit={handleChangePassword} className="space-y-4 border-b border-border pb-6">
         <div>
           <h2 className="text-lg font-semibold text-text mb-4">Change Password</h2>
-          
+
           <div className="space-y-4">
             <div>
               <label htmlFor="oldPassword" className="block text-sm font-medium text-muted mb-1">
@@ -201,51 +233,97 @@ export default function PrivacySecurityPage() {
         </div>
       </div>
 
-      {/* Deactivate Account */}
+      {/* Delete account */}
       <div>
         <h2 className="text-lg font-semibold text-danger mb-4">Danger Zone</h2>
-        <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg">
-          <p className="text-sm text-text mb-4">
-            Deactivating your account will disable your profile and prevent you from accessing the platform.
-            You can reactivate your account by signing in again within 30 days.
-          </p>
-          
-          {!showDeactivateConfirm ? (
-            <button
-              type="button"
-              onClick={() => setShowDeactivateConfirm(true)}
-              className="px-4 py-2 bg-red-600 text-accentContrast rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Deactivate Account
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-text">
-                Are you sure you want to deactivate your account?
-              </p>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={handleDeactivateAccount}
-                  disabled={loading}
-                  className="px-4 py-2 bg-red-600 text-accentContrast rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {loading ? 'Processing...' : 'Yes, Deactivate'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowDeactivateConfirm(false)}
-                  disabled={loading}
-                  className="px-4 py-2 bg-surface border border-border text-muted rounded-lg hover:bg-surface2 transition-colors"
-                >
-                  Cancel
-                </button>
+
+        {accountKind === 'loading' && (
+          <div className="p-4 bg-surface2 border border-border rounded-lg text-sm text-muted">Loading…</div>
+        )}
+
+        {accountKind === 'pro' && (
+          <div className="p-4 bg-surface2 border border-border rounded-lg text-sm text-text">
+            <p className="mb-2">
+              Service pro accounts can’t be deleted in the app (payments, Connect, and tax records). To close your
+              account, email{' '}
+              <a className="text-accent underline" href="mailto:support@flyersup.app">
+                support@flyersup.app
+              </a>
+              .
+            </p>
+          </div>
+        )}
+
+        {accountKind === 'admin' && (
+          <div className="p-4 bg-surface2 border border-border rounded-lg text-sm text-text">
+            Admin accounts can’t be deleted through this screen.
+          </div>
+        )}
+
+        {accountKind === 'customer' && (
+          <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg space-y-4">
+            <p className="text-sm text-text">
+              Permanently delete your account and sign-in access. Past jobs stay on file for payment and dispute
+              records, but your name, email, and address on those jobs are removed. This cannot be undone.
+            </p>
+            <p className="text-xs text-muted">
+              More on data use and retention:{' '}
+              <Link href="/privacy" className="text-accent underline">
+                Privacy Policy
+              </Link>
+              .
+            </p>
+
+            {!showDeleteConfirm ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteConfirm(true);
+                  setDeletePhrase('');
+                }}
+                className="px-4 py-2 bg-red-600 text-accentContrast rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Delete my account
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-text">
+                  Type <span className="font-mono bg-surface px-1 rounded">{DELETE_CONFIRM_PHRASE}</span> to confirm:
+                </p>
+                <input
+                  type="text"
+                  value={deletePhrase}
+                  onChange={(e) => setDeletePhrase(e.target.value)}
+                  autoComplete="off"
+                  className="w-full max-w-md px-3 py-2 border border-border rounded-lg bg-surface text-text"
+                  placeholder={DELETE_CONFIRM_PHRASE}
+                />
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={handleDeleteAccount}
+                    disabled={loading || deletePhrase.trim() !== DELETE_CONFIRM_PHRASE}
+                    className="px-4 py-2 bg-red-600 text-accentContrast rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {loading ? 'Deleting…' : 'Permanently delete account'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setDeletePhrase('');
+                    }}
+                    disabled={loading}
+                    className="px-4 py-2 bg-surface border border-border text-muted rounded-lg hover:bg-surface2 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
