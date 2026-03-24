@@ -17,6 +17,8 @@ import { RescheduleModal } from '@/components/bookings/customer/RescheduleModal'
 import { CancelBookingModal } from '@/components/bookings/customer/CancelBookingModal';
 import { BookingRulesAccordion } from '@/components/booking/BookingRulesAccordion';
 import { ArrivalVerificationCard } from '@/components/marketplace/ArrivalVerificationCard';
+import { CancelDueToProDelayBanner } from '@/components/bookings/customer/CancelDueToProDelayBanner';
+import { HintManager } from '@/components/guidance/HintManager';
 import { AddToCalendarButton } from '@/components/calendar/AddToCalendarButton';
 import { isCalendarCommittedStatus } from '@/lib/calendar/committed-states';
 import { InstantRebookCard } from '@/components/marketplace/InstantRebookCard';
@@ -68,6 +70,9 @@ export interface BookingDetailData {
     completionNote?: string | null;
     completedAt: string;
   } | null;
+  noShowEligibleAt?: string | null;
+  scheduledStartAt?: string | null;
+  gracePeriodMinutes?: number;
 }
 
 function toTrackBookingData(b: BookingDetailData): TrackBookingData {
@@ -248,6 +253,16 @@ export function BookingDetailContent({
               />
             </section>
 
+            {/* 1b. Cancel due to pro delay - when pro has not arrived within grace period */}
+            <section className="mb-5">
+              <CancelDueToProDelayBanner
+                bookingId={bookingId}
+                noShowEligibleAt={(fullBooking as { noShowEligibleAt?: string | null }).noShowEligibleAt ?? null}
+                arrivedAt={(fullBooking as { arrivedAt?: string | null }).arrivedAt ?? null}
+                status={booking.status}
+              />
+            </section>
+
             {/* 2. Booking summary card */}
             <section className="mb-5">
               {booking.serviceDate &&
@@ -303,6 +318,7 @@ export function BookingDetailContent({
 
             {/* 5. Payment summary */}
             <section className="mb-5">
+              <HintManager hintKey="completion_screen" active={showConfirmSlot}>
               <TrackBookingPaymentSummary
                 bookingId={bookingId}
                 status={booking.status}
@@ -331,6 +347,7 @@ export function BookingDetailContent({
                   ) : undefined
                 }
               />
+              </HintManager>
             </section>
 
             {/* 6. Trust / support */}

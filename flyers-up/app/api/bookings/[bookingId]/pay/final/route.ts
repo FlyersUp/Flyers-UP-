@@ -1,6 +1,9 @@
 /**
  * POST /api/bookings/[bookingId]/pay/final
  * Creates PaymentIntent for remaining balance after job completion.
+ *
+ * Platform holds funds (no transfer_data). Pro paid via release-payouts after
+ * verified arrival, start, completion, and customer/auto confirmation.
  */
 import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
@@ -195,6 +198,7 @@ export async function POST(
     }
   }
 
+  // Platform holds remaining — NO transfer_data. Pro paid via release-payouts.
   const paymentIntent = await stripe.paymentIntents.create({
     amount: amountRemaining,
     currency: (booking.currency as string) || 'usd',
@@ -205,9 +209,8 @@ export async function POST(
       customerId: booking.customer_id,
       proId: booking.pro_id,
       phase: 'final',
+      paymentType: 'remaining',
     },
-    application_fee_amount: remainingPlatformFee,
-    transfer_data: { destination: connectedAccountId },
   });
 
   const piStatus = paymentIntent.status;
@@ -221,6 +224,7 @@ export async function POST(
     .update({
       final_payment_intent_id: paymentIntent.id,
       stripe_payment_intent_remaining_id: paymentIntent.id,
+      stripe_destination_account_id: connectedAccountId,
       final_payment_status: newFinalStatus,
     })
     .eq('id', id);

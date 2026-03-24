@@ -43,6 +43,7 @@ export default function ProSettingsIndex() {
     {
       title: 'Help & Support',
       rows: [
+        { label: 'How Flyers Up Works', href: '/pro/settings/app-guide' },
         { label: 'Help center', href: '/pro/settings/help-support' },
         { label: 'Report an issue', href: '/pro/settings/help-support' },
         { label: 'Contact support', href: '/pro/settings/help-support' },

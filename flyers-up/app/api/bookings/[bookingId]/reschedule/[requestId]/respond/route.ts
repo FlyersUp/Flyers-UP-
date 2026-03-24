@@ -81,10 +81,20 @@ export async function POST(
 
   if (action === 'accepted') {
     const rescheduleCount = Number((booking as { reschedule_count?: number }).reschedule_count ?? 0) + 1;
+    const proposedStart = new Date(
+      `${reschedule.proposed_service_date}T${reschedule.proposed_service_time || '09:00'}`
+    );
     const updatePayload: Record<string, unknown> = {
       service_date: reschedule.proposed_service_date,
       service_time: reschedule.proposed_service_time,
       reschedule_count: rescheduleCount,
+      scheduled_start_at: proposedStart.toISOString(),
+      late_warning_sent_at: null,
+      severe_late_warning_sent_at: null,
+      no_show_eligible_at: null,
+      eta_minutes: null,
+      eta_note: null,
+      eta_updated_at: null,
     };
     if (!(booking as { original_service_date?: string | null }).original_service_date) {
       updatePayload.original_service_date = booking.service_date;

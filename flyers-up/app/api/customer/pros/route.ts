@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const zipcodes = require('zipcodes');
+
+const NO_SHOW_THRESHOLD_URGENT = 2; // repeated no-shows disable same-day/urgent
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -70,7 +72,47 @@ export async function GET(request: NextRequest) {
     return Response.json({ ok: false, pros: [], error: error.message }, { status: 500 });
   }
 
-  const pros = (rows ?? []).map((p: any) => ({
+  const rawPros = rows ?? [];
+  if (rawPros.length === 0) {
+    return Response.json({ ok: true, pros: [], categoryName: category.name });
+  }
+
+  const admin = createAdminSupabaseClient();
+  const proIds = rawPros.map((p: { id: string }) => p.id);
+  const { data: reliabilityRows } = await admin
+    .from('pro_reliability')
+    .select('pro_id, reliability_score, no_show_count_30d, booking_restriction_level')
+    .in('pro_id', proIds);
+  const relByPro = new Map(
+    (reliabilityRows ?? []).map((r: { pro_id: string; reliability_score?: number; no_show_count_30d?: number; booking_restriction_level?: number }) => [
+      r.pro_id,
+      {
+        score: r.reliability_score ?? 100,
+        noShowCount: r.no_show_count_30d ?? 0,
+        restricted: (r.booking_restriction_level ?? 0) > 0,
+      },
+    ])
+  );
+
+  let filtered = rawPros.filter((p: { id: string }) => {
+    const rel = relByPro.get(p.id);
+    if (rel?.restricted) return false; // threshold breach: block from search
+    if (availableToday && (rel?.noShowCount ?? 0) >= NO_SHOW_THRESHOLD_URGENT) return false; // repeated no-shows disable urgent
+    return true;
+  });
+
+  const prosWithRel = filtered.map((p: any) => {
+    const rel = relByPro.get(p.id);
+    const score = rel?.score ?? 100;
+    return {
+      ...p,
+      _reliabilityScore: score,
+      _rankScore: (Number(p.rating) ?? 0) * 0.65 + (score / 100) * 0.35,
+    };
+  });
+  prosWithRel.sort((a: { _rankScore: number }, b: { _rankScore: number }) => b._rankScore - a._rankScore);
+
+  const pros = prosWithRel.map((p: any) => ({
     id: p.id,
     userId: p.user_id,
     name: p.display_name ?? 'Pro',

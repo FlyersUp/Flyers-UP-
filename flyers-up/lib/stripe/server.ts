@@ -61,12 +61,16 @@ export async function createTransfer(params: {
 }): Promise<string | null> {
   try {
     const s = getStripe();
-    const t = await s.transfers.create({
-      amount: params.amount,
-      currency: params.currency,
-      destination: params.destinationAccountId,
-      metadata: { bookingId: params.bookingId },
-    });
+    const idempotencyKey = `payout-booking-${params.bookingId}`;
+    const t = await s.transfers.create(
+      {
+        amount: params.amount,
+        currency: params.currency,
+        destination: params.destinationAccountId,
+        metadata: { bookingId: params.bookingId },
+      },
+      { idempotencyKey }
+    );
     return t.id;
   } catch (err) {
     console.error('[stripe] createTransfer failed', params.bookingId, err);

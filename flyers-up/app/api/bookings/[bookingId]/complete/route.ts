@@ -1,6 +1,7 @@
 /**
  * POST /api/bookings/[bookingId]/complete
  * Pro submits job completion with 2 after photos (required before payment release).
+ * Sets suspicious_completion when start->complete duration is below category minimum.
  */
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
@@ -8,6 +9,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
+import { getMinimumDurationMinutes } from '@/lib/bookings/category-rules';
 
 const MIN_AFTER_PHOTOS = 2;
 
@@ -51,12 +53,24 @@ export async function POST(
   const admin = createAdminSupabaseClient();
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, pro_id, customer_id, status')
+    .select('id, pro_id, customer_id, status, started_at, status_history')
     .eq('id', id)
     .eq('pro_id', proRow.id)
     .maybeSingle();
 
   if (bErr || !booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+
+  let categorySlug: string | null = null;
+  const { data: proRow2 } = await admin
+    .from('service_pros')
+    .select('category_id')
+    .eq('id', booking.pro_id)
+    .maybeSingle();
+  const catId = (proRow2 as { category_id?: string } | null)?.category_id;
+  if (catId) {
+    const { data: cat } = await admin.from('service_categories').select('slug').eq('id', catId).maybeSingle();
+    categorySlug = (cat as { slug?: string } | null)?.slug ?? null;
+  }
 
   if (String(booking.status) !== 'in_progress') {
     return NextResponse.json(
@@ -91,23 +105,42 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to record completion' }, { status: 500 });
   }
 
-  const now = new Date().toISOString();
-  const in24h = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
   const history = (booking as { status_history?: { status: string; at: string }[] }).status_history ?? [];
-  const newHistory = [...history, { status: 'awaiting_remaining_payment', at: now }];
+  const newHistory = [...history, { status: 'awaiting_remaining_payment', at: nowIso }];
+
+  const startedAt = (booking as { started_at?: string | null }).started_at;
+  const minDuration = getMinimumDurationMinutes(categorySlug);
+  let suspiciousCompletion = false;
+  let suspiciousCompletionReason: string | null = null;
+  if (startedAt) {
+    const startTs = new Date(startedAt).getTime();
+    const durationMinutes = (now.getTime() - startTs) / (60 * 1000);
+    if (durationMinutes < minDuration) {
+      suspiciousCompletion = true;
+      suspiciousCompletionReason = 'too_fast';
+    }
+  }
+  const updatePayload: Record<string, unknown> = {
+    status: 'awaiting_remaining_payment',
+    completed_at: nowIso,
+    completed_by_pro_at: nowIso,
+    remaining_due_at: in24h,
+    auto_confirm_at: in24h,
+    status_history: newHistory,
+    status_updated_at: nowIso,
+    status_updated_by: user.id,
+    completion_submitted_at: nowIso,
+    suspicious_completion: suspiciousCompletion,
+    suspicious_completion_reason: suspiciousCompletionReason,
+    minimum_expected_duration_minutes: minDuration,
+  };
 
   const { data: statusUpdated } = await admin
     .from('bookings')
-    .update({
-      status: 'awaiting_remaining_payment',
-      completed_at: now,
-      completed_by_pro_at: now,
-      remaining_due_at: in24h,
-      auto_confirm_at: in24h,
-      status_history: newHistory,
-      status_updated_at: now,
-      status_updated_by: user.id,
-    })
+    .update(updatePayload)
     .eq('id', id)
     .eq('pro_id', proRow.id)
     .eq('status', 'in_progress')
@@ -143,6 +176,22 @@ export async function POST(
     });
   } catch {
     // ignore
+  }
+
+  if (suspiciousCompletion) {
+    try {
+      await admin.from('payout_review_queue').upsert(
+        {
+          booking_id: id,
+          reason: 'suspicious_completion',
+          details: { reason: suspiciousCompletionReason, minDuration },
+          status: 'pending',
+        },
+        { onConflict: 'booking_id' }
+      );
+    } catch {
+      // ignore; table may not exist yet
+    }
   }
 
   return NextResponse.json({

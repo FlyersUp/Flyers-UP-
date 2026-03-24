@@ -3,10 +3,14 @@
  * Transfers net amount to pro for completed bookings.
  * net_to_pro = max(0, total_amount_cents - platform_fee_cents - refunded_total_cents)
  *
- * Eligibility:
- * - status = 'completed'
- * - job_completions has >= 2 after photos
+ * HARD GUARDS - payout NEVER allowed before:
+ * - arrived_at IS NOT NULL (pro checked in)
+ * - started_at IS NOT NULL (job started)
+ * - completed_at IS NOT NULL (job completed)
  * - customer_confirmed = true OR auto_confirm_at < now()
+ * - dispute_open = false
+ * - cancellation_reason != 'pro_no_show'
+ * - job_completions has >= 2 after photos
  * - payout_released = false
  */
 
@@ -18,6 +22,7 @@ import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { createTransfer } from '@/lib/stripe/server';
 import { computeNetToPro } from '@/lib/bookings/money';
 import { evaluatePayoutRiskForPro } from '@/lib/payoutRisk';
+import { isPayoutEligible } from '@/lib/bookings/state-machine';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,24 +34,38 @@ export async function GET(req: NextRequest) {
   const admin = createSupabaseAdmin();
   const now = new Date().toISOString();
 
-  // Completed: paid_deposit + paid_remaining; payout_released = false; refund not pending
-  const { data: eligible, error } = await admin
+  const { data: candidates, error } = await admin
     .from('bookings')
     .select(
-      'id, pro_id, total_amount_cents, amount_total, platform_fee_cents, refunded_total_cents, currency, paid_deposit_at, paid_remaining_at, stripe_destination_account_id, customer_confirmed, auto_confirm_at, service_pros(stripe_account_id, user_id)'
+      'id, pro_id, status, total_amount_cents, amount_total, platform_fee_cents, refunded_total_cents, currency, paid_deposit_at, paid_remaining_at, stripe_destination_account_id, customer_confirmed, auto_confirm_at, arrived_at, started_at, completed_at, dispute_open, cancellation_reason, refund_status, suspicious_completion, service_pros(stripe_account_id, user_id)'
     )
-    .eq('status', 'completed')
+    .in('status', ['completed', 'customer_confirmed', 'auto_confirmed'])
     .eq('payout_released', false)
     .not('refund_status', 'eq', 'pending')
     .not('paid_deposit_at', 'is', null)
     .not('paid_remaining_at', 'is', null);
 
-  const toProcess: typeof eligible = [];
-  for (const b of eligible ?? []) {
+  const toProcess: typeof candidates = [];
+  for (const b of candidates ?? []) {
+    const eligibility = isPayoutEligible({
+      status: b.status,
+      arrived_at: (b as { arrived_at?: string | null }).arrived_at ?? null,
+      started_at: (b as { started_at?: string | null }).started_at ?? null,
+      completed_at: (b as { completed_at?: string | null }).completed_at ?? null,
+      customer_confirmed: (b as { customer_confirmed?: boolean }).customer_confirmed === true,
+      auto_confirm_at: (b as { auto_confirm_at?: string | null }).auto_confirm_at ?? null,
+      dispute_open: (b as { dispute_open?: boolean }).dispute_open === true,
+      cancellation_reason: (b as { cancellation_reason?: string | null }).cancellation_reason ?? null,
+      paid_deposit_at: b.paid_deposit_at ?? null,
+      paid_remaining_at: b.paid_remaining_at ?? null,
+      refund_status: (b as { refund_status?: string | null }).refund_status ?? null,
+      suspicious_completion: (b as { suspicious_completion?: boolean }).suspicious_completion === true,
+    });
+    if (!eligibility.eligible) continue;
+
     const customerConfirmed = (b as { customer_confirmed?: boolean }).customer_confirmed === true;
     const autoConfirmAt = (b as { auto_confirm_at?: string | null }).auto_confirm_at;
     const autoConfirmPassed = autoConfirmAt != null && autoConfirmAt < now;
-
     if (!customerConfirmed && !autoConfirmPassed) continue;
 
     const { data: jc } = await admin
@@ -98,8 +117,34 @@ export async function GET(req: NextRequest) {
     if (netToPro <= 0) continue;
 
     const currency = (b.currency ?? 'usd').toLowerCase();
+    const idempotencyKey = `payout-${b.id}-${now}`;
 
-    // Set pending (idempotent) - only if not already released
+    let skipPayoutTable = false;
+    try {
+      const { data: payoutRow } = await admin
+        .from('booking_payouts')
+        .select('id, stripe_transfer_id, status')
+        .eq('booking_id', b.id)
+        .maybeSingle();
+
+      if (payoutRow?.stripe_transfer_id) continue;
+      if (payoutRow?.status === 'released') continue;
+
+      await admin.from('booking_payouts').upsert(
+        {
+          booking_id: b.id,
+          amount_cents: netToPro,
+          currency,
+          status: 'queued',
+          idempotency_key: idempotencyKey,
+          updated_at: now,
+        },
+        { onConflict: 'booking_id' }
+      );
+    } catch {
+      skipPayoutTable = true;
+    }
+
     const { error: updErr } = await admin
       .from('bookings')
       .update({ payout_status: 'pending' })
@@ -126,6 +171,21 @@ export async function GET(req: NextRequest) {
           transferred_total_cents: netToPro,
         })
         .eq('id', b.id);
+
+      if (!skipPayoutTable) {
+        try {
+          await admin
+            .from('booking_payouts')
+            .update({
+              stripe_transfer_id: transferId,
+              status: 'released',
+              updated_at: now,
+            })
+            .eq('booking_id', b.id);
+        } catch {
+          // ignore
+        }
+      }
 
       await admin.from('booking_events').insert({
         booking_id: b.id,
@@ -168,5 +228,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ released, failed, total: eligible?.length ?? 0 });
+  return NextResponse.json({ released, failed, total: candidates?.length ?? 0 });
 }

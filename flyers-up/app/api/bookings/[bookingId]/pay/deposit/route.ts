@@ -1,6 +1,10 @@
 /**
  * POST /api/bookings/[bookingId]/pay/deposit
  * Creates PaymentIntent for deposit. Customer must pay within payment_due_at (30 min).
+ *
+ * CRITICAL: Deposit is charged to platform (no transfer_data). Pro does NOT receive
+ * funds until verified arrival, start, completion, and customer/auto confirmation.
+ * Funds are held by platform until release-payouts cron runs after eligibility.
  */
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
@@ -314,6 +318,8 @@ export async function POST(
     (quote.amountPlatformFee * amountDeposit) / quote.amountTotal
   );
 
+  // Platform holds deposit — NO transfer_data. Pro receives payout only after
+  // verified arrival, start, completion, and confirmation (release-payouts cron).
   const paymentIntent = await stripe.paymentIntents.create({
     amount: amountDeposit,
     currency: quote.currency,
@@ -324,9 +330,9 @@ export async function POST(
       customerId: booking.customer_id,
       proId: booking.pro_id,
       phase: 'deposit',
+      paymentType: 'deposit',
     },
-    application_fee_amount: depositPlatformFee,
-    transfer_data: { destination: connectedAccountId },
+    // No transfer_data: funds go to platform. Pro paid later via release-payouts.
   });
 
   const piStatus = paymentIntent.status;
@@ -340,6 +346,7 @@ export async function POST(
     .update({
       payment_intent_id: paymentIntent.id,
       stripe_payment_intent_deposit_id: paymentIntent.id,
+      stripe_destination_account_id: connectedAccountId,
       payment_status: newPaymentStatus,
       status: 'payment_required',
       amount_subtotal: quote.amountSubtotal,

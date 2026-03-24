@@ -56,7 +56,7 @@ export async function GET(
       'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at, accepted_at, on_the_way_at, started_at, completed_at, cancelled_at, status_history';
     // Extended columns (migrations 031+) - may not exist if migrations not applied
     const EXTENDED_COLUMNS =
-      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_deposit, amount_remaining, amount_total, en_route_at, arrived_at, job_request_id, scope_confirmed_at, job_details_snapshot, photos_snapshot';
+      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_deposit, amount_remaining, amount_total, en_route_at, arrived_at, job_request_id, scope_confirmed_at, job_details_snapshot, photos_snapshot, no_show_eligible_at, scheduled_start_at, grace_period_minutes';
 
     let proIdForQuery: string | null = null;
     if (role === 'pro') {
@@ -235,6 +235,9 @@ export async function GET(
           scope_confirmed_at: booking.scope_confirmed_at ?? null,
           job_details_snapshot: booking.job_details_snapshot ?? null,
           photos_snapshot: booking.photos_snapshot ?? null,
+          noShowEligibleAt: (booking as { no_show_eligible_at?: string | null }).no_show_eligible_at ?? null,
+          scheduledStartAt: (booking as { scheduled_start_at?: string | null }).scheduled_start_at ?? null,
+          gracePeriodMinutes: (booking as { grace_period_minutes?: number | null }).grace_period_minutes ?? 60,
           arrival: arrival
             ? {
                 arrivalTimestamp: arrival.arrival_timestamp,

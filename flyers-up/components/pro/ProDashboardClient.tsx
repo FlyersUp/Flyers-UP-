@@ -8,6 +8,7 @@ import { AppIcon } from '@/components/ui/AppIcon';
 import Link from 'next/link';
 import { SideMenu } from '@/components/ui/SideMenu';
 import { AtAGlanceCard } from '@/components/ui/AtAGlanceCard';
+import { ReliabilityCard } from '@/components/pro/ReliabilityCard';
 import { getProJobs, type Booking } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -142,6 +143,8 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
         <div className="mb-6">
           <AtAGlanceCard jobs={todayJobs} rating={proRating} actionNeededCount={actionNeededCount} />
         </div>
+
+        <ReliabilityCard />
 
         {completedCount > 0 ? (
           <Card className="mb-6 border-l-[var(--border-accent)] border-l-accent">

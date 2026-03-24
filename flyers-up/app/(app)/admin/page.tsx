@@ -21,6 +21,7 @@ import {
   FileText,
   Store,
   ImageIcon,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -213,6 +214,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           title: 'Dispute Evidence',
           description: 'Booking evidence, timeline, policy decisions, admin actions.',
           icon: <FileText className="h-4 w-4" />,
+        },
+        {
+          href: '/admin/payout-review',
+          title: 'Payout Review Queue',
+          description: 'Suspicious completions, missing evidence, approve/deny/escalate.',
+          icon: <ShieldCheck className="h-4 w-4" />,
         },
       ],
     },

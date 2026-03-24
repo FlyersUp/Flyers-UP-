@@ -236,6 +236,7 @@ export async function POST(req: NextRequest) {
                 payment_status: 'PAID',
                 paid_at: now,
                 paid_deposit_at: now,
+                awaiting_pro_arrival_at: now,
                 status: 'deposit_paid',
                 status_history: [...history, { status: 'deposit_paid', at: now }],
               };
@@ -257,8 +258,8 @@ export async function POST(req: NextRequest) {
                   userId: proUserId,
                   type: NOTIFICATION_TYPES.PAYMENT_DEPOSIT_PAID,
                   bookingId,
-                  titleOverride: 'Deposit received',
-                  bodyOverride: 'Customer paid the deposit.',
+                  titleOverride: 'Deposit secured',
+                  bodyOverride: 'Customer paid the deposit. You will be paid after verified arrival, start, and completion.',
                   basePath: 'pro',
                 });
               }

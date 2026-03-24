@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { useEffect, useState } from 'react';
 import { ConversationCard, type ConversationCardItem } from '@/components/messages/ConversationCard';
+import { HintManager } from '@/components/guidance/HintManager';
 import { EmptyState } from '@/components/messages/EmptyState';
 
 type ThreadRow = ConversationCardItem;
@@ -182,6 +183,7 @@ export default function CustomerMessagesPage() {
         title="Messages"
         subtitle="Your conversations with pros will show up here."
       >
+        <HintManager hintKey="messages_first_visit" position="top">
         <div className="max-w-4xl mx-auto px-4 pt-2 bg-transparent">
           {loading ? (
             <p className="text-sm text-[#6B7280] dark:text-[#A1A8B3]">Loading…</p>
@@ -206,6 +208,7 @@ export default function CustomerMessagesPage() {
             </div>
           )}
         </div>
+        </HintManager>
       </CustomerPageShell>
     </AppLayout>
   );

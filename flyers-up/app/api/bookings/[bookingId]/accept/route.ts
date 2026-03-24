@@ -10,6 +10,7 @@ import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { notifyNearbyCustomers } from '@/lib/nearbyProAlert';
+import { checkProBookingEligibility } from '@/lib/bookings/pro-booking-eligibility';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -63,6 +64,14 @@ export async function POST(
     return NextResponse.json(
       { error: `Cannot accept booking with status: ${booking.status}` },
       { status: 409 }
+    );
+  }
+
+  const eligibility = await checkProBookingEligibility(proId);
+  if (!eligibility.canAccept) {
+    return NextResponse.json(
+      { error: eligibility.reason ?? 'Cannot accept bookings at this time.' },
+      { status: 403 }
     );
   }
 

@@ -10,7 +10,8 @@
     "generate-icons": "node scripts/generate-app-icons.js",
     "generate-maskable": "node scripts/generate-maskable-icon.js",
     "test": "npx tsx --test 'lib/**/__tests__/*.test.ts' 'lib/calendar/__tests__/*.test.ts'",
-    "test:statuses": "npx tsx --test lib/bookings/__tests__/pro-visible-statuses.test.ts"
+    "test:statuses": "npx tsx --test lib/bookings/__tests__/pro-visible-statuses.test.ts",
+    "test:integration": "INTEGRATION_TEST=1 npx tsx --test lib/bookings/__tests__/integration.test.ts"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^5.6.0",

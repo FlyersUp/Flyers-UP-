@@ -44,6 +44,7 @@ export default function CustomerSettings() {
     {
       title: 'Help & Support',
       rows: [
+        { label: 'How Flyers Up Works', href: '/customer/settings/app-guide' },
         { label: 'Help center', href: '/customer/settings/help-support' },
         { label: 'Report an issue', href: '/customer/settings/help-support' },
         { label: 'Contact support', href: '/customer/settings/help-support' },
