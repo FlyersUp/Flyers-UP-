@@ -14,11 +14,10 @@ export type OnboardingStep = {
 };
 
 export function getOnboardingSteps(role: 'customer' | 'pro' | null): OnboardingStep[] {
-  const labels = role === 'pro' ? NAV_LABELS.pro : NAV_LABELS.customer;
   const navList =
     role === 'pro'
-      ? `${labels.home}, ${labels.jobs}, and ${labels.messages}`
-      : `${labels.home}, ${labels.explore}, and ${labels.messages}`;
+      ? `${NAV_LABELS.pro.home}, ${NAV_LABELS.pro.jobs}, and ${NAV_LABELS.pro.messages}`
+      : `${NAV_LABELS.customer.home}, ${NAV_LABELS.customer.explore}, and ${NAV_LABELS.customer.messages}`;
 
   const step2 =
     role === 'pro'
