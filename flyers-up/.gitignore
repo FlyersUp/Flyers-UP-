@@ -50,3 +50,6 @@ next-env.d.ts
 
 # supabase local artifacts
 supabase/.temp/
+
+# App icon master (large binary; regenerate with scripts/regenerate-icons-from-canon-png.mjs)
+/public/icons/canon-icon-source.png
