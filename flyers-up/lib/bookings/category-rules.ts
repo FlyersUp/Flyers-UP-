@@ -37,29 +37,35 @@ const PHYSICAL_SLUGS = [
 /** Virtual/consulting: tutor, consultant - no location check */
 const VIRTUAL_SLUGS = ['tutor', 'consultant', 'it-technician'];
 
+type RuleEntry = [string, Partial<CategoryRule>];
+
 const CATEGORY_RULES = new Map<string, Partial<CategoryRule>>([
-  ...PHYSICAL_SLUGS.map((s) => [
-    s,
-    {
-      evidenceRequirementLevel: 'physical' as const,
-      minimumDurationMinutes: 60,
-      requiresBeforeAfterPhotos: true,
-      requiresArrivalVerification: true,
-    },
-  ]),
-  ...VIRTUAL_SLUGS.map((s) => [
-    s,
-    {
-      evidenceRequirementLevel: 'virtual' as const,
-      minimumDurationMinutes: 15,
-      requiresBeforeAfterPhotos: false,
-      requiresArrivalVerification: false,
-    },
-  ]),
-  ['barber', { minimumDurationMinutes: 30, requiresArrivalVerification: true }],
-  ['personal-trainer', { minimumDurationMinutes: 45, requiresArrivalVerification: true }],
-  ['photographer', { minimumDurationMinutes: 60, requiresBeforeAfterPhotos: true }],
-  ['dog-walker', { minimumDurationMinutes: 20, requiresArrivalVerification: true }],
+  ...PHYSICAL_SLUGS.map(
+    (s): RuleEntry => [
+      s,
+      {
+        evidenceRequirementLevel: 'physical' as const,
+        minimumDurationMinutes: 60,
+        requiresBeforeAfterPhotos: true,
+        requiresArrivalVerification: true,
+      },
+    ]
+  ),
+  ...VIRTUAL_SLUGS.map(
+    (s): RuleEntry => [
+      s,
+      {
+        evidenceRequirementLevel: 'virtual' as const,
+        minimumDurationMinutes: 15,
+        requiresBeforeAfterPhotos: false,
+        requiresArrivalVerification: false,
+      },
+    ]
+  ),
+  ['barber', { minimumDurationMinutes: 30, requiresArrivalVerification: true }] as RuleEntry,
+  ['personal-trainer', { minimumDurationMinutes: 45, requiresArrivalVerification: true }] as RuleEntry,
+  ['photographer', { minimumDurationMinutes: 60, requiresBeforeAfterPhotos: true }] as RuleEntry,
+  ['dog-walker', { minimumDurationMinutes: 20, requiresArrivalVerification: true }] as RuleEntry,
 ]);
 
 export function getCategoryRule(categorySlug: string | null | undefined): CategoryRule {

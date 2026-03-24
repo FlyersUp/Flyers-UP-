@@ -1,8 +1,9 @@
 'use client';
 
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState, useRef } from 'react';
 import { getCurrentUser } from '@/lib/api';
 import { useGuidancePreferences } from '@/hooks/useGuidancePreferences';
+import { useGuidanceContext } from '@/contexts/GuidanceContext';
 import { ContextualHint } from './ContextualHint';
 import type { HintKey } from '@/lib/guidance/hints';
 
@@ -16,7 +17,7 @@ interface HintManagerProps {
 
 /**
  * Wraps content and shows a contextual hint once when the hint hasn't been dismissed.
- * Self-contained: fetches user and preferences internally.
+ * Suppressed when onboarding is open. Only one hint can show at a time (session-wide).
  */
 export function HintManager({
   hintKey,
@@ -25,6 +26,7 @@ export function HintManager({
   active = true,
 }: HintManagerProps) {
   const [userId, setUserId] = useState<string | null>(null);
+  const guidance = useGuidanceContext();
 
   useEffect(() => {
     let mounted = true;
@@ -40,11 +42,26 @@ export function HintManager({
 
   const { prefs, dismissHintKey } = useGuidancePreferences(userId);
   const dismissedKeys = prefs?.dismissedHintKeys ?? [];
-  const visible = active && Boolean(userId && !dismissedKeys.includes(hintKey));
+  const canShow = active && Boolean(userId && !dismissedKeys.includes(hintKey));
+  const onboardingOpen = guidance?.onboardingOpen ?? false;
+  const hasSlot = !guidance
+    ? canShow
+    : canShow && !onboardingOpen && guidance.requestHintSlot(hintKey);
+
+  const guidanceRef = useRef(guidance);
+  guidanceRef.current = guidance;
+  useEffect(() => {
+    return () => {
+      guidanceRef.current?.releaseHintSlot();
+    };
+  }, []);
 
   async function handleDismiss() {
     if (userId) await dismissHintKey(hintKey);
+    guidance?.releaseHintSlot();
   }
+
+  const visible = hasSlot;
 
   return (
     <div className="relative">

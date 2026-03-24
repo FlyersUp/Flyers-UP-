@@ -28,14 +28,14 @@ const CUSTOMER_SECTIONS: AppGuideSection[] = [
   },
   {
     id: 'booking',
-    title: 'How booking works',
+    title: 'Booking flow',
     icon: <Briefcase size={18} />,
     content:
       'Browse pros, request a booking, pay a deposit once accepted, and pay the rest after the job is done. You can message the pro, reschedule, or cancel within policy.',
   },
   {
-    id: 'payments',
-    title: 'Payments',
+    id: 'deposits',
+    title: 'Deposits and remaining payment',
     icon: <CreditCard size={18} />,
     content:
       'Deposit secures the booking. The remaining balance is charged after the pro marks the job complete. You can add payment methods in Settings → Payments.',
@@ -56,7 +56,7 @@ const CUSTOMER_SECTIONS: AppGuideSection[] = [
   },
   {
     id: 'for-customers',
-    title: 'For customers',
+    title: 'Customer help',
     icon: <User size={18} />,
     content:
       'Save pros to favorites, manage addresses, and update your profile in Settings. Leave reviews after jobs to help the community.',
@@ -73,14 +73,14 @@ const PRO_SECTIONS: AppGuideSection[] = [
   },
   {
     id: 'booking',
-    title: 'How jobs work',
+    title: 'Booking flow',
     icon: <Briefcase size={18} />,
     content:
       'Accept job requests, manage your schedule, update status (on the way, arrived, in progress), and mark complete. You get paid after the customer confirms.',
   },
   {
-    id: 'payments',
-    title: 'Payments',
+    id: 'deposits',
+    title: 'Deposits and remaining payment',
     icon: <CreditCard size={18} />,
     content:
       'Set up payout in Settings. Deposits and remaining payments are released per policy. Earnings appear in your dashboard.',
@@ -101,7 +101,7 @@ const PRO_SECTIONS: AppGuideSection[] = [
   },
   {
     id: 'for-pros',
-    title: 'For pros',
+    title: 'Pro help',
     icon: <Briefcase size={18} />,
     content:
       'Update your availability, service area, and pricing in Settings. Build your reputation with completed jobs and reviews.',
@@ -133,7 +133,7 @@ export function AppGuideAccordion({
             onClick={onReplayGuide}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-accent text-accentContrast hover:brightness-95 transition-colors"
           >
-            Replay App Guide
+            Replay guide
           </button>
         )}
         {onResetHints && (
@@ -143,7 +143,7 @@ export function AppGuideAccordion({
             disabled={resetHintsLoading}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border border-border bg-surface hover:bg-hover transition-colors disabled:opacity-60"
           >
-            {resetHintsLoading ? 'Resetting…' : 'Show navigation tips again'}
+            {resetHintsLoading ? 'Resetting…' : 'Reset tips'}
           </button>
         )}
       </div>

@@ -6,9 +6,11 @@
  * No shared dock. Each button floats independently with smooth transitions.
  * Pro: Home, Jobs, Messages, Profile (4 items)
  * Customer: Home, Explore, Messages, Profile (4 items)
+ * Labels from lib/guidance/nav-labels.ts — single source of truth.
  */
 
 import Link from 'next/link';
+import { NAV_LABELS } from '@/lib/guidance/nav-labels';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, ReactNode } from 'react';
 import {
@@ -144,9 +146,9 @@ export default function FloatingBottomNav() {
   const profileHref = mode === 'pro' ? '/pro/settings' : '/customer/settings';
 
   const iconClass = 'shrink-0 text-current';
+  const labels = NAV_LABELS[mode];
 
   if (mode === 'pro') {
-    /* Pro: 4 items - Home, Jobs, Messages, Profile. Active item morphs to pill. */
     return (
       <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center">
         <div
@@ -157,33 +159,33 @@ export default function FloatingBottomNav() {
             href={homeHref}
             isActive={isActive(homeHref, true)}
             icon={<Home size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-            label="Home"
-            ariaLabel="Home"
+            label={labels.home}
+            ariaLabel={labels.home}
             mode={mode}
           />
           <MorphingNavItem
             href={jobsHref}
             isActive={isActive(jobsHref)}
             icon={<Briefcase size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-            label="Jobs"
-            ariaLabel="Jobs"
+            label={labels.jobs}
+            ariaLabel={labels.jobs}
             mode={mode}
           />
           <MorphingNavItem
             href={messagesHref}
             isActive={isActive(messagesHref)}
             icon={<MessageCircle size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-            label="Messages"
+            label={labels.messages}
             badge={<NavAlertDot show={hasNewMessages} />}
-            ariaLabel="Messages"
+            ariaLabel={labels.messages}
             mode={mode}
           />
           <MorphingNavItem
             href={profileHref}
             isActive={isActive(profileHref)}
             icon={<User size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-            label="Profile"
-            ariaLabel="Profile"
+            label={labels.profile}
+            ariaLabel={labels.profile}
             mode={mode}
           />
         </div>
@@ -191,7 +193,6 @@ export default function FloatingBottomNav() {
     );
   }
 
-  /* Customer: 4 items - Home, Explore, Messages, Profile. Same morphing pattern as Pro. */
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center">
       <div
@@ -202,33 +203,33 @@ export default function FloatingBottomNav() {
           href={homeHref}
           isActive={isActive(homeHref, true)}
           icon={<Home size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-          label="Home"
-          ariaLabel="Home"
+          label={labels.home}
+          ariaLabel={labels.home}
           mode={mode}
         />
         <MorphingNavItem
           href={exploreHref}
           isActive={isActive(exploreHref)}
           icon={<Compass size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-          label="Explore"
-          ariaLabel="Explore"
+          label={labels.explore}
+          ariaLabel={labels.explore}
           mode={mode}
         />
         <MorphingNavItem
           href={messagesHref}
           isActive={isActive(messagesHref)}
           icon={<MessageCircle size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-          label="Messages"
+          label={labels.messages}
           badge={<NavAlertDot show={hasNewMessages} />}
-          ariaLabel="Messages"
+          ariaLabel={labels.messages}
           mode={mode}
         />
         <MorphingNavItem
           href={profileHref}
           isActive={isActive(profileHref)}
           icon={<User size={ICON_SIZE} strokeWidth={ICON_STROKE} className={iconClass} />}
-          label="Profile"
-          ariaLabel="Profile"
+          label={labels.profile}
+          ariaLabel={labels.profile}
           mode={mode}
         />
       </div>

@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { getCurrentUser } from '@/lib/api';
 import { useGuidancePreferences } from '@/hooks/useGuidancePreferences';
 import { OnboardingGuide } from './OnboardingGuide';
+import { GuidanceContextProvider } from '@/contexts/GuidanceContext';
 
 interface GuidanceProviderProps {
   children: React.ReactNode;
@@ -27,7 +28,8 @@ function isMainAppPage(path: string | null): boolean {
 
 /**
  * Wraps app content and shows one-time onboarding when appropriate.
- * Defers 2.5s so app paints first; only shows on main landing pages.
+ * Defers 2.5s so app paints first; only shows on main landing pages when idle.
+ * Cancels if user interacts, navigates away, or layouts remount.
  */
 export function GuidanceProvider({ children }: GuidanceProviderProps) {
   const pathname = usePathname();
@@ -35,6 +37,9 @@ export function GuidanceProvider({ children }: GuidanceProviderProps) {
   const [role, setRole] = useState<'customer' | 'pro' | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [deferDone, setDeferDone] = useState(false);
+
+  const sessionGuardRef = useRef(false);
+  const hasShownRef = useRef(false);
 
   const {
     shouldShowOnboarding,
@@ -61,17 +66,69 @@ export function GuidanceProvider({ children }: GuidanceProviderProps) {
   }, []);
 
   useEffect(() => {
-    if (!authReady || prefsLoading || !shouldShowOnboarding || inPlatformOnboarding || !onMainPage) {
+    if (
+      !authReady ||
+      prefsLoading ||
+      !shouldShowOnboarding ||
+      inPlatformOnboarding ||
+      sessionGuardRef.current
+    ) {
       setDeferDone(false);
       return;
     }
-    const t = setTimeout(() => setDeferDone(true), DEFER_MS);
-    return () => clearTimeout(t);
+    if (!onMainPage) {
+      setDeferDone(false);
+      sessionGuardRef.current = true;
+      return;
+    }
+
+    const cancel = () => {
+      setDeferDone(false);
+      sessionGuardRef.current = true;
+    };
+
+    const handleInteraction = () => {
+      cancel();
+    };
+
+    window.addEventListener('mousedown', handleInteraction, { capture: true });
+    window.addEventListener('touchstart', handleInteraction, { capture: true });
+    window.addEventListener('keydown', handleInteraction, { capture: true });
+
+    const t = setTimeout(() => {
+      window.removeEventListener('mousedown', handleInteraction, { capture: true });
+      window.removeEventListener('touchstart', handleInteraction, { capture: true });
+      window.removeEventListener('keydown', handleInteraction, { capture: true });
+      if (!sessionGuardRef.current) setDeferDone(true);
+    }, DEFER_MS);
+
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('mousedown', handleInteraction, { capture: true });
+      window.removeEventListener('touchstart', handleInteraction, { capture: true });
+      window.removeEventListener('keydown', handleInteraction, { capture: true });
+    };
   }, [authReady, prefsLoading, shouldShowOnboarding, inPlatformOnboarding, onMainPage]);
+
+  useEffect(() => {
+    if (!onMainPage && deferDone) {
+      sessionGuardRef.current = true;
+      setDeferDone(false);
+    }
+  }, [onMainPage, deferDone]);
 
   const ready = authReady && !prefsLoading;
   const showOnboarding =
-    ready && shouldShowOnboarding && !inPlatformOnboarding && onMainPage && deferDone;
+    ready &&
+    shouldShowOnboarding &&
+    !inPlatformOnboarding &&
+    onMainPage &&
+    deferDone &&
+    !hasShownRef.current;
+
+  useEffect(() => {
+    if (showOnboarding) hasShownRef.current = true;
+  }, [showOnboarding]);
 
   async function handleComplete() {
     await completeOnboarding();
@@ -82,7 +139,7 @@ export function GuidanceProvider({ children }: GuidanceProviderProps) {
   }
 
   return (
-    <>
+    <GuidanceContextProvider onboardingOpen={showOnboarding}>
       {children}
       {showOnboarding && (
         <OnboardingGuide
@@ -93,6 +150,6 @@ export function GuidanceProvider({ children }: GuidanceProviderProps) {
           isReplay={false}
         />
       )}
-    </>
+    </GuidanceContextProvider>
   );
 }
