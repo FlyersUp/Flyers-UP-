@@ -64,7 +64,7 @@ export async function executeNoShowCancel(
       return {
         ok: false,
         status: 409,
-        error: `Booking cannot be canceled (status: ${result.status ?? 'unknown'})`,
+        error: `Booking cannot be canceled (status: ${result?.status ?? 'unknown'})`,
       };
     }
     return { ok: false, status: 409, error: 'Booking state changed. Please refresh.' };
