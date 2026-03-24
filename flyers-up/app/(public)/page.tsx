@@ -10,6 +10,13 @@ import { useEffect, useState } from 'react';
 import Logo from '@/components/Logo';
 import { HeaderBrand } from '@/components/HeaderBrand';
 import { OccupationGrid } from '@/components/occupations/OccupationGrid';
+import {
+  HeroSplitIllustration,
+  BeforeChaosIllustration,
+  AfterClarityIllustration,
+  DigitalPaperTrailIllustration,
+} from '@/components/landing/illustrations';
+import { RequestIcon, MatchIcon, MessageIcon, ScheduleIcon } from '@/components/Icons';
 
 type Occupation = { id: string; name: string; slug: string; icon: string | null; featured: boolean };
 
@@ -23,14 +30,14 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
   return (
-    <div className="min-h-screen bg-[#F7F5F0]" style={{ '--accent-customer': '111 91% 82%' } as React.CSSProperties}>
+    <div className="min-h-screen bg-slate-50" style={{ '--accent-customer': '111 91% 82%' } as React.CSSProperties}>
       {/* Header */}
       <header
-        className="sticky top-0 z-50 flex items-center justify-between h-16 md:h-[72px] px-6 md:px-6 border-b border-[rgba(0,0,0,0.04)] transition-all duration-200 ease-out"
+        className="sticky top-0 z-50 flex items-center justify-between h-16 md:h-[72px] px-6 md:px-6 border-b border-slate-200/60 transition-all duration-200 ease-out"
         style={{
-          backgroundColor: 'rgba(247, 245, 240, 0.94)',
+          backgroundColor: 'rgba(248, 250, 252, 0.94)',
           backdropFilter: 'blur(10px)',
-          boxShadow: '0 1px 0 rgba(0,0,0,0.04)',
+          boxShadow: '0 1px 0 rgba(15, 23, 42, 0.06)',
         }}
       >
         <div className="max-w-[1200px] w-full mx-auto flex items-center justify-between px-6">
@@ -52,39 +59,50 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Hero Section - radial gradient + dynamic feel */}
+      {/* Hero — accountability-first story + split illustration */}
       <section
-        className="relative py-24 px-4 overflow-hidden"
+        className="relative py-16 md:py-24 px-4 overflow-hidden"
         style={{
           background: `
-            radial-gradient(ellipse 80% 50% at 50% -10%, rgba(156, 167, 100, 0.12), transparent 60%),
-            radial-gradient(ellipse 60% 40% at 90% 30%, rgba(251, 187, 98, 0.08), transparent 50%),
-            radial-gradient(ellipse 50% 30% at 10% 60%, rgba(156, 167, 100, 0.06), transparent 45%),
-            #F7F5F0
+            radial-gradient(ellipse 80% 50% at 50% -10%, rgba(59, 130, 246, 0.09), transparent 58%),
+            radial-gradient(ellipse 55% 42% at 95% 25%, rgba(16, 185, 129, 0.06), transparent 50%),
+            radial-gradient(ellipse 45% 32% at 8% 55%, rgba(59, 130, 246, 0.05), transparent 48%),
+            #F8FAFC
           `,
         }}
       >
-        <div className="max-w-6xl mx-auto text-center relative">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-text mb-6 leading-tight tracking-tight">
+        <div className="max-w-6xl mx-auto text-center relative z-[1]">
+          <p className="text-sm font-semibold uppercase tracking-wide text-blue-700/90 mb-3">
+            Accountability-first matching
+          </p>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-slate-900 mb-5 leading-tight tracking-tight">
             Book a trusted pro in under 2 minutes.
           </h1>
-          <p className="text-xl text-muted mb-4 max-w-2xl mx-auto">
-            Most NYC requests accepted in under 10 minutes.
+          <p className="text-xl text-slate-600 mb-3 max-w-2xl mx-auto">
+            Most NYC requests accepted in under 10 minutes—with a digital agreement in the middle.
           </p>
-          <p className="text-lg text-muted mb-8 max-w-xl mx-auto">
+          <p className="text-lg text-slate-500 mb-8 max-w-xl mx-auto">
             Verified local pros in your zip.
           </p>
           <div className="flex flex-wrap justify-center gap-3 mb-10">
-            <span className="text-sm text-text/90 rounded-full px-4 py-2 bg-white/80 border border-[rgba(156,167,100,0.3)] shadow-sm">
+            <span className="text-sm text-slate-800 rounded-full px-4 py-2 bg-white border border-blue-200/80 shadow-sm">
               12 pros available in your zip
             </span>
-            <span className="text-sm text-text/90 rounded-full px-4 py-2 bg-white/80 border border-[rgba(156,167,100,0.3)] shadow-sm">
+            <span className="text-sm text-slate-800 rounded-full px-4 py-2 bg-white border border-blue-200/80 shadow-sm">
               Next job starts in 18 minutes
             </span>
-            <span className="text-sm text-text/90 rounded-full px-4 py-2 bg-white/80 border border-[rgba(156,167,100,0.3)] shadow-sm">
+            <span className="text-sm text-slate-800 rounded-full px-4 py-2 bg-white border border-blue-200/80 shadow-sm">
               Avg job booked today: $142
             </span>
           </div>
+
+          <div className="landing-grain rounded-3xl border border-slate-200/90 bg-white/85 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.12)] px-4 py-6 md:px-8 md:py-10 mb-10 max-w-5xl mx-auto">
+            <p className="text-sm text-slate-500 mb-4 md:mb-6 font-medium">
+              Request → digital contract → verified acceptance
+            </p>
+            <HeroSplitIllustration className="w-full h-auto max-h-[min(280px,42vw)] md:max-h-[320px] mx-auto select-none" />
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
             <Link
               href="/signup?role=customer"
@@ -114,7 +132,7 @@ export default function HomePage() {
       </section>
 
       {/* Live Activity Strip */}
-      <section className="py-4 px-4 bg-white/60 border-y border-[rgba(0,0,0,0.04)]">
+      <section className="py-4 px-4 bg-white/80 border-y border-slate-200/60">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 text-sm">
             <span className="flex items-center gap-2 text-text/80">
@@ -134,7 +152,7 @@ export default function HomePage() {
       </section>
 
       {/* Browse Occupations */}
-      <section className="py-16 px-4 bg-[#F5F0E8]">
+      <section className="py-16 px-4 bg-slate-100/80">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-2xl font-semibold text-zinc-900 mb-6 text-center">
             Browse Occupations
@@ -151,111 +169,144 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Risk Kill Zone */}
-      <section className="py-12 bg-[#F0EBE3] border-y border-[var(--hairline)]">
+      {/* Accountability — digital paper trail */}
+      <section className="py-16 md:py-20 bg-white border-y border-slate-200/70">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-10">
+          <div className="text-center mb-12 max-w-2xl mx-auto">
+            <p className="text-sm font-semibold uppercase tracking-wide text-blue-700/85 mb-2">
+              Proof, not promises
+            </p>
             <div className="inline-flex items-center gap-3 mb-3">
-              <span className="h-6 w-[2px] rounded-full bg-[hsl(var(--accent-customer)/0.4)]" aria-hidden />
-              <h2 className="text-3xl sm:text-4xl font-bold text-text">
-                Why Flyers Up feels safer than random referrals
+              <span className="h-6 w-0.5 rounded-full bg-blue-500/50" aria-hidden />
+              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
+                A digital paper trail for every job
               </h2>
             </div>
+            <p className="text-slate-600 text-lg">
+              See how a booking moves from agreed details to a protected payment—without the “he said / she said.”
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              "See real profiles, work history, and reviews—not anonymous listings.",
-              "Know the job details and price expectations before you agree.",
-              "Accountability is built in—so disputes don’t become personal.",
-            ].map((text) => (
-              <div
-                key={text}
-                className="card-hover bg-surface rounded-[var(--radius-lg)] p-6 border border-[var(--hairline)] shadow-card transition-all duration-200"
-              >
-                <p className="text-text font-medium">{text}</p>
-              </div>
-            ))}
+          <div className="landing-grain rounded-[var(--radius-2xl)] border border-slate-200/90 bg-slate-50/90 p-6 md:p-10 shadow-sm">
+            <DigitalPaperTrailIllustration />
           </div>
+
+          <ul className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-slate-700">
+            <li className="rounded-2xl bg-slate-50 border border-slate-200/80 px-4 py-3">
+              Real profiles, history, and reviews—not anonymous listings.
+            </li>
+            <li className="rounded-2xl bg-slate-50 border border-slate-200/80 px-4 py-3">
+              Job details and price expectations before you agree.
+            </li>
+            <li className="rounded-2xl bg-slate-50 border border-slate-200/80 px-4 py-3">
+              Platform accountability so disputes stay professional.
+            </li>
+          </ul>
         </div>
       </section>
 
-      {/* Before vs After */}
-      <section className="py-24 px-4 bg-surface2">
+      {/* Before vs After — illustrated split */}
+      <section className="py-20 md:py-24 px-4 bg-slate-100/70">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
+            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-2">Before / After</p>
             <div className="inline-flex items-center gap-3 mb-3">
-              <span className="h-6 w-[2px] rounded-full bg-[hsl(var(--accent-customer)/0.4)]" aria-hidden />
-              <h2 className="text-3xl sm:text-4xl font-bold text-text">The difference is accountability</h2>
+              <span className="h-6 w-0.5 rounded-full bg-blue-500/40" aria-hidden />
+              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">The difference is accountability</h2>
             </div>
+            <p className="text-slate-600 max-w-xl mx-auto">
+              Same city. Same skills. A clearer record when everything lives in one place.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="card-hover bg-surface rounded-[var(--radius-xl)] p-6 border border-[var(--hairline)] shadow-card transition-all duration-200">
-              <h3 className="text-xl font-medium text-text mb-4">Before Flyers Up</h3>
-              <ul className="space-y-3 text-muted">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+            <article className="landing-grain flex flex-col rounded-[var(--radius-2xl)] border border-slate-300/80 bg-slate-200/40 p-6 md:p-8 shadow-sm transition-transform duration-200 hover:-translate-y-0.5">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="rounded-full bg-slate-500/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-600">
+                  Before
+                </span>
+                <span className="text-slate-500 text-sm">Chaos & guesswork</span>
+              </div>
+              <div className="rounded-2xl bg-white/90 border border-slate-200/90 mb-6 overflow-hidden">
+                <BeforeChaosIllustration className="w-full h-auto max-h-[200px] md:max-h-[220px] object-contain" />
+              </div>
+              <ul className="space-y-3 text-slate-600 text-[15px]">
                 <li className="flex gap-3">
-                  <span className="text-muted/70">•</span>
+                  <span className="text-slate-400 shrink-0">•</span>
                   <span>Texting strangers and hoping they show up</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="text-muted/70">•</span>
+                  <span className="text-slate-400 shrink-0">•</span>
                   <span>No-shows and price surprises</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="text-muted/70">•</span>
+                  <span className="text-slate-400 shrink-0">•</span>
                   <span>Awkward disputes with no paper trail</span>
                 </li>
               </ul>
-            </div>
+            </article>
 
-            <div className="card-hover bg-surface rounded-[var(--radius-xl)] p-6 border border-[var(--hairline)] shadow-card transition-all duration-200">
-              <h3 className="text-xl font-medium text-text mb-4">After Flyers Up</h3>
-              <ul className="space-y-3 text-muted">
+            <article className="landing-grain flex flex-col rounded-[var(--radius-2xl)] border border-emerald-200/90 bg-emerald-50/50 p-6 md:p-8 shadow-sm transition-transform duration-200 hover:-translate-y-0.5">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="rounded-full bg-emerald-600/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800">
+                  After
+                </span>
+                <span className="text-emerald-800/80 text-sm">Clarity & record</span>
+              </div>
+              <div className="rounded-2xl bg-white border border-emerald-100 mb-6 overflow-hidden">
+                <AfterClarityIllustration className="w-full h-auto max-h-[200px] md:max-h-[220px] object-contain" />
+              </div>
+              <ul className="space-y-3 text-slate-700 text-[15px]">
                 <li className="flex gap-3">
-                  <span className="text-[hsl(var(--accent-customer))]">•</span>
+                  <span className="text-emerald-600 shrink-0 font-bold">✓</span>
                   <span>Clear requests and documented expectations</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="text-[hsl(var(--accent-customer))]">•</span>
-                  <span>Messaging + scheduling in one place</span>
+                  <span className="text-emerald-600 shrink-0 font-bold">✓</span>
+                  <span>Messaging and scheduling in one place</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="text-[hsl(var(--accent-customer))]">•</span>
+                  <span className="text-emerald-600 shrink-0 font-bold">✓</span>
                   <span>Platform accountability and a clean record</span>
                 </li>
               </ul>
-            </div>
+            </article>
           </div>
         </div>
       </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="py-24 px-4 bg-[#F7F5F0]">
+      {/* How It Works — custom icon set */}
+      <section id="how-it-works" className="py-20 md:py-24 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
+            <p className="text-sm font-semibold uppercase tracking-wide text-blue-700/85 mb-2">How it works</p>
             <div className="inline-flex items-center gap-3 mb-3">
-              <span className="h-6 w-[2px] rounded-full bg-[hsl(var(--accent-customer)/0.4)]" aria-hidden />
-              <h2 className="text-3xl sm:text-4xl font-bold text-text">How it works</h2>
+              <span className="h-6 w-0.5 rounded-full bg-blue-500/40" aria-hidden />
+              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">Four steps. Full clarity.</h2>
             </div>
-            <p className="text-muted text-lg max-w-2xl mx-auto">
+            <p className="text-slate-600 text-lg max-w-2xl mx-auto">
               A fast flow built for clarity before anyone agrees to a job.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { icon: '📝', title: '1. Request', desc: 'Describe the job and what “done” means.' },
-              { icon: '🤝', title: '2. Match', desc: 'Review pros based on fit and history.' },
-              { icon: '💬', title: '3. Message', desc: 'Confirm details in writing, in one place.' },
-              { icon: '📅', title: '4. Schedule', desc: 'Lock in timing and expectations.' },
-            ].map((step) => (
-              <div key={step.title} className="card-hover text-center p-6 rounded-xl transition-all duration-200">
-                <div className="w-16 h-16 bg-surface2 rounded-[var(--radius-xl)] flex items-center justify-center mx-auto mb-4 border border-[var(--hairline)]">
-                  <span className="text-3xl">{step.icon}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+            {(
+              [
+                { Icon: RequestIcon, title: '1. Request', desc: 'Describe the job and what “done” means.' },
+                { Icon: MatchIcon, title: '2. Match', desc: 'Review pros based on fit and history.' },
+                { Icon: MessageIcon, title: '3. Message', desc: 'Confirm details in writing, in one place.' },
+                { Icon: ScheduleIcon, title: '4. Schedule', desc: 'Lock in timing and expectations.' },
+              ] as const
+            ).map(({ Icon, title, desc }) => (
+              <div
+                key={title}
+                className="landing-grain text-center p-6 rounded-2xl border border-slate-200/90 bg-slate-50/80 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <div className="mx-auto mb-4 flex h-fit w-fit items-center justify-center rounded-full bg-blue-50 p-4 transition-transform duration-200 hover:scale-105">
+                  <Icon className="h-11 w-11 sm:h-12 sm:w-12 text-blue-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-text mb-2">{step.title}</h3>
-                <p className="text-muted">{step.desc}</p>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">{title}</h3>
+                <p className="text-slate-600 text-sm leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
@@ -272,9 +323,9 @@ export default function HomePage() {
       </section>
 
       {/* Proof */}
-      <section className="py-24 px-4 bg-[#F5F0E8]">
+      <section className="py-24 px-4 bg-slate-50">
         <div className="max-w-6xl mx-auto">
-          <div className="rounded-[var(--radius-2xl)] p-8 sm:p-12 text-center bg-surface border border-[var(--hairline)] shadow-card">
+          <div className="landing-grain rounded-[var(--radius-2xl)] p-8 sm:p-12 text-center bg-white border border-slate-200/90 shadow-sm">
             <div className="inline-flex items-center gap-3 mb-4">
               <span className="h-6 w-[2px] rounded-full bg-[hsl(var(--accent-customer)/0.4)]" aria-hidden />
               <h2 className="text-3xl sm:text-4xl font-bold text-text">
@@ -309,7 +360,7 @@ export default function HomePage() {
       </section>
 
       {/* For Pros Section - sell the opportunity */}
-      <section id="pros" className="py-20 px-4 bg-surface2">
+      <section id="pros" className="py-20 px-4 bg-slate-100/80">
         <div className="max-w-6xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
@@ -375,7 +426,7 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 px-4 bg-[#F7F5F0]">
+      <section className="py-24 px-4 bg-slate-50">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-semibold text-text mb-4">
             Ready to request a service without the stress?
@@ -395,7 +446,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-surface2 text-muted py-16 border-t border-[var(--hairline)]">
+      <footer className="bg-slate-100 text-slate-600 py-16 border-t border-slate-200/80">
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
             <div>
