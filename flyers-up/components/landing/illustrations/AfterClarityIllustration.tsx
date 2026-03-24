@@ -1,6 +1,16 @@
 /**
- * "After" — success green clarity: calendar, clean thread, verified badge.
+ * After: sage + apricot pastels, smiling verified pro + shield, single agreement document.
+ * Anchor #2C2825 strokes.
  */
+const A = '#2C2825';
+const SAGE = '#C5DEB8';
+const SAGE_SOFT = '#E4ECD9';
+const SAGE_DEEP = '#8FAD84';
+const APRICOT = '#FFDCC4';
+const APRICOT_DOC = '#F8E8D8';
+const APRICOT_ACCENT = '#F0C4A8';
+const WHITE = '#FFFCFA';
+
 export function AfterClarityIllustration({ className = '' }: { className?: string }) {
   return (
     <svg
@@ -11,40 +21,44 @@ export function AfterClarityIllustration({ className = '' }: { className?: strin
       aria-hidden
     >
       <title>Clarity after</title>
-      {/* Clean grid lines */}
-      <path d="M32 48h336M32 88h336M32 128h336" stroke="#D1FAE5" strokeWidth="1" opacity="0.9" />
-      <path d="M120 32v160M200 32v160M280 32v160" stroke="#ECFDF5" strokeWidth="1" />
+      <rect width="400" height="220" rx="16" fill={SAGE_SOFT} />
 
-      {/* Calendar block */}
-      <rect x="48" y="56" width="120" height="100" rx="12" fill="#FFFFFF" stroke="#10B981" strokeWidth="2" />
-      <rect x="48" y="56" width="120" height="28" rx="12" fill="#10B981" />
-      <text x="72" y="76" fill="white" fontSize="11" fontFamily="system-ui,sans-serif" fontWeight="700">
-        Scheduled
+      {/* Agreement document — apricot accent */}
+      <rect x="40" y="48" width="132" height="148" rx="14" fill={WHITE} stroke={A} strokeWidth="2.5" />
+      <rect x="40" y="48" width="132" height="36" rx="14" fill={APRICOT_ACCENT} stroke={A} strokeWidth="2" />
+      <text x="58" y="72" fill={A} fontSize="11" fontFamily="system-ui,sans-serif" fontWeight="700">
+        Agreement
       </text>
-      <rect x="64" y="96" width="24" height="20" rx="4" fill="#D1FAE5" />
-      <rect x="96" y="96" width="24" height="20" rx="4" fill="#ECFDF5" stroke="#A7F3D0" strokeWidth="1" />
-      <rect x="128" y="96" width="24" height="20" rx="4" fill="#D1FAE5" />
-      <rect x="64" y="124" width="24" height="20" rx="4" fill="#ECFDF5" />
-      <rect x="96" y="124" width="24" height="20" rx="4" fill="#10B981" opacity="0.35" />
-      <path d="M102 132l4 4 8-8" stroke="#059669" strokeWidth="2" strokeLinecap="round" />
+      <rect x="56" y="98" width="100" height="6" rx="2" fill={APRICOT_DOC} stroke={A} strokeWidth="1.25" />
+      <rect x="56" y="112" width="88" height="5" rx="1" fill="#E8DFD6" />
+      <rect x="56" y="124" width="92" height="5" rx="1" fill="#E8DFD6" />
+      <rect x="56" y="136" width="72" height="5" rx="1" fill="#E8DFD6" />
+      <circle cx="106" cy="168" r="14" fill={APRICOT} stroke={A} strokeWidth="2" />
+      <path d="M100 168l4 4 8-10" stroke={A} strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
 
-      {/* Single clean message thread */}
-      <rect x="200" y="64" width="152" height="44" rx="12" fill="#F0FDF4" stroke="#86EFAC" strokeWidth="1.5" />
-      <rect x="216" y="80" width="100" height="6" rx="2" fill="#BBF7D0" />
-      <rect x="216" y="92" width="72" height="5" rx="2" fill="#D1FAE5" />
-      <circle cx="332" cy="86" r="14" fill="#10B981" />
-      <path d="M326 86l4 4 8-10" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Verified pro — smiling + sage shield */}
+      <circle cx="290" cy="96" r="38" fill={SAGE} stroke={A} strokeWidth="2.5" />
+      <path d="M274 94c10 12 32 12 42 0" stroke={A} strokeWidth="2.2" strokeLinecap="round" />
+      <ellipse cx="278" cy="86" rx="3.5" ry="4" fill={A} />
+      <ellipse cx="302" cy="86" rx="3.5" ry="4" fill={A} />
+      <path
+        d="M252 188c12-36 38-54 70-54s58 18 70 54v14H252v-14z"
+        fill={WHITE}
+        stroke={A}
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M278 128l24-10v34c0 16-24 28-24 28s-24-12-24-28v-34l24 10z"
+        fill={SAGE_DEEP}
+        stroke={A}
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
+      <path d="M290 142l8 8 16-18" stroke={A} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 
-      {/* Verified badge */}
-      <rect x="216" y="130" width="136" height="40" rx="12" fill="#FFFFFF" stroke="#10B981" strokeWidth="2" />
-      <circle cx="240" cy="150" r="14" fill="#D1FAE5" stroke="#059669" strokeWidth="1.5" />
-      <path d="M234 150l4 4 10-12" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <text x="260" y="155" fill="#047857" fontSize="11" fontFamily="system-ui,sans-serif" fontWeight="700">
-        Verified
-      </text>
-
-      <text x="48" y="210" fill="#059669" fontSize="10" fontFamily="system-ui,sans-serif" fontWeight="600" opacity="0.85">
-        One thread · clear time · documented
+      <text x="40" y="212" fill={A} fontSize="10" fontFamily="system-ui,sans-serif" fontWeight="600" opacity="0.9">
+        One pro, one paper trail, one clear yes
       </text>
     </svg>
   );

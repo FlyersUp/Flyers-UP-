@@ -1,7 +1,15 @@
 /**
- * Hero split-view: customer request | digital contract bridge | verified pro.
- * Flat 2.0 style — brand blue + white, rounded shapes.
+ * Hero: cream shell panels, apricot customer + handshake bridge, sage verified pro + shield.
+ * Pastel fills, anchor #2C2825 strokes for legibility.
  */
+const A = '#2C2825'; // anchor outline
+const CREAM = '#FFF9F4';
+const APRICOT = '#FFDCC4';
+const APRICOT_DEEP = '#F0C4A8';
+const SAGE = '#C5DEB8';
+const SAGE_DEEP = '#A8C99E';
+const SAGE_MIST = '#E8F0E0';
+
 export function HeroSplitIllustration({ className = '' }: { className?: string }) {
   return (
     <svg
@@ -11,82 +19,106 @@ export function HeroSplitIllustration({ className = '' }: { className?: string }
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
-      <title>Request, match in minutes, verified pro</title>
-      {/* Left — Customer + request */}
-      <rect x="32" y="40" width="240" height="200" rx="20" fill="#F8FAFC" stroke="#BFDBFE" strokeWidth="2" />
-      <circle cx="100" cy="100" r="28" fill="#DBEAFE" stroke="#3B82F6" strokeWidth="2" />
+      <title>Customer, handshake match, verified pro</title>
+
+      {/* Left — Customer (apricot) */}
+      <rect x="28" y="36" width="248" height="208" rx="22" fill={CREAM} stroke={A} strokeWidth="2.5" />
+      <text x="48" y="58" fill={A} fontSize="11" fontFamily="system-ui,sans-serif" fontWeight="700">
+        Customer
+      </text>
+      {/* Bust */}
+      <circle cx="120" cy="118" r="34" fill={APRICOT} stroke={A} strokeWidth="2.5" />
       <path
-        d="M92 96h16M92 104h12"
-        stroke="#1E40AF"
+        d="M108 118c0-6 5-10 12-10s12 4 12 10"
+        stroke={A}
         strokeWidth="2"
         strokeLinecap="round"
       />
-      <rect x="150" y="78" width="100" height="8" rx="2" fill="#CBD5E1" />
-      <rect x="150" y="94" width="88" height="8" rx="2" fill="#E2E8F0" />
-      <rect x="150" y="110" width="92" height="8" rx="2" fill="#E2E8F0" />
-      <rect x="56" y="150" width="192" height="64" rx="12" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1.5" />
-      <rect x="72" y="168" width="120" height="6" rx="2" fill="#94A3B8" opacity="0.5" />
-      <rect x="72" y="182" width="160" height="6" rx="2" fill="#CBD5E1" />
-      <rect x="72" y="196" width="100" height="6" rx="2" fill="#CBD5E1" />
-      <text x="56" y="34" fill="#64748B" fontSize="11" fontFamily="system-ui,sans-serif" fontWeight="600">
-        Request
-      </text>
-
-      {/* Center — Digital contract + 10 min */}
-      <rect x="360" y="32" width="240" height="216" rx="22" fill="#FFFFFF" stroke="#3B82F6" strokeWidth="2.5" />
-      <rect x="388" y="64" width="184" height="10" rx="3" fill="#BFDBFE" />
-      <rect x="388" y="84" width="160" height="8" rx="2" fill="#E2E8F0" />
-      <rect x="388" y="100" width="170" height="8" rx="2" fill="#E2E8F0" />
-      <rect x="388" y="116" width="140" height="8" rx="2" fill="#E2E8F0" />
-      {/* Doc / contract glyph */}
-      <rect x="420" y="144" width="120" height="72" rx="8" fill="#EFF6FF" stroke="#3B82F6" strokeWidth="2" />
-      <path d="M440 168h80M440 184h64M440 200h72" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" />
-      <circle cx="480" cy="158" r="10" fill="#3B82F6" />
-      <path d="M476 158l4 4 8-10" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <rect x="400" y="228" width="160" height="28" rx="14" fill="#2563EB" />
-      <text x="420" y="246" fill="white" fontSize="11" fontFamily="system-ui,sans-serif" fontWeight="700">
-        ~10 min match
-      </text>
-      <text x="388" y="52" fill="#1E3A8A" fontSize="12" fontFamily="system-ui,sans-serif" fontWeight="700">
-        Digital agreement
-      </text>
-
-      {/* Connectors */}
       <path
-        d="M272 140h72"
-        stroke="#93C5FD"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeDasharray="6 8"
+        d="M86 198c8-28 28-42 52-42h-4c24 0 44 14 52 42v12H86v-12z"
+        fill={APRICOT_DEEP}
+        stroke={A}
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
+      {/* Request card */}
+      <rect x="176" y="88" width="84" height="72" rx="10" fill="white" stroke={A} strokeWidth="2" />
+      <rect x="188" y="102" width="60" height="5" rx="2" fill={APRICOT} opacity="0.85" />
+      <rect x="188" y="114" width="48" height="4" rx="1" fill="#E8DFD6" />
+      <rect x="188" y="124" width="52" height="4" rx="1" fill="#E8DFD6" />
+
+      {/* Center — Interlocking handshake */}
+      <rect x="308" y="28" width="344" height="224" rx="24" fill={CREAM} stroke={A} strokeWidth="2.5" />
+      <text x="332" y="56" fill={A} fontSize="12" fontFamily="system-ui,sans-serif" fontWeight="700">
+        Matched — handshake
+      </text>
+      {/* Two hands interlocking */}
+      <path
+        d="M380 168c12-24 32-36 52-32l8 20c-18 4-32 18-40 36l-20-24z"
+        fill={APRICOT}
+        stroke={A}
+        strokeWidth="2.5"
+        strokeLinejoin="round"
       />
       <path
-        d="M688 140h72"
-        stroke="#93C5FD"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeDasharray="6 8"
+        d="M580 168c-12-24-32-36-52-32l-8 20c18 4 32 18 40 36l20-24z"
+        fill={SAGE}
+        stroke={A}
+        strokeWidth="2.5"
+        strokeLinejoin="round"
       />
-
-      {/* Right — Verified Pro */}
-      <rect x="688" y="40" width="240" height="200" rx="20" fill="#F8FAFC" stroke="#BFDBFE" strokeWidth="2" />
-      <circle cx="808" cy="100" r="32" fill="#D1FAE5" stroke="#10B981" strokeWidth="2.5" />
-      <path d="M798 100l6 6 14-16" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <rect x="748" y="148" width="120" height="10" rx="3" fill="#10B981" opacity="0.25" />
-      <rect x="748" y="168" width="100" height="8" rx="2" fill="#CBD5E1" />
-      <rect x="748" y="184" width="110" height="8" rx="2" fill="#CBD5E1" />
-      <rect x="720" y="208" width="176" height="28" rx="14" fill="#ECFDF5" stroke="#10B981" strokeWidth="1.5" />
       <path
-        d="M736 222l6 5 10-12"
-        stroke="#059669"
-        strokeWidth="2"
+        d="M448 120c8 8 18 12 32 12s24-4 32-12"
+        stroke={A}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <circle cx="480" cy="152" r="6" fill={APRICOT_DEEP} stroke={A} strokeWidth="2" />
+      <text x="360" y="220" fill={A} fontSize="10" fontFamily="system-ui,sans-serif" fontWeight="600" opacity="0.85">
+        ~10 min to a trusted yes
+      </text>
+
+      {/* Right — Verified Pro (sage) + shield */}
+      <rect x="684" y="36" width="248" height="208" rx="22" fill={CREAM} stroke={A} strokeWidth="2.5" />
+      <text x="704" y="58" fill={A} fontSize="11" fontFamily="system-ui,sans-serif" fontWeight="700">
+        Verified Pro
+      </text>
+      <circle cx="808" cy="112" r="36" fill={SAGE} stroke={A} strokeWidth="2.5" />
+      {/* Smile */}
+      <path
+        d="M792 108c8 10 26 10 34 0"
+        stroke={A}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+      <ellipse cx="796" cy="100" rx="3" ry="3.5" fill={A} />
+      <ellipse cx="820" cy="100" rx="3" ry="3.5" fill={A} />
+      {/* Shoulders */}
+      <path
+        d="M748 206c10-32 32-48 60-48s50 16 60 48v10H748v-10z"
+        fill={SAGE_MIST}
+        stroke={A}
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
+      {/* Shield on chest */}
+      <path
+        d="M788 154l20-8v28c0 14-20 24-20 24s-20-10-20-24v-28l20 8z"
+        fill={SAGE_DEEP}
+        stroke={A}
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M798 168l6 6 12-14"
+        stroke={A}
+        strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <text x="752" y="226" fill="#047857" fontSize="10" fontFamily="system-ui,sans-serif" fontWeight="700">
-        Verified Pro
-      </text>
-      <text x="720" y="34" fill="#64748B" fontSize="11" fontFamily="system-ui,sans-serif" fontWeight="600">
-        Accepts
+      <rect x="728" y="228" width="160" height="26" rx="13" fill={SAGE_MIST} stroke={A} strokeWidth="2" />
+      <text x="748" y="245" fill={A} fontSize="10" fontFamily="system-ui,sans-serif" fontWeight="700">
+        Background-checked
       </text>
     </svg>
   );

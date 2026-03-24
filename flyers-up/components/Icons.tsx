@@ -82,6 +82,15 @@ export function ScheduleIcon({ className = '' }: IconProps) {
       <line x1="3" y1="10" x2="21" y2="10" />
       <path d="M12 14v4" />
       <path d="M10 16h4" />
+      {/* Small pin — time + place */}
+      <path
+        d="M19 17.5a1.35 1.35 0 1 0-2.7 0c0 1 1.35 2.7 1.35 2.7s1.35-1.7 1.35-2.7z"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="17.65" cy="17.5" r="0.5" fill="currentColor" />
     </svg>
   );
 }

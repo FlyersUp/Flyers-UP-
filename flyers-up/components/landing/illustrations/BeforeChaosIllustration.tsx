@@ -1,6 +1,14 @@
 /**
- * "Before" — neutral grey chaos: messy lines, overlapping chats, no-show.
+ * Before: muddy yellows + greys, shaky lines, confusing bubbles, faceless “shadow” pro.
+ * Anchor #2C2825 for crisp outlines.
  */
+const A = '#2C2825';
+const MUDDY = '#EDE8D0';
+const MUDDY_DEEP = '#D9D0B8';
+const MUDDY_GREY = '#C9C2AE';
+const SHADOW = '#A8A090';
+const PALE_YELLOW = '#F5F0DC';
+
 export function BeforeChaosIllustration({ className = '' }: { className?: string }) {
   return (
     <svg
@@ -11,53 +19,56 @@ export function BeforeChaosIllustration({ className = '' }: { className?: string
       aria-hidden
     >
       <title>Chaos before</title>
-      {/* Shaky background lines */}
+      <rect width="400" height="220" rx="16" fill={PALE_YELLOW} />
+
+      {/* Shaky scribbles */}
       <path
-        d="M20 40c40 8 60-12 100 4s70-20 120 0 80-16 140 8"
-        stroke="#94A3B8"
+        d="M24 48l6-4 10 14-8 6 12 10M140 36l-8 12 14-6 6 18"
+        stroke={MUDDY_GREY}
         strokeWidth="2"
         strokeLinecap="round"
-        opacity="0.45"
+        opacity="0.9"
       />
       <path
-        d="M16 180c50-6 90 14 130-4s60 10 100-8 90 6 138-10"
-        stroke="#CBD5E1"
+        d="M20 172c45-8 85 12 125-6s95 8 135-10"
+        stroke={MUDDY_DEEP}
         strokeWidth="2"
         strokeLinecap="round"
-        opacity="0.6"
       />
       <path
-        d="M40 100l8-6 12 18-14 8 10 14"
-        stroke="#94A3B8"
+        d="M260 52q20 18 40 8t35 22"
+        stroke={MUDDY_GREY}
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        fill="none"
+      />
+
+      {/* Overlapping confusing bubbles */}
+      <ellipse cx="95" cy="88" rx="54" ry="38" fill={MUDDY} stroke={A} strokeWidth="2" transform="rotate(-8 95 88)" />
+      <rect x="62" y="74" width="58" height="6" rx="2" fill={MUDDY_DEEP} transform="rotate(-6 91 77)" />
+      <rect x="66" y="86" width="44" height="5" rx="1" fill={MUDDY_GREY} opacity="0.7" />
+
+      <ellipse cx="218" cy="72" rx="50" ry="34" fill={MUDDY_DEEP} stroke={A} strokeWidth="2" transform="rotate(10 218 72)" />
+      <rect x="192" y="62" width="42" height="5" rx="1" fill={MUDDY} />
+      <rect x="196" y="72" width="30" height="4" rx="1" fill={SHADOW} opacity="0.5" />
+
+      <ellipse cx="288" cy="118" rx="58" ry="40" fill={MUDDY} stroke={A} strokeWidth="2" transform="rotate(-5 288 118)" />
+      <rect x="252" y="104" width="50" height="6" rx="2" fill={MUDDY_GREY} />
+      <rect x="258" y="116" width="36" height="5" rx="1" fill={MUDDY_DEEP} />
+
+      {/* Shadow pro — no face */}
+      <ellipse cx="200" cy="178" rx="28" ry="32" fill={SHADOW} stroke={A} strokeWidth="2.5" />
+      <circle cx="200" cy="150" r="22" fill={MUDDY_GREY} stroke={A} strokeWidth="2.5" />
+      {/* Intentionally empty "face" — no eyes/mouth */}
+      <path
+        d="M188 152h24"
+        stroke={A}
         strokeWidth="1.5"
         strokeLinecap="round"
-        opacity="0.7"
+        opacity="0.35"
       />
-
-      {/* Messy chat bubbles */}
-      <ellipse cx="100" cy="95" rx="52" ry="36" fill="#F1F5F9" stroke="#94A3B8" strokeWidth="1.5" />
-      <rect x="70" y="82" width="56" height="6" rx="2" fill="#CBD5E1" transform="rotate(-6 98 85)" />
-      <rect x="74" y="94" width="44" height="5" rx="1" fill="#E2E8F0" transform="rotate(-4 96 96)" />
-
-      <ellipse cx="220" cy="70" rx="48" ry="32" fill="#E2E8F0" stroke="#94A3B8" strokeWidth="1.5" transform="rotate(8 220 70)" />
-      <rect x="196" y="62" width="40" height="5" rx="1" fill="#CBD5E1" />
-      <rect x="200" y="72" width="32" height="4" rx="1" fill="#F8FAFC" opacity="0.8" />
-
-      <ellipse cx="280" cy="120" rx="56" ry="38" fill="#F1F5F9" stroke="#94A3B8" strokeWidth="1.5" transform="rotate(-4 280 120)" />
-      <rect x="248" y="108" width="48" height="6" rx="2" fill="#CBD5E1" />
-      <rect x="252" y="120" width="36" height="5" rx="1" fill="#E2E8F0" />
-
-      {/* No-show / ghost slot */}
-      <circle cx="200" cy="165" r="36" fill="#F8FAFC" stroke="#94A3B8" strokeWidth="2" strokeDasharray="5 4" />
-      <path
-        d="M184 165l32 0M200 149v32"
-        stroke="#94A3B8"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      <circle cx="200" cy="165" r="24" stroke="#CBD5E1" strokeWidth="1.5" fill="none" opacity="0.6" />
-      <text x="168" y="198" fill="#64748B" fontSize="10" fontFamily="system-ui,sans-serif" fontWeight="600">
-        No confirmation
+      <text x="148" y="208" fill={A} fontSize="10" fontFamily="system-ui,sans-serif" fontWeight="700">
+        Who’s actually showing up?
       </text>
     </svg>
   );
