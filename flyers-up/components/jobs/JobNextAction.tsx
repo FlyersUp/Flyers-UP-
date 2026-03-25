@@ -5,7 +5,7 @@ import { deriveTimelineDisplayStatus, getNextStatus, type Status } from './jobSt
 import { getBookingById, type BookingDetails } from '@/lib/api';
 import { ArrivalVerificationModal } from '@/components/marketplace/ArrivalVerificationModal';
 
-/** Next action button labels by current status (when not in GPS arrival flow). */
+/** Next action button labels by current status (when not in arrival check-in flow). */
 const NEXT_ACTION_LABELS: Record<Exclude<Status, 'BOOKED' | 'AWAITING_ACCEPTANCE'>, string> = {
   ACCEPTED: 'On My Way',
   ON_THE_WAY: 'Verify arrival',
@@ -127,8 +127,7 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
   if (!label || !nextStatus) return null;
 
   const showArrivalModalCta =
-    needsGpsArrivalVerification(booking) &&
-    (timelineStatus === 'ON_THE_WAY' || timelineStatus === 'ARRIVED');
+    needsArrivalCheckIn(booking) && (timelineStatus === 'ON_THE_WAY' || timelineStatus === 'ARRIVED');
 
   const arrivalLabel =
     timelineStatus === 'ON_THE_WAY' ? 'Verify arrival' : 'Verify arrival to start job';
@@ -139,7 +138,7 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
         {showArrivalModalCta ? (
           <>
             <p className="text-xs text-muted">
-              Share your location at the job site before starting work. Required for accountability.
+              Confirm you&apos;re on site before starting work. Required for accountability.
             </p>
             <button
               type="button"

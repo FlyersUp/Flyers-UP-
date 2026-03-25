@@ -118,7 +118,7 @@ export interface BookingDetails {
   acceptedAt?: string | null;
   onTheWayAt?: string | null;
   arrivedAt?: string | null;
-  /** Set when pro completes POST /arrive (GPS); PATCH "Arrived" alone does not set this. */
+  /** Set when pro completes POST /arrive; PATCH "Arrived" alone does not set this. */
   arrivalStartedAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;

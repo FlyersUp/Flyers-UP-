@@ -178,7 +178,7 @@ export async function PATCH(
           {
             error: 'Arrival verification required before starting job',
             code: 'arrival_required',
-            hint: 'Call POST /api/bookings/[id]/arrive with GPS coordinates first',
+            hint: 'Call POST /api/bookings/[id]/arrive to record arrival first',
           },
           { status: 409 }
         );

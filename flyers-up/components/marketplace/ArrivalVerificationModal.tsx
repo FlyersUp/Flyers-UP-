@@ -1,6 +1,12 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
+
+/**
+ * Geolocation was removed temporarily. To restore GPS capture, wire
+ * `captureArrivalGeolocation` from `@/lib/operations/arrivalGeolocationFuture` and send
+ * `{ lat, lng }` in the POST body; require coords again in `arrive/route.ts`.
+ */
 
 export interface ArrivalVerificationModalProps {
   isOpen: boolean;
@@ -20,26 +26,11 @@ export function ArrivalVerificationModal({
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
-  const captureLocation = useCallback((): Promise<{ lat: number; lng: number }> => {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error('Geolocation not supported'));
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        (err) => reject(new Error(err.message || 'Location unavailable')),
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    });
-  }, []);
-
   const handleSubmit = async () => {
     if (!isOpen) return;
     setLoading(true);
     setError(null);
     try {
-      const { lat, lng } = await captureLocation();
       let arrivalPhotoUrl: string | undefined;
       if (photoFile) {
         const formData = new FormData();
@@ -56,7 +47,7 @@ export function ArrivalVerificationModal({
       const res = await fetch(`/api/bookings/${bookingId}/arrive`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat, lng, arrival_photo_url: arrivalPhotoUrl }),
+        body: JSON.stringify({ arrival_photo_url: arrivalPhotoUrl }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -66,7 +57,7 @@ export function ArrivalVerificationModal({
       await onSuccess();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to get location');
+      setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -91,16 +82,10 @@ export function ArrivalVerificationModal({
       >
         <h2 className="text-lg font-semibold text-[#111] mb-2">Verify Arrival</h2>
         <p className="text-sm text-black/60 mb-4">
-          We&apos;ll use your location to verify you&apos;ve arrived at the job site. This helps prevent disputes.
+          Confirm you&apos;re at the job site. You can add an optional photo for your records.
         </p>
 
         <div className="space-y-4 mb-6">
-          <div className="p-4 rounded-xl bg-[#F5F5F5]/60">
-            <p className="text-sm text-black/70">
-              Your location will be captured when you tap &quot;Verify arrival&quot;.
-            </p>
-          </div>
-
           <div>
             <label className="block text-sm font-medium text-[#111] mb-2">
               Arrival photo (optional)
@@ -141,7 +126,7 @@ export function ArrivalVerificationModal({
             disabled={loading}
             className="flex-1 py-3 rounded-xl bg-[#B2FBA5] text-black font-semibold hover:opacity-95 disabled:opacity-60"
           >
-            {loading ? 'Verifying…' : 'Verify arrival'}
+            {loading ? 'Saving…' : 'Verify arrival'}
           </button>
         </div>
       </div>

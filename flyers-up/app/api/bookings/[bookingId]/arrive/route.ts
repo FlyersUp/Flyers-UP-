@@ -1,7 +1,7 @@
 /**
  * POST /api/bookings/[bookingId]/arrive
- * Pro submits arrival verification (GPS + optional photo) before starting job.
- * Required before transitioning to in_progress.
+ * Pro confirms arrival (optional photo; GPS optional — see arrivalGeolocationFuture.ts to re-enable).
+ * Creates job_arrivals row required before transitioning to in_progress.
  */
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
@@ -22,18 +22,18 @@ export async function POST(
   const id = normalizeUuidOrNull(bookingId);
   if (!id) return NextResponse.json({ error: 'Invalid booking ID' }, { status: 400 });
 
-  let body: { lat: number; lng: number; arrival_photo_url?: string };
+  let body: { lat?: number | null; lng?: number | null; arrival_photo_url?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const lat = Number(body.lat);
-  const lng = Number(body.lng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return NextResponse.json({ error: 'Valid lat/lng required' }, { status: 400 });
-  }
+  const latN = body.lat != null ? Number(body.lat) : NaN;
+  const lngN = body.lng != null ? Number(body.lng) : NaN;
+  const hasGps = Number.isFinite(latN) && Number.isFinite(lngN);
+  const lat = hasGps ? latN : null;
+  const lng = hasGps ? lngN : null;
 
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -67,7 +67,7 @@ export async function POST(
   const jobLat = Number((booking as { address_lat?: number | null }).address_lat);
   const jobLng = Number((booking as { address_lng?: number | null }).address_lng);
   let locationVerified = false;
-  if (Number.isFinite(jobLat) && Number.isFinite(jobLng)) {
+  if (hasGps && Number.isFinite(jobLat) && Number.isFinite(jobLng) && lat != null && lng != null) {
     const dist = haversineDistanceMeters(lat, lng, jobLat, jobLng);
     locationVerified = dist <= ARRIVAL_VERIFICATION_RADIUS_METERS;
   }
@@ -83,6 +83,7 @@ export async function POST(
       ok: true,
       arrivalId: existing.id,
       locationVerified,
+      gpsCaptured: hasGps,
       alreadyRecorded: true,
     });
   }
@@ -138,5 +139,6 @@ export async function POST(
     ok: true,
     arrivalId: arrival?.id,
     locationVerified,
+    gpsCaptured: hasGps,
   });
 }
