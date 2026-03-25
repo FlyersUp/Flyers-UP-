@@ -118,6 +118,8 @@ export interface BookingDetails {
   acceptedAt?: string | null;
   onTheWayAt?: string | null;
   arrivedAt?: string | null;
+  /** Set when pro completes POST /arrive (GPS); PATCH "Arrived" alone does not set this. */
+  arrivalStartedAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
   statusHistory?: StatusHistoryEntry[];
@@ -1060,6 +1062,7 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       acceptedAt: data.accepted_at ?? null,
       onTheWayAt: (d.en_route_at ?? data.on_the_way_at) ?? null,
       arrivedAt: typeof d.arrived_at === 'string' ? d.arrived_at : null,
+      arrivalStartedAt: typeof d.arrival_started_at === 'string' ? d.arrival_started_at : null,
       startedAt: data.started_at ?? null,
       completedAt: data.completed_at ?? null,
       statusHistory: data.status_history as StatusHistoryEntry[] | undefined,

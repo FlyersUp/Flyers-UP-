@@ -3,16 +3,23 @@
 import { useState } from 'react';
 import { deriveTimelineDisplayStatus, getNextStatus, type Status } from './jobStatus';
 import { getBookingById, type BookingDetails } from '@/lib/api';
+import { ArrivalVerificationModal } from '@/components/marketplace/ArrivalVerificationModal';
 
-/** Next action button labels by current status */
+/** Next action button labels by current status (when not in GPS arrival flow). */
 const NEXT_ACTION_LABELS: Record<Exclude<Status, 'BOOKED' | 'AWAITING_ACCEPTANCE'>, string> = {
   ACCEPTED: 'On My Way',
-  ON_THE_WAY: 'Arrived',
+  ON_THE_WAY: 'Verify arrival',
   ARRIVED: 'Start Job',
   IN_PROGRESS: 'Complete Job',
   COMPLETED: '',
   PAID: '',
 };
+
+function needsGpsArrivalVerification(booking: BookingDetails): boolean {
+  if (booking.arrivalStartedAt) return false;
+  const s = String(booking.status);
+  return s === 'pro_en_route' || s === 'on_the_way' || s === 'arrived';
+}
 
 interface JobNextActionProps {
   booking: BookingDetails;
@@ -23,6 +30,7 @@ interface JobNextActionProps {
 export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [arrivalModalOpen, setArrivalModalOpen] = useState(false);
 
   const timelineStatus = deriveTimelineDisplayStatus(booking.status, {
     paidAt: booking.paidAt,
@@ -67,6 +75,9 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (data.code === 'arrival_required') {
+          setArrivalModalOpen(true);
+        }
         setError(data.error || 'Failed to update status');
         return;
       }
@@ -77,6 +88,11 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
     } finally {
       setLoading(false);
     }
+  };
+
+  const refreshBooking = async () => {
+    const updated = await getBookingById(booking.id);
+    if (updated) onUpdated(updated);
   };
 
   if (isCompleted) {
@@ -110,18 +126,50 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
   const label = NEXT_ACTION_LABELS[timelineStatus];
   if (!label || !nextStatus) return null;
 
+  const showArrivalModalCta =
+    needsGpsArrivalVerification(booking) &&
+    (timelineStatus === 'ON_THE_WAY' || timelineStatus === 'ARRIVED');
+
+  const arrivalLabel =
+    timelineStatus === 'ON_THE_WAY' ? 'Verify arrival' : 'Verify arrival to start job';
+
   return (
     <div className="border-t border-black/10 bg-white/40 px-6 py-5">
       <div className="space-y-3">
-        <button
-          type="button"
-          onClick={handleAdvance}
-          disabled={loading}
-          className="w-full h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 disabled:opacity-70 transition-all"
-        >
-          {loading ? 'Updating…' : label}
-        </button>
+        {showArrivalModalCta ? (
+          <>
+            <p className="text-xs text-muted">
+              Share your location at the job site before starting work. Required for accountability.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setArrivalModalOpen(true);
+              }}
+              disabled={loading}
+              className="w-full h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 disabled:opacity-70 transition-all"
+            >
+              {arrivalLabel}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={handleAdvance}
+            disabled={loading}
+            className="w-full h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 disabled:opacity-70 transition-all"
+          >
+            {loading ? 'Updating…' : label}
+          </button>
+        )}
         {error && <p className="text-sm text-red-600">{error}</p>}
+        <ArrivalVerificationModal
+          isOpen={arrivalModalOpen}
+          onClose={() => setArrivalModalOpen(false)}
+          onSuccess={refreshBooking}
+          bookingId={jobId}
+        />
       </div>
     </div>
   );

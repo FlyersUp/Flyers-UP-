@@ -97,7 +97,7 @@ export function ArrivalVerificationModal({
         <div className="space-y-4 mb-6">
           <div className="p-4 rounded-xl bg-[#F5F5F5]/60">
             <p className="text-sm text-black/70">
-              Your location will be captured when you tap &quot;Verify & Start Job&quot;.
+              Your location will be captured when you tap &quot;Verify arrival&quot;.
             </p>
           </div>
 
@@ -141,7 +141,7 @@ export function ArrivalVerificationModal({
             disabled={loading}
             className="flex-1 py-3 rounded-xl bg-[#B2FBA5] text-black font-semibold hover:opacity-95 disabled:opacity-60"
           >
-            {loading ? 'Verifying…' : 'Verify & Start Job'}
+            {loading ? 'Verifying…' : 'Verify arrival'}
           </button>
         </div>
       </div>
