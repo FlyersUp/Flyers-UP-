@@ -98,7 +98,7 @@ export default function HomePage() {
 
           <div className="landing-grain rounded-3xl border border-[#2C2825]/12 bg-[#FFF9F4]/95 shadow-[0_20px_50px_-12px_rgba(44,40,37,0.1)] px-4 py-6 md:px-8 md:py-10 mb-10 max-w-5xl mx-auto">
             <p className="text-sm text-[#2C2825]/65 mb-4 md:mb-6 font-medium">
-              Customer → handshake match → verified pro
+              Customer → matched profiles → verified pro
             </p>
             <HeroSplitIllustration className="w-full h-auto max-h-[min(280px,42vw)] md:max-h-[320px] mx-auto select-none" />
           </div>
@@ -227,7 +227,7 @@ export default function HomePage() {
                 </span>
                 <span className="text-[#6B6560] text-sm">Chaos & guesswork</span>
               </div>
-              <div className="rounded-2xl border-2 border-[#2C2825]/15 mb-6 overflow-hidden bg-[#F5F0DC]">
+              <div className="rounded-2xl border-2 border-[#2C2825]/12 mb-6 overflow-hidden bg-[#FFF9F4]">
                 <BeforeChaosIllustration className="w-full h-auto max-h-[200px] md:max-h-[220px] object-contain" />
               </div>
               <ul className="space-y-3 text-[#2C2825]/75 text-[15px]">

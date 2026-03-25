@@ -1,12 +1,10 @@
 /**
- * Vertical timeline — warm sage + anchor strokes (matches landing palette).
+ * Vertical timeline — uses shared landing illustration tokens.
  */
-const A = '#2C2825';
-const SAGE_SOFT = '#E4ECD9';
-const SAGE = '#C5DEB8';
-const APRICOT_SOFT = '#F8E8D8';
+import { L } from './illustrationTokens';
 
 export function DigitalPaperTrailIllustration({ className = '' }: { className?: string }) {
+  const A = L.outline;
   return (
     <div className={`flex flex-col sm:flex-row gap-8 sm:gap-12 items-stretch ${className}`}>
       <div className="relative flex justify-center sm:justify-start shrink-0">
@@ -18,15 +16,15 @@ export function DigitalPaperTrailIllustration({ className = '' }: { className?: 
           aria-hidden
         >
           <title>Timeline</title>
-          <line x1="40" y1="12" x2="40" y2="268" stroke={A} strokeWidth="2" opacity="0.2" />
-          <circle cx="40" cy="32" r="14" fill={SAGE_SOFT} stroke={A} strokeWidth="2" />
-          <path d="M34 32l4 4 10-10" stroke={A} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          <circle cx="40" cy="120" r="14" fill={SAGE_SOFT} stroke={A} strokeWidth="2" />
-          <rect x="32" y="114" width="16" height="14" rx="2" stroke={A} strokeWidth="2" fill="white" />
-          <path d="M36 120h8M36 124h6" stroke={A} strokeWidth="1.5" strokeLinecap="round" />
-          <circle cx="40" cy="208" r="14" fill={SAGE} stroke={A} strokeWidth="2" />
-          <path d="M34 208h12M40 202v12" stroke={A} strokeWidth="2" strokeLinecap="round" />
-          <circle cx="40" cy="208" r="6" fill={APRICOT_SOFT} stroke={A} strokeWidth="1.5" />
+          <line x1="40" y1="12" x2="40" y2="268" stroke={L.greyLine} strokeWidth={2.5} />
+          <circle cx="40" cy="32" r="14" fill={L.sageSoft} stroke={A} strokeWidth={2.5} />
+          <path d="M34 32l4 4 10-10" stroke={A} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="40" cy="120" r="14" fill={L.sageSoft} stroke={A} strokeWidth={2.5} />
+          <rect x="32" y="114" width="16" height="14" rx="2" stroke={A} strokeWidth={2.5} fill={L.white} />
+          <path d="M36 120h8M36 124h6" stroke={A} strokeWidth={1.5} strokeLinecap="round" />
+          <circle cx="40" cy="208" r="14" fill={L.sage} stroke={A} strokeWidth={2.5} />
+          <path d="M34 208h12M40 202v12" stroke={A} strokeWidth={2.5} strokeLinecap="round" />
+          <circle cx="40" cy="208" r="6" fill={L.apricotSoft} stroke={A} strokeWidth={2} />
         </svg>
       </div>
       <div className="flex-1 space-y-6 sm:space-y-8">
