@@ -7,6 +7,7 @@ import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { useEffect, useState } from 'react';
 import { ConversationCard, type ConversationCardItem } from '@/components/messages/ConversationCard';
 import { EmptyState } from '@/components/messages/EmptyState';
+import { localCalendarDateToYmd } from '@/lib/datetime';
 
 type ThreadRow = ConversationCardItem;
 
@@ -138,7 +139,7 @@ export default function ProMessagesPage() {
           type: 'conversation',
           conversationId: conv.id,
           status: 'inquiry',
-          date: d.toISOString().slice(0, 10),
+          date: localCalendarDateToYmd(d),
           time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           lastMessage: lastRow?.message ?? 'No messages yet',
           lastAt: lastRow?.created_at ?? null,

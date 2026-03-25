@@ -15,8 +15,6 @@ import { BookingSummaryDeposit, type QuoteBreakdown } from '@/components/checkou
 import { DepositPayBar } from '@/components/checkout/DepositPayBar';
 import { BookingLoadErrorPage } from '@/components/checkout/BookingLoadErrorPage';
 import { QuickRulesSheet } from '@/components/booking/QuickRulesSheet';
-import { HintManager } from '@/components/guidance/HintManager';
-
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
   : null;
@@ -221,7 +219,6 @@ function DepositContent({ bookingId }: { bookingId: string }) {
           Pay deposit
         </h1>
 
-        <HintManager hintKey="deposit_screen" position="inline">
         {loading && (
           <div className="space-y-4 animate-pulse">
             <div className="h-24 rounded-2xl bg-white/80 dark:bg-white/5" />
@@ -315,7 +312,6 @@ function DepositContent({ bookingId }: { bookingId: string }) {
             Payment is not configured. Please contact support.
           </p>
         )}
-        </HintManager>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import { requireCronSecret } from '@/lib/cron/auth';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 import { createNotification } from '@/lib/notify/create-notification';
 import { parseBookingStart } from '@/lib/calendar/time-utils';
+import { DEFAULT_BOOKING_TIMEZONE, serviceDatePrefetchRange } from '@/lib/datetime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -79,23 +80,25 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 3) Booking reminders: 24h and 1h before service
-  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const in1h = new Date(now.getTime() + 60 * 60 * 1000);
-  const in25h = new Date(now.getTime() + 25 * 60 * 60 * 1000);
-  const in2h = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  // 3) Booking reminders: 24h and 1h before service (wide service_date filter; exact windows via parseBookingStart)
+  const { min: svcDateMin, max: svcDateMax } = serviceDatePrefetchRange(DEFAULT_BOOKING_TIMEZONE);
 
   const { data: upcoming24h } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, service_date, service_time, service_pros(user_id)')
+    .select(
+      'id, customer_id, pro_id, service_date, service_time, booking_timezone, service_pros(user_id)'
+    )
     .in('status', ['accepted', 'pro_en_route', 'on_the_way', 'arrived', 'in_progress', 'deposit_paid'])
-    .gte('service_date', now.toISOString().slice(0, 10))
-    .lte('service_date', in24h.toISOString().slice(0, 10));
+    .gte('service_date', svcDateMin)
+    .lte('service_date', svcDateMax);
 
   for (const b of upcoming24h ?? []) {
     const svcDate = (b as { service_date?: string }).service_date;
     const svcTime = (b as { service_time?: string }).service_time;
-    const dt = svcDate && svcTime ? parseBookingStart(svcDate, svcTime) : null;
+    const tz =
+      (b as { booking_timezone?: string | null }).booking_timezone?.trim() ||
+      DEFAULT_BOOKING_TIMEZONE;
+    const dt = svcDate && svcTime ? parseBookingStart(svcDate, svcTime, tz) : null;
     if (!dt || Number.isNaN(dt.getTime())) continue;
     const diffHours = (dt.getTime() - now.getTime()) / (60 * 60 * 1000);
     if (diffHours < 23 || diffHours > 25) continue;
@@ -134,15 +137,20 @@ export async function GET(req: NextRequest) {
 
   const { data: upcoming1h } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, service_pros(user_id)')
+    .select(
+      'id, customer_id, pro_id, service_date, service_time, booking_timezone, service_pros(user_id)'
+    )
     .in('status', ['accepted', 'pro_en_route', 'on_the_way', 'arrived', 'in_progress', 'deposit_paid'])
-    .gte('service_date', now.toISOString().slice(0, 10))
-    .lte('service_date', in2h.toISOString().slice(0, 10));
+    .gte('service_date', svcDateMin)
+    .lte('service_date', svcDateMax);
 
   for (const b of upcoming1h ?? []) {
     const svcDate = (b as { service_date?: string }).service_date;
     const svcTime = (b as { service_time?: string }).service_time;
-    const dt = svcDate && svcTime ? parseBookingStart(svcDate, svcTime) : null;
+    const tz =
+      (b as { booking_timezone?: string | null }).booking_timezone?.trim() ||
+      DEFAULT_BOOKING_TIMEZONE;
+    const dt = svcDate && svcTime ? parseBookingStart(svcDate, svcTime, tz) : null;
     if (!dt || Number.isNaN(dt.getTime())) continue;
     const diffMins = (dt.getTime() - now.getTime()) / (60 * 1000);
     if (diffMins < 55 || diffMins > 65) continue;
@@ -182,15 +190,20 @@ export async function GET(req: NextRequest) {
   // 3b) 2h before, 30m before, starts now
   const { data: upcoming2h } = await admin
     .from('bookings')
-    .select('id, customer_id, service_date, service_time, service_pros(user_id)')
+    .select(
+      'id, customer_id, service_date, service_time, booking_timezone, service_pros(user_id)'
+    )
     .in('status', ['accepted', 'pro_en_route', 'on_the_way', 'arrived', 'in_progress', 'deposit_paid'])
-    .gte('service_date', now.toISOString().slice(0, 10))
-    .lte('service_date', new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10));
+    .gte('service_date', svcDateMin)
+    .lte('service_date', svcDateMax);
 
   for (const b of upcoming2h ?? []) {
     const svcDate = (b as { service_date?: string }).service_date;
     const svcTime = (b as { service_time?: string }).service_time;
-    const dt = svcDate && svcTime ? parseBookingStart(svcDate, svcTime) : null;
+    const tz =
+      (b as { booking_timezone?: string | null }).booking_timezone?.trim() ||
+      DEFAULT_BOOKING_TIMEZONE;
+    const dt = svcDate && svcTime ? parseBookingStart(svcDate, svcTime, tz) : null;
     if (!dt || Number.isNaN(dt.getTime())) continue;
     const diffMins = (dt.getTime() - now.getTime()) / (60 * 1000);
 

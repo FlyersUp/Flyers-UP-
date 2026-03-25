@@ -24,6 +24,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { ChevronRight, DollarSign, Briefcase, Calendar, Inbox, Bell } from 'lucide-react';
 import { MiniScheduleWidget } from '@/components/calendar/MiniScheduleWidget';
 import type { CalendarEvent } from '@/lib/calendar/event-from-booking';
+import { DateTime } from 'luxon';
+import { DEFAULT_BOOKING_TIMEZONE, todayIsoInBookingTimezone } from '@/lib/datetime';
 
 type PendingRequest = {
   id: string;
@@ -313,10 +315,10 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
 
   useEffect(() => {
     let mounted = true;
-    const today = new Date().toISOString().slice(0, 10);
-    const end = new Date();
-    end.setDate(end.getDate() + 60);
-    const to = end.toISOString().slice(0, 10);
+    const today = todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE);
+    const to =
+      DateTime.fromISO(today, { zone: DEFAULT_BOOKING_TIMEZONE }).plus({ days: 60 }).toISODate() ??
+      today;
     fetch(`/api/calendar/events?role=pro&from=${today}&to=${to}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((json: { ok?: boolean; events?: CalendarEvent[] }) => {
@@ -354,7 +356,7 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
     };
   }, []);
 
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayIso = useMemo(() => todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE), []);
   const todayJobs = useMemo((): TodayJob[] => {
     return jobs
       .filter((j) => j.date === todayIso)

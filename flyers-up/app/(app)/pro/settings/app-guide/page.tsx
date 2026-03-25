@@ -9,6 +9,7 @@ import { getCurrentUser } from '@/lib/api';
 import { useGuidancePreferences } from '@/hooks/useGuidancePreferences';
 import { useState, useEffect } from 'react';
 import { trackAppGuideReplayed } from '@/lib/guidance/analytics';
+import { clearSessionGuideDismissed } from '@/lib/onboarding/sessionGuideDismissal';
 
 export default function ProAppGuidePage() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export default function ProAppGuidePage() {
 
   function handleReplayGuide() {
     trackAppGuideReplayed();
+    if (userId) clearSessionGuideDismissed(userId);
     setShowReplay(true);
   }
 

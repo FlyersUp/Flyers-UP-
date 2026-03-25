@@ -212,6 +212,7 @@ export interface Database {
           pro_id: string;
           service_date: string;
           service_time: string;
+          booking_timezone: string;
           address: string;
           notes: string | null;
           status: string;
@@ -226,6 +227,7 @@ export interface Database {
           pro_id: string;
           service_date: string;
           service_time: string;
+          booking_timezone?: string;
           address: string;
           notes?: string | null;
           status?: string;
@@ -240,6 +242,7 @@ export interface Database {
           pro_id?: string;
           service_date?: string;
           service_time?: string;
+          booking_timezone?: string;
           address?: string;
           notes?: string | null;
           status?: string;

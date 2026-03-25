@@ -58,13 +58,16 @@ describe('parseServiceTime', () => {
 });
 
 describe('parseBookingStart', () => {
-  it('builds date from dateISO and time', () => {
-    const d = parseBookingStart('2025-03-20', '10:00 AM');
+  it('maps wall clock in America/New_York to the correct UTC instant (EDT)', () => {
+    const d = parseBookingStart('2025-03-20', '10:00 AM', 'America/New_York');
     assert.ok(d);
-    assert.strictEqual(d.getFullYear(), 2025);
-    assert.strictEqual(d.getMonth(), 2);
-    assert.strictEqual(d.getDate(), 20);
-    assert.strictEqual(d.getHours(), 10);
+    assert.strictEqual(d.toISOString(), '2025-03-20T14:00:00.000Z');
+  });
+
+  it('maps wall clock in America/New_York to the correct UTC instant (EST)', () => {
+    const d = parseBookingStart('2025-01-15', '10:00 AM', 'America/New_York');
+    assert.ok(d);
+    assert.strictEqual(d.toISOString(), '2025-01-15T15:00:00.000Z');
   });
 });
 

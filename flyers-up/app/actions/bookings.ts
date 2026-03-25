@@ -12,6 +12,7 @@ import { recordServerErrorEvent } from '@/lib/serverError';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { geocodeAddress } from '@/lib/geocode';
+import { DEFAULT_BOOKING_TIMEZONE } from '@/lib/datetime';
 
 type BookingStatus = 'requested' | 'accepted' | 'declined' | 'completed' | 'cancelled';
 
@@ -167,6 +168,7 @@ export async function createBookingWithPayment(
         pro_id: proId,
         service_date: date,
         service_time: time,
+        booking_timezone: DEFAULT_BOOKING_TIMEZONE,
         address,
         notes: notes || null,
         status: 'requested' satisfies BookingStatus,

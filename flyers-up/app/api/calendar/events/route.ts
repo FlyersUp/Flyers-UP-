@@ -50,7 +50,7 @@ export async function GET(req: Request) {
       let q = admin
         .from('bookings')
         .select(
-          'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, duration_hours, payment_status'
+          'id, customer_id, pro_id, service_date, service_time, booking_timezone, address, notes, status, price, duration_hours, payment_status'
         )
         .eq('pro_id', proRow.id)
         .in('status', [...CALENDAR_COMMITTED_STATUSES])
@@ -113,7 +113,7 @@ export async function GET(req: Request) {
     let q = admin
       .from('bookings')
       .select(
-        'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, duration_hours, payment_status'
+        'id, customer_id, pro_id, service_date, service_time, booking_timezone, address, notes, status, price, duration_hours, payment_status'
       )
       .eq('customer_id', user.id)
       .in('status', [...CALENDAR_COMMITTED_STATUSES])

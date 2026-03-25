@@ -10,6 +10,7 @@ import { SideMenu } from '@/components/ui/SideMenu';
 import { AtAGlanceCard } from '@/components/ui/AtAGlanceCard';
 import { ReliabilityCard } from '@/components/pro/ReliabilityCard';
 import { getProJobs, type Booking } from '@/lib/api';
+import { DEFAULT_BOOKING_TIMEZONE, todayIsoInBookingTimezone } from '@/lib/datetime';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function ProDashboardClient({ userName }: { userName: string }) {
@@ -29,17 +30,15 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
           if (mounted) setJobs([]);
           return;
         }
-        const data = await getProJobs(user.id);
+        const [data, proRes] = await Promise.all([
+          getProJobs(user.id),
+          supabase.from('service_pros').select('rating').eq('user_id', user.id).maybeSingle(),
+        ]);
         if (!mounted) return;
         setJobs(data);
 
-        // Best-effort: fetch rating for "Today at a Glance".
-        const { data: proRow } = await supabase
-          .from('service_pros')
-          .select('rating')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        if (mounted) setProRating(typeof (proRow as any)?.rating === 'number' ? (proRow as any).rating : null);
+        const proRow = proRes.data;
+        if (mounted) setProRating(typeof (proRow as { rating?: unknown } | null)?.rating === 'number' ? (proRow as { rating: number }).rating : null);
       } finally {
         if (mounted) setJobsLoading(false);
       }
@@ -50,7 +49,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
     };
   }, []);
 
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayIso = useMemo(() => todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE), []);
   const requestedJobs = useMemo(() => jobs.filter((j) => j.status === 'requested'), [jobs]);
   const actionNeededCount = requestedJobs.length;
   const actionRequired = actionNeededCount > 0;

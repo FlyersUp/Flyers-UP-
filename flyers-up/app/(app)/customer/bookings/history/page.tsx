@@ -6,6 +6,7 @@ import { BookingStatusBadge } from '@/components/bookings/BookingStatusBadge';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { DEFAULT_BOOKING_TIMEZONE, todayIsoInBookingTimezone } from '@/lib/datetime';
 import Image from 'next/image';
 
 const UPCOMING_STATUSES = 'requested,pending,accepted,pro_en_route,on_the_way,arrived,in_progress,completed_pending_payment,awaiting_payment,awaiting_remaining_payment';
@@ -70,7 +71,7 @@ function CustomerBookingsHistoryContent() {
     let mounted = true;
     (async () => {
       setLoading(true);
-      const todayISO = new Date().toISOString().slice(0, 10);
+      const todayISO = todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE);
       try {
         const [upcomingRes, completedRes, cancelledRes] = await Promise.all([
           fetch(

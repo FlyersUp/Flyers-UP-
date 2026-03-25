@@ -20,6 +20,7 @@ import React, {
 import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
+import { perfLog, perfLoggingEnabled } from '@/lib/perfBoot';
 
 /** Skip realtime when proxy is used - WebSockets don't work through HTTP proxy */
 function shouldSkipRealtime(): boolean {
@@ -91,6 +92,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const pathname = usePathname();
 
   const refreshUnreadCount = useCallback(async () => {
+    const t0 = perfLoggingEnabled() && typeof performance !== 'undefined' ? performance.now() : 0;
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -108,6 +110,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (error) {
       console.warn('NotificationContext: failed to fetch unread count', error);
       return;
+    }
+    if (perfLoggingEnabled() && typeof performance !== 'undefined') {
+      perfLog('notifications unread count', performance.now() - t0);
     }
     setUnreadCount(count ?? 0);
   }, []);
@@ -140,9 +145,26 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     await refreshUnreadCount();
   }, [refreshUnreadCount]);
 
-  // Initial fetch + refetch on focus / route change
+  // Defer unread fetch until after first paint; refetch on route change (debounced).
   useEffect(() => {
-    void refreshUnreadCount();
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) void refreshUnreadCount();
+    };
+    let idleId: number | undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      idleId = window.requestIdleCallback(run, { timeout: 4000 });
+    } else {
+      timeoutId = setTimeout(run, 16);
+    }
+    return () => {
+      cancelled = true;
+      if (idleId !== undefined && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    };
   }, [refreshUnreadCount, pathname]);
 
   useEffect(() => {
@@ -151,13 +173,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     return () => window.removeEventListener('focus', handleFocus);
   }, [refreshUnreadCount]);
 
-  // Realtime: subscribe to notifications INSERT for current user
+  // Realtime: subscribe after idle so it does not compete with first paint.
   useEffect(() => {
     if (shouldSkipRealtime()) return;
 
     let mounted = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let idleId: number | undefined;
+    let startTimer: ReturnType<typeof setTimeout> | null = null;
 
     const subscribe = async () => {
       if (!mounted) return;
@@ -203,9 +227,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         });
     };
 
-    void subscribe();
+    const start = () => {
+      if (!mounted) return;
+      void subscribe();
+    };
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      idleId = window.requestIdleCallback(start, { timeout: 6000 });
+    } else {
+      startTimer = setTimeout(start, 2000);
+    }
+
     return () => {
       mounted = false;
+      if (idleId !== undefined && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (startTimer) clearTimeout(startTimer);
       if (retryTimeout) clearTimeout(retryTimeout);
       if (channel) scheduleRemoveSupabaseChannel(supabase, channel);
     };

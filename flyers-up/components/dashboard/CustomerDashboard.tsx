@@ -26,6 +26,9 @@ import { ChevronRight, Calendar, MessageCircle } from 'lucide-react';
 import { BookingStatusPill } from '@/components/bookings/BookingStatusPill';
 import { MiniScheduleWidget } from '@/components/calendar/MiniScheduleWidget';
 import type { CalendarEvent } from '@/lib/calendar/event-from-booking';
+import { perfLog, perfLoggingEnabled } from '@/lib/perfBoot';
+import { DateTime } from 'luxon';
+import { DEFAULT_BOOKING_TIMEZONE, todayIsoInBookingTimezone } from '@/lib/datetime';
 
 type ActiveBooking = {
   id: string;
@@ -89,7 +92,8 @@ export default function CustomerDashboard() {
   const router = useRouter();
   const [userName, setUserName] = useState('Account');
   const [userId, setUserId] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+  /** idle: no session yet; shell: session ok, profile or route still resolving; ready: dashboard data may load */
+  const [boot, setBoot] = useState<'idle' | 'shell' | 'ready'>('idle');
 
   const [activeBooking, setActiveBooking] = useState<ActiveBooking | null>(null);
   const [activeLoading, setActiveLoading] = useState(true);
@@ -106,10 +110,15 @@ export default function CustomerDashboard() {
 
   useEffect(() => {
     const guard = async () => {
+      const tAuth =
+        perfLoggingEnabled() && typeof performance !== 'undefined' ? performance.now() : 0;
       const {
         data: { user },
         error: userErr,
       } = await supabase.auth.getUser();
+      if (perfLoggingEnabled() && typeof performance !== 'undefined') {
+        perfLog('dashboard auth.getUser', performance.now() - tAuth);
+      }
       if (userErr) {
         router.replace(`/auth?next=%2Fcustomer&error=${encodeURIComponent('Could not read your session.')}`);
         return;
@@ -118,10 +127,18 @@ export default function CustomerDashboard() {
         router.replace(`/auth?next=%2Fcustomer&error=${encodeURIComponent('You are not signed in.')}`);
         return;
       }
-      const profile = await getOrCreateProfile(user.id, user.email ?? null);
-      if (!profile) return;
-      setUserId(user.id);
       const fallbackName = (user.email ? user.email.split('@')[0] : 'Account') || 'Account';
+      setUserName(fallbackName);
+      setUserId(user.id);
+      setBoot('shell');
+
+      const tProf =
+        perfLoggingEnabled() && typeof performance !== 'undefined' ? performance.now() : 0;
+      const profile = await getOrCreateProfile(user.id, user.email ?? null);
+      if (perfLoggingEnabled() && typeof performance !== 'undefined') {
+        perfLog('dashboard getOrCreateProfile', performance.now() - tProf);
+      }
+      if (!profile) return;
       const first = profile.first_name?.trim();
       const last = profile.last_name?.trim();
       setUserName([first, last].filter(Boolean).join(' ') || fallbackName);
@@ -130,15 +147,15 @@ export default function CustomerDashboard() {
         router.replace(dest);
         return;
       }
-      setReady(true);
+      setBoot('ready');
     };
     void guard();
   }, [router]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (boot !== 'ready') return;
     let mounted = true;
-    const todayISO = new Date().toISOString().slice(0, 10);
+    const todayISO = todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE);
     fetch(
       `/api/customer/bookings?from=${todayISO}&limit=5&statuses=${ACTIVE_STATUSES}`,
       { cache: 'no-store', credentials: 'include' }
@@ -170,10 +187,10 @@ export default function CustomerDashboard() {
     return () => {
       mounted = false;
     };
-  }, [ready]);
+  }, [boot]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (boot !== 'ready') return;
     let mounted = true;
     fetch(`/api/customer/bookings?limit=5&statuses=${COMPLETED_STATUSES}`, {
       cache: 'no-store',
@@ -207,10 +224,10 @@ export default function CustomerDashboard() {
     return () => {
       mounted = false;
     };
-  }, [ready]);
+  }, [boot]);
 
   useEffect(() => {
-    if (!ready || !userId) return;
+    if (boot !== 'ready' || !userId) return;
     let mounted = true;
     (async () => {
       try {
@@ -236,15 +253,15 @@ export default function CustomerDashboard() {
     return () => {
       mounted = false;
     };
-  }, [ready, userId]);
+  }, [boot, userId]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (boot !== 'ready') return;
     let mounted = true;
-    const today = new Date().toISOString().slice(0, 10);
-    const end = new Date();
-    end.setDate(end.getDate() + 60);
-    const to = end.toISOString().slice(0, 10);
+    const today = todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE);
+    const to =
+      DateTime.fromISO(today, { zone: DEFAULT_BOOKING_TIMEZONE }).plus({ days: 60 }).toISODate() ??
+      today;
     fetch(`/api/calendar/events?role=customer&from=${today}&to=${to}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((json: { ok?: boolean; events?: CalendarEvent[] }) => {
@@ -252,10 +269,10 @@ export default function CustomerDashboard() {
       })
       .catch(() => {});
     return () => { mounted = false; };
-  }, [ready]);
+  }, [boot]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (boot !== 'ready') return;
     let mounted = true;
     fetch('/api/customer/favorites', { cache: 'no-store' })
       .then((r) => r.json())
@@ -269,14 +286,28 @@ export default function CustomerDashboard() {
     return () => {
       mounted = false;
     };
-  }, [ready]);
+  }, [boot]);
 
-  if (!ready) {
+  if (boot === 'idle') {
     return (
       <AppLayout mode="customer">
         <div className="min-h-[40vh] flex items-center justify-center bg-bg">
           <p className="text-sm text-muted">Loading…</p>
         </div>
+      </AppLayout>
+    );
+  }
+
+  if (boot === 'shell') {
+    return (
+      <AppLayout mode="customer">
+        <CustomerPageShell title={userName} userName={userName}>
+          <div className="max-w-4xl mx-auto px-4 pt-2 pb-8 space-y-8">
+            <DashboardSectionSkeleton />
+            <DashboardSectionSkeleton />
+            <DashboardSectionSkeleton />
+          </div>
+        </CustomerPageShell>
       </AppLayout>
     );
   }

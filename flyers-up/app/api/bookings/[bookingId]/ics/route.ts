@@ -29,7 +29,7 @@ export async function GET(
     const { data: booking, error } = await admin
       .from('bookings')
       .select(
-        'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, duration_hours, payment_status'
+        'id, customer_id, pro_id, service_date, service_time, booking_timezone, address, notes, status, price, duration_hours, payment_status'
       )
       .eq('id', bookingId)
       .maybeSingle();
@@ -72,6 +72,9 @@ export async function GET(
 
     const baseUrl = req.nextUrl.origin;
     const icsContent = generateIcs(event, baseUrl);
+    if (!icsContent.trim()) {
+      return NextResponse.json({ error: 'Could not build calendar file' }, { status: 500 });
+    }
     const filename = `flyers-up-booking-${bookingId.slice(0, 8)}.ics`;
 
     return new NextResponse(icsContent, {

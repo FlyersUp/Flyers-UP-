@@ -18,7 +18,6 @@ import { CancelBookingModal } from '@/components/bookings/customer/CancelBooking
 import { BookingRulesAccordion } from '@/components/booking/BookingRulesAccordion';
 import { ArrivalVerificationCard } from '@/components/marketplace/ArrivalVerificationCard';
 import { CancelDueToProDelayBanner } from '@/components/bookings/customer/CancelDueToProDelayBanner';
-import { HintManager } from '@/components/guidance/HintManager';
 import { AddToCalendarButton } from '@/components/calendar/AddToCalendarButton';
 import { isCalendarCommittedStatus } from '@/lib/calendar/committed-states';
 import { InstantRebookCard } from '@/components/marketplace/InstantRebookCard';
@@ -318,7 +317,6 @@ export function BookingDetailContent({
 
             {/* 5. Payment summary */}
             <section className="mb-5">
-              <HintManager hintKey="completion_screen" active={showConfirmSlot}>
               <TrackBookingPaymentSummary
                 bookingId={bookingId}
                 status={booking.status}
@@ -347,7 +345,6 @@ export function BookingDetailContent({
                   ) : undefined
                 }
               />
-              </HintManager>
             </section>
 
             {/* 6. Trust / support */}

@@ -9,12 +9,12 @@ import { useRouter } from 'next/navigation';
 import { CalendarView } from '@/components/calendar/CalendarView';
 import type { CalendarEvent } from '@/lib/calendar/event-from-booking';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { DateTime } from 'luxon';
+import { DEFAULT_BOOKING_TIMEZONE, todayIsoInBookingTimezone } from '@/lib/datetime';
 
 type ViewMode = 'agenda' | 'day' | 'week' | 'month';
 
-function toISODate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+const Z = DEFAULT_BOOKING_TIMEZONE;
 
 export default function ProCalendarPage() {
   const router = useRouter();
@@ -22,7 +22,7 @@ export default function ProCalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('agenda');
-  const [focusDate, setFocusDate] = useState(() => toISODate(new Date()));
+  const [focusDate, setFocusDate] = useState(() => todayIsoInBookingTimezone(Z));
 
   useEffect(() => {
     const guard = async () => {
@@ -44,27 +44,27 @@ export default function ProCalendarPage() {
   useEffect(() => {
     if (!ready) return;
     setLoading(true);
-    const focus = new Date(focusDate + 'T12:00:00');
+    const focus = DateTime.fromISO(focusDate, { zone: Z });
+    if (!focus.isValid) {
+      setLoading(false);
+      return;
+    }
     let from = focusDate;
     let to = focusDate;
     if (viewMode === 'agenda') {
-      const start = new Date(focus);
-      start.setDate(start.getDate() - 7);
-      const end = new Date(focus);
-      end.setDate(end.getDate() + 60);
-      from = toISODate(start);
-      to = toISODate(end);
+      const start = focus.minus({ days: 7 });
+      const end = focus.plus({ days: 60 });
+      from = start.toISODate() ?? focusDate;
+      to = end.toISODate() ?? focusDate;
     } else if (viewMode === 'week') {
-      const day = focus.getDay();
-      const sun = new Date(focus);
-      sun.setDate(focus.getDate() - day);
-      const sat = new Date(sun);
-      sat.setDate(sun.getDate() + 6);
-      from = toISODate(sun);
-      to = toISODate(sat);
+      const daysBack = focus.weekday % 7;
+      const sun = focus.minus({ days: daysBack });
+      const sat = sun.plus({ days: 6 });
+      from = sun.toISODate() ?? focusDate;
+      to = sat.toISODate() ?? focusDate;
     } else if (viewMode === 'month') {
-      from = toISODate(new Date(focus.getFullYear(), focus.getMonth(), 1));
-      to = toISODate(new Date(focus.getFullYear(), focus.getMonth() + 1, 0));
+      from = focus.startOf('month').toISODate() ?? focusDate;
+      to = focus.endOf('month').toISODate() ?? focusDate;
     }
 
     fetch(
@@ -81,12 +81,14 @@ export default function ProCalendarPage() {
   }, [ready, focusDate, viewMode]);
 
   const nav = (delta: number) => {
-    const d = new Date(focusDate + 'T12:00:00');
-    if (viewMode === 'day') d.setDate(d.getDate() + delta);
-    else if (viewMode === 'week') d.setDate(d.getDate() + delta * 7);
-    else if (viewMode === 'month') d.setMonth(d.getMonth() + delta);
-    else d.setDate(d.getDate() + delta * 7);
-    setFocusDate(toISODate(d));
+    const focus = DateTime.fromISO(focusDate, { zone: Z });
+    if (!focus.isValid) return;
+    let next = focus;
+    if (viewMode === 'day') next = focus.plus({ days: delta });
+    else if (viewMode === 'week') next = focus.plus({ weeks: delta });
+    else if (viewMode === 'month') next = focus.plus({ months: delta });
+    else next = focus.plus({ weeks: delta });
+    setFocusDate(next.toISODate() ?? focusDate);
   };
 
   if (!ready) {
@@ -99,20 +101,24 @@ export default function ProCalendarPage() {
     );
   }
 
+  const focusDt = DateTime.fromISO(focusDate, { zone: Z });
   const viewLabel =
     viewMode === 'day'
-      ? new Date(focusDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      ? focusDt.isValid
+        ? focusDt.setLocale('en-US').toLocaleString(DateTime.DATE_MED)
+        : ''
       : viewMode === 'week'
         ? (() => {
-            const f = new Date(focusDate + 'T12:00:00');
-            const sun = new Date(f);
-            sun.setDate(f.getDate() - f.getDay());
-            const sat = new Date(sun);
-            sat.setDate(sun.getDate() + 6);
-            return `${sun.toLocaleDateString('en-US', { month: 'short' })} ${sun.getDate()} – ${sat.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+            if (!focusDt.isValid) return '';
+            const daysBack = focusDt.weekday % 7;
+            const sun = focusDt.minus({ days: daysBack });
+            const sat = sun.plus({ days: 6 });
+            return `${sun.setLocale('en-US').toFormat('LLL d')} – ${sat.setLocale('en-US').toFormat('LLL d, y')}`;
           })()
         : viewMode === 'month'
-          ? new Date(focusDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+          ? focusDt.isValid
+            ? focusDt.setLocale('en-US').toFormat('MMMM yyyy')
+            : ''
           : 'Upcoming';
 
   return (

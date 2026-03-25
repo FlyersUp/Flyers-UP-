@@ -26,7 +26,9 @@
   },
   "sidebar": {
     "role": "Rol",
-    "switchRole": "Cambiar rol",
+    "switchRole": "Cambiar cliente / pro",
+    "continueProfileSetup": "Continuar configuración del perfil",
+    "continueProfileSetupHint": "Completa unos datos para que reservas y pagos funcionen bien.",
     "account": "Cuenta",
     "accountIdentity": "Cuenta e identidad",
     "bookings": "Reservas",

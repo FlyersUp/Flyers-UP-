@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { DEFAULT_BOOKING_TIMEZONE, todayIsoInBookingTimezone } from '@/lib/datetime';
 
 const REASON_OPTIONS: { value: string; label: string }[] = [
   { value: 'customer_schedule', label: 'Need a different time' },
@@ -156,7 +157,7 @@ export function RescheduleModal({
                   type="date"
                   value={proposedDate}
                   onChange={(e) => setProposedDate(e.target.value)}
-                  min={new Date().toISOString().slice(0, 10)}
+                  min={todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE)}
                   className="w-full h-11 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-[#1D2128] px-4 text-[#111111] dark:text-[#F5F7FA] focus:outline-none focus:ring-2 focus:ring-[#058954]/50"
                 />
               </div>

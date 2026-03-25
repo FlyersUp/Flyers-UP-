@@ -14,6 +14,7 @@
  */
 
 import { supabase } from './supabaseClient';
+import { perfLog, perfLoggingEnabled, perfNoteGetCurrentUser } from '@/lib/perfBoot';
 import type { UserRole, BookingStatus } from '@/types/database';
 
 const SUPABASE_CONFIGURED = Boolean(
@@ -156,6 +157,8 @@ export interface Booking {
   category: string;
   date: string;
   time: string;
+  /** IANA zone for interpreting date + time (defaults to America/New_York in datetime helpers). */
+  bookingTimezone?: string | null;
   address: string;
   notes: string;
   status: BookingStatus;
@@ -250,6 +253,8 @@ export interface UserWithProfile {
   role: UserRole;
   fullName: string | null;
   avatarUrl?: string | null;
+  /** Null/empty when platform profile onboarding is complete. */
+  onboardingStep?: string | null;
 }
 
 // ============================================
@@ -458,21 +463,29 @@ export async function signOut(): Promise<void> {
  */
 export async function getCurrentUser(): Promise<UserWithProfile | null> {
   if (!SUPABASE_CONFIGURED) return null;
+  const t0 = perfLoggingEnabled() && typeof performance !== 'undefined' ? performance.now() : 0;
+  perfNoteGetCurrentUser();
   try {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
+      if (perfLoggingEnabled() && typeof performance !== 'undefined') {
+        perfLog('profile fetch (no session)', performance.now() - t0);
+      }
       return null;
     }
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role, full_name, avatar_url')
+      .select('role, full_name, avatar_url, onboarding_step')
       .eq('id', user.id)
       .maybeSingle();
 
     if (profileError) {
       console.error('getCurrentUser profile fetch error:', profileError);
+      if (perfLoggingEnabled() && typeof performance !== 'undefined') {
+        perfLog('profile fetch (error)', performance.now() - t0);
+      }
       return null;
     }
 
@@ -497,7 +510,7 @@ export async function getCurrentUser(): Promise<UserWithProfile | null> {
 
       const retry = await supabase
         .from('profiles')
-        .select('role, full_name, avatar_url')
+        .select('role, full_name, avatar_url, onboarding_step')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -513,18 +526,27 @@ export async function getCurrentUser(): Promise<UserWithProfile | null> {
         role: retry.data.role as UserRole,
         fullName: retry.data.full_name,
         avatarUrl: retry.data.avatar_url ?? null,
+        onboardingStep: retry.data.onboarding_step ?? null,
       };
     }
 
-    return {
+    const result = {
       id: user.id,
       email: user.email!,
       role: profile.role as UserRole,
       fullName: profile.full_name,
       avatarUrl: profile.avatar_url ?? null,
+      onboardingStep: profile.onboarding_step ?? null,
     };
+    if (perfLoggingEnabled() && typeof performance !== 'undefined') {
+      perfLog('profile fetched', performance.now() - t0);
+    }
+    return result;
   } catch (err) {
     console.error('getCurrentUser error:', err);
+    if (perfLoggingEnabled() && typeof performance !== 'undefined') {
+      perfLog('profile fetch (exception)', performance.now() - t0);
+    }
     return null;
   }
 }
@@ -1323,7 +1345,7 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
       .eq('id', proData.id)
       .single();
 
-    return data.map(booking => ({
+    return data.map((booking) => ({
       id: booking.id,
       customerId: booking.customer_id,
       customerName: customerNameById.get(booking.customer_id) || 'Customer',
@@ -1333,6 +1355,7 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
       category: categorySlug,
       date: booking.service_date,
       time: booking.service_time,
+      bookingTimezone: (booking as { booking_timezone?: string | null }).booking_timezone ?? undefined,
       address: booking.address,
       notes: booking.notes || '',
       status: booking.status as BookingStatus,

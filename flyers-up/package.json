@@ -9,7 +9,7 @@
     "lint": "eslint",
     "generate-icons": "node scripts/generate-app-icons.js",
     "generate-maskable": "node scripts/generate-maskable-icon.js",
-    "test": "npx tsx --test 'lib/**/__tests__/*.test.ts' 'lib/calendar/__tests__/*.test.ts'",
+    "test": "npx tsx --test \"lib/**/__tests__/**/*.test.ts\" \"lib/calendar/__tests__/*.test.ts\"",
     "test:statuses": "npx tsx --test lib/bookings/__tests__/pro-visible-statuses.test.ts",
     "test:integration": "INTEGRATION_TEST=1 npx tsx --test lib/bookings/__tests__/integration.test.ts"
   },
@@ -19,6 +19,7 @@
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.84.0",
     "lucide-react": "^0.562.0",
+    "luxon": "^3.7.2",
     "next": "^16.1.1",
     "next-auth": "^4.24.13",
     "next-intl": "^4.8.3",
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/luxon": "^3.7.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

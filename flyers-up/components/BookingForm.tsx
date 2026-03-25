@@ -18,6 +18,8 @@ import { useRouter } from 'next/navigation';
 import { getCurrentUser, getActiveAddonsForPro, type ServicePro, type ServiceAddon } from '@/lib/api';
 import { createBookingWithPayment } from '@/app/actions/bookings';
 import { QuickRulesSheet, hasSeenQuickRules } from '@/components/booking/QuickRulesSheet';
+import { DateTime } from 'luxon';
+import { DEFAULT_BOOKING_TIMEZONE } from '@/lib/datetime';
 
 interface Subcategory {
   id: string;
@@ -187,10 +189,8 @@ export default function BookingForm({ pro, initialSubcategorySlug, serviceSlug, 
     }
   };
 
-  // Get tomorrow's date as minimum selectable date
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow.toISOString().split('T')[0];
+  const minDate =
+    DateTime.now().setZone(DEFAULT_BOOKING_TIMEZONE).plus({ days: 1 }).toISODate() ?? '';
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">

@@ -1,27 +1,20 @@
 /**
- * Generate .ics (iCalendar) file content for a booking.
- * Standards-compliant for Google Calendar, Apple Calendar, Outlook.
+ * Generate .ics (iCalendar) and Google Calendar URLs for a booking-derived event.
+ * DTSTART/DTEND use UTC (Z) so Apple/Google/Outlook agree with the same instants as the DB-derived ISO fields.
  */
 
 import type { CalendarEvent } from './event-from-booking';
+import {
+  formatGoogleCalendarDatesParam,
+  formatIcsUtcDateTime,
+  formatIcsUtcStampNow,
+} from '@/lib/datetime/calendar-export';
 
 function escapeIcsText(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 }
 
-function formatIcsDateLocal(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const h = String(d.getHours()).padStart(2, '0');
-  const min = String(d.getMinutes()).padStart(2, '0');
-  const s = String(d.getSeconds()).padStart(2, '0');
-  return `${y}${m}${day}T${h}${min}${s}`;
-}
-
 export function generateIcs(event: CalendarEvent, baseUrl: string): string {
-  const start = new Date(event.startAt);
-  const end = new Date(event.endAt);
   const uid = `flyersup-${event.bookingId}@flyersup.com`;
   const title = escapeIcsText(event.serviceTitle);
   const desc = [
@@ -32,8 +25,12 @@ export function generateIcs(event: CalendarEvent, baseUrl: string): string {
     .filter(Boolean)
     .join('\\n');
   const location = escapeIcsText(event.address);
+  const dtStart = formatIcsUtcDateTime(event.startAt);
+  const dtEnd = formatIcsUtcDateTime(event.endAt);
+  if (!dtStart || !dtEnd) {
+    return '';
+  }
 
-  const tz = event.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -42,9 +39,9 @@ export function generateIcs(event: CalendarEvent, baseUrl: string): string {
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
     `UID:${uid}`,
-    `DTSTAMP:${formatIcsDateLocal(new Date())}`,
-    `DTSTART;TZID=${tz}:${formatIcsDateLocal(start)}`,
-    `DTEND;TZID=${tz}:${formatIcsDateLocal(end)}`,
+    `DTSTAMP:${formatIcsUtcStampNow()}`,
+    `DTSTART:${dtStart}`,
+    `DTEND:${dtEnd}`,
     `SUMMARY:${title}`,
     `DESCRIPTION:${desc}`,
     `LOCATION:${location}`,
@@ -56,15 +53,17 @@ export function generateIcs(event: CalendarEvent, baseUrl: string): string {
   return lines.join('\r\n');
 }
 
-/** Google Calendar add URL (opens pre-filled event in Google Calendar). */
+/** Google Calendar add URL (opens pre-filled event). Dates are UTC Z to match .ics. */
 export function googleCalendarAddUrl(event: CalendarEvent, baseUrl: string): string {
-  const start = new Date(event.startAt);
-  const end = new Date(event.endAt);
+  const dates = formatGoogleCalendarDatesParam(event.startAt, event.endAt);
+  const details = [`Booking: ${event.bookingId}`, event.address || '', `${baseUrl}${event.detailHref}`]
+    .filter(Boolean)
+    .join('\n');
   const params = new URLSearchParams({
     action: 'TEMPLATE',
     text: event.serviceTitle,
-    dates: `${start.toISOString().replace(/[-:]/g, '').slice(0, 15)}Z/${end.toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
-    details: `Booking: ${event.bookingId}\n${event.address || ''}`,
+    dates,
+    details,
     location: event.address || '',
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;

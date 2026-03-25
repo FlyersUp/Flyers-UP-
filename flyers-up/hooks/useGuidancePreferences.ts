@@ -10,6 +10,7 @@ import {
 } from '@/lib/guidance/preferences';
 import type { UserGuidancePreferences } from '@/lib/guidance/types';
 import { CURRENT_ONBOARDING_VERSION } from '@/lib/guidance/types';
+import { perfLog, perfLoggingEnabled } from '@/lib/perfBoot';
 
 export function useGuidancePreferences(userId: string | null) {
   const [prefs, setPrefs] = useState<UserGuidancePreferences | null>(null);
@@ -22,7 +23,11 @@ export function useGuidancePreferences(userId: string | null) {
       return;
     }
     setLoading(true);
+    const t0 = perfLoggingEnabled() && typeof performance !== 'undefined' ? performance.now() : 0;
     const p = await getUserGuidancePreferences(userId);
+    if (perfLoggingEnabled() && typeof performance !== 'undefined') {
+      perfLog('guidance prefs loaded', performance.now() - t0);
+    }
     setPrefs(p);
     setLoading(false);
   }, [userId]);

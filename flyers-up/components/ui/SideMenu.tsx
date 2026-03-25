@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { X, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { supabase } from '@/lib/supabaseClient';
+import { useGuidanceContext } from '@/contexts/GuidanceContext';
 
 type Role = 'customer' | 'pro';
 
@@ -294,6 +295,7 @@ export function SideMenu({
   }, [open]);
 
   const t = useTranslations();
+  const guidance = useGuidanceContext();
   const roleLabel = role === 'pro' ? t('sidebar.roleLabelPro') : t('sidebar.roleLabelCustomer');
   const baseSections = role === 'pro' ? PRO_SECTIONS : CUSTOMER_SECTIONS;
   const subtitleColor = SUBTITLE_COLORS[role];
@@ -367,6 +369,27 @@ export function SideMenu({
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-4">
+          {guidance?.showIncompletePlatformSetupInNav &&
+            guidance.incompletePlatformSetupHref && (
+              <div
+                className={`mb-6 rounded-2xl border bg-surface2 px-4 py-3 ${
+                  role === 'pro'
+                    ? 'border-[hsl(var(--accent-pro)/0.35)]'
+                    : 'border-[hsl(var(--accent-customer)/0.35)]'
+                }`}
+              >
+                <p className="text-sm text-text2 mb-2">
+                  {t('sidebar.continueProfileSetupHint')}
+                </p>
+                <Link
+                  href={guidance.incompletePlatformSetupHref}
+                  className="inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold bg-accent text-accentContrast hover:opacity-95"
+                  onClick={handleClose}
+                >
+                  {t('sidebar.continueProfileSetup')}
+                </Link>
+              </div>
+            )}
           {sections.map((s) => (
             <Section
               key={s.titleKey}

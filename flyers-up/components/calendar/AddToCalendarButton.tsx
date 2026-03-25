@@ -3,7 +3,12 @@
 import { useState } from 'react';
 import type { CalendarEvent } from '@/lib/calendar/event-from-booking';
 import { googleCalendarAddUrl } from '@/lib/calendar/ics';
-import { parseBookingStart, addDurationHours } from '@/lib/calendar/time-utils';
+import {
+  DEFAULT_BOOKING_TIMEZONE,
+  bookingWallTimeToUtcIso,
+  addHoursToUtcIso,
+  formatBookingTimeInZone,
+} from '@/lib/datetime';
 
 type Props = {
   event?: CalendarEvent;
@@ -15,6 +20,8 @@ type Props = {
     serviceTitle: string;
     address?: string;
     durationHours?: number;
+    /** Optional IANA zone; defaults to app booking zone */
+    bookingTimezone?: string;
   };
   className?: string;
 };
@@ -22,9 +29,12 @@ type Props = {
 function buildEventFromBooking(
   bookingId: string,
   b: NonNullable<Props['booking']>
-): CalendarEvent {
-  const start = parseBookingStart(b.serviceDate, b.serviceTime);
-  const end = start ? addDurationHours(start, b.durationHours ?? 1) : new Date();
+): CalendarEvent | null {
+  const tz = b.bookingTimezone ?? DEFAULT_BOOKING_TIMEZONE;
+  const startIso = bookingWallTimeToUtcIso(b.serviceDate, b.serviceTime, tz);
+  if (!startIso) return null;
+  const endIso = addHoursToUtcIso(startIso, b.durationHours ?? 1);
+  if (!endIso) return null;
   return {
     id: bookingId,
     bookingId,
@@ -33,10 +43,10 @@ function buildEventFromBooking(
     serviceTitle: b.serviceTitle,
     serviceDate: b.serviceDate,
     startTime: b.serviceTime,
-    endTime: end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
-    startAt: start?.toISOString() ?? new Date().toISOString(),
-    endAt: end.toISOString(),
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    endTime: formatBookingTimeInZone(endIso, tz),
+    startAt: startIso,
+    endAt: endIso,
+    timezone: tz,
     address: b.address ?? '',
     notes: null,
     status: '',

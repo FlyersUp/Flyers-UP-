@@ -1,13 +1,18 @@
 import { GuidanceProvider } from '@/components/guidance/GuidanceProvider';
+import { AppSessionProvider } from '@/contexts/AppSessionContext';
 
 /**
  * Authenticated app shell layout.
- * GuidanceProvider shows one-time onboarding when appropriate.
+ * Single session bootstrap + guidance (allowlisted onboarding modal).
  */
 export default function AppLayoutShell({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <GuidanceProvider>{children}</GuidanceProvider>;
+  return (
+    <AppSessionProvider>
+      <GuidanceProvider>{children}</GuidanceProvider>
+    </AppSessionProvider>
+  );
 }

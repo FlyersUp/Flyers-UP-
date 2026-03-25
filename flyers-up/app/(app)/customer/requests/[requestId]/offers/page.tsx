@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { SideMenu } from '@/components/ui/SideMenu';
+import { DEFAULT_BOOKING_TIMEZONE, todayIsoInBookingTimezone } from '@/lib/datetime';
 
 type JobOffer = {
   id: string;
@@ -156,7 +157,8 @@ export default function RequestOffersPage() {
     setError(null);
     setSelectingProId(proId);
     try {
-      const serviceDate = request.preferred_date || new Date().toISOString().slice(0, 10);
+      const serviceDate =
+        request.preferred_date || todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE);
       const serviceTime = request.preferred_time || '14:00';
       const address = request.location;
       const notes = [request.title, request.description].filter(Boolean).join('\n\n');

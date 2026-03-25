@@ -1,7 +1,7 @@
 'use client';
 
-import { ReactNode, useEffect, useState, useRef } from 'react';
-import { getCurrentUser } from '@/lib/api';
+import { ReactNode, useEffect, useRef } from 'react';
+import { useAppSession } from '@/contexts/AppSessionContext';
 import { useGuidancePreferences } from '@/hooks/useGuidancePreferences';
 import { useGuidanceContext } from '@/contexts/GuidanceContext';
 import { ContextualHint } from './ContextualHint';
@@ -25,24 +25,22 @@ export function HintManager({
   position = 'inline',
   active = true,
 }: HintManagerProps) {
-  const [userId, setUserId] = useState<string | null>(null);
+  const { user, resolved } = useAppSession();
+  const userId = user?.id ?? null;
   const guidance = useGuidanceContext();
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const user = await getCurrentUser();
-      if (!mounted) return;
-      setUserId(user?.id ?? null);
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const { prefs, dismissHintKey } = useGuidancePreferences(userId);
+  const { prefs, loading: prefsLoading, dismissHintKey } = useGuidancePreferences(userId);
   const dismissedKeys = prefs?.dismissedHintKeys ?? [];
-  const canShow = active && Boolean(userId && !dismissedKeys.includes(hintKey));
+
+  const suppressFromContext = guidance?.suppressContextualHints ?? false;
+  const canShow =
+    active &&
+    resolved &&
+    Boolean(userId) &&
+    !prefsLoading &&
+    !suppressFromContext &&
+    !dismissedKeys.includes(hintKey);
+
   const onboardingOpen = guidance?.onboardingOpen ?? false;
   const hasSlot = !guidance
     ? canShow

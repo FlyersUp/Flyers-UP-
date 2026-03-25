@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { perfLog, perfLoggingEnabled } from "@/lib/perfBoot";
 
 /**
  * Load OneSignal SDK after hydration to avoid:
@@ -16,9 +17,18 @@ export default function OneSignalLoader() {
     const id = setTimeout(() => {
       if (document.querySelector('script[src*="OneSignalSDK.page"]')) return;
 
+      const t0 =
+        perfLoggingEnabled() && typeof performance !== "undefined"
+          ? performance.now()
+          : 0;
       const script = document.createElement("script");
       script.src = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
       script.defer = true;
+      script.onload = () => {
+        if (perfLoggingEnabled() && typeof performance !== "undefined") {
+          perfLog("onesignal sdk script", performance.now() - t0);
+        }
+      };
       document.head.appendChild(script);
     }, 0);
     return () => clearTimeout(id);

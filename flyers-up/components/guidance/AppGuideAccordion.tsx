@@ -133,7 +133,7 @@ export function AppGuideAccordion({
             onClick={onReplayGuide}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-accent text-accentContrast hover:brightness-95 transition-colors"
           >
-            Replay guide
+            Replay walkthrough
           </button>
         )}
         {onResetHints && (

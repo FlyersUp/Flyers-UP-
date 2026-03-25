@@ -1,4 +1,11 @@
 import { getProJobs } from '@/lib/api';
+import {
+  DEFAULT_BOOKING_TIMEZONE,
+  todayIsoInBookingTimezone,
+  bookingWallTimeToUtcDate,
+  addHoursToUtcIso,
+  normalizeBookingTimeZone,
+} from '@/lib/datetime';
 
 export type TodayJobStatus = 'upcoming' | 'in_progress' | 'completed' | 'delayed';
 export type TodayRiskLevel = 'low' | 'medium' | 'high';
@@ -55,28 +62,6 @@ export type TodayOverview = {
   messages: TodayMessageThread[];
 };
 
-function formatLocalISODate(d: Date) {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function parseTimeToLocalDate(dateISO: string, time: string) {
-  // Expects `time` like "10:00 AM"
-  const m = time.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!m) return null;
-  const [, hh, mm, ap] = m;
-  let hours = Number(hh);
-  const minutes = Number(mm);
-  const ampm = ap.toUpperCase();
-  if (ampm === 'PM' && hours !== 12) hours += 12;
-  if (ampm === 'AM' && hours === 12) hours = 0;
-  const d = new Date(dateISO + 'T00:00:00');
-  d.setHours(hours, minutes, 0, 0);
-  return d;
-}
-
 function deriveRisk(jobStart: Date, etaMinutes: number | null | undefined): TodayRiskLevel {
   if (etaMinutes == null) return 'low';
   // Simple heuristic: if ETA pushes arrival close to (or past) start time, raise risk.
@@ -115,8 +100,7 @@ function buildDefaultTasks(): TodayTask[] {
 }
 
 export async function getTodayOverview(proUserId: string): Promise<TodayOverview> {
-  const today = new Date();
-  const dateISO = formatLocalISODate(today);
+  const dateISO = todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE);
 
   // Prefer real jobs if Supabase is configured.
   const SUPABASE_CONFIGURED = Boolean(
@@ -128,27 +112,33 @@ export async function getTodayOverview(proUserId: string): Promise<TodayOverview
     const all = await getProJobs(proUserId);
     const todays = (all || []).filter((b) => b.date === dateISO);
 
-    jobs = todays
-      .map((b) => {
-        const start = parseTimeToLocalDate(b.date, b.time);
-        const startAt = start ?? new Date(b.date + 'T09:00:00'); // TODO: ensure service_time stored consistently
-        const endAt = new Date(startAt.getTime() + 60 * 60000); // TODO: add duration when available
+    const tzFor = (b: (typeof todays)[number]) =>
+      normalizeBookingTimeZone(b.bookingTimezone ?? DEFAULT_BOOKING_TIMEZONE);
 
-        // Map DB booking status into timeline statuses.
+    jobs = todays
+      .flatMap((b) => {
+        const zone = tzFor(b);
+        const startAt =
+          bookingWallTimeToUtcDate(b.date, b.time, zone) ??
+          bookingWallTimeToUtcDate(b.date, '9:00 AM', zone);
+        if (!startAt) return [];
+        const endIso = addHoursToUtcIso(startAt.toISOString(), 1);
+        const endAt = endIso ? new Date(endIso) : new Date(startAt.getTime() + 60 * 60000);
+
         const dbStatus = b.status as string;
         let status: TodayJobStatus = 'upcoming';
         if (dbStatus === 'completed' || dbStatus === 'paid' || dbStatus === 'cancelled' || dbStatus === 'declined') status = 'completed';
         if (['awaiting_remaining_payment', 'awaiting_payment', 'completed_pending_payment', 'awaiting_customer_confirmation'].includes(dbStatus)) status = 'completed';
         if (dbStatus === 'in_progress') status = 'in_progress';
-        if (dbStatus === 'pro_en_route' || dbStatus === 'on_the_way') status = 'upcoming'; // Will be inferred by Start if pro taps it
+        if (dbStatus === 'pro_en_route' || dbStatus === 'on_the_way') status = 'upcoming';
 
-        const eta = null; // TODO: wire from nav/telemetry if introduced
-        return {
+        const eta = null;
+        const job: TodayJob = {
           id: b.id,
           start_time: startAt.toISOString(),
           end_time: endAt.toISOString(),
           client_name: b.customerName || 'Customer',
-          client_phone: b.customerPhone ?? null,
+          client_phone: b.customerPhone,
           address: b.address,
           service_type: b.category || 'Service',
           status,
@@ -156,7 +146,8 @@ export async function getTodayOverview(proUserId: string): Promise<TodayOverview
           eta_minutes: eta,
           risk: deriveRisk(startAt, eta),
           bookingId: b.id,
-        } satisfies TodayJob;
+        };
+        return [job];
       })
       .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
   }

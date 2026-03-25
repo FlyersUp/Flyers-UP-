@@ -42,6 +42,8 @@ export function NavAlertsProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let idleId: number | undefined;
+    let startTimer: ReturnType<typeof setTimeout> | null = null;
 
     const subscribe = async () => {
       if (!mounted || isUsingSupabaseHttpProxy()) return;
@@ -101,9 +103,22 @@ export function NavAlertsProvider({ children }: { children: React.ReactNode }) {
         });
     };
 
-    void subscribe();
+    const start = () => {
+      if (!mounted) return;
+      void subscribe();
+    };
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      idleId = window.requestIdleCallback(start, { timeout: 6000 });
+    } else {
+      startTimer = setTimeout(start, 2000);
+    }
+
     return () => {
       mounted = false;
+      if (idleId !== undefined && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (startTimer) clearTimeout(startTimer);
       if (retryTimeout) clearTimeout(retryTimeout);
       if (channel) scheduleRemoveSupabaseChannel(supabase, channel);
     };

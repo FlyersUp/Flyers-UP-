@@ -1,8 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
+import { DateTime } from 'luxon';
 import { CalendarEventCard } from './CalendarEventCard';
 import type { CalendarEvent } from '@/lib/calendar/event-from-booking';
+import { DEFAULT_BOOKING_TIMEZONE } from '@/lib/datetime';
 
 type ViewMode = 'agenda' | 'day' | 'week' | 'month';
 
@@ -13,13 +15,16 @@ type Props = {
   mode: 'pro' | 'customer';
 };
 
+const Z = DEFAULT_BOOKING_TIMEZONE;
+
 function getDaysInRange(from: string, to: string): string[] {
   const out: string[] = [];
-  const d = new Date(from + 'T00:00:00');
-  const end = new Date(to + 'T00:00:00');
-  while (d <= end) {
-    out.push(d.toISOString().slice(0, 10));
-    d.setDate(d.getDate() + 1);
+  let cur = DateTime.fromISO(from, { zone: Z });
+  const end = DateTime.fromISO(to, { zone: Z });
+  if (!cur.isValid || !end.isValid) return out;
+  while (cur <= end) {
+    out.push(cur.toISODate() ?? from);
+    cur = cur.plus({ days: 1 });
   }
   return out;
 }
@@ -41,13 +46,12 @@ export function CalendarView({ events, viewMode, focusDate, mode }: Props) {
   const byDate = useMemo(() => groupEventsByDate(events), [events]);
 
   const { datesToShow } = useMemo(() => {
-    const focus = new Date(focusDate + 'T12:00:00');
+    const focus = DateTime.fromISO(focusDate, { zone: Z });
+    if (!focus.isValid) return { datesToShow: [focusDate] };
     if (viewMode === 'agenda') {
-      const start = new Date(focus);
-      start.setDate(start.getDate() - 7);
-      const end = new Date(focus);
-      end.setDate(end.getDate() + 60);
-      const range = getDaysInRange(start.toISOString().slice(0, 10), end.toISOString().slice(0, 10));
+      const start = focus.minus({ days: 7 });
+      const end = focus.plus({ days: 60 });
+      const range = getDaysInRange(start.toISODate() ?? focusDate, end.toISODate() ?? focusDate);
       const withEvents = range.filter((d) => byDate.has(d));
       return { datesToShow: withEvents.length > 0 ? withEvents : range.slice(0, 14) };
     }
@@ -55,23 +59,18 @@ export function CalendarView({ events, viewMode, focusDate, mode }: Props) {
       return { datesToShow: [focusDate] };
     }
     if (viewMode === 'week') {
-      const day = focus.getDay();
-      const sun = new Date(focus);
-      sun.setDate(focus.getDate() - day);
-      const sat = new Date(sun);
-      sat.setDate(sun.getDate() + 6);
-      const from = sun.toISOString().slice(0, 10);
-      const to = sat.toISOString().slice(0, 10);
-      return { datesToShow: getDaysInRange(from, to) };
+      const daysBack = focus.weekday % 7;
+      const sun = focus.minus({ days: daysBack });
+      const sat = sun.plus({ days: 6 });
+      return {
+        datesToShow: getDaysInRange(sun.toISODate() ?? focusDate, sat.toISODate() ?? focusDate),
+      };
     }
-    // month
-    const y = focus.getFullYear();
-    const m = focus.getMonth();
-    const first = new Date(y, m, 1);
-    const last = new Date(y, m + 1, 0);
-    const from = first.toISOString().slice(0, 10);
-    const to = last.toISOString().slice(0, 10);
-    return { datesToShow: getDaysInRange(from, to) };
+    const first = focus.startOf('month');
+    const last = focus.endOf('month');
+    return {
+      datesToShow: getDaysInRange(first.toISODate() ?? focusDate, last.toISODate() ?? focusDate),
+    };
   }, [viewMode, focusDate, byDate]);
 
   const filteredEvents = useMemo(() => {
@@ -80,13 +79,12 @@ export function CalendarView({ events, viewMode, focusDate, mode }: Props) {
   }, [events, datesToShow]);
 
   const formatDateHeader = (d: string) => {
-    const date = new Date(d + 'T12:00:00');
-    const today = new Date();
-    if (date.toDateString() === today.toDateString()) return 'Today';
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
-    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const date = DateTime.fromISO(d, { zone: Z });
+    if (!date.isValid) return d;
+    const today = DateTime.now().setZone(Z).startOf('day');
+    if (date.hasSame(today, 'day')) return 'Today';
+    if (date.hasSame(today.plus({ days: 1 }), 'day')) return 'Tomorrow';
+    return date.setLocale('en-US').toFormat('ccc, MMM d');
   };
 
   if (filteredEvents.length === 0) {

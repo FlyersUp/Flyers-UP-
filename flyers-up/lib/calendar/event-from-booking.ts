@@ -1,9 +1,15 @@
 /**
  * Derive a calendar event from a booking.
- * Bookings are the source of truth; events are derived views.
+ * Bookings store wall-clock date+time in booking_timezone; startAt/endAt are always UTC ISO strings.
  */
 
-import { parseBookingStart, addDurationHours } from './time-utils';
+import {
+  DEFAULT_BOOKING_TIMEZONE,
+  normalizeBookingTimeZone,
+  bookingWallTimeToUtcIso,
+  addHoursToUtcIso,
+  formatBookingTimeInZone,
+} from '@/lib/datetime';
 import { isCalendarCommittedStatus } from './committed-states';
 
 export type CalendarEvent = {
@@ -15,8 +21,11 @@ export type CalendarEvent = {
   serviceDate: string;
   startTime: string;
   endTime: string;
+  /** UTC ISO-8601 instant */
   startAt: string;
+  /** UTC ISO-8601 instant */
   endAt: string;
+  /** IANA timezone used to interpret service_date + service_time */
   timezone: string;
   address: string;
   notes: string | null;
@@ -24,7 +33,6 @@ export type CalendarEvent = {
   paymentStatus: string | null;
   detailHref: string;
   chatHref: string;
-  // For display
   customerName?: string | null;
   proDisplayName?: string | null;
   serviceName?: string | null;
@@ -43,6 +51,7 @@ type BookingRow = {
   price?: number | null;
   duration_hours?: number | null;
   payment_status?: string | null;
+  booking_timezone?: string | null;
   customer?: { fullName?: string | null } | null;
   pro?: { displayName?: string | null; serviceName?: string | null } | null;
 };
@@ -56,13 +65,13 @@ export function bookingToCalendarEvent(
   if (!isCalendarCommittedStatus(b.status)) return null;
   if (!b.service_date || !b.service_time) return null;
 
-  const startAt = parseBookingStart(b.service_date, b.service_time);
+  const tz = normalizeBookingTimeZone(b.booking_timezone);
+  const startAt = bookingWallTimeToUtcIso(b.service_date, b.service_time, tz);
   if (!startAt) return null;
 
   const durationHours = Number(b.duration_hours) || DEFAULT_DURATION_HOURS;
-  const endAt = addDurationHours(startAt, durationHours);
-
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const endAt = addHoursToUtcIso(startAt, durationHours);
+  if (!endAt) return null;
 
   return {
     id: b.id,
@@ -72,9 +81,9 @@ export function bookingToCalendarEvent(
     serviceTitle: (b.pro as { serviceName?: string } | undefined)?.serviceName ?? 'Service',
     serviceDate: b.service_date,
     startTime: b.service_time,
-    endTime: formatTime(endAt),
-    startAt: startAt.toISOString(),
-    endAt: endAt.toISOString(),
+    endTime: formatBookingTimeInZone(endAt, tz),
+    startAt,
+    endAt,
     timezone: tz,
     address: b.address ?? '',
     notes: b.notes,
@@ -89,10 +98,4 @@ export function bookingToCalendarEvent(
   };
 }
 
-function formatTime(d: Date): string {
-  return d.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-}
+export { DEFAULT_BOOKING_TIMEZONE };

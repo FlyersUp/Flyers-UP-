@@ -1,152 +1,140 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { usePathname } from 'next/navigation';
-import { getCurrentUser } from '@/lib/api';
-import { useGuidancePreferences } from '@/hooks/useGuidancePreferences';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { useOnboardingVisibility } from '@/hooks/useOnboardingVisibility';
 import { OnboardingGuide } from './OnboardingGuide';
-import { GuidanceContextProvider } from '@/contexts/GuidanceContext';
+import {
+  GuidanceContextProvider,
+  type GuidanceContextValue,
+} from '@/contexts/GuidanceContext';
+import { clearSessionGuideDismissed } from '@/lib/onboarding/sessionGuideDismissal';
+import { perfLoggingEnabled } from '@/lib/perfBoot';
 
 interface GuidanceProviderProps {
   children: React.ReactNode;
 }
 
-const DEFER_MS = 2500;
+/** Short delay after shell paint so layout settles; no interaction-cancel (newcomers still see the guide). */
+const GUIDE_DEFER_MS = 700;
 
-function isMainAppPage(path: string | null): boolean {
-  if (!path) return false;
-  if (path === '/customer' || path === '/customer/') return true;
-  if (path === '/pro' || path === '/pro/') return true;
-  if (path?.startsWith('/occupations')) return true;
-  if (path === '/customer/bookings') return true;
-  if (path === '/customer/messages') return true;
-  if (path?.startsWith('/pro/jobs')) return true;
-  if (path?.startsWith('/pro/today')) return true;
-  if (path?.startsWith('/pro/messages')) return true;
-  return false;
-}
-
-/**
- * Wraps app content and shows one-time onboarding when appropriate.
- * Defers 2.5s so app paints first; only shows on main landing pages when idle.
- * Cancels if user interacts, navigates away, or layouts remount.
- */
 export function GuidanceProvider({ children }: GuidanceProviderProps) {
-  const pathname = usePathname();
-  const [userId, setUserId] = useState<string | null>(null);
-  const [role, setRole] = useState<'customer' | 'pro' | null>(null);
-  const [authReady, setAuthReady] = useState(false);
-  const [deferDone, setDeferDone] = useState(false);
+  const {
+    userId,
+    prefsLoading,
+    resolution,
+    autoShowProductGuide,
+    showIncompletePlatformEntry,
+    dismissProductGuideForSession,
+    clearProductGuideSessionDismissal,
+    incompletePlatformSetupHref,
+    pathname,
+    completeOnboarding,
+  } = useOnboardingVisibility();
 
-  const sessionGuardRef = useRef(false);
+  const roleForGuide = resolution.role;
+
+  const [deferDone, setDeferDone] = useState(false);
   const hasShownRef = useRef(false);
 
-  const {
-    shouldShowOnboarding,
-    loading: prefsLoading,
-    completeOnboarding,
-    skipOnboarding,
-  } = useGuidancePreferences(userId);
+  useEffect(() => {
+    hasShownRef.current = false;
+  }, [userId]);
 
-  const inPlatformOnboarding = pathname?.includes('/onboarding');
-  const onMainPage = isMainAppPage(pathname);
+  const eligibleForDefer =
+    autoShowProductGuide && !resolution.loading && !prefsLoading;
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const user = await getCurrentUser();
-      if (!mounted) return;
-      setUserId(user?.id ?? null);
-      setRole((user?.role as 'customer' | 'pro') ?? null);
-      setAuthReady(true);
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (
-      !authReady ||
-      prefsLoading ||
-      !shouldShowOnboarding ||
-      inPlatformOnboarding ||
-      sessionGuardRef.current
-    ) {
+    if (!eligibleForDefer) {
       setDeferDone(false);
       return;
     }
-    if (!onMainPage) {
-      setDeferDone(false);
-      sessionGuardRef.current = true;
-      return;
-    }
-
-    const cancel = () => {
-      setDeferDone(false);
-      sessionGuardRef.current = true;
-    };
-
-    const handleInteraction = () => {
-      cancel();
-    };
-
-    window.addEventListener('mousedown', handleInteraction, { capture: true });
-    window.addEventListener('touchstart', handleInteraction, { capture: true });
-    window.addEventListener('keydown', handleInteraction, { capture: true });
-
-    const t = setTimeout(() => {
-      window.removeEventListener('mousedown', handleInteraction, { capture: true });
-      window.removeEventListener('touchstart', handleInteraction, { capture: true });
-      window.removeEventListener('keydown', handleInteraction, { capture: true });
-      if (!sessionGuardRef.current) setDeferDone(true);
-    }, DEFER_MS);
-
+    const t = window.setTimeout(() => setDeferDone(true), GUIDE_DEFER_MS);
     return () => {
-      clearTimeout(t);
-      window.removeEventListener('mousedown', handleInteraction, { capture: true });
-      window.removeEventListener('touchstart', handleInteraction, { capture: true });
-      window.removeEventListener('keydown', handleInteraction, { capture: true });
-    };
-  }, [authReady, prefsLoading, shouldShowOnboarding, inPlatformOnboarding, onMainPage]);
-
-  useEffect(() => {
-    if (!onMainPage && deferDone) {
-      sessionGuardRef.current = true;
+      window.clearTimeout(t);
       setDeferDone(false);
-    }
-  }, [onMainPage, deferDone]);
+    };
+  }, [eligibleForDefer]);
 
-  const ready = authReady && !prefsLoading;
   const showOnboarding =
-    ready &&
-    shouldShowOnboarding &&
-    !inPlatformOnboarding &&
-    onMainPage &&
-    deferDone &&
-    !hasShownRef.current;
+    eligibleForDefer && deferDone && !hasShownRef.current;
 
   useEffect(() => {
     if (showOnboarding) hasShownRef.current = true;
   }, [showOnboarding]);
 
+  useEffect(() => {
+    if (!perfLoggingEnabled()) return;
+    if (resolution.loading || prefsLoading) return;
+    console.log(
+      `[perf] onboarding resolved autoShow=${autoShowProductGuide} path=${pathname ?? ''} profile=${resolution.profilePhase}`
+    );
+  }, [
+    resolution.loading,
+    resolution.profilePhase,
+    prefsLoading,
+    autoShowProductGuide,
+    pathname,
+  ]);
+
+  const slotRef = useRef<string | null>(null);
+  const requestHintSlot = useCallback((hintKey: string) => {
+    if (slotRef.current === null || slotRef.current === hintKey) {
+      slotRef.current = hintKey;
+      return true;
+    }
+    return false;
+  }, []);
+  const releaseHintSlot = useCallback(() => {
+    slotRef.current = null;
+  }, []);
+
+  const suppressContextualHints =
+    resolution.loading ||
+    resolution.isProductGuideComplete ||
+    resolution.isProductGuideSkippedForever ||
+    resolution.isSessionGuideDismissed;
+
+  const contextValue = useMemo((): GuidanceContextValue => {
+    return {
+      onboardingOpen: showOnboarding,
+      suppressContextualHints,
+      incompletePlatformSetupHref,
+      showIncompletePlatformSetupInNav:
+        showIncompletePlatformEntry && Boolean(incompletePlatformSetupHref),
+      dismissProductGuideForSession,
+      clearProductGuideSessionDismissal,
+      requestHintSlot,
+      releaseHintSlot,
+    };
+  }, [
+    showOnboarding,
+    suppressContextualHints,
+    incompletePlatformSetupHref,
+    showIncompletePlatformEntry,
+    dismissProductGuideForSession,
+    clearProductGuideSessionDismissal,
+    requestHintSlot,
+    releaseHintSlot,
+  ]);
+
   async function handleComplete() {
-    await completeOnboarding();
+    const res = await completeOnboarding();
+    if (res.success && userId) clearSessionGuideDismissed(userId);
   }
 
-  async function handleSkip() {
-    await skipOnboarding();
+  function handleSkipSession() {
+    dismissProductGuideForSession();
   }
 
   return (
-    <GuidanceContextProvider onboardingOpen={showOnboarding}>
+    <GuidanceContextProvider value={contextValue}>
       {children}
       {showOnboarding && (
         <OnboardingGuide
           open
-          role={role}
+          role={roleForGuide}
           onComplete={handleComplete}
-          onSkip={handleSkip}
+          onSkip={handleSkipSession}
           isReplay={false}
         />
       )}

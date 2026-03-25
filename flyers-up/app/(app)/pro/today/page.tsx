@@ -14,6 +14,7 @@ import { ListRow } from '@/components/ui/ListRow';
 import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 import { getTodayOverview, type TodayAlert, type TodayJob, type TodayOverview, type TodayTask } from '@/lib/today';
+import { DEFAULT_BOOKING_TIMEZONE, todayIsoInBookingTimezone } from '@/lib/datetime';
 
 function formatHeaderDate(dateISO: string) {
   const d = new Date(dateISO + 'T00:00:00');
@@ -330,7 +331,7 @@ export default function ProTodayPage() {
         const profile = await getOrCreateProfile(user.id, user.email ?? null);
         if (!mounted) return;
         if (!profile) {
-          const todayISO = new Date().toISOString().slice(0, 10);
+          const todayISO = todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE);
           setOverview({
             dateISO: todayISO,
             jobs: [],
@@ -355,7 +356,7 @@ export default function ProTodayPage() {
 
         // Replace mock timeline jobs with real bookings for today (if any).
         try {
-          const todayISO = new Date().toISOString().slice(0, 10);
+          const todayISO = todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE);
           const todayStatuses = [
             'deposit_paid',
             'requested',
@@ -385,7 +386,7 @@ export default function ProTodayPage() {
         }
       } catch {
         if (mounted) {
-          const todayISO = new Date().toISOString().slice(0, 10);
+          const todayISO = todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE);
           setOverview({
             dateISO: todayISO,
             jobs: [],

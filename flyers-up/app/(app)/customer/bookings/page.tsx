@@ -4,7 +4,6 @@ import { Suspense } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { CustomerPageShell } from '@/components/customer/CustomerPageShell';
 import { BookingsTabsLayout, type BookingsTab } from '@/components/bookings/BookingsTabsLayout';
-import { HintManager } from '@/components/guidance/HintManager';
 import { BookingStatusBadge } from '@/components/bookings/BookingStatusBadge';
 import { DashboardCard } from '@/components/dashboard/DashboardCard';
 import Link from 'next/link';
@@ -116,7 +115,6 @@ function CustomerBookingsContent() {
   return (
     <AppLayout mode="customer">
       <CustomerPageShell title="Bookings">
-        <HintManager hintKey="bookings_first_visit" position="top">
         <BookingsTabsLayout
         title="Bookings"
         activeTab={activeTab}
@@ -188,7 +186,6 @@ function CustomerBookingsContent() {
           </div>
         )}
         </BookingsTabsLayout>
-        </HintManager>
       </CustomerPageShell>
     </AppLayout>
   );
