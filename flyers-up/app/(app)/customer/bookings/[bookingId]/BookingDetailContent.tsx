@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useHydrated } from '@/hooks/useHydrated';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { TrackBookingRealtime, type TrackBookingData } from '@/components/bookings/TrackBookingRealtime';
@@ -110,7 +111,12 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
   };
 }
 
-function getPrimaryAction(booking: BookingDetailData & TrackBookingData, bookingId: string) {
+function getPrimaryAction(
+  booking: BookingDetailData & TrackBookingData,
+  bookingId: string,
+  /** When false (SSR + first paint), skip Date.now() so server and client markup match. */
+  checkPaymentDeadline: boolean
+) {
   const needsScopeLock =
     (booking as { job_request_id?: string | null }).job_request_id &&
     !(booking as { scope_confirmed_at?: string | null }).scope_confirmed_at;
@@ -119,7 +125,7 @@ function getPrimaryAction(booking: BookingDetailData & TrackBookingData, booking
     ['payment_required', 'accepted', 'accepted_pending_payment', 'awaiting_deposit_payment'].includes(booking.status) &&
     !booking.paidAt &&
     booking.paymentDueAt &&
-    new Date(booking.paymentDueAt).getTime() > Date.now();
+    (!checkPaymentDeadline || new Date(booking.paymentDueAt).getTime() > Date.now());
   const needsRemaining =
     ['completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment'].includes(booking.status) &&
     !booking.paidRemainingAt &&
@@ -190,6 +196,7 @@ export function BookingDetailContent({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const hydrated = useHydrated();
 
   const fetchBooking = useCallback(async (): Promise<TrackBookingData | null> => {
     try {
@@ -218,7 +225,7 @@ export function BookingDetailContent({
         });
         const fullBooking = { ...initialBooking, ...booking } as BookingDetailData & TrackBookingData;
         const hasAddressOrNotes = !!(fullBooking.address || fullBooking.notes);
-        const primaryAction = getPrimaryAction(fullBooking, bookingId);
+        const primaryAction = getPrimaryAction(fullBooking, bookingId, hydrated);
         const showConfirmSlot = booking.status === 'awaiting_customer_confirmation';
 
         return (

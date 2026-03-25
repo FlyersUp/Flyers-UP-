@@ -1,5 +1,6 @@
 'use client';
 
+import { useHydrated } from '@/hooks/useHydrated';
 import { BookingStatusPill } from '@/components/bookings/BookingStatusPill';
 import { getStatusConfig } from './trackBookingStatusConfig';
 
@@ -33,6 +34,7 @@ export function TrackBookingStatusHeader({
   lastUpdatedAt,
   className = '',
 }: TrackBookingStatusHeaderProps) {
+  const hydrated = useHydrated();
   const config = getStatusConfig(status);
 
   return (
@@ -49,7 +51,7 @@ export function TrackBookingStatusHeader({
       <p className="text-sm text-[#6A6A6A] dark:text-[#A1A8B3] leading-relaxed">
         {config.explanation}
       </p>
-      {lastUpdatedAt && (
+      {lastUpdatedAt && hydrated && (
         <p className="mt-2 text-xs text-[#8A8A8A] dark:text-[#7A8490]">
           Updated {formatRelativeTime(lastUpdatedAt)}
         </p>

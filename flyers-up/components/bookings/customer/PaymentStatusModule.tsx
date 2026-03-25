@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useHydrated } from '@/hooks/useHydrated';
+import { formatBookingDateTimeInZone } from '@/lib/datetime';
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -59,6 +61,7 @@ export function PaymentStatusModule({
   paidAt,
   fullyPaidAt,
 }: PaymentStatusModuleProps) {
+  const hydrated = useHydrated();
   const isPaid = paymentStatus === 'PAID';
   const isFullyPaid = finalPaymentStatus === 'PAID' || status === 'fully_paid' || status === 'paid';
   const isExpired = status === 'expired_unpaid';
@@ -92,7 +95,7 @@ export function PaymentStatusModule({
 
   if (isPaymentRequired && !isPaid && paymentDueAt) {
     const due = new Date(paymentDueAt).getTime();
-    const expired = Date.now() >= due;
+    const expired = hydrated && Date.now() >= due;
     if (expired) {
       return (
         <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
@@ -136,14 +139,7 @@ export function PaymentStatusModule({
         </p>
         {paidAt && (
           <p className="text-xs text-[#6A6A6A] mt-1">
-            Paid at{' '}
-            {new Date(paidAt).toLocaleString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-              hour: 'numeric',
-              minute: '2-digit',
-            })}
+            Paid at {formatBookingDateTimeInZone(new Date(paidAt).toISOString())}
           </p>
         )}
       </div>
@@ -172,14 +168,7 @@ export function PaymentStatusModule({
         <p className="text-sm font-medium text-[#111111]">Paid ✓</p>
         {fullyPaidAt && (
           <p className="text-xs text-[#6A6A6A] mt-1">
-            Paid at{' '}
-            {new Date(fullyPaidAt).toLocaleString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-              hour: 'numeric',
-              minute: '2-digit',
-            })}
+            Paid at {formatBookingDateTimeInZone(new Date(fullyPaidAt).toISOString())}
           </p>
         )}
       </div>
