@@ -15,7 +15,7 @@ const NEXT_ACTION_LABELS: Record<Exclude<Status, 'BOOKED' | 'AWAITING_ACCEPTANCE
   PAID: '',
 };
 
-function needsGpsArrivalVerification(booking: BookingDetails): boolean {
+function needsArrivalCheckIn(booking: BookingDetails): boolean {
   if (booking.arrivalStartedAt) return false;
   const s = String(booking.status);
   return s === 'pro_en_route' || s === 'on_the_way' || s === 'arrived';
