@@ -15,7 +15,10 @@ import { getOrCreateStripeCustomer } from '@/lib/stripeCustomer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { computeQuote } from '@/lib/bookingQuote';
 import { computeMoneyBreakdown } from '@/lib/bookings/money';
-import { validateProAvailability } from '@/lib/operations/availabilityValidation';
+import {
+  resolveSameDayEnabledFromServicePro,
+  validateProAvailability,
+} from '@/lib/operations/availabilityValidation';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -154,7 +157,7 @@ export async function POST(
   const { data: proRow, error: proErr } = await admin
     .from('service_pros')
     .select(
-      'id, user_id, display_name, category_id, stripe_account_id, stripe_charges_enabled, available, travel_radius_miles, service_area_mode, service_area_values, lead_time_minutes, buffer_between_jobs_minutes, same_day_enabled, availability_rules'
+      'id, user_id, display_name, category_id, stripe_account_id, stripe_charges_enabled, available, travel_radius_miles, service_area_mode, service_area_values, lead_time_minutes, buffer_between_jobs_minutes, same_day_enabled, same_day_available, availability_rules'
     )
     .eq('id', booking.pro_id)
     .maybeSingle();
@@ -220,7 +223,9 @@ export async function POST(
     serviceAreaValues: (proRow as { service_area_values?: string[] | null }).service_area_values,
     leadTimeMinutes: (proRow as { lead_time_minutes?: number | null }).lead_time_minutes,
     bufferBetweenJobsMinutes: (proRow as { buffer_between_jobs_minutes?: number | null }).buffer_between_jobs_minutes,
-    sameDayEnabled: (proRow as { same_day_enabled?: boolean | null }).same_day_enabled ?? false,
+    sameDayEnabled: resolveSameDayEnabledFromServicePro(
+      proRow as { same_day_enabled?: boolean | null; same_day_available?: boolean | null }
+    ),
     blockedDates: blockedDates.length ? blockedDates : undefined,
     existingBookingRanges: existingRanges,
   });

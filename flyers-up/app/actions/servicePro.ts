@@ -41,7 +41,11 @@ export async function updateMyServiceProAction(
     if (params.services_offered !== undefined) updateData.services_offered = params.services_offered;
     if (params.certifications !== undefined) updateData.certifications = params.certifications;
     if (params.service_types !== undefined) updateData.service_types = params.service_types;
-    if (params.same_day_available !== undefined) updateData.same_day_available = params.same_day_available;
+    if (params.same_day_available !== undefined) {
+      updateData.same_day_available = params.same_day_available;
+      // Keep in sync with operations/deposit validation (availabilityValidation)
+      updateData.same_day_enabled = params.same_day_available;
+    }
 
     const minJobPrice = params.min_job_price;
 

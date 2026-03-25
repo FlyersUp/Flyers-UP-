@@ -7,7 +7,10 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
-import { validateProAvailability } from '@/lib/operations/availabilityValidation';
+import {
+  resolveSameDayEnabledFromServicePro,
+  validateProAvailability,
+} from '@/lib/operations/availabilityValidation';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,7 +38,9 @@ export async function GET(
 
   const { data: pro } = await admin
     .from('service_pros')
-    .select('id, user_id, available, travel_radius_miles, service_area_mode, service_area_values, lead_time_minutes, buffer_between_jobs_minutes, same_day_enabled')
+    .select(
+      'id, user_id, available, travel_radius_miles, service_area_mode, service_area_values, lead_time_minutes, buffer_between_jobs_minutes, same_day_enabled, same_day_available'
+    )
     .eq('id', booking.pro_id)
     .maybeSingle();
 
@@ -79,7 +84,9 @@ export async function GET(
     serviceAreaValues: ((pro as { service_area_values?: string[] }).service_area_values ?? []) as string[],
     leadTimeMinutes: Number((pro as { lead_time_minutes?: number }).lead_time_minutes) || 60,
     bufferBetweenJobsMinutes: Number((pro as { buffer_between_jobs_minutes?: number }).buffer_between_jobs_minutes) || 30,
-    sameDayEnabled: Boolean((pro as { same_day_enabled?: boolean }).same_day_enabled),
+    sameDayEnabled: resolveSameDayEnabledFromServicePro(
+      pro as { same_day_enabled?: boolean | null; same_day_available?: boolean | null }
+    ),
     blockedDates: (blocked ?? []).map((b) => b.blocked_date as string),
     existingBookingRanges,
   });

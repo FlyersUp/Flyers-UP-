@@ -33,6 +33,17 @@ const DEFAULT_LEAD_TIME_MINUTES = 60;
 const DEFAULT_BUFFER_MINUTES = 30;
 const GRACE_WINDOW_MINUTES = 15;
 
+/**
+ * Operations layer uses `service_pros.same_day_enabled`; discovery uses `same_day_available`.
+ * Settings only wrote `same_day_available` until sync was added — coalesce so both stay equivalent.
+ */
+export function resolveSameDayEnabledFromServicePro(row: {
+  same_day_enabled?: boolean | null;
+  same_day_available?: boolean | null;
+}): boolean {
+  return Boolean(row.same_day_enabled) || Boolean(row.same_day_available);
+}
+
 export function validateProAvailability(input: AvailabilityValidationInput): AvailabilityResult {
   const {
     proActive,
