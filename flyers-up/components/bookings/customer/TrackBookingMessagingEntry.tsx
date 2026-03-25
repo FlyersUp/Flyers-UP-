@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useHydrated } from '@/hooks/useHydrated';
 import Link from 'next/link';
 import { MessageCircle, ChevronRight } from 'lucide-react';
 
@@ -49,6 +50,7 @@ export function TrackBookingMessagingEntry({
   summary: initialSummary,
   className = '',
 }: TrackBookingMessagingEntryProps) {
+  const hydrated = useHydrated();
   const [summary, setSummary] = useState<MessagesSummary | null>(initialSummary ?? null);
   const [loading, setLoading] = useState(!initialSummary);
 
@@ -125,7 +127,7 @@ export function TrackBookingMessagingEntry({
         <p className={`text-sm ${hasUnread ? 'font-medium text-[#111111] dark:text-[#F5F7FA]' : 'text-[#6A6A6A] dark:text-[#A1A8B3]'}`}>
           {loading ? 'Loading…' : previewText}
         </p>
-        {timeText && (
+        {timeText && hydrated && (
           <p className="mt-0.5 text-xs text-[#8A8A8A] dark:text-[#7A8490]">{timeText}</p>
         )}
       </div>

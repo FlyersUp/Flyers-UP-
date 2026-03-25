@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { formatBookingTimeInZone } from '@/lib/datetime';
 
 export interface ArrivalVerificationCardProps {
   arrivalTimestamp: string;
@@ -15,10 +16,10 @@ export function ArrivalVerificationCard({
   arrivalPhotoUrl,
   className = '',
 }: ArrivalVerificationCardProps) {
-  const time = new Date(arrivalTimestamp).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  const time =
+    arrivalTimestamp && !Number.isNaN(new Date(arrivalTimestamp).getTime())
+      ? formatBookingTimeInZone(new Date(arrivalTimestamp).toISOString())
+      : '—';
 
   return (
     <div

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useHydrated } from '@/hooks/useHydrated';
 
 export interface CancelDueToProDelayBannerProps {
   bookingId: string;
@@ -22,10 +23,12 @@ export function CancelDueToProDelayBanner({
   arrivedAt,
   status,
 }: CancelDueToProDelayBannerProps) {
+  const hydrated = useHydrated();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canCancelPenaltyFree =
+    hydrated &&
     AWAITING_ARRIVAL_STATUSES.includes(status) &&
     !arrivedAt &&
     noShowEligibleAt &&

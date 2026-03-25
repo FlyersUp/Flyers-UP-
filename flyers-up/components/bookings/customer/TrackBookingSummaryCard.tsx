@@ -1,11 +1,14 @@
 'use client';
 
+import { DateTime } from 'luxon';
+import { DEFAULT_BOOKING_TIMEZONE } from '@/lib/datetime';
+
 function formatDateTime(serviceDate?: string, serviceTime?: string): string {
   if (!serviceDate) return '—';
   try {
-    const d = new Date(serviceDate);
-    if (Number.isNaN(d.getTime())) return serviceDate;
-    const dateStr = d.toLocaleDateString('en-US', {
+    const dt = DateTime.fromISO(serviceDate, { zone: DEFAULT_BOOKING_TIMEZONE });
+    if (!dt.isValid) return serviceDate;
+    const dateStr = dt.toLocaleString({
       weekday: 'long',
       month: 'long',
       day: 'numeric',
