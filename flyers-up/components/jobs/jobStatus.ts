@@ -58,11 +58,31 @@ export type StageState = 'done' | 'active' | 'upcoming';
 export type NextStatusAction = 'ACCEPTED' | 'ON_THE_WAY' | 'ARRIVED' | 'IN_PROGRESS' | 'COMPLETED';
 
 /**
+ * Normalize DB status for the pro operational chain (requested → accepted → pro_en_route → …).
+ * Payment pipeline statuses still show as "Accepted" on the timeline but were missing from
+ * DB_STATUS_ORDER, which made isValidTransition reject ON_THE_WAY (409 invalid_transition).
+ */
+export function normalizeDbStatusForProgression(dbStatus: string): string {
+  if (dbStatus === 'pending') return 'requested';
+  if (dbStatus === 'on_the_way') return 'pro_en_route';
+  if (
+    dbStatus === 'payment_required' ||
+    dbStatus === 'awaiting_deposit_payment' ||
+    dbStatus === 'accepted_pending_payment' ||
+    dbStatus === 'deposit_paid'
+  ) {
+    return 'accepted';
+  }
+  return dbStatus;
+}
+
+/**
  * Returns the next DB status in the progression, or null if at end.
  * Treats 'pending' as equivalent to 'requested'. Maps on_the_way -> pro_en_route.
+ * Payment-related accepted-like statuses normalize to accepted (see normalizeDbStatusForProgression).
  */
 export function getNextDbStatus(currentDbStatus: string): string | null {
-  const s = currentDbStatus === 'pending' ? 'requested' : currentDbStatus === 'on_the_way' ? 'pro_en_route' : currentDbStatus;
+  const s = normalizeDbStatusForProgression(currentDbStatus);
   const idx = DB_STATUS_ORDER.indexOf(s);
   if (idx < 0 || idx >= DB_STATUS_ORDER.length - 1) return null;
   return DB_STATUS_ORDER[idx + 1];

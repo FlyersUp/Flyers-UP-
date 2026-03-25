@@ -23,6 +23,7 @@ import { normalizeUuidOrNull } from '@/lib/isUuid';
 import {
   apiNextStatusToDb,
   isValidTransition,
+  normalizeDbStatusForProgression,
   type NextStatusAction,
 } from '@/components/jobs/jobStatus';
 import { createNotificationEvent } from '@/lib/notifications';
@@ -362,14 +363,13 @@ export async function PATCH(
 }
 
 function getAllowedNext(current: string): NextStatusAction | null {
+  const key = normalizeDbStatusForProgression(current);
   const map: Record<string, NextStatusAction> = {
     requested: 'ACCEPTED',
-    pending: 'ACCEPTED',
     accepted: 'ON_THE_WAY',
     pro_en_route: 'ARRIVED',
-    on_the_way: 'ARRIVED',
     arrived: 'IN_PROGRESS',
     in_progress: 'COMPLETED',
   };
-  return map[current] ?? null;
+  return map[key] ?? null;
 }
