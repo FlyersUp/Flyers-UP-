@@ -22,6 +22,7 @@ import {
   summarizeBusinessHours,
   validateWeeklyHours,
 } from '@/lib/utils/businessHours';
+import { warnLegacyServicesNotInOccupationServices } from '@/lib/proProfileCanonical';
 
 interface ProProfileData {
   displayName: string;
@@ -33,7 +34,6 @@ interface ProProfileData {
   serviceRadius: string;
   yearsExperience: string;
   verifiedCredentials: string[];
-  servicesOffered: string[];
   darkMode: boolean;
   jobsCompleted: number;
   averageRating: number;
@@ -59,11 +59,14 @@ export default function ProProfilePage() {
     serviceRadius: '',
     yearsExperience: '',
     verifiedCredentials: [],
-    servicesOffered: [],
     darkMode: false,
     jobsCompleted: 0,
     averageRating: 0,
   });
+  /** Signup occupation (occupations table) — canonical display label. */
+  const [primaryOccupationLabel, setPrimaryOccupationLabel] = useState<string | null>(null);
+  /** For specialty presets (occupation slug). */
+  const [occupationSlug, setOccupationSlug] = useState<string>('');
   const [businessHoursModel, setBusinessHoursModel] = useState(() => defaultBusinessHoursModel());
   const [showInactiveCategoryBanner, setShowInactiveCategoryBanner] = useState(false);
   const [serviceTypes, setServiceTypes] = useState<Array<{ id: string; name: string; slug: string }>>([]);
@@ -120,6 +123,27 @@ export default function ProProfilePage() {
         setServiceTypes(svcTypes.map((s) => ({ id: s.id, name: s.name, slug: s.slug })));
         setSpecialties(specs);
         setAddons(addonsList.map((a) => ({ id: a.id, title: a.title, priceCents: a.priceCents, isActive: a.isActive })));
+
+        warnLegacyServicesNotInOccupationServices(
+          proData.servicesOffered || [],
+          new Set(svcTypes.map((s) => s.slug))
+        );
+        if (
+          process.env.NODE_ENV === 'development' &&
+          (proData.servicesOffered?.length ?? 0) > 0 &&
+          svcTypes.length === 0
+        ) {
+          console.warn(
+            '[ProProfile] Legacy services_offered is populated but no occupation-linked services (pro_services) are selected.'
+          );
+        }
+
+        const occLabel =
+          proData.primaryOccupationName?.trim() || category?.name || null;
+        const occSlug = proData.primaryOccupationSlug?.trim() || category?.slug || '';
+        setPrimaryOccupationLabel(occLabel);
+        setOccupationSlug(occSlug);
+
         setFormData({
           displayName: proData.displayName || '',
           bio: proData.bio || '',
@@ -133,16 +157,14 @@ export default function ProProfilePage() {
             (proData.verifiedCredentials && proData.verifiedCredentials.length > 0)
               ? proData.verifiedCredentials
               : (extendedData.verifiedCredentials || []),
-          servicesOffered:
-            (proData.servicesOffered && proData.servicesOffered.length > 0)
-              ? proData.servicesOffered
-              : (extendedData.servicesOffered || [category?.slug || '']),
           darkMode: localStorage.getItem('darkMode') === 'true',
           jobsCompleted: proFullData?.review_count || 0,
           averageRating: proFullData?.rating || 0,
         });
       } else {
         setServiceProId(null);
+        setPrimaryOccupationLabel(null);
+        setOccupationSlug('');
       }
     } catch (err) {
       console.error('Error loading profile:', err);
@@ -212,7 +234,6 @@ export default function ProProfilePage() {
         service_radius: formData.serviceRadius ? parseInt(formData.serviceRadius) : undefined,
         business_hours: stringifyBusinessHoursModel(businessHoursModel),
         years_experience: yearsExpNum ?? undefined,
-        services_offered: formData.servicesOffered,
         certifications: formData.verifiedCredentials,
       }, accessToken);
 
@@ -226,7 +247,6 @@ export default function ProProfilePage() {
         const ext = {
           yearsExperience: Number(formData.yearsExperience || 0),
           verifiedCredentials: formData.verifiedCredentials,
-          servicesOffered: formData.servicesOffered,
         };
         localStorage.setItem('proProfile_extended', JSON.stringify(ext));
       } catch {}
@@ -257,20 +277,6 @@ export default function ProProfilePage() {
       setFormData({
         ...formData,
         verifiedCredentials: [...formData.verifiedCredentials, credential],
-      });
-    }
-  };
-
-  const toggleService = (service: string) => {
-    if (formData.servicesOffered.includes(service)) {
-      setFormData({
-        ...formData,
-        servicesOffered: formData.servicesOffered.filter(s => s !== service),
-      });
-    } else {
-      setFormData({
-        ...formData,
-        servicesOffered: [...formData.servicesOffered, service],
       });
     }
   };
@@ -372,8 +378,11 @@ export default function ProProfilePage() {
               Edit Profile
             </button>
             <nav className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium" aria-label="Profile management">
+              <Link href="/onboarding/pro" className="text-accent hover:underline">
+                Manage services
+              </Link>
               <Link href="/pro/specialties" className="text-accent hover:underline">
-                Edit services
+                Manage specialties
               </Link>
               <Link href="/pro/settings/pricing-availability" className="text-accent hover:underline">
                 Edit pricing
@@ -384,6 +393,22 @@ export default function ProProfilePage() {
             </nav>
           </div>
         </div>
+
+        {(primaryOccupationLabel || showInactiveCategoryBanner) && (
+          <div className="mb-6 rounded-2xl border border-black/10 dark:border-white/10 bg-[var(--surface-solid)] shadow-sm shadow-black/5 px-5 py-4">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Primary occupation</p>
+            {showInactiveCategoryBanner ? (
+              <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
+                Update your occupation below — your previous category is unavailable.
+              </p>
+            ) : (
+              <p className="mt-1 text-lg font-semibold text-text">{primaryOccupationLabel}</p>
+            )}
+            <p className="mt-2 text-xs text-muted">
+              Services offered are limited to this occupation. Use Manage services to change which services you provide.
+            </p>
+          </div>
+        )}
 
         {/* Success/Error Messages */}
         {success && (
@@ -463,39 +488,50 @@ export default function ProProfilePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text mb-1">Occupation</label>
+                <label className="block text-sm font-medium text-text mb-1">Primary occupation</label>
                 {showInactiveCategoryBanner ? (
-                  <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
-                    This occupation is temporarily unavailable during platform updates. Please select a new occupation.
-                  </div>
-                ) : null}
-                {isEditing ? (
-                  <select
-                    value={formData.categoryId}
-                    onChange={(e) => {
-                      const selected = categories.find(c => c.id === e.target.value);
-                      setFormData({
-                        ...formData,
-                        categoryId: e.target.value,
-                        categorySlug: selected?.slug || '',
-                      });
-                      if (e.target.value) setShowInactiveCategoryBanner(false);
-                    }}
-                    disabled={!!formData.categoryId && !showInactiveCategoryBanner}
-                    className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Select your occupation</option>
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
+                  <>
+                    <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+                      This occupation is temporarily unavailable during platform updates. Please select a new linked category.
+                    </div>
+                    {isEditing ? (
+                      <select
+                        value={formData.categoryId}
+                        onChange={(e) => {
+                          const selected = categories.find((c) => c.id === e.target.value);
+                          setFormData({
+                            ...formData,
+                            categoryId: e.target.value,
+                            categorySlug: selected?.slug || '',
+                          });
+                          if (e.target.value) setShowInactiveCategoryBanner(false);
+                        }}
+                        className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                      >
+                        <option value="">Select category</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-text">{primaryOccupationLabel || 'Not set'}</p>
+                    )}
+                  </>
                 ) : (
-                  <p className="text-text">{formData.categorySlug || 'Not set'}</p>
-                )}
-                {isEditing && formData.categoryId && !showInactiveCategoryBanner && (
-                  <p className="text-xs text-muted/70 mt-2">
-                    Primary occupation is locked and cannot be changed after signup.
-                  </p>
+                  <>
+                    <p className="text-text font-medium">{primaryOccupationLabel || formData.categorySlug || 'Not set'}</p>
+                    {isEditing && (
+                      <p className="text-xs text-muted mt-2">
+                        Locked after signup. To change which services you offer within this occupation, use{' '}
+                        <Link href="/onboarding/pro" className="text-accent hover:underline">
+                          Manage services
+                        </Link>
+                        .
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -566,44 +602,62 @@ export default function ProProfilePage() {
             </div>
           </div>
 
-          {/* Service Types */}
-          {serviceTypes.length > 0 && (
-            <div className="bg-surface rounded-xl border border-border p-6">
-              <h2 className="text-lg font-semibold text-text mb-4">Service Types</h2>
+          {/* Services offered = occupation-linked pro_services only */}
+          <div className="bg-surface rounded-xl border border-border p-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-text">Services offered</h2>
+                <p className="text-xs text-muted mt-1 max-w-xl">
+                  These are the services you selected for your occupation during signup. They are not the same as specialties.
+                </p>
+              </div>
+              <Link
+                href="/onboarding/pro"
+                className="inline-flex items-center justify-center min-h-11 px-4 rounded-xl text-sm font-semibold border border-black/10 dark:border-white/10 bg-[var(--surface-solid)] text-accent hover:bg-surface2 shrink-0"
+              >
+                Manage services
+              </Link>
+            </div>
+            {serviceTypes.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {serviceTypes.map((s) => (
                   <span
                     key={s.id}
-                    className="px-3 py-1.5 rounded-lg bg-surface2 border border-border text-sm text-text"
+                    className="px-3 py-2 min-h-11 inline-flex items-center rounded-xl bg-[var(--surface-solid)] border border-black/10 dark:border-white/10 text-sm font-medium text-text shadow-sm"
                   >
                     {s.name}
                   </span>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-muted">No services added yet.</p>
+            )}
+          </div>
 
-          {/* Specialties */}
+          {/* Specialties — differentiators within occupation */}
           <div className="bg-surface rounded-xl border border-border p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-2">
               <h2 className="text-lg font-semibold text-text">Specialties</h2>
-              <Link href="/pro/specialties" className="text-sm text-accent hover:underline">
+              <Link href="/pro/specialties" className="text-sm font-medium text-accent hover:underline min-h-11 inline-flex items-center">
                 Manage
               </Link>
             </div>
+            <p className="text-sm text-muted mb-4 max-w-2xl">
+              Optional strengths and expertise within your occupation — not your service list. Add up to 8 specialties that highlight what you’re especially good at. These help customers understand your strengths and find you more easily.
+            </p>
             {specialties.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {specialties.map((s) => (
                   <span
                     key={s.id}
-                    className="px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/30 text-sm text-text"
+                    className="px-3 py-2 rounded-xl bg-[var(--surface-solid)] border border-black/10 dark:border-white/10 text-sm font-medium text-text shadow-sm"
                   >
                     {s.label}
                   </span>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted">No specialties yet. Add some to stand out.</p>
+              <p className="text-sm text-muted">No specialties yet.</p>
             )}
           </div>
 
@@ -630,36 +684,6 @@ export default function ProProfilePage() {
             ) : (
               <p className="text-sm text-muted">No add-ons yet. Add optional extras customers can choose during booking.</p>
             )}
-          </div>
-
-          {/* Services Offered (legacy categories) */}
-          <div className="bg-surface rounded-xl border border-border p-6">
-            <h2 className="text-lg font-semibold text-text mb-4">Services Offered</h2>
-            <div className="flex flex-wrap gap-3">
-              {categories.map(cat => (
-                <label
-                  key={cat.id}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${
-                    formData.servicesOffered.includes(cat.slug)
-                      ? "relative bg-badgeFill border-accent/40 text-text pl-6 before:content-[''] before:absolute before:left-3 before:top-1/2 before:-translate-y-1/2 before:h-2 before:w-2 before:rounded-full before:bg-accent/80"
-                      : 'bg-surface2 border-border text-text hover:bg-surface2'
-                  } ${!isEditing ? 'cursor-default' : ''}`}
-                >
-                  {isEditing && (
-                    <input
-                      type="checkbox"
-                      checked={formData.servicesOffered.includes(cat.slug)}
-                      onChange={() => toggleService(cat.slug)}
-                      className="w-4 h-4 rounded border-border text-accent focus:ring-accent/40"
-                    />
-                  )}
-                  {!isEditing && formData.servicesOffered.includes(cat.slug) && (
-                    <span className="text-accent">✓</span>
-                  )}
-                  <span>{cat.icon} {cat.name}</span>
-                </label>
-              ))}
-            </div>
           </div>
 
           {/* Service Area */}

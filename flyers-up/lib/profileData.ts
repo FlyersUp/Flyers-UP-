@@ -65,6 +65,8 @@ export type PublicProProfileModel = {
   phone: string | null;
   phonePublic: boolean;
   categoryName: string | null;
+  /** Signup occupation label (occupations.name) when set; prefer over categoryName for display. */
+  primaryOccupationName: string | null;
   locationLabel: string | null;
   serviceRadiusMiles: number | null;
   bio: string | null;
@@ -180,7 +182,7 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
   const { data: pro, error: proErr } = await admin
     .from('service_pros')
     .select(
-      'id, user_id, display_name, bio, category_id, location, service_radius, years_experience, rating, review_count, available, business_hours, logo_url, service_descriptions, before_after_photos, services_offered, certifications, created_at, identity_verified, background_checked, licensed, jobs_completed'
+      'id, user_id, display_name, bio, category_id, occupation_id, location, service_radius, years_experience, rating, review_count, available, business_hours, logo_url, service_descriptions, before_after_photos, services_offered, certifications, created_at, identity_verified, background_checked, licensed, jobs_completed'
     )
     .eq('id', proId)
     .maybeSingle();
@@ -193,19 +195,44 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
   if ((pro as any).available === false) return null;
 
   const userId = String((pro as any).user_id);
+  const proRowId = String((pro as any).id);
+  const occupationId = (pro as { occupation_id?: string | null }).occupation_id ?? null;
 
-  const [{ data: prof }, { data: cat }, { count: jobsCompletedCount }, { data: proProfile }, { data: safetySettings }] =
-    await Promise.all([
-      admin.from('profiles').select('id, phone, avatar_url').eq('id', userId).maybeSingle(),
-      admin.from('service_categories').select('name').eq('id', (pro as any).category_id).maybeSingle(),
-      admin
-        .from('bookings')
-        .select('id', { count: 'exact', head: true })
-        .eq('pro_id', String((pro as any).id))
-        .eq('status', 'completed'),
-      admin.from('pro_profiles').select('starting_price, hourly_rate, min_hours, travel_fee_enabled, travel_fee_base, travel_free_within_miles, service_radius_miles').eq('user_id', userId).maybeSingle(),
-      admin.from('pro_safety_compliance_settings').select('guidelines_accepted_at, guidelines_acknowledged, insurance_doc_path, background_check_status').eq('pro_user_id', userId).maybeSingle(),
-    ]);
+  const [
+    { data: prof },
+    { data: cat },
+    { count: jobsCompletedCount },
+    { data: proProfile },
+    { data: safetySettings },
+    { data: occRow },
+    { data: proSvcRows },
+  ] = await Promise.all([
+    admin.from('profiles').select('id, phone, avatar_url').eq('id', userId).maybeSingle(),
+    admin.from('service_categories').select('name').eq('id', (pro as any).category_id).maybeSingle(),
+    admin
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('pro_id', proRowId)
+      .eq('status', 'completed'),
+    admin
+      .from('pro_profiles')
+      .select(
+        'starting_price, hourly_rate, min_hours, travel_fee_enabled, travel_fee_base, travel_free_within_miles, service_radius_miles'
+      )
+      .eq('user_id', userId)
+      .maybeSingle(),
+    admin
+      .from('pro_safety_compliance_settings')
+      .select(
+        'guidelines_accepted_at, guidelines_acknowledged, insurance_doc_path, background_check_status'
+      )
+      .eq('pro_user_id', userId)
+      .maybeSingle(),
+    occupationId
+      ? admin.from('occupations').select('name').eq('id', occupationId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    admin.from('pro_services').select('occupation_services(name)').eq('pro_id', proRowId),
+  ]);
 
   const businessName = safeText((pro as any).display_name) ?? 'Service Pro';
   const locationLabel = safeText((pro as any).location) ?? safeText((pro as any).service_area_zip) ?? null;
@@ -213,7 +240,30 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
   const servicesRaw: string[] = Array.isArray((pro as any).services_offered)
     ? ((pro as any).services_offered as any[]).filter((v) => typeof v === 'string')
     : [];
-  const services = servicesRaw.map((name) => ({ name, startingFromPrice: null, durationRange: null }));
+
+  const namesFromOccupationServices: string[] = (proSvcRows || [])
+    .map((row: Record<string, unknown>) => {
+      const os = row.occupation_services;
+      let n: string | undefined;
+      if (os && typeof os === 'object' && !Array.isArray(os)) {
+        n = (os as { name?: string }).name;
+      } else if (Array.isArray(os) && os[0] && typeof os[0] === 'object') {
+        n = (os[0] as { name?: string }).name;
+      }
+      return typeof n === 'string' && n.trim() ? n.trim() : null;
+    })
+    .filter((n: string | null): n is string => Boolean(n));
+
+  const services =
+    namesFromOccupationServices.length > 0
+      ? namesFromOccupationServices.map((name) => ({
+          name,
+          startingFromPrice: null,
+          durationRange: null,
+        }))
+      : servicesRaw.map((name) => ({ name, startingFromPrice: null, durationRange: null }));
+
+  const primaryOccupationName = safeText((occRow as { name?: string } | null)?.name);
 
   // Phone privacy: column not yet in schema -> default false.
   // When you add a `phone_public` column to `service_pros`, set this from DB.
@@ -238,6 +288,7 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
     phone: safeText((prof as any)?.phone),
     phonePublic,
     categoryName: safeText((cat as any)?.name),
+    primaryOccupationName,
     locationLabel,
     serviceRadiusMiles: serviceRadius,
     bio: safeText((pro as any).bio),

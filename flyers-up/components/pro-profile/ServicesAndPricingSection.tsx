@@ -37,7 +37,7 @@ export function ServicesAndPricingSection({ profile }: ServicesAndPricingSection
     <div className="rounded-2xl border border-black/6 dark:border-white/10 bg-white dark:bg-[#1D2128] shadow-sm shadow-black/5 dark:shadow-black/20 overflow-hidden">
       <div className="border-b border-black/5 dark:border-white/10 px-5 py-4">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-[#6A6A6A] dark:text-[#A1A8B3]">
-          Services & pricing
+          Services offered & pricing
         </h3>
         {lines.length > 0 ? (
           <div className="mt-3 space-y-1">

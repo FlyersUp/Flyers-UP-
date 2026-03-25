@@ -85,8 +85,8 @@ export default function ProSpecialtiesPage() {
           </Link>
           <h1 className="text-2xl font-semibold text-text mt-3 mb-2">Specialties</h1>
           <Label>MANAGE SPECIALTIES</Label>
-          <p className="text-sm text-muted mt-2">
-            Add up to 8 specialties that set you apart. These help customers find you.
+          <p className="text-sm text-muted mt-2 max-w-xl">
+            Add up to 8 specialties that highlight what you’re especially good at. These help customers understand your strengths and find you more easily. Specialties are not your service list — manage those under Manage services.
           </p>
         </div>
 
@@ -102,11 +102,13 @@ export default function ProSpecialtiesPage() {
           </div>
         )}
 
-        <div className="rounded-xl border border-border bg-surface p-6">
+        <div className="rounded-xl border border-black/10 dark:border-white/10 bg-[var(--surface-solid)] dark:bg-[#1f232a] shadow-sm p-6">
           <SpecialtyTagInput
             value={labels}
             onChange={setLabels}
             occupationSlug={occupationSlug}
+            label="Your specialties"
+            helperText="Pick suggestions below or type your own. Duplicates are ignored. These should describe strengths within your occupation, not duplicate your official services."
           />
           <div className="mt-6">
             <Button onClick={handleSave} disabled={saving}>

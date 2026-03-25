@@ -30,8 +30,13 @@ export function ProHeaderCard({ profile, showFavorite = true }: ProHeaderCardPro
           <h1 className="text-xl font-semibold text-text truncate">{profile.businessName}</h1>
           {showFavorite && <FavoriteButton proId={profile.id} />}
         </div>
-        {profile.categoryName && (
-          <p className="mt-0.5 text-sm text-muted truncate">{profile.categoryName}</p>
+        {(profile.primaryOccupationName || profile.categoryName) && (
+          <div className="mt-0.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Primary occupation</p>
+            <p className="text-sm font-medium text-text truncate">
+              {profile.primaryOccupationName || profile.categoryName}
+            </p>
+          </div>
         )}
         {profile.locationLabel && (
           <p className="mt-0.5 text-sm text-muted truncate">{profile.locationLabel}</p>

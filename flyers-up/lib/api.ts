@@ -2387,6 +2387,10 @@ export interface ServiceProProfile {
   backgroundChecked: boolean;
   licensed: boolean;
   minJobPrice: number | null;
+  /** Signup occupation (occupations table); canonical label for profile. */
+  primaryOccupationId: string | null;
+  primaryOccupationName: string | null;
+  primaryOccupationSlug: string | null;
 }
 
 export async function getMyServicePro(userId: string): Promise<ServiceProProfile | null> {
@@ -2438,6 +2442,27 @@ export async function getMyServicePro(userId: string): Promise<ServiceProProfile
     const pp = proProfileRes.data as { min_job_price?: number | null } | null;
     const minJobPrice = pp?.min_job_price != null ? Number(pp.min_job_price) : null;
 
+    const occId = (data as { occupation_id?: string | null }).occupation_id ?? null;
+    let primaryOccupationName: string | null = null;
+    let primaryOccupationSlug: string | null = null;
+    if (occId) {
+      try {
+        const { data: occ } = await supabase
+          .from('occupations')
+          .select('name, slug')
+          .eq('id', occId)
+          .maybeSingle();
+        if (occ && typeof (occ as { name?: string }).name === 'string') {
+          primaryOccupationName = (occ as { name: string }).name;
+        }
+        if (occ && typeof (occ as { slug?: string }).slug === 'string') {
+          primaryOccupationSlug = (occ as { slug: string }).slug;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     return {
       id: data.id,
       userId: data.user_id,
@@ -2479,6 +2504,9 @@ export async function getMyServicePro(userId: string): Promise<ServiceProProfile
       backgroundChecked: Boolean((data as any).background_checked ?? false),
       licensed: Boolean((data as any).licensed ?? false),
       minJobPrice: Number.isFinite(minJobPrice) ? minJobPrice : null,
+      primaryOccupationId: occId,
+      primaryOccupationName,
+      primaryOccupationSlug,
     };
   } catch (err) {
     console.error('Unexpected error fetching service pro:', err);

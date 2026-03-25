@@ -14,6 +14,8 @@ interface SpecialtyTagInputProps {
   disabled?: boolean;
   error?: string;
   label?: string;
+  /** Explains specialties vs services (shown under the label). */
+  helperText?: string;
 }
 
 export function SpecialtyTagInput({
@@ -23,6 +25,7 @@ export function SpecialtyTagInput({
   disabled = false,
   error,
   label = 'Specialties',
+  helperText,
 }: SpecialtyTagInputProps) {
   const [input, setInput] = useState('');
   const [showPresets, setShowPresets] = useState(false);
@@ -32,8 +35,8 @@ export function SpecialtyTagInput({
   const presets = getSpecialtyPresets(occupationSlug);
 
   const add = useCallback(
-    (label: string) => {
-      const trimmed = label.trim().slice(0, MAX_LABEL_LENGTH);
+    (tagLabel: string) => {
+      const trimmed = tagLabel.trim().slice(0, MAX_LABEL_LENGTH);
       if (!trimmed) return;
       const normalized = trimmed.toLowerCase();
       const exists = value.some((v) => v.toLowerCase() === normalized);
@@ -82,6 +85,7 @@ export function SpecialtyTagInput({
       {label && (
         <label className="block text-sm font-medium text-text2">{label}</label>
       )}
+      {helperText && <p className="text-sm text-muted mt-1 max-w-xl">{helperText}</p>}
       <div
         className={`min-h-[48px] rounded-xl border px-3 py-2 flex flex-wrap gap-2 items-center bg-surface ${
           error ? 'border-danger' : 'border-border'
@@ -121,7 +125,7 @@ export function SpecialtyTagInput({
               maxLength={MAX_LABEL_LENGTH}
             />
             {showPresets && presets.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 z-10 rounded-xl border border-border bg-surface shadow-lg py-1 max-h-40 overflow-y-auto">
+              <div className="absolute left-0 right-0 top-full mt-1 z-20 rounded-xl border border-black/10 dark:border-white/10 bg-[var(--surface-solid)] dark:bg-[#1f232a] shadow-xl shadow-black/10 py-1 max-h-40 overflow-y-auto">
                 {presets
                   .filter((p) => !value.some((v) => v.toLowerCase() === p.toLowerCase()))
                   .slice(0, 10)

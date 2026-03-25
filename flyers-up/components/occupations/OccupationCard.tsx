@@ -73,7 +73,10 @@ export function OccupationCard({
       />
       <div className="relative flex items-start gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(156,167,100,0.18)]">
-          <IconComponent className="h-6 w-6 text-[hsl(var(--accent-customer))]" strokeWidth={1.75} />
+          <IconComponent
+            className="h-6 w-6 text-[#111111] dark:text-[#F5F7FA]"
+            strokeWidth={1.75}
+          />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

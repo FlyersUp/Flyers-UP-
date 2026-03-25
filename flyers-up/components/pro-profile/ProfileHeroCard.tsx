@@ -70,10 +70,15 @@ export function ProfileHeroCard({ profile, showFavorite = true }: ProfileHeroCar
               {showFavorite && <FavoriteButton proId={profile.id} />}
             </div>
 
-            {profile.categoryName && (
-              <p className="mt-0.5 text-sm text-[#6A6A6A] dark:text-[#A1A8B3] truncate">
-                {profile.categoryName}
-              </p>
+            {(profile.primaryOccupationName || profile.categoryName) && (
+              <div className="mt-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[#6A6A6A] dark:text-[#A1A8B3]">
+                  Primary occupation
+                </p>
+                <p className="text-sm font-semibold text-[#111111] dark:text-[#F5F7FA] truncate">
+                  {profile.primaryOccupationName || profile.categoryName}
+                </p>
+              </div>
             )}
 
             {stats.length > 0 && (
