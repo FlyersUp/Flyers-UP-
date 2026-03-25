@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { deriveTimelineDisplayStatus, getNextStatus, type Status } from './jobStatus';
 import { getBookingById, type BookingDetails } from '@/lib/api';
 import { ArrivalVerificationModal } from '@/components/marketplace/ArrivalVerificationModal';
+import { JobCompletionModal } from '@/components/marketplace/JobCompletionModal';
 
 /** Next action button labels by current status (when not in arrival check-in flow). */
 const NEXT_ACTION_LABELS: Record<Exclude<Status, 'BOOKED' | 'AWAITING_ACCEPTANCE'>, string> = {
@@ -31,6 +32,7 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [arrivalModalOpen, setArrivalModalOpen] = useState(false);
+  const [completionModalOpen, setCompletionModalOpen] = useState(false);
 
   const timelineStatus = deriveTimelineDisplayStatus(booking.status, {
     paidAt: booking.paidAt,
@@ -77,6 +79,9 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
       if (!res.ok) {
         if (data.code === 'arrival_required') {
           setArrivalModalOpen(true);
+        }
+        if (data.code === 'completion_photos_required') {
+          setCompletionModalOpen(true);
         }
         setError(data.error || 'Failed to update status');
         return;
@@ -129,13 +134,32 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
   const showArrivalModalCta =
     needsArrivalCheckIn(booking) && (timelineStatus === 'ON_THE_WAY' || timelineStatus === 'ARRIVED');
 
+  const showCompletionModalCta = timelineStatus === 'IN_PROGRESS';
+
   const arrivalLabel =
     timelineStatus === 'ON_THE_WAY' ? 'Verify arrival' : 'Verify arrival to start job';
 
   return (
     <div className="border-t border-black/10 bg-white/40 px-6 py-5">
       <div className="space-y-3">
-        {showArrivalModalCta ? (
+        {showCompletionModalCta ? (
+          <>
+            <p className="text-xs text-muted">
+              Add at least 2 after photos to mark the job complete and request the remaining balance.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setCompletionModalOpen(true);
+              }}
+              disabled={loading}
+              className="w-full h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 disabled:opacity-70 transition-all"
+            >
+              {label}
+            </button>
+          </>
+        ) : showArrivalModalCta ? (
           <>
             <p className="text-xs text-muted">
               Confirm you&apos;re on site before starting work. Required for accountability.
@@ -166,6 +190,12 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
         <ArrivalVerificationModal
           isOpen={arrivalModalOpen}
           onClose={() => setArrivalModalOpen(false)}
+          onSuccess={refreshBooking}
+          bookingId={jobId}
+        />
+        <JobCompletionModal
+          isOpen={completionModalOpen}
+          onClose={() => setCompletionModalOpen(false)}
           onSuccess={refreshBooking}
           bookingId={jobId}
         />
