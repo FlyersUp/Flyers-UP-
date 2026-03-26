@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { requireAdminUser } from '@/app/(app)/admin/_admin';
 import { adminSetBookingStatusAction } from '@/app/(app)/admin/_actions';
+import { buildUnifiedBookingReceipt } from '@/lib/bookings/unified-receipt';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,12 +31,16 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
   const error = pickFirst(sp.error);
 
   const admin = createAdminSupabaseClient();
+  const resendConfigured = Boolean(process.env.RESEND_API_KEY);
+
+  const BOOKING_PAYMENT_COLUMNS =
+    'id, status, service_date, service_time, address, notes, customer_id, pro_id, created_at, total_amount_cents, amount_deposit, amount_remaining, amount_total, payment_status, final_payment_status, refunded_total_cents, refund_status, stripe_payment_intent_deposit_id, stripe_payment_intent_remaining_id, payment_intent_id, final_payment_intent_id, paid_deposit_at, paid_remaining_at, paid_at, fully_paid_at, price, customer_receipt_deposit_email_at, customer_receipt_final_email_at, customer_receipt_deposit_email_note, customer_receipt_final_email_note';
 
   let rows: any[] = [];
   if (!q) {
     const { data } = await admin
       .from('bookings')
-      .select('id, status, service_date, service_time, address, notes, customer_id, pro_id, created_at')
+      .select(BOOKING_PAYMENT_COLUMNS)
       .order('created_at', { ascending: false })
       .limit(50);
     rows = data ?? [];
@@ -43,7 +48,7 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
     const asId = normalizeUuidOrNull(q);
     let query = admin
       .from('bookings')
-      .select('id, status, service_date, service_time, address, notes, customer_id, pro_id, created_at')
+      .select(BOOKING_PAYMENT_COLUMNS)
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -115,6 +120,13 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
           <div className="mt-4 p-4 bg-danger/10 border border-danger/30 rounded-lg text-text">{error}</div>
         ) : null}
 
+        {!resendConfigured ? (
+          <div className="mt-4 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-sm text-text">
+            RESEND_API_KEY is not set — Flyers Up customer receipt emails are skipped (see per-booking receipt
+            notes in the Payments column).
+          </div>
+        ) : null}
+
         <form className="mt-5 flex gap-2" action="/admin/bookings" method="get">
           <input
             name="q"
@@ -140,6 +152,7 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
                   <th className="text-left px-4 py-3 font-medium">Pro</th>
                   <th className="text-left px-4 py-3 font-medium">When</th>
                   <th className="text-left px-4 py-3 font-medium">Status</th>
+                  <th className="text-left px-4 py-3 font-medium">Payments</th>
                   <th className="text-left px-4 py-3 font-medium">Manual override</th>
                 </tr>
               </thead>
@@ -149,6 +162,64 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
                   const cust = customerById.get(String(b.customer_id)) ?? { name: null, email: null };
                   const pro = proByServiceProId.get(String(b.pro_id)) ?? { displayName: null, userId: null };
                   const returnTo = q ? `/admin/bookings?q=${encodeURIComponent(q)}` : '/admin/bookings';
+
+                  const receipt = buildUnifiedBookingReceipt({
+                    bookingId: id,
+                    status: String(b.status ?? ''),
+                    paymentStatus: String(b.payment_status ?? 'UNPAID'),
+                    finalPaymentStatus: (b.final_payment_status as string) ?? null,
+                    paidAt: (b.paid_at as string) ?? null,
+                    paidDepositAt: (b.paid_deposit_at as string) ?? null,
+                    paidRemainingAt: (b.paid_remaining_at as string) ?? null,
+                    fullyPaidAt: (b.fully_paid_at as string) ?? null,
+                    amountDeposit: (b.amount_deposit as number) ?? null,
+                    amountRemaining: (b.amount_remaining as number) ?? null,
+                    amountTotal: (b.total_amount_cents as number) ?? (b.amount_total as number) ?? null,
+                    totalAmountCents: (b.total_amount_cents as number) ?? null,
+                    price: (b.price as number) ?? null,
+                    refundedTotalCents: (b.refunded_total_cents as number) ?? null,
+                    refundStatus: (b.refund_status as string) ?? null,
+                    serviceTitle: '—',
+                    proName: '—',
+                    stripePaymentIntentDepositId:
+                      (b.stripe_payment_intent_deposit_id as string) ?? null,
+                    stripePaymentIntentRemainingId:
+                      (b.stripe_payment_intent_remaining_id as string) ?? null,
+                    paymentIntentId: (b.payment_intent_id as string) ?? null,
+                    finalPaymentIntentId: (b.final_payment_intent_id as string) ?? null,
+                  });
+                  const depPi =
+                    receipt.stripePaymentIntentDepositId ??
+                    (b.payment_intent_id as string) ??
+                    '—';
+                  const remPi =
+                    receipt.stripePaymentIntentRemainingId ??
+                    (b.final_payment_intent_id as string) ??
+                    '—';
+                  const totalCents = receipt.totalBookingCents;
+
+                  const depEmailSent = Boolean(b.customer_receipt_deposit_email_at);
+                  const finEmailSent = Boolean(b.customer_receipt_final_email_at);
+                  const depNote = (b.customer_receipt_deposit_email_note as string) ?? '';
+                  const finNote = (b.customer_receipt_final_email_note as string) ?? '';
+                  const depEmailLabel = depEmailSent
+                    ? 'Deposit receipt sent'
+                    : depNote.includes('skipped_resend')
+                      ? 'Deposit receipt skipped (email provider not configured)'
+                      : !resendConfigured && b.paid_deposit_at
+                        ? 'Deposit receipt not sent (no provider)'
+                        : depNote
+                          ? `Deposit: ${depNote}`
+                          : 'Deposit receipt —';
+                  const finEmailLabel = finEmailSent
+                    ? 'Final receipt sent'
+                    : finNote.includes('skipped_resend')
+                      ? 'Final receipt skipped (email provider not configured)'
+                      : !resendConfigured && b.fully_paid_at
+                        ? 'Final receipt not sent (no provider)'
+                        : finNote
+                          ? `Final: ${finNote}`
+                          : 'Final receipt —';
 
                   return (
                     <tr key={id} className="border-t border-hairline">
@@ -179,6 +250,34 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
                         <span className="inline-flex items-center rounded-full border border-hairline bg-surface2 px-2 py-0.5 text-xs font-medium">
                           {String(b.status ?? '—')}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted align-top max-w-[28ch]">
+                        <div className="text-text font-medium">
+                          {totalCents > 0
+                            ? `$${(totalCents / 100).toFixed(2)} total · ${receipt.overallStatus.replace(/_/g, ' ')}`
+                            : receipt.overallStatus.replace(/_/g, ' ')}
+                        </div>
+                        <div className="mt-1 font-mono text-[10px] break-all opacity-90" title={String(depPi)}>
+                          D: {depPi === '—' ? '—' : `${String(depPi).slice(0, 14)}…`}
+                        </div>
+                        <div className="font-mono text-[10px] break-all opacity-90" title={String(remPi)}>
+                          R: {remPi === '—' ? '—' : `${String(remPi).slice(0, 14)}…`}
+                        </div>
+                        {Number(b.refunded_total_cents ?? 0) > 0 ? (
+                          <div className="mt-1 text-danger/90">
+                            Refunded ${(Number(b.refunded_total_cents) / 100).toFixed(2)}
+                          </div>
+                        ) : null}
+                        <div className="mt-2 space-y-0.5 text-[10px] leading-snug text-muted border-t border-hairline pt-2">
+                          <div title={depEmailLabel}>{depEmailLabel}</div>
+                          <div title={finEmailLabel}>{finEmailLabel}</div>
+                          <Link
+                            href={`/admin/bookings/${id}/payments`}
+                            className="inline-block text-accent hover:underline font-medium"
+                          >
+                            Payment audit →
+                          </Link>
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <form action={adminSetBookingStatusAction} className="flex items-center gap-2">

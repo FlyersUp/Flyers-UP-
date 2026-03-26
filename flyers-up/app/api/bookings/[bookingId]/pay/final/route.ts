@@ -12,6 +12,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { getOrCreateStripeCustomer } from '@/lib/stripeCustomer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { computeQuote } from '@/lib/bookingQuote';
+import { buildBookingPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -96,6 +97,8 @@ export async function POST(
     (amountTotal > 0 ? Math.max(0, amountTotal - amountDeposit) : Math.max(0, priceCents - amountDeposit))
   );
 
+  let serviceName = 'Service';
+
   // Fallback: compute from quote when DB columns are empty
   if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
     const { data: proRowForQuote } = await admin
@@ -108,7 +111,6 @@ export async function POST(
       .select('pricing_model, starting_price, starting_rate, hourly_rate, min_hours, travel_fee_enabled, travel_fee_base, travel_free_within_miles, travel_extra_per_mile, deposit_percent_default')
       .eq('user_id', proRowForQuote?.user_id ?? '')
       .maybeSingle();
-    let serviceName = 'Service';
     const qCatId = (proRowForQuote as { category_id?: string | null } | null)?.category_id;
     if (qCatId) {
       const { data: catRow } = await admin
@@ -138,6 +140,23 @@ export async function POST(
     );
     amountRemaining = quoteResult.quote.amountRemaining;
     if (amountTotal <= 0) amountTotal = quoteResult.quote.amountTotal;
+  } else {
+    const { data: proRowTitle } = await admin
+      .from('service_pros')
+      .select('category_id')
+      .eq('id', booking.pro_id)
+      .maybeSingle();
+    const tCat = (proRowTitle as { category_id?: string | null } | null)?.category_id;
+    if (tCat) {
+      const { data: catRow } = await admin
+        .from('service_categories')
+        .select('name')
+        .eq('id', tCat)
+        .maybeSingle();
+      if (catRow && typeof (catRow as { name?: string }).name === 'string') {
+        serviceName = String((catRow as { name: string }).name).trim() || 'Service';
+      }
+    }
   }
 
   if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
@@ -198,19 +217,23 @@ export async function POST(
     }
   }
 
+  const stripeFields = buildBookingPaymentIntentStripeFields({
+    bookingId: id,
+    customerId: booking.customer_id,
+    proId: booking.pro_id,
+    paymentPhase: 'remaining',
+    serviceTitle: serviceName,
+  });
+
   // Platform holds remaining — NO transfer_data. Pro paid via release-payouts.
   const paymentIntent = await stripe.paymentIntents.create({
     amount: amountRemaining,
     currency: (booking.currency as string) || 'usd',
     automatic_payment_methods: { enabled: true },
     customer: customerResult.stripeCustomerId,
-    metadata: {
-      bookingId: id,
-      customerId: booking.customer_id,
-      proId: booking.pro_id,
-      phase: 'final',
-      paymentType: 'remaining',
-    },
+    metadata: stripeFields.metadata,
+    description: stripeFields.description,
+    statement_descriptor_suffix: stripeFields.statement_descriptor_suffix,
   });
 
   const piStatus = paymentIntent.status;

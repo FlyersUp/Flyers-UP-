@@ -38,6 +38,7 @@ export interface BookingDetailData {
   remainingDueAt?: string | null;
   autoConfirmAt?: string | null;
   platformFeeCents?: number | null;
+  refundStatus?: string | null;
   refundedTotalCents?: number | null;
   amountDeposit?: number | null;
   amountRemaining?: number | null;
@@ -89,8 +90,9 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     paymentDueAt: b.paymentDueAt,
     remainingDueAt: (b as { remainingDueAt?: string | null }).remainingDueAt,
     autoConfirmAt: (b as { autoConfirmAt?: string | null }).autoConfirmAt,
-    platformFeeCents: (b as { platformFeeCents?: number | null }).platformFeeCents,
-    refundedTotalCents: (b as { refundedTotalCents?: number | null }).refundedTotalCents,
+    platformFeeCents: b.platformFeeCents ?? null,
+    refundStatus: b.refundStatus ?? null,
+    refundedTotalCents: b.refundedTotalCents ?? null,
     amountDeposit: b.amountDeposit,
     amountRemaining: b.amountRemaining,
     amountTotal: b.amountTotal,
@@ -328,12 +330,22 @@ export function BookingDetailContent({
                 bookingId={bookingId}
                 status={booking.status}
                 paymentStatus={booking.paymentStatus}
+                finalPaymentStatus={booking.finalPaymentStatus}
                 paymentDueAt={booking.paymentDueAt}
                 amountDeposit={booking.amountDeposit}
                 amountRemaining={booking.amountRemaining}
                 amountTotal={booking.amountTotal}
                 paidAt={booking.paidAt}
+                paidDepositAt={booking.paidDepositAt}
+                paidRemainingAt={booking.paidRemainingAt}
                 fullyPaidAt={booking.fullyPaidAt}
+                refundStatus={fullBooking.refundStatus ?? null}
+                refundedTotalCents={fullBooking.refundedTotalCents ?? null}
+                serviceName={fullBooking.serviceName}
+                proName={fullBooking.proName}
+                address={fullBooking.address}
+                serviceDate={booking.serviceDate}
+                serviceTime={booking.serviceTime}
                 primaryAction={
                   showConfirmSlot ? (
                     <div>

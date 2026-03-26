@@ -71,14 +71,11 @@ export async function GET(req: NextRequest) {
     const proUserId = (b.service_pros as { user_id?: string })?.user_id;
 
     if (refundId) {
-      const amountRefunded = Number(b.deposit_amount_cents ?? b.amount_deposit ?? 0);
-      const prevRefunded = Number(b.refunded_total_cents ?? 0);
       await admin
         .from('bookings')
         .update({
           refund_status: 'succeeded',
           stripe_refund_deposit_id: refundId,
-          refunded_total_cents: prevRefunded + amountRefunded,
         })
         .eq('id', b.id);
 

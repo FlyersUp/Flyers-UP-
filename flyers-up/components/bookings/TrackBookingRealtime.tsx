@@ -19,6 +19,7 @@ export interface TrackBookingData {
   remainingDueAt?: string | null;
   autoConfirmAt?: string | null;
   platformFeeCents?: number | null;
+  refundStatus?: string | null;
   refundedTotalCents?: number | null;
   amountDeposit?: number | null;
   amountRemaining?: number | null;

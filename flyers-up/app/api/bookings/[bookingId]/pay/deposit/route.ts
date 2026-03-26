@@ -19,6 +19,7 @@ import {
   resolveSameDayEnabledFromServicePro,
   validateProAvailability,
 } from '@/lib/operations/availabilityValidation';
+import { buildBookingPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -325,18 +326,22 @@ export async function POST(
 
   // Platform holds deposit — NO transfer_data. Pro receives payout only after
   // verified arrival, start, completion, and confirmation (release-payouts cron).
+  const stripeFields = buildBookingPaymentIntentStripeFields({
+    bookingId: id,
+    customerId: booking.customer_id,
+    proId: booking.pro_id,
+    paymentPhase: 'deposit',
+    serviceTitle: serviceName,
+  });
+
   const paymentIntent = await stripe.paymentIntents.create({
     amount: amountDeposit,
     currency: quote.currency,
     automatic_payment_methods: { enabled: true },
     customer: customerResult.stripeCustomerId,
-    metadata: {
-      bookingId: id,
-      customerId: booking.customer_id,
-      proId: booking.pro_id,
-      phase: 'deposit',
-      paymentType: 'deposit',
-    },
+    metadata: stripeFields.metadata,
+    description: stripeFields.description,
+    statement_descriptor_suffix: stripeFields.statement_descriptor_suffix,
     // No transfer_data: funds go to platform. Pro paid later via release-payouts.
   });
 

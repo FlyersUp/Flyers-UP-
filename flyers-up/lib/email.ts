@@ -39,3 +39,8 @@ export async function sendProPaymentReceipt(params: {
   }
   return { success: true };
 }
+
+export {
+  sendUnifiedReceiptEmailDeposit,
+  sendUnifiedReceiptEmailFinal,
+} from '@/lib/email/customer-booking-receipt';

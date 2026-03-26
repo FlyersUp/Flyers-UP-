@@ -1,7 +1,8 @@
 /**
  * Stripe Webhook Handler
  * Idempotent via stripe_events. Signature verified with STRIPE_WEBHOOK_SECRET.
- * Handles: payment_intent.succeeded, payment_intent.payment_failed.
+ * Handles: payment_intent.succeeded, charge.succeeded (ordering), payment_intent.payment_failed,
+ * charge.refunded, disputes. Customer receipt emails run after DB writes; stripe_events marks last.
  * Late pay after cancel → auto-refund.
  * stripe listen --forward-to localhost:3000/api/stripe/webhook
  */
@@ -11,17 +12,18 @@ import { stripe } from '@/lib/stripe/server';
 import Stripe from 'stripe';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 import { recordServerErrorEvent } from '@/lib/serverError';
-import { sendProPaymentReceipt } from '@/lib/email';
+import { resolveWebhookPaymentKind } from '@/lib/stripe/webhook-payment-phase';
+import { sendCustomerBookingReceiptEmailAfterCommit } from '@/lib/bookings/webhook-customer-receipt-email';
+import { applySucceededPaymentIntent } from '@/lib/stripe/apply-succeeded-payment-intent';
+import { computeChargeRefundedDeltaCents } from '@/lib/stripe/charge-refund-delta';
+import { logWebhookReceiptEvent } from '@/lib/stripe/webhook-receipt-log';
 import {
   isStripeEventProcessed,
   markStripeEventProcessed,
 } from '@/lib/stripe/webhook-idempotency';
-import { refundPaymentIntent } from '@/lib/stripe/server';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
-import { isCancelled } from '@/lib/bookings/booking-status';
 import { applyDisputeHold } from '@/lib/payoutRisk';
-import { revalidatePath } from 'next/cache';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -153,281 +155,87 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        const meta = paymentIntent.metadata as {
-          booking_id?: string;
-          bookingId?: string;
-          phase?: string;
-          paymentType?: string;
-        };
+        const meta = paymentIntent.metadata as Record<string, string | undefined>;
         const bookingId = meta?.booking_id ?? meta?.bookingId;
-        const paymentType =
-          meta?.paymentType ?? (meta?.phase === 'final' ? 'remaining' : meta?.phase ?? 'deposit');
 
-        if (bookingId) {
-          try {
-            const admin = createSupabaseAdmin();
+        if (!bookingId) {
+          await markStripeEventProcessed(eventId, event.type);
+          break;
+        }
 
-            const { data: booking, error: bErr } = await admin
-              .from('bookings')
-              .select(
-                'id, status, status_history, pro_id, customer_id, price, amount_total, total_amount_cents, refunded_total_cents, payment_status, service_pros(user_id)'
-              )
-              .eq('id', bookingId)
-              .maybeSingle();
+        try {
+          const admin = createSupabaseAdmin();
+          const applied = await applySucceededPaymentIntent(admin, paymentIntent);
 
-            const proId = booking?.pro_id;
-
-            if (bErr || !booking) {
-              console.warn('Webhook: booking not found for payment', { bookingId, bErr });
-              break;
-            }
-
-            const history = Array.isArray(booking.status_history) ? booking.status_history : [];
-            const now = new Date().toISOString();
-            const proUserId = (booking.service_pros as { user_id?: string })?.user_id;
-
-            // Late pay after cancel → auto-refund (do not reopen booking)
-            if (isCancelled(booking.status)) {
-              const refundId = await refundPaymentIntent(paymentIntent.id, {
-                reason: 'requested_by_customer',
-                booking_id: bookingId,
-              });
-              const amountRefunded = paymentIntent.amount ?? 0;
-              const prevRefunded = Number((booking as { refunded_total_cents?: number }).refunded_total_cents ?? 0);
-              const upd: Record<string, unknown> = {
-                refund_status: refundId ? 'succeeded' : 'pending',
-                refunded_total_cents: prevRefunded + amountRefunded,
-              };
-              if (paymentType === 'deposit') upd.stripe_refund_deposit_id = refundId ?? undefined;
-              else upd.stripe_refund_remaining_id = refundId ?? undefined;
-              await admin.from('bookings').update(upd).eq('id', bookingId);
-              await admin.from('booking_events').insert({
-                booking_id: bookingId,
-                type: 'LATE_PAYMENT_AUTO_REFUND',
-                data: { refund_id: refundId ?? null },
-              });
-              void createNotificationEvent({
-                userId: booking.customer_id,
-                type: NOTIFICATION_TYPES.PAYMENT_REFUNDED,
-                bookingId,
-                titleOverride: 'Payment refunded',
-                bodyOverride: 'Payment arrived after cancellation — automatically refunded',
-                basePath: 'customer',
-              });
-              if (proUserId) {
-                void createNotificationEvent({
-                  userId: proUserId,
-                  type: NOTIFICATION_TYPES.PAYMENT_REFUNDED,
-                  bookingId,
-                  titleOverride: 'Late payment refunded',
-                  bodyOverride: 'Customer paid after cancellation — refunded',
-                  basePath: 'pro',
-                });
-              }
-              await markStripeEventProcessed(eventId, event.type);
-              break;
-            }
-
-            if (paymentType === 'deposit') {
-              const oldStatus = booking.status;
-              const updatePayload: Record<string, unknown> = {
-                payment_intent_id: paymentIntent.id,
-                stripe_payment_intent_deposit_id: paymentIntent.id,
-                payment_status: 'PAID',
-                paid_at: now,
-                paid_deposit_at: now,
-                awaiting_pro_arrival_at: now,
-                status: 'deposit_paid',
-                status_history: [...history, { status: 'deposit_paid', at: now }],
-              };
-              await admin.from('bookings').update(updatePayload).eq('id', bookingId);
-              await admin.from('booking_events').insert({
-                booking_id: bookingId,
-                type: 'DEPOSIT_PAID',
-                data: { payment_intent_id: paymentIntent.id },
-              });
-              void createNotificationEvent({
-                userId: booking.customer_id,
-                type: NOTIFICATION_TYPES.PAYMENT_DEPOSIT_PAID,
-                bookingId,
-                basePath: 'customer',
-              });
-              const notificationCreated = !!proUserId;
-              if (proUserId) {
-                void createNotificationEvent({
-                  userId: proUserId,
-                  type: NOTIFICATION_TYPES.PAYMENT_DEPOSIT_PAID,
-                  bookingId,
-                  titleOverride: 'Deposit secured',
-                  bodyOverride: 'Customer paid the deposit. You will be paid after verified arrival, start, and completion.',
-                  basePath: 'pro',
-                });
-              }
-              console.log('[webhook:deposit_paid]', {
-                bookingId,
-                proId: proId ?? null,
-                oldStatus,
-                newStatus: 'deposit_paid',
-                paymentStatus: 'PAID',
-                notificationCreated,
-              });
-              try {
-                revalidatePath('/pro');
-                revalidatePath('/pro/today');
-                revalidatePath('/pro/jobs');
-                revalidatePath('/pro/calendar');
-                revalidatePath('/customer');
-                revalidatePath('/customer/calendar');
-              } catch (revErr) {
-                console.warn('[webhook:deposit_paid] revalidatePath failed', revErr);
-              }
-            } else if (paymentType === 'remaining' || paymentType === 'final') {
-              const isAwaitingRemaining = booking.status === 'awaiting_remaining_payment';
-              const nextStatus = isAwaitingRemaining ? 'awaiting_customer_confirmation' : 'fully_paid';
-              const nextHistory = [...history, { status: nextStatus, at: now }];
-
-              const updatePayload: Record<string, unknown> = {
-                final_payment_intent_id: paymentIntent.id,
-                stripe_payment_intent_remaining_id: paymentIntent.id,
-                final_payment_status: 'PAID',
-                fully_paid_at: now,
-                paid_remaining_at: now,
-                status: nextStatus,
-                status_history: nextHistory,
-              };
-              await admin.from('bookings').update(updatePayload).eq('id', bookingId);
-              await admin.from('booking_events').insert({
-                booking_id: bookingId,
-                type: 'REMAINING_PAID',
-                data: { payment_intent_id: paymentIntent.id },
-              });
-              void createNotificationEvent({
-                userId: booking.customer_id,
-                type: NOTIFICATION_TYPES.PAYMENT_REMAINING_PAID,
-                bookingId,
-                titleOverride: isAwaitingRemaining ? 'Remaining paid' : 'Payment complete',
-                bodyOverride: isAwaitingRemaining ? 'Remaining paid — confirm completion' : 'Remaining balance has been paid.',
-                basePath: 'customer',
-              });
-              if (proUserId) {
-                void createNotificationEvent({
-                  userId: proUserId,
-                  type: NOTIFICATION_TYPES.PAYMENT_REMAINING_PAID,
-                  bookingId,
-                  titleOverride: 'Customer paid remaining',
-                  bodyOverride: isAwaitingRemaining ? 'Customer paid remaining — awaiting confirmation' : 'Customer paid the remaining balance.',
-                  basePath: 'pro',
-                });
-              }
-
-              const { data: existing } = await admin
-                .from('pro_earnings')
-                .select('id')
-                .eq('booking_id', bookingId)
-                .maybeSingle();
-
-              if (!existing) {
-                // Prefer total_amount_cents (canonical); amount_total is cents; price is legacy dollars
-                const totalCents = Number(booking.total_amount_cents ?? booking.amount_total ?? 0);
-                const amountDollars = totalCents > 0 ? totalCents / 100 : Number(booking.price ?? 0);
-                const amount = amountDollars > 0 ? amountDollars : 0;
-                await admin.from('pro_earnings').insert({
-                  pro_id: booking.pro_id,
-                  booking_id: bookingId,
-                  amount: amount,
-                });
-              }
-
-              if (proId) {
-                const { data: proRow } = await admin
-                  .from('service_pros')
-                  .select('user_id, display_name')
-                  .eq('id', proId)
-                  .maybeSingle();
-                if (proRow?.user_id) {
-                  const { data: profile } = await admin
-                    .from('profiles')
-                    .select('email')
-                    .eq('id', proRow.user_id)
-                    .maybeSingle();
-                  const proEmail = (profile as { email?: string | null } | null)?.email;
-                  if (proEmail?.trim()) {
-                    const totalCents = Number(booking.total_amount_cents ?? booking.amount_total ?? 0);
-                    const amountDollars = totalCents > 0 ? totalCents / 100 : Number(booking.price ?? 0);
-                    const amount = amountDollars > 0 ? amountDollars : 0;
-                    void sendProPaymentReceipt({
-                      to: proEmail.trim(),
-                      proName: (proRow.display_name as string) || 'Pro',
-                      amount: String(amount.toFixed(2)),
-                      bookingId,
-                    });
-                  }
-                }
-              }
-            } else {
-              // Legacy: full payment (no phase)
-              const shouldFinalize = booking.status === 'awaiting_payment' || booking.status === 'completed_pending_payment';
-              const alreadyCompleted = history.some((e: { status?: string }) => e?.status === 'completed');
-              const nextHistory =
-                shouldFinalize && !alreadyCompleted
-                  ? [...history, { status: 'completed', at: now }]
-                  : history;
-
-              const updatePayload: Record<string, unknown> = {
-                payment_intent_id: paymentIntent.id,
-                payment_status: 'PAID',
-                paid_at: now,
-                ...(shouldFinalize ? { status: 'fully_paid', status_history: nextHistory } : {}),
-              };
-              await admin.from('bookings').update(updatePayload).eq('id', bookingId);
-
-              const { data: existing } = await admin
-                .from('pro_earnings')
-                .select('id')
-                .eq('booking_id', bookingId)
-                .maybeSingle();
-
-              if (shouldFinalize && !existing) {
-                const totalCents = Number(booking.total_amount_cents ?? booking.amount_total ?? 0);
-                const amountDollars = totalCents > 0 ? totalCents / 100 : Number(booking.price ?? 0);
-                const amount = amountDollars > 0 ? amountDollars : 0;
-                await admin.from('pro_earnings').insert({
-                  pro_id: booking.pro_id,
-                  booking_id: bookingId,
-                  amount,
-                });
-              }
-
-              if (shouldFinalize && proId) {
-                const { data: proRow } = await admin
-                  .from('service_pros')
-                  .select('user_id, display_name')
-                  .eq('id', proId)
-                  .maybeSingle();
-                if (proRow?.user_id) {
-                  const { data: profile } = await admin
-                    .from('profiles')
-                    .select('email')
-                    .eq('id', proRow.user_id)
-                    .maybeSingle();
-                  const proEmail = (profile as { email?: string | null } | null)?.email;
-                  if (proEmail?.trim()) {
-                    const totalCents = Number(booking.total_amount_cents ?? booking.amount_total ?? 0);
-                    const amountDollars = totalCents > 0 ? totalCents / 100 : Number(booking.price ?? 0);
-                    void sendProPaymentReceipt({
-                      to: proEmail.trim(),
-                      proName: (proRow.display_name as string) || 'Pro',
-                      amount: String(amountDollars.toFixed(2)),
-                      bookingId,
-                    });
-                  }
-                }
-              }
-            }
+          if (!applied.handled) {
             await markStripeEventProcessed(eventId, event.type);
-          } catch (e) {
-            console.warn('Webhook persistence failed', e);
+            break;
           }
+
+          if (!applied.lateAutoRefund) {
+            const chargeRef = paymentIntent.latest_charge;
+            const chargeId =
+              typeof chargeRef === 'string' ? chargeRef : chargeRef?.id ?? null;
+            await sendCustomerBookingReceiptEmailAfterCommit(admin, {
+              bookingId: applied.bookingId,
+              kind: applied.paymentKind,
+              stripeEventId: eventId,
+              paymentIntentId: paymentIntent.id,
+              chargeId,
+            });
+          } else {
+            logWebhookReceiptEvent({
+              bookingId: applied.bookingId,
+              paymentPhase: 'refund',
+              paymentIntentId: paymentIntent.id,
+              chargeId: null,
+              stripeEventId: eventId,
+              emailResult: 'noop',
+              detail: 'late_auto_refund',
+            });
+          }
+
+          await markStripeEventProcessed(eventId, event.type);
+        } catch (e) {
+          console.warn('Webhook persistence failed', e);
+          throw e;
+        }
+        break;
+      }
+
+      case 'charge.succeeded': {
+        const charge = event.data.object as Stripe.Charge;
+        if (charge.status !== 'succeeded') {
+          await markStripeEventProcessed(eventId, event.type);
+          break;
+        }
+        const piRef = charge.payment_intent;
+        const piId = typeof piRef === 'string' ? piRef : piRef?.id ?? null;
+        if (!piId) {
+          await markStripeEventProcessed(eventId, event.type);
+          break;
+        }
+        try {
+          const pi = await stripe!.paymentIntents.retrieve(piId);
+          if (pi.status !== 'succeeded') {
+            await markStripeEventProcessed(eventId, event.type);
+            break;
+          }
+          const admin = createSupabaseAdmin();
+          const applied = await applySucceededPaymentIntent(admin, pi);
+          if (applied.handled && !applied.lateAutoRefund) {
+            await sendCustomerBookingReceiptEmailAfterCommit(admin, {
+              bookingId: applied.bookingId,
+              kind: applied.paymentKind,
+              stripeEventId: eventId,
+              paymentIntentId: pi.id,
+              chargeId: charge.id,
+            });
+          }
+          await markStripeEventProcessed(eventId, event.type);
+        } catch (e) {
+          console.warn('[webhook:charge.succeeded] failed', e);
+          throw e;
         }
         break;
       }
@@ -452,15 +260,27 @@ export async function POST(req: NextRequest) {
 
       case 'payment_intent.payment_failed': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        const meta = paymentIntent.metadata as { booking_id?: string; bookingId?: string; phase?: string; paymentType?: string };
+        const meta = paymentIntent.metadata as Record<string, string | undefined>;
         const bookingId = meta?.booking_id ?? meta?.bookingId;
-        const phase = meta?.phase ?? meta?.paymentType ?? 'legacy';
 
         if (bookingId) {
-          console.log('Payment failed for booking:', bookingId, 'phase:', phase);
           try {
             const admin = createSupabaseAdmin();
-            if (phase === 'final' || phase === 'remaining') {
+            const { data: bRow } = await admin
+              .from('bookings')
+              .select(
+                'stripe_payment_intent_deposit_id, stripe_payment_intent_remaining_id, payment_intent_id, final_payment_intent_id'
+              )
+              .eq('id', bookingId)
+              .maybeSingle();
+            const kind = resolveWebhookPaymentKind(meta, paymentIntent.id, (bRow ?? {}) as {
+              stripe_payment_intent_deposit_id?: string | null;
+              stripe_payment_intent_remaining_id?: string | null;
+              payment_intent_id?: string | null;
+              final_payment_intent_id?: string | null;
+            });
+            console.log('Payment failed for booking:', bookingId, 'kind:', kind);
+            if (kind === 'remaining') {
               await admin
                 .from('bookings')
                 .update({ final_payment_intent_id: paymentIntent.id, final_payment_status: 'FAILED' })
@@ -503,6 +323,77 @@ export async function POST(req: NextRequest) {
       case 'charge.dispute.closed': {
         const dispute = event.data.object as Stripe.Dispute;
         await handleDisputeClosed(dispute);
+        await markStripeEventProcessed(eventId, event.type);
+        break;
+      }
+
+      case 'charge.refunded': {
+        const charge = event.data.object as Stripe.Charge;
+        const delta = computeChargeRefundedDeltaCents(
+          event.data as {
+            object: Stripe.Charge;
+            previous_attributes?: { amount_refunded?: number };
+          }
+        );
+        if (delta <= 0) {
+          logWebhookReceiptEvent({
+            bookingId: '—',
+            paymentPhase: 'refund',
+            chargeId: charge.id,
+            stripeEventId: eventId,
+            emailResult: 'noop',
+            detail: 'charge_refunded_zero_delta',
+          });
+          await markStripeEventProcessed(eventId, event.type);
+          break;
+        }
+        const piRef = charge.payment_intent;
+        const piId = typeof piRef === 'string' ? piRef : piRef?.id ?? null;
+        if (!piId) {
+          await markStripeEventProcessed(eventId, event.type);
+          break;
+        }
+        try {
+          const pi = await stripe!.paymentIntents.retrieve(piId);
+          const pmeta = (pi.metadata || {}) as Record<string, string | undefined>;
+          const bookingId = pmeta.booking_id ?? pmeta.bookingId;
+          if (bookingId) {
+            const admin = createSupabaseAdmin();
+            const { data: b } = await admin
+              .from('bookings')
+              .select('refunded_total_cents')
+              .eq('id', bookingId)
+              .maybeSingle();
+            const prevRef = Number((b as { refunded_total_cents?: number } | null)?.refunded_total_cents ?? 0);
+            await admin
+              .from('bookings')
+              .update({
+                refunded_total_cents: prevRef + delta,
+                refund_status: 'succeeded',
+              })
+              .eq('id', bookingId);
+            await admin.from('booking_events').insert({
+              booking_id: bookingId,
+              type: 'CHARGE_REFUNDED',
+              data: {
+                stripe_event_id: eventId,
+                charge_id: charge.id,
+                delta_cents: delta,
+              },
+            });
+            logWebhookReceiptEvent({
+              bookingId,
+              paymentPhase: 'refund',
+              paymentIntentId: piId,
+              chargeId: charge.id,
+              stripeEventId: eventId,
+              emailResult: 'noop',
+              detail: `refund_delta_cents_${delta}`,
+            });
+          }
+        } catch (e) {
+          console.warn('[webhook:charge.refunded] handler error', e);
+        }
         await markStripeEventProcessed(eventId, event.type);
         break;
       }

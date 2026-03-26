@@ -13,6 +13,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { getOrCreateStripeCustomer } from '@/lib/stripeCustomer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { computeQuote } from '@/lib/bookingQuote';
+import { buildLegacyFullPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -180,12 +181,21 @@ export async function POST(
     }
   }
 
+  const stripeMeta = buildLegacyFullPaymentIntentStripeFields({
+    bookingId: id,
+    customerId: booking.customer_id,
+    proId: booking.pro_id,
+    serviceTitle: serviceName,
+  });
+
   const paymentIntentData: {
     amount: number;
     currency: string;
     automatic_payment_methods: { enabled: boolean };
     customer: string;
-    metadata: { bookingId: string; customerId: string; proId: string };
+    metadata: Record<string, string>;
+    description: string;
+    statement_descriptor_suffix: string;
     application_fee_amount?: number;
     transfer_data?: { destination: string };
   } = {
@@ -193,11 +203,9 @@ export async function POST(
     currency: quote.currency,
     automatic_payment_methods: { enabled: true },
     customer: customerResult.stripeCustomerId,
-    metadata: {
-      bookingId: id,
-      customerId: booking.customer_id,
-      proId: booking.pro_id,
-    },
+    metadata: stripeMeta.metadata,
+    description: stripeMeta.description,
+    statement_descriptor_suffix: stripeMeta.statement_descriptor_suffix,
   };
 
   paymentIntentData.application_fee_amount = quote.amountPlatformFee;
