@@ -28,7 +28,7 @@ export async function GET(
   // Same as deposit: allow any user who is the booking's customer (including pros who booked another pro).
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, price, payment_due_at, service_date, service_time, address')
+    .select('id, customer_id, pro_id, status, price, payment_due_at, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug')
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();
@@ -79,6 +79,7 @@ export async function GET(
       serviceName = String((catRow as { name: string }).name).trim() || 'Service';
     }
   }
+
   const proName = ((proRow as { display_name?: string }).display_name ?? 'Pro').trim();
 
   const proUserId = (proRow as { user_id: string }).user_id;
@@ -105,11 +106,22 @@ export async function GET(
       status: booking.status,
       duration_hours: (booking as { duration_hours?: number | null }).duration_hours,
       miles_distance: (booking as { miles_distance?: number | null }).miles_distance,
+      urgency: (booking as { urgency?: string | null }).urgency ?? null,
+      created_at: (booking as { created_at?: string | null }).created_at ?? null,
     },
     proPricing,
     serviceName,
     proName,
-    { paymentDueAt: (booking as { payment_due_at?: string | null }).payment_due_at }
+    {
+      paymentDueAt: (booking as { payment_due_at?: string | null }).payment_due_at,
+      completedOrPaidBookingCount: (
+        await admin
+          .from('bookings')
+          .select('id', { count: 'exact', head: true })
+          .eq('customer_id', booking.customer_id)
+          .in('status', ['fully_paid', 'completed', 'customer_confirmed', 'auto_confirmed', 'payout_released'])
+      ).count ?? 0,
+    }
   );
 
   return NextResponse.json({

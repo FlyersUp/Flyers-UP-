@@ -15,6 +15,17 @@ import { getOrCreateStripeCustomer } from '@/lib/stripeCustomer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { computeQuote } from '@/lib/bookingQuote';
 import { computeMoneyBreakdown } from '@/lib/bookings/money';
+import { computeBookingPricing } from '@/lib/bookings/pricing';
+import { getFeeRuleForBooking } from '@/lib/bookings/fee-rules';
+import { resolveDynamicPricing } from '@/lib/bookings/dynamic-pricing';
+import {
+  resolveAreaDemandScoreFromBooking,
+  resolveConversionRiskScore,
+  resolveCustomerBookingHistoryFlags,
+  resolveSupplyTightnessScoreFromBooking,
+  resolveTrustRiskScore,
+  resolveUrgencyFromBooking,
+} from '@/lib/bookings/dynamic-pricing-features';
 import {
   resolveSameDayEnabledFromServicePro,
   validateProAvailability,
@@ -102,7 +113,7 @@ export async function POST(
   // Do not require profile.role === 'customer' — that blocked valid payers with role "pro".
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, service_date, service_time, address, job_request_id, scope_confirmed_at')
+    .select('id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, service_date, service_time, address, job_request_id, scope_confirmed_at, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug')
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();
@@ -263,6 +274,11 @@ export async function POST(
     .eq('id', proRow.user_id)
     .maybeSingle();
   const proPhotoUrl = (profileRow as { avatar_url?: string | null })?.avatar_url ?? null;
+  const { count: completedPaidCount } = await admin
+    .from('bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('customer_id', booking.customer_id)
+    .in('status', ['fully_paid', 'completed', 'customer_confirmed', 'auto_confirmed', 'payout_released']);
 
   const quoteResult = computeQuote(
     {
@@ -274,15 +290,73 @@ export async function POST(
       address: booking.address,
       price: booking.price,
       status: booking.status,
+      urgency: (booking as { urgency?: string | null }).urgency ?? null,
+      created_at: (booking as { created_at?: string | null }).created_at ?? null,
     },
     proPricing,
     serviceName,
     proName,
-    { paymentDueAt }
+    {
+      paymentDueAt,
+      completedOrPaidBookingCount: completedPaidCount ?? 0,
+    }
   );
 
   const { quote } = quoteResult;
-  const amountDeposit = quote.amountDeposit;
+  const feeRule = getFeeRuleForBooking({
+    serviceSubtotalCents: quote.amountSubtotal,
+    categoryName: serviceName,
+  });
+  const bStamp = booking as {
+    fee_profile?: string | null;
+    pricing_occupation_slug?: string | null;
+    pricing_category_slug?: string | null;
+  };
+  const historyFlags = resolveCustomerBookingHistoryFlags({
+    completedOrPaidBookingCount: completedPaidCount ?? 0,
+  });
+  const urgency = resolveUrgencyFromBooking({
+    urgency: (booking as { urgency?: string | null }).urgency ?? null,
+    serviceDate: booking.service_date,
+    serviceTime: booking.service_time,
+    requestedAt: (booking as { created_at?: string | null }).created_at ?? null,
+  });
+  const areaDemandScore = resolveAreaDemandScoreFromBooking();
+  const supplyTightnessScore = resolveSupplyTightnessScoreFromBooking();
+  const conversionRiskScore = resolveConversionRiskScore({
+    serviceSubtotalCents: quote.amountSubtotal,
+    isFirstBooking: historyFlags.isFirstBooking,
+  });
+  const trustRiskScore = resolveTrustRiskScore({
+    occupationProfile: feeRule.profile,
+  });
+  const dynamicPricing = resolveDynamicPricing({
+    baseServiceFeePercent: feeRule.serviceFeePercent,
+    baseConvenienceFeeCents: feeRule.convenienceFeeCents,
+    baseProtectionFeeCents: feeRule.protectionFeeCents,
+    input: {
+      occupationProfile: feeRule.profile,
+      serviceSubtotalCents: quote.amountSubtotal,
+      urgency,
+      areaDemandScore,
+      supplyTightnessScore,
+      conversionRiskScore,
+      trustRiskScore,
+      isFirstBooking: historyFlags.isFirstBooking,
+      isRepeatCustomer: historyFlags.isRepeatCustomer,
+    },
+  });
+  const pricing = computeBookingPricing({
+    serviceSubtotalCents: quote.amountSubtotal,
+    depositPercent: quote.depositPercent / 100,
+    serviceFeePercent: dynamicPricing.serviceFeePercent,
+    convenienceFeeCents: dynamicPricing.convenienceFeeCents,
+    protectionFeeCents: dynamicPricing.protectionFeeCents,
+    demandFeeCents:
+      feeRule.demandFeeMode === 'supported_if_applicable' ? dynamicPricing.demandFeeCents : 0,
+    promoDiscountCents: dynamicPricing.promoDiscountCents,
+  });
+  const amountDeposit = pricing.depositChargeCents;
   if (!Number.isFinite(amountDeposit) || amountDeposit <= 0) {
     return NextResponse.json({ error: 'Deposit amount could not be calculated' }, { status: 400 });
   }
@@ -320,10 +394,6 @@ export async function POST(
     }
   }
 
-  const depositPlatformFee = Math.round(
-    (quote.amountPlatformFee * amountDeposit) / quote.amountTotal
-  );
-
   // Platform holds deposit — NO transfer_data. Pro receives payout only after
   // verified arrival, start, completion, and confirmation (release-payouts cron).
   const stripeFields = buildBookingPaymentIntentStripeFields({
@@ -332,6 +402,48 @@ export async function POST(
     proId: booking.pro_id,
     paymentPhase: 'deposit',
     serviceTitle: serviceName,
+    pricing: {
+      fee_profile: feeRule.profile,
+      subtotal_tier: feeRule.tier,
+      booking_fee_profile_stamped: bStamp.fee_profile ?? undefined,
+      booking_pricing_occupation_slug: bStamp.pricing_occupation_slug ?? undefined,
+      booking_pricing_category_slug: bStamp.pricing_category_slug ?? undefined,
+      service_subtotal_cents: pricing.serviceSubtotalCents,
+      service_fee_cents: pricing.serviceFeeCents,
+      convenience_fee_cents: pricing.convenienceFeeCents,
+      protection_fee_cents: pricing.protectionFeeCents,
+      demand_fee_cents: pricing.demandFeeCents,
+      promo_discount_cents: pricing.promoDiscountCents,
+      fee_total_cents: pricing.feeTotalCents,
+      platform_fee_total_cents: pricing.feeTotalCents,
+      customer_total_cents: pricing.customerTotalCents,
+      deposit_base_cents: pricing.depositBaseCents,
+      deposit_service_fee_cents: pricing.depositServiceFeeCents,
+      final_service_fee_cents: pricing.finalServiceFeeCents,
+      deposit_convenience_fee_cents: pricing.depositConvenienceFeeCents,
+      final_convenience_fee_cents: pricing.finalConvenienceFeeCents,
+      deposit_protection_fee_cents: pricing.depositProtectionFeeCents,
+      final_protection_fee_cents: pricing.finalProtectionFeeCents,
+      deposit_demand_fee_cents: pricing.depositDemandFeeCents,
+      final_demand_fee_cents: pricing.finalDemandFeeCents,
+      deposit_fee_total_cents: pricing.depositFeeTotalCents,
+      final_fee_total_cents: pricing.finalFeeTotalCents,
+      deposit_promo_discount_cents: pricing.depositPromoDiscountCents,
+      final_promo_discount_cents: pricing.finalPromoDiscountCents,
+      dynamic_pricing_reasons: dynamicPricing.reasons.join(','),
+      urgency,
+      area_demand_score: areaDemandScore,
+      supply_tightness_score: supplyTightnessScore,
+      conversion_risk_score: conversionRiskScore,
+      trust_risk_score: trustRiskScore,
+      is_first_booking: String(historyFlags.isFirstBooking),
+      is_repeat_customer: String(historyFlags.isRepeatCustomer),
+      deposit_platform_fee_cents: pricing.depositFeeTotalCents,
+      deposit_charge_cents: pricing.depositChargeCents,
+      final_base_cents: pricing.finalBaseCents,
+      final_platform_fee_cents: pricing.finalFeeTotalCents,
+      final_charge_cents: pricing.finalChargeCents,
+    },
   });
 
   const paymentIntent = await stripe.paymentIntents.create({
@@ -361,15 +473,15 @@ export async function POST(
       status: 'payment_required',
       amount_subtotal: quote.amountSubtotal,
       amount_travel_fee: quote.amountTravelFee,
-      amount_platform_fee: quote.amountPlatformFee,
-      amount_total: quote.amountTotal,
-      total_amount_cents: breakdown.total_amount_cents,
+      amount_platform_fee: pricing.feeTotalCents,
+      amount_total: pricing.customerTotalCents,
+      total_amount_cents: pricing.customerTotalCents,
       platform_fee_bps: breakdown.platform_fee_bps,
-      platform_fee_cents: breakdown.platform_fee_cents,
-      deposit_amount_cents: breakdown.deposit_amount_cents,
-      remaining_amount_cents: breakdown.remaining_amount_cents,
+      platform_fee_cents: pricing.feeTotalCents,
+      deposit_amount_cents: pricing.depositChargeCents,
+      remaining_amount_cents: pricing.finalChargeCents,
       amount_deposit: amountDeposit,
-      amount_remaining: breakdown.remaining_amount_cents,
+      amount_remaining: pricing.finalChargeCents,
       deposit_percent: breakdown.deposit_percent,
       currency: quote.currency,
     })

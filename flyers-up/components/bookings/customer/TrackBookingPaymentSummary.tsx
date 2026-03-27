@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   buildUnifiedBookingReceipt,
+  type UnifiedBookingReceipt,
   type UnifiedReceiptOverallStatus,
 } from '@/lib/bookings/unified-receipt';
+import { labelDynamicPricingReason } from '@/lib/bookings/dynamic-pricing-reason-labels';
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -58,6 +60,17 @@ export interface TrackBookingPaymentSummaryProps {
   fullyPaidAt?: string | null;
   refundStatus?: string | null;
   refundedTotalCents?: number | null;
+  serviceSubtotalCents?: number | null;
+  serviceFeeCents?: number | null;
+  convenienceFeeCents?: number | null;
+  protectionFeeCents?: number | null;
+  demandFeeCents?: number | null;
+  feeTotalCents?: number | null;
+  promoDiscountCents?: number | null;
+  platformFeeCents?: number | null;
+  customerTotalCents?: number | null;
+  depositChargeCents?: number | null;
+  finalChargeCents?: number | null;
   serviceName?: string;
   proName?: string;
   address?: string;
@@ -83,6 +96,17 @@ export function TrackBookingPaymentSummary({
   fullyPaidAt,
   refundStatus = null,
   refundedTotalCents = null,
+  serviceSubtotalCents = null,
+  serviceFeeCents = null,
+  convenienceFeeCents = null,
+  protectionFeeCents = null,
+  demandFeeCents = null,
+  feeTotalCents = null,
+  promoDiscountCents = null,
+  platformFeeCents = null,
+  customerTotalCents = null,
+  depositChargeCents = null,
+  finalChargeCents = null,
   serviceName = 'Service',
   proName = 'Provider',
   address,
@@ -92,15 +116,12 @@ export function TrackBookingPaymentSummary({
   className = '',
 }: TrackBookingPaymentSummaryProps) {
   const [computedDeposit, setComputedDeposit] = useState<number | null>(null);
+  const [apiReceipt, setApiReceipt] = useState<UnifiedBookingReceipt | null>(null);
 
   const isExpired = status === 'expired_unpaid';
   const needsDeposit =
     ['payment_required', 'accepted', 'accepted_pending_payment', 'awaiting_deposit_payment'].includes(status) &&
     !paidAt;
-  const needsRemaining =
-    ['completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment'].includes(status) &&
-    !fullyPaidAt;
-
   useEffect(() => {
     if (!needsDeposit || (amountDeposit != null && amountDeposit > 0)) return;
     let cancelled = false;
@@ -115,11 +136,25 @@ export function TrackBookingPaymentSummary({
     return () => { cancelled = true; };
   }, [bookingId, needsDeposit, amountDeposit]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void fetch(`/api/customer/bookings/${bookingId}/receipt`, { cache: 'no-store', credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { receipt?: UnifiedBookingReceipt } | null) => {
+        if (cancelled || !data?.receipt) return;
+        setApiReceipt(data.receipt);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId]);
+
   const displayDeposit = amountDeposit ?? computedDeposit;
   const totalForReceipt = amountTotal ?? (displayDeposit ?? 0) + (amountRemaining ?? 0);
   const rem = amountRemaining ?? 0;
 
-  const receipt = useMemo(
+  const clientReceipt = useMemo(
     () =>
       buildUnifiedBookingReceipt({
         bookingId,
@@ -136,6 +171,17 @@ export function TrackBookingPaymentSummary({
         totalAmountCents: amountTotal ?? undefined,
         refundedTotalCents,
         refundStatus,
+        serviceSubtotalCents,
+        serviceFeeCents,
+        convenienceFeeCents,
+        protectionFeeCents,
+        demandFeeCents,
+        feeTotalCents,
+        promoDiscountCents,
+        platformFeeTotalCents: platformFeeCents,
+        customerTotalCents,
+        depositChargeCents,
+        finalChargeCents,
         serviceTitle: serviceName,
         proName,
         serviceDate: serviceDate ?? null,
@@ -157,6 +203,17 @@ export function TrackBookingPaymentSummary({
       amountTotal,
       refundedTotalCents,
       refundStatus,
+      serviceSubtotalCents,
+      serviceFeeCents,
+      convenienceFeeCents,
+      protectionFeeCents,
+      demandFeeCents,
+      feeTotalCents,
+      promoDiscountCents,
+      platformFeeCents,
+      customerTotalCents,
+      depositChargeCents,
+      finalChargeCents,
       serviceName,
       proName,
       serviceDate,
@@ -164,6 +221,8 @@ export function TrackBookingPaymentSummary({
       address,
     ]
   );
+
+  const receipt = apiReceipt ?? clientReceipt;
 
   if (isExpired) {
     return (
@@ -211,9 +270,79 @@ export function TrackBookingPaymentSummary({
 
       <div className="space-y-3 text-sm">
         <div className="flex justify-between gap-4">
-          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Booking total</span>
+          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Service subtotal</span>
+          <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
+            {receipt.serviceSubtotalCents > 0 ? formatCents(receipt.serviceSubtotalCents) : '—'}
+          </span>
+        </div>
+
+        <div className="flex justify-between gap-4">
+          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Service fee</span>
+          <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
+            {receipt.serviceFeeCents > 0 ? formatCents(receipt.serviceFeeCents) : '—'}
+          </span>
+        </div>
+
+        <div className="flex justify-between gap-4">
+          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Convenience fee</span>
+          <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
+            {receipt.convenienceFeeCents > 0 ? formatCents(receipt.convenienceFeeCents) : '—'}
+          </span>
+        </div>
+
+        <div className="flex justify-between gap-4">
+          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Protection & guarantee</span>
+          <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
+            {receipt.protectionFeeCents > 0 ? formatCents(receipt.protectionFeeCents) : '—'}
+          </span>
+        </div>
+
+        {receipt.demandFeeCents > 0 && (
+          <div className="flex justify-between gap-4">
+            <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">High-demand fee</span>
+            <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
+              {formatCents(receipt.demandFeeCents)}
+            </span>
+          </div>
+        )}
+
+        <div className="flex justify-between gap-4">
+          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Fee total</span>
+          <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
+            {receipt.feeTotalCents > 0
+              ? formatCents(receipt.feeTotalCents)
+              : receipt.platformFeeCents > 0
+                ? formatCents(receipt.platformFeeCents)
+                : '—'}
+          </span>
+        </div>
+
+        {receipt.promoDiscountCents > 0 && (
+          <div className="flex justify-between gap-4">
+            <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Discount</span>
+            <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
+              -{formatCents(receipt.promoDiscountCents)}
+            </span>
+          </div>
+        )}
+
+        {receipt.dynamicPricingReasons.length > 0 && (
+          <div className="rounded-xl bg-black/[0.03] dark:bg-white/[0.04] px-3 py-2.5">
+            <p className="text-xs font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-1.5">
+              What affected your price
+            </p>
+            <ul className="list-disc pl-4 space-y-1 text-xs text-[#111111] dark:text-[#F5F7FA]">
+              {receipt.dynamicPricingReasons.map((code: string) => (
+                <li key={code}>{labelDynamicPricingReason(code)}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="flex justify-between gap-4">
+          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Customer total</span>
           <span className="font-semibold text-[#111111] dark:text-[#F5F7FA] tabular-nums">
-            {receipt.totalBookingCents > 0 ? formatCents(receipt.totalBookingCents) : '—'}
+            {receipt.customerTotalCents > 0 ? formatCents(receipt.customerTotalCents) : '—'}
           </span>
         </div>
 
@@ -229,12 +358,12 @@ export function TrackBookingPaymentSummary({
                 }`}
               >
                 {receipt.depositScheduledCents > 0
-                  ? formatCents(receipt.depositScheduledCents)
+                  ? `${formatCents(receipt.depositScheduledCents)}${receipt.depositPhaseStatus === 'paid' ? ' (paid)' : ''}`
                   : '—'}
               </span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Remaining due after completion</span>
+              <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Final payment</span>
               <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
                 {receipt.remainingDueCents > 0 || receipt.remainingScheduledCents > 0
                   ? formatCents(
@@ -247,6 +376,13 @@ export function TrackBookingPaymentSummary({
             </div>
           </>
         )}
+
+        <div className="flex justify-between gap-4">
+          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Remaining due</span>
+          <span className="font-semibold text-[#111111] dark:text-[#F5F7FA] tabular-nums">
+            {receipt.remainingDueCents > 0 ? formatCents(receipt.remainingDueCents) : formatCents(0)}
+          </span>
+        </div>
 
         <div className="rounded-xl bg-black/[0.03] dark:bg-white/[0.04] px-3 py-2.5 space-y-2">
           <p className="text-xs font-medium text-[#6A6A6A] dark:text-[#A1A8B3]">Timeline</p>

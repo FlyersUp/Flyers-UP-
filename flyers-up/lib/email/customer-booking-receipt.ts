@@ -5,6 +5,7 @@
 
 import { Resend } from 'resend';
 import type { UnifiedBookingReceipt } from '@/lib/bookings/unified-receipt';
+import { labelDynamicPricingReason } from '@/lib/bookings/dynamic-pricing-reason-labels';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const fromEmail = process.env.RESEND_FROM ?? 'onboarding@resend.dev';
@@ -65,6 +66,17 @@ function lineRow(label: string, value: string, strong = false): string {
   return `<tr><td style="padding:6px 0;border-bottom:1px solid #f4f4f5;color:#71717a;">${escapeHtml(label)}</td><td style="padding:6px 0;border-bottom:1px solid #f4f4f5;text-align:right;${w}">${value}</td></tr>`;
 }
 
+function pricingNotesHtml(r: UnifiedBookingReceipt): string {
+  if (!r.dynamicPricingReasons.length) return '';
+  const items = r.dynamicPricingReasons
+    .map(
+      (code) =>
+        `<li style="margin:0 0 6px;color:#3f3f46;">${escapeHtml(labelDynamicPricingReason(code))}</li>`
+    )
+    .join('');
+  return `<div style="margin-top:14px;"><p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#18181b;">What affected your price</p><ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.45;">${items}</ul></div>`;
+}
+
 export async function sendUnifiedReceiptEmailDeposit(params: {
   to: string;
   receipt: UnifiedBookingReceipt;
@@ -84,6 +96,7 @@ export async function sendUnifiedReceiptEmailDeposit(params: {
       ${lineRow('Deposit received', formatMoney(r.depositPaidCents, r.currency), true)}
       ${lineRow('Remaining balance', formatMoney(r.remainingDueCents, r.currency))}
     </table>
+    ${pricingNotesHtml(r)}
     <p style="margin:20px 0 0;font-size:13px;color:#52525b;">You will receive a single combined receipt by email when the remaining balance is paid.</p>
   `;
 
@@ -122,6 +135,7 @@ export async function sendUnifiedReceiptEmailFinal(params: {
       ${lineRow('Total paid', formatMoney(r.totalPaidCents, r.currency), true)}
       ${r.refundedTotalCents > 0 ? lineRow('Refunded (total)', formatMoney(r.refundedTotalCents, r.currency)) : ''}
     </table>
+    ${pricingNotesHtml(r)}
     <p style="margin:20px 0 0;font-size:13px;color:#52525b;">Keep this email for your records. Flyers Up is your official receipt for this marketplace booking.</p>
   `;
 

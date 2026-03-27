@@ -8,8 +8,83 @@ import {
   type UnifiedReceiptBookingInput,
 } from '@/lib/bookings/unified-receipt';
 import { loadBookingPaymentLedger } from '@/lib/bookings/booking-payment-ledger';
+import { stripe } from '@/lib/stripe';
+import {
+  mergeDynamicPricingReasonsCsv,
+  parseBookingPaymentIntentMetadata,
+} from '@/lib/stripe/booking-payment-intent-metadata';
 
 type AdminClient = SupabaseClient;
+
+async function loadPricingFromPaymentIntentMetadata(
+  paymentIntentId: string | null | undefined
+): Promise<{
+  serviceSubtotalCents: number | null;
+  serviceFeeCents: number | null;
+  convenienceFeeCents: number | null;
+  protectionFeeCents: number | null;
+  demandFeeCents: number | null;
+  feeTotalCents: number | null;
+  promoDiscountCents: number | null;
+  platformFeeTotalCents: number | null;
+  customerTotalCents: number | null;
+  depositChargeCents: number | null;
+  finalChargeCents: number | null;
+  dynamicPricingReasons: string | null;
+}> {
+  const id = String(paymentIntentId ?? '').trim();
+  if (!id || !stripe) {
+    return {
+      serviceSubtotalCents: null,
+      serviceFeeCents: null,
+      convenienceFeeCents: null,
+      protectionFeeCents: null,
+      demandFeeCents: null,
+      feeTotalCents: null,
+      promoDiscountCents: null,
+      platformFeeTotalCents: null,
+      customerTotalCents: null,
+      depositChargeCents: null,
+      finalChargeCents: null,
+      dynamicPricingReasons: null,
+    };
+  }
+  try {
+    const pi = await stripe.paymentIntents.retrieve(id);
+    const parsed = parseBookingPaymentIntentMetadata(
+      pi.metadata as Record<string, string | undefined>
+    );
+    return {
+      serviceSubtotalCents: parsed.serviceSubtotalCents,
+      serviceFeeCents: parsed.serviceFeeCents,
+      convenienceFeeCents: parsed.convenienceFeeCents,
+      protectionFeeCents: parsed.protectionFeeCents,
+      demandFeeCents: parsed.demandFeeCents,
+      feeTotalCents: parsed.feeTotalCents,
+      promoDiscountCents: parsed.promoDiscountCents,
+      platformFeeTotalCents: parsed.platformFeeTotalCents,
+      customerTotalCents: parsed.customerTotalCents,
+      depositChargeCents: parsed.depositChargeCents,
+      finalChargeCents: parsed.finalChargeCents,
+      dynamicPricingReasons: parsed.dynamicPricingReasons,
+    };
+  } catch {
+    return {
+      serviceSubtotalCents: null,
+      serviceFeeCents: null,
+      convenienceFeeCents: null,
+      protectionFeeCents: null,
+      demandFeeCents: null,
+      feeTotalCents: null,
+      promoDiscountCents: null,
+      platformFeeTotalCents: null,
+      customerTotalCents: null,
+      depositChargeCents: null,
+      finalChargeCents: null,
+      dynamicPricingReasons: null,
+    };
+  }
+}
 
 export async function getBookingReceipt(
   admin: AdminClient,
@@ -56,6 +131,41 @@ export async function getBookingReceipt(
   const ledger = await loadBookingPaymentLedger(admin, bookingId);
 
   const b = row as unknown as Record<string, unknown>;
+  const pricingFromFinal = await loadPricingFromPaymentIntentMetadata(
+    (b.stripe_payment_intent_remaining_id as string) ??
+      (b.final_payment_intent_id as string) ??
+      null
+  );
+  const pricingFromDeposit = await loadPricingFromPaymentIntentMetadata(
+    (b.stripe_payment_intent_deposit_id as string) ??
+      (b.payment_intent_id as string) ??
+      null
+  );
+  const mergedPricing = {
+    serviceSubtotalCents:
+      pricingFromFinal.serviceSubtotalCents ?? pricingFromDeposit.serviceSubtotalCents,
+    serviceFeeCents: pricingFromFinal.serviceFeeCents ?? pricingFromDeposit.serviceFeeCents,
+    convenienceFeeCents:
+      pricingFromFinal.convenienceFeeCents ?? pricingFromDeposit.convenienceFeeCents,
+    protectionFeeCents:
+      pricingFromFinal.protectionFeeCents ?? pricingFromDeposit.protectionFeeCents,
+    demandFeeCents: pricingFromFinal.demandFeeCents ?? pricingFromDeposit.demandFeeCents,
+    feeTotalCents: pricingFromFinal.feeTotalCents ?? pricingFromDeposit.feeTotalCents,
+    promoDiscountCents:
+      pricingFromFinal.promoDiscountCents ?? pricingFromDeposit.promoDiscountCents,
+    platformFeeTotalCents:
+      pricingFromFinal.platformFeeTotalCents ?? pricingFromDeposit.platformFeeTotalCents,
+    customerTotalCents:
+      pricingFromFinal.customerTotalCents ?? pricingFromDeposit.customerTotalCents,
+    depositChargeCents:
+      pricingFromDeposit.depositChargeCents ?? pricingFromFinal.depositChargeCents,
+    finalChargeCents:
+      pricingFromFinal.finalChargeCents ?? pricingFromDeposit.finalChargeCents,
+    dynamicPricingReasons: mergeDynamicPricingReasonsCsv(
+      pricingFromDeposit.dynamicPricingReasons,
+      pricingFromFinal.dynamicPricingReasons
+    ),
+  };
 
   let serviceTitle = 'Service';
   let proName = 'Provider';
@@ -115,6 +225,18 @@ export async function getBookingReceipt(
     price: (b.price as number) ?? null,
     refundedTotalCents: (b.refunded_total_cents as number) ?? null,
     refundStatus: (b.refund_status as string) ?? null,
+    serviceSubtotalCents: mergedPricing.serviceSubtotalCents,
+    serviceFeeCents: mergedPricing.serviceFeeCents,
+    convenienceFeeCents: mergedPricing.convenienceFeeCents,
+    protectionFeeCents: mergedPricing.protectionFeeCents,
+    demandFeeCents: mergedPricing.demandFeeCents,
+    feeTotalCents: mergedPricing.feeTotalCents,
+    promoDiscountCents: mergedPricing.promoDiscountCents,
+    platformFeeTotalCents: mergedPricing.platformFeeTotalCents,
+    customerTotalCents: mergedPricing.customerTotalCents,
+    depositChargeCents: mergedPricing.depositChargeCents,
+    finalChargeCents: mergedPricing.finalChargeCents,
+    dynamicPricingReasons: mergedPricing.dynamicPricingReasons,
     serviceTitle,
     proName,
     customerName,

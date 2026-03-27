@@ -1,4 +1,5 @@
 import type { UnifiedBookingReceipt } from '@/lib/bookings/unified-receipt';
+import { labelDynamicPricingReason } from '@/lib/bookings/dynamic-pricing-reason-labels';
 
 function esc(s: string): string {
   return s
@@ -61,6 +62,13 @@ export function renderBookingReceiptPrintHtml(receipt: UnifiedBookingReceipt): s
     )
     .join('');
 
+  const pricingNotes =
+    receipt.dynamicPricingReasons.length > 0
+      ? `<div style="margin-top:20px;max-width:480px;"><p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#333;">What affected your price</p><ul style="margin:0;padding-left:18px;font-size:13px;color:#555;line-height:1.45;">${receipt.dynamicPricingReasons
+          .map((code) => `<li style="margin:0 0 6px;">${esc(labelDynamicPricingReason(code))}</li>`)
+          .join('')}</ul></div>`
+      : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -79,6 +87,7 @@ export function renderBookingReceiptPrintHtml(receipt: UnifiedBookingReceipt): s
   <p style="margin:0 0 8px;"><strong>${esc(receipt.serviceTitle)}</strong> · ${esc(receipt.proName)}</p>
   <p style="margin:0 0 16px;font-size:14px;color:#555;">${esc(statusLabel)}</p>
   <table style="width:100%;max-width:480px;border-collapse:collapse;font-size:15px;">${rowHtml}</table>
+  ${pricingNotes}
   ${receipt.paidDepositAt ? `<p style="margin-top:20px;font-size:13px;color:#666;">Deposit received: ${esc(new Date(receipt.paidDepositAt).toLocaleString())}</p>` : ''}
   ${receipt.paidRemainingAt ? `<p style="margin-top:4px;font-size:13px;color:#666;">Final payment received: ${esc(new Date(receipt.paidRemainingAt).toLocaleString())}</p>` : ''}
   <p style="margin-top:28px;font-size:12px;color:#888;">This document is your Flyers Up booking receipt.</p>

@@ -2,15 +2,23 @@
 
 import { Card } from '@/components/ui/Card';
 import { PriceRow } from '@/components/ui/PriceRow';
+import { labelDynamicPricingReason } from '@/lib/bookings/dynamic-pricing-reason-labels';
 
 export interface QuoteBreakdown {
   amountSubtotal: number;
   amountPlatformFee: number;
   amountTravelFee: number;
   amountTotal: number;
+  serviceFeeCents?: number;
+  convenienceFeeCents?: number;
+  protectionFeeCents?: number;
+  demandFeeCents?: number;
+  feeTotalCents?: number;
+  promoDiscountCents?: number;
   amountDeposit?: number;
   amountRemaining?: number;
   depositPercent?: number;
+  dynamicPricingReasons?: string[];
   currency: string;
 }
 
@@ -36,19 +44,12 @@ export function PriceBreakdownCard({ quote, showDeposit = true }: { quote: Quote
         {quote.amountTravelFee > 0 && (
           <PriceRow label="Travel fee" value={formatCents(quote.amountTravelFee)} />
         )}
-        {quote.amountPlatformFee > 0 && (
-          <>
-            <PriceRow
-              label="Flyers Up Protection & Service Fee"
-              value={formatCents(quote.amountPlatformFee)}
-              subtext="Secure payments, booking protection, and support"
-            />
-            <p className="text-xs text-muted">
-              This fee helps keep Flyers Up safe and reliable. It covers secure payments, fraud protection, customer
-              support, and tools that help ensure your job gets done right.
-            </p>
-          </>
-        )}
+        {(quote.serviceFeeCents ?? 0) > 0 && <PriceRow label="Service fee" value={formatCents(quote.serviceFeeCents ?? 0)} />}
+        {(quote.convenienceFeeCents ?? 0) > 0 && <PriceRow label="Convenience fee" value={formatCents(quote.convenienceFeeCents ?? 0)} />}
+        {(quote.protectionFeeCents ?? 0) > 0 && <PriceRow label="Protection & guarantee" value={formatCents(quote.protectionFeeCents ?? 0)} />}
+        {(quote.demandFeeCents ?? 0) > 0 && <PriceRow label="High-demand fee" value={formatCents(quote.demandFeeCents ?? 0)} />}
+        {(quote.promoDiscountCents ?? 0) > 0 && <PriceRow label="Discount" value={`-${formatCents(quote.promoDiscountCents ?? 0)}`} />}
+        {(quote.feeTotalCents == null && quote.amountPlatformFee > 0) && <PriceRow label="Fees" value={formatCents(quote.amountPlatformFee)} />}
         <PriceRow
           className="mt-3 border-t border-border pt-3"
           label="Total"
@@ -65,6 +66,16 @@ export function PriceBreakdownCard({ quote, showDeposit = true }: { quote: Quote
             />
             <PriceRow label="Due after job" value={formatCents(quote.amountRemaining ?? 0)} />
           </>
+        )}
+        {(quote.dynamicPricingReasons?.length ?? 0) > 0 && (
+          <div className="mt-3 rounded-lg bg-black/[0.03] dark:bg-white/[0.04] px-3 py-2">
+            <p className="text-xs font-medium text-primary mb-1">What affected your price included above</p>
+            <ul className="list-disc pl-4 space-y-0.5 text-xs text-muted">
+              {quote.dynamicPricingReasons!.map((code) => (
+                <li key={code}>{labelDynamicPricingReason(code)}</li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     </Card>

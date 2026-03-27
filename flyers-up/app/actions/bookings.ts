@@ -13,6 +13,8 @@ import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { geocodeAddress } from '@/lib/geocode';
 import { DEFAULT_BOOKING_TIMEZONE } from '@/lib/datetime';
+import { resolveUrgency } from '@/lib/bookings/urgency';
+import { getOccupationFeeProfile } from '@/lib/bookings/fee-rules';
 
 type BookingStatus = 'requested' | 'accepted' | 'declined' | 'completed' | 'cancelled';
 
@@ -58,7 +60,7 @@ export async function createBookingWithPayment(
     // Avoid service_categories join (service_pros can have multiple FKs to categories).
     const { data: proRow, error: proErr } = await supabase
       .from('service_pros')
-      .select('id, user_id, starting_price, category_id, available')
+      .select('id, user_id, starting_price, category_id, occupation_id, available')
       .eq('id', proId)
       .maybeSingle();
 
@@ -92,16 +94,41 @@ export async function createBookingWithPayment(
     }
 
     let categorySlug: string | undefined;
+    let categoryDisplayName: string | undefined;
     try {
       const { data: cat } = await supabase
         .from('service_categories')
-        .select('slug')
+        .select('slug, name')
         .eq('id', (proRow as any).category_id)
         .maybeSingle();
       categorySlug = cat?.slug ?? undefined;
+      categoryDisplayName =
+        typeof (cat as { name?: string } | null)?.name === 'string'
+          ? String((cat as { name: string }).name).trim() || undefined
+          : undefined;
     } catch {
       categorySlug = undefined;
+      categoryDisplayName = undefined;
     }
+
+    let occupationSlug: string | undefined;
+    const occId = (proRow as { occupation_id?: string | null }).occupation_id;
+    if (occId) {
+      const { data: occ } = await supabase
+        .from('occupations')
+        .select('slug')
+        .eq('id', occId)
+        .maybeSingle();
+      if (occ && typeof (occ as { slug?: string }).slug === 'string') {
+        occupationSlug = String((occ as { slug: string }).slug).trim() || undefined;
+      }
+    }
+
+    const feeProfile = getOccupationFeeProfile({
+      occupationSlug,
+      categorySlug,
+      categoryName: categoryDisplayName,
+    });
     const basePriceCents = Math.round(Number((proRow as any).starting_price ?? 0) * 100);
 
     // 3) Fetch current add-on prices from database (server-side validation)
@@ -146,6 +173,11 @@ export async function createBookingWithPayment(
     const totalDollars = totalCents / 100;
 
     const initialStatusHistory = [{ status: 'requested', at: new Date().toISOString() }];
+    const requestedAt = new Date().toISOString();
+    const urgency = resolveUrgency({
+      requestedAt,
+      scheduledStartAt: `${date}T${time}:00`,
+    });
 
     // 4b) Geocode address for arrival verification (best-effort)
     let addressLat: number | null = null;
@@ -174,6 +206,10 @@ export async function createBookingWithPayment(
         status: 'requested' satisfies BookingStatus,
         status_history: initialStatusHistory,
         price: totalDollars,
+        urgency,
+        fee_profile: feeProfile,
+        pricing_occupation_slug: occupationSlug ?? null,
+        pricing_category_slug: categorySlug ?? null,
         subcategory_id: validatedSubcategoryId,
         address_lat: addressLat,
         address_lng: addressLng,

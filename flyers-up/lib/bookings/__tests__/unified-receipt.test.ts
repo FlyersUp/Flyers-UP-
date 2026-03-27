@@ -33,6 +33,28 @@ describe('buildUnifiedBookingReceipt', () => {
     assert.strictEqual(r.remainingDueCents, 15000);
     assert.strictEqual(r.isSplitPayment, true);
     assert.deepStrictEqual(r.warnings, []);
+    assert.deepStrictEqual(r.dynamicPricingReasons, []);
+  });
+
+  it('passes through dynamic pricing reason codes', () => {
+    const r = buildUnifiedBookingReceipt({
+      bookingId: BID,
+      status: 'fully_paid',
+      paymentStatus: 'PAID',
+      finalPaymentStatus: 'PAID',
+      amountDeposit: 0,
+      amountRemaining: 0,
+      amountTotal: 5000,
+      totalAmountCents: 5000,
+      paidAt: '2025-01-01T00:00:00Z',
+      serviceTitle: 'X',
+      proName: 'Y',
+      dynamicPricingReasons: ['first_booking_convenience_waived', 'fee_cap_applied_under_25'],
+    });
+    assert.deepStrictEqual(r.dynamicPricingReasons, [
+      'first_booking_convenience_waived',
+      'fee_cap_applied_under_25',
+    ]);
   });
 
   it('deposit + final both paid', () => {

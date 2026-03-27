@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { labelDynamicPricingReason } from '@/lib/bookings/dynamic-pricing-reason-labels';
 /**
  * Review & pay deposit — Airbnb/Uber/Apple style
  *
@@ -42,9 +43,16 @@ export interface QuoteBreakdown {
   amountPlatformFee: number;
   amountTravelFee: number;
   amountTotal: number;
+  serviceFeeCents?: number;
+  convenienceFeeCents?: number;
+  protectionFeeCents?: number;
+  demandFeeCents?: number;
+  feeTotalCents?: number;
+  promoDiscountCents?: number;
   amountDeposit?: number;
   amountRemaining?: number;
   depositPercent?: number;
+  dynamicPricingReasons?: string[];
   currency: string;
 }
 
@@ -141,10 +149,25 @@ function PriceDetailsBlock({
           {(quote.amountTravelFee ?? 0) > 0 && (
             <PriceRow label="Travel fee" value={formatCents(quote.amountTravelFee!)} />
           )}
-          {(quote.amountPlatformFee ?? 0) > 0 && (
+          {(quote.serviceFeeCents ?? 0) > 0 && (
+            <PriceRow label="Service fee" value={formatCents(quote.serviceFeeCents ?? 0)} />
+          )}
+          {(quote.convenienceFeeCents ?? 0) > 0 && (
+            <PriceRow label="Convenience fee" value={formatCents(quote.convenienceFeeCents ?? 0)} />
+          )}
+          {(quote.protectionFeeCents ?? 0) > 0 && (
+            <PriceRow label="Protection & guarantee" value={formatCents(quote.protectionFeeCents ?? 0)} />
+          )}
+          {(quote.demandFeeCents ?? 0) > 0 && (
+            <PriceRow label="High-demand fee" value={formatCents(quote.demandFeeCents ?? 0)} />
+          )}
+          {(quote.promoDiscountCents ?? 0) > 0 && (
+            <PriceRow label="Discount" value={`-${formatCents(quote.promoDiscountCents ?? 0)}`} />
+          )}
+          {(quote.feeTotalCents == null && (quote.amountPlatformFee ?? 0) > 0) && (
             <PriceRow
-              label="Flyers Up Protection"
-              value={formatCents(quote.amountPlatformFee!)}
+              label="Fees"
+              value={formatCents(quote.amountPlatformFee ?? 0)}
               subtext="Secure payments, support & dispute resolution"
             />
           )}
@@ -154,6 +177,18 @@ function PriceDetailsBlock({
               <PriceRow label={`Due now (${quote.depositPercent ?? 50}% deposit)`} value={formatCents(quote.amountDeposit!)} emphasize />
               <PriceRow label="Due after job" value={formatCents(quote.amountRemaining ?? 0)} />
             </>
+          )}
+          {(quote.dynamicPricingReasons?.length ?? 0) > 0 && (
+            <div className="mt-2 rounded-lg bg-black/[0.03] dark:bg-white/[0.04] px-2 py-2">
+              <p className="text-[11px] font-medium text-[#717171] dark:text-white/60 mb-1">
+                What affected your price
+              </p>
+              <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-[#444] dark:text-white/75">
+                {quote.dynamicPricingReasons!.map((code) => (
+                  <li key={code}>{labelDynamicPricingReason(code)}</li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       )}

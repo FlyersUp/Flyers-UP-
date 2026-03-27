@@ -1,4 +1,9 @@
 import { bookingReferenceFromUuid } from '@/lib/stripe/booking-payment-intent-metadata';
+import {
+  DEFAULT_CONVENIENCE_FEE_CENTS,
+  DEFAULT_PROTECTION_FEE_CENTS,
+  DEFAULT_SERVICE_FEE_PERCENT,
+} from '@/lib/bookings/fee-config';
 
 export type UnifiedReceiptOverallStatus =
   | 'unpaid'
@@ -27,6 +32,15 @@ export interface UnifiedBookingReceipt {
   address: string | null;
   /** Full booking total in cents (deposit + remaining when split). */
   totalBookingCents: number;
+  serviceSubtotalCents: number;
+  serviceFeeCents: number;
+  convenienceFeeCents: number;
+  protectionFeeCents: number;
+  demandFeeCents: number;
+  feeTotalCents: number;
+  promoDiscountCents: number;
+  platformFeeCents: number;
+  customerTotalCents: number;
   depositScheduledCents: number;
   remainingScheduledCents: number;
   depositPaidCents: number;
@@ -43,6 +57,8 @@ export interface UnifiedBookingReceipt {
   stripePaymentIntentRemainingId: string | null;
   /** True when this booking uses split deposit + remaining (vs legacy single charge). */
   isSplitPayment: boolean;
+  /** Ordered dedupe merge of deposit + final PaymentIntent metadata reason codes. */
+  dynamicPricingReasons: string[];
   /** Non-customer-facing diagnostics (support / logs). */
   warnings: string[];
 }
@@ -77,6 +93,17 @@ export interface UnifiedReceiptBookingInput {
   price?: number | null;
   refundedTotalCents?: number | null;
   refundStatus?: string | null;
+  serviceSubtotalCents?: number | null;
+  serviceFeeCents?: number | null;
+  convenienceFeeCents?: number | null;
+  protectionFeeCents?: number | null;
+  demandFeeCents?: number | null;
+  feeTotalCents?: number | null;
+  promoDiscountCents?: number | null;
+  platformFeeTotalCents?: number | null;
+  customerTotalCents?: number | null;
+  depositChargeCents?: number | null;
+  finalChargeCents?: number | null;
   serviceTitle: string;
   proName: string;
   customerName?: string | null;
@@ -92,6 +119,7 @@ export interface UnifiedReceiptBookingInput {
   ledgerDepositPaidPaymentIntentId?: string | null;
   /** Latest successful remaining PI from booking_events.REMAINING_PAID. */
   ledgerRemainingPaidPaymentIntentId?: string | null;
+  dynamicPricingReasons?: string[] | null;
 }
 
 function normalizeCurrencyCode(raw: string | null | undefined): { code: string; normalizedFallback: boolean } {
@@ -155,6 +183,10 @@ export function buildUnifiedBookingReceipt(
   const warnings: string[] = [];
   if (currencyNormalized) warnings.push('currency_normalized_to_usd');
 
+  const dynamicPricingReasons = Array.isArray(input.dynamicPricingReasons)
+    ? input.dynamicPricingReasons.filter((s) => typeof s === 'string' && String(s).trim())
+    : [];
+
   const depositScheduled = safeInt(input.amountDeposit);
   const remainingScheduled = safeInt(input.amountRemaining);
   const totalFromCols = safeInt(
@@ -162,12 +194,52 @@ export function buildUnifiedBookingReceipt(
   );
   const priceCents = priceToCentsIfDollars(input.price);
 
-  const isSplitPayment = depositScheduled > 0;
+  const isSplitPayment =
+    depositScheduled > 0 || Math.max(0, safeInt(input.depositChargeCents)) > 0;
 
   let totalBookingCents = totalFromCols;
   if (totalBookingCents <= 0 && isSplitPayment) {
     totalBookingCents = depositScheduled + remainingScheduled;
   }
+
+  const serviceSubtotalCents = Math.max(0, safeInt(input.serviceSubtotalCents));
+  let serviceFeeCents = Math.max(0, safeInt(input.serviceFeeCents));
+  let convenienceFeeCents = Math.max(0, safeInt(input.convenienceFeeCents));
+  let protectionFeeCents = Math.max(0, safeInt(input.protectionFeeCents));
+  let demandFeeCents = Math.max(0, safeInt(input.demandFeeCents));
+  const promoDiscountCents = Math.max(0, safeInt(input.promoDiscountCents));
+  const feeTotalFromParts =
+    serviceFeeCents + convenienceFeeCents + protectionFeeCents + demandFeeCents;
+  const feeTotalInput = Math.max(0, safeInt(input.feeTotalCents));
+  let platformFeeCents = Math.max(0, safeInt(input.platformFeeTotalCents));
+  let feeTotalCents = feeTotalInput || feeTotalFromParts;
+  let customerTotalCents = Math.max(0, safeInt(input.customerTotalCents));
+  if (feeTotalCents <= 0 && platformFeeCents > 0) feeTotalCents = platformFeeCents;
+  if (platformFeeCents <= 0 && feeTotalCents > 0) platformFeeCents = feeTotalCents;
+  if (customerTotalCents <= 0) customerTotalCents = totalBookingCents;
+  if (platformFeeCents <= 0 && customerTotalCents > 0 && serviceSubtotalCents > 0) {
+    platformFeeCents = Math.max(0, customerTotalCents - serviceSubtotalCents);
+    if (feeTotalCents <= 0) feeTotalCents = platformFeeCents;
+  }
+  if (serviceSubtotalCents > 0 && serviceFeeCents <= 0 && feeTotalCents > 0) {
+    const derivedService = Math.round(serviceSubtotalCents * DEFAULT_SERVICE_FEE_PERCENT);
+    const fixedDefaults = DEFAULT_CONVENIENCE_FEE_CENTS + DEFAULT_PROTECTION_FEE_CENTS;
+    if (feeTotalCents >= fixedDefaults) {
+      serviceFeeCents = derivedService;
+      convenienceFeeCents = DEFAULT_CONVENIENCE_FEE_CENTS;
+      protectionFeeCents = DEFAULT_PROTECTION_FEE_CENTS;
+      demandFeeCents = Math.max(0, feeTotalCents - serviceFeeCents - convenienceFeeCents - protectionFeeCents);
+    }
+  }
+  if (customerTotalCents <= 0 && serviceSubtotalCents > 0) {
+    customerTotalCents = serviceSubtotalCents + platformFeeCents;
+  }
+  if (totalBookingCents <= 0 && customerTotalCents > 0) {
+    totalBookingCents = customerTotalCents;
+  }
+
+  const depositScheduledEffective = Math.max(0, safeInt(input.depositChargeCents)) || depositScheduled;
+  const remainingScheduledEffective = Math.max(0, safeInt(input.finalChargeCents)) || remainingScheduled;
   if (totalBookingCents <= 0 && priceCents > 0) {
     totalBookingCents = priceCents;
   }
@@ -217,8 +289,8 @@ export function buildUnifiedBookingReceipt(
   const remainingPaid = remainingPaidBase && remainingAlignedWithLedger;
 
   const depositPaidCents =
-    depositPaid && depositScheduled > 0
-      ? depositScheduled
+    depositPaid && depositScheduledEffective > 0
+      ? depositScheduledEffective
       : depositPaid && !isSplitPayment
         ? totalBookingCents
         : 0;
@@ -226,8 +298,8 @@ export function buildUnifiedBookingReceipt(
   let remainingPaidCents = 0;
   if (isSplitPayment && remainingPaid) {
     remainingPaidCents =
-      remainingScheduled > 0
-        ? remainingScheduled
+      remainingScheduledEffective > 0
+        ? remainingScheduledEffective
         : Math.max(0, totalBookingCents - depositPaidCents);
   } else if (!isSplitPayment && remainingPaid) {
     remainingPaidCents = totalBookingCents;
@@ -292,8 +364,17 @@ export function buildUnifiedBookingReceipt(
     serviceTime: input.serviceTime ?? null,
     address: input.address?.trim() || null,
     totalBookingCents,
-    depositScheduledCents: depositScheduled,
-    remainingScheduledCents: remainingScheduled,
+    serviceSubtotalCents,
+    serviceFeeCents,
+    convenienceFeeCents,
+    protectionFeeCents,
+    demandFeeCents,
+    feeTotalCents: feeTotalCents || platformFeeCents,
+    promoDiscountCents,
+    platformFeeCents,
+    customerTotalCents: customerTotalCents || totalBookingCents,
+    depositScheduledCents: depositScheduledEffective,
+    remainingScheduledCents: remainingScheduledEffective,
     depositPaidCents,
     remainingPaidCents,
     totalPaidCents,
@@ -313,6 +394,7 @@ export function buildUnifiedBookingReceipt(
     stripePaymentIntentDepositId: stripeDepositId,
     stripePaymentIntentRemainingId: stripeRemainingId,
     isSplitPayment,
+    dynamicPricingReasons,
     warnings,
   };
 }

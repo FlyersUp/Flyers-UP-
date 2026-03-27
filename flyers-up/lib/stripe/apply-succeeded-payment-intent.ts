@@ -7,6 +7,7 @@ import type Stripe from 'stripe';
 import { revalidatePath } from 'next/cache';
 import { isCancelled } from '@/lib/bookings/booking-status';
 import { resolveWebhookPaymentKind } from '@/lib/stripe/webhook-payment-phase';
+import { parseBookingPaymentIntentMetadata } from '@/lib/stripe/booking-payment-intent-metadata';
 import { refundPaymentIntent } from '@/lib/stripe/server';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
@@ -54,6 +55,7 @@ export async function applySucceededPaymentIntent(
   paymentIntent: Stripe.PaymentIntent
 ): Promise<ApplySucceededPaymentIntentResult> {
   const meta = paymentIntent.metadata as Record<string, string | undefined>;
+  const parsedMeta = parseBookingPaymentIntentMetadata(meta);
   const bookingId = meta?.booking_id ?? meta?.bookingId;
   if (!bookingId) {
     return { handled: false };
@@ -62,7 +64,7 @@ export async function applySucceededPaymentIntent(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, status, status_history, pro_id, customer_id, price, amount_total, total_amount_cents, refunded_total_cents, payment_status, final_payment_status, stripe_payment_intent_deposit_id, stripe_payment_intent_remaining_id, payment_intent_id, final_payment_intent_id, service_pros(user_id)'
+      'id, status, status_history, pro_id, customer_id, price, amount_total, amount_platform_fee, total_amount_cents, refunded_total_cents, payment_status, final_payment_status, stripe_payment_intent_deposit_id, stripe_payment_intent_remaining_id, payment_intent_id, final_payment_intent_id, service_pros(user_id)'
     )
     .eq('id', bookingId)
     .maybeSingle();
@@ -139,7 +141,6 @@ export async function applySucceededPaymentIntent(
         (booking as { payment_intent_id?: string }).payment_intent_id === paymentIntent.id);
 
     if (!already) {
-      const oldStatus = booking.status;
       const updatePayload: Record<string, unknown> = {
         payment_intent_id: paymentIntent.id,
         stripe_payment_intent_deposit_id: paymentIntent.id,
@@ -267,7 +268,17 @@ export async function applySucceededPaymentIntent(
 
     if (!existing) {
       const totalCents = Number(booking.total_amount_cents ?? booking.amount_total ?? 0);
-      const amountDollars = totalCents > 0 ? totalCents / 100 : Number(booking.price ?? 0);
+      const platformFeeCents = Math.max(
+        0,
+        Number(parsedMeta.platformFeeTotalCents ?? booking.amount_platform_fee ?? 0)
+      );
+      const serviceSubtotalCents = Math.max(
+        0,
+        Number(parsedMeta.serviceSubtotalCents ?? (totalCents > 0 ? totalCents - platformFeeCents : 0))
+      );
+      const amountDollars = serviceSubtotalCents > 0
+        ? serviceSubtotalCents / 100
+        : Number(booking.price ?? 0);
       const amount = amountDollars > 0 ? amountDollars : 0;
       await admin.from('pro_earnings').insert({
         pro_id: booking.pro_id,
@@ -337,7 +348,17 @@ export async function applySucceededPaymentIntent(
 
   if (shouldFinalize && !existing) {
     const totalCents = Number(booking.total_amount_cents ?? booking.amount_total ?? 0);
-    const amountDollars = totalCents > 0 ? totalCents / 100 : Number(booking.price ?? 0);
+    const platformFeeCents = Math.max(
+      0,
+      Number(parsedMeta.platformFeeTotalCents ?? booking.amount_platform_fee ?? 0)
+    );
+    const serviceSubtotalCents = Math.max(
+      0,
+      Number(parsedMeta.serviceSubtotalCents ?? (totalCents > 0 ? totalCents - platformFeeCents : 0))
+    );
+    const amountDollars = serviceSubtotalCents > 0
+      ? serviceSubtotalCents / 100
+      : Number(booking.price ?? 0);
     const amount = amountDollars > 0 ? amountDollars : 0;
     await admin.from('pro_earnings').insert({
       pro_id: booking.pro_id,
