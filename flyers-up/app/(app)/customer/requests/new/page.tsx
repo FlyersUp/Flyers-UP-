@@ -12,6 +12,11 @@ import { computePriceEstimate } from '@/lib/scopeLock/priceCalculator';
 import type { JobDetails, PhotoEntry } from '@/lib/scopeLock/jobDetailsSchema';
 
 const REQUIRED_PHOTO_MIN = 2;
+const MAX_REQUEST_PHOTOS = 12;
+
+function fileFingerprint(f: File): string {
+  return `${f.name}:${f.size}:${f.lastModified}`;
+}
 
 export default function NewRequestPage() {
   const router = useRouter();
@@ -95,6 +100,28 @@ export default function NewRequestPage() {
     }
     return urls;
   }
+
+  const handleNonCleaningPhotosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (picked.length === 0) return;
+    setPhotoFiles((prev) => {
+      const seen = new Set(prev.map(fileFingerprint));
+      const merged = [...prev];
+      for (const f of picked) {
+        const key = fileFingerprint(f);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push(f);
+        if (merged.length >= MAX_REQUEST_PHOTOS) break;
+      }
+      return merged;
+    });
+  };
+
+  const removePhotoFileAt = (index: number) => {
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const isCleaning = serviceCategory.toLowerCase().includes('cleaning');
   const priceEstimate =
@@ -353,18 +380,46 @@ export default function NewRequestPage() {
               </>
             ) : (
               <div>
-                <label className="block text-sm font-medium text-[#111] mb-1">Photos (min 2 required)</label>
+                <label className="block text-sm font-medium text-[#111] mb-1">
+                  Photos (min {REQUIRED_PHOTO_MIN} required)
+                </label>
+                <p className="text-xs text-black/50 mb-2">
+                  Add photos one at a time or several at once — each tap on &quot;Choose files&quot; adds to your list (up to {MAX_REQUEST_PHOTOS}).
+                </p>
                 <input
                   type="file"
                   accept="image/*"
                   multiple
-                  onChange={(e) => setPhotoFiles(Array.from(e.target.files ?? []))}
-                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#B2FBA5] file:font-semibold file:text-black"
+                  onChange={handleNonCleaningPhotosChange}
+                  disabled={photoFiles.length >= MAX_REQUEST_PHOTOS}
+                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#B2FBA5] file:font-semibold file:text-black disabled:opacity-60"
                 />
                 {photoFiles.length > 0 && (
+                  <ul className="mt-2 space-y-1">
+                    {photoFiles.map((f, i) => (
+                      <li
+                        key={`${fileFingerprint(f)}-${i}`}
+                        className="flex items-center justify-between gap-2 text-xs text-black/70 bg-white border border-black/10 rounded-lg px-3 py-2"
+                      >
+                        <span className="truncate min-w-0" title={f.name}>
+                          {f.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removePhotoFileAt(i)}
+                          className="shrink-0 text-red-600 font-medium hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {photoFiles.length > 0 && (
                   <p className="mt-1 text-xs text-black/60">
-                    {photoFiles.length} file(s) selected
-                    {photoFiles.length < REQUIRED_PHOTO_MIN && ` — add ${REQUIRED_PHOTO_MIN - photoFiles.length} more`}
+                    {photoFiles.length} photo{photoFiles.length === 1 ? '' : 's'} selected
+                    {photoFiles.length < REQUIRED_PHOTO_MIN &&
+                      ` — add ${REQUIRED_PHOTO_MIN - photoFiles.length} more`}
                   </p>
                 )}
               </div>
