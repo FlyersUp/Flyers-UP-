@@ -10,6 +10,7 @@ import { SideMenu } from '@/components/ui/SideMenu';
 import { JobDetailsForm, PhotoUploadGrid, PriceEstimateCard } from '@/components/scope-lock';
 import { computePriceEstimate } from '@/lib/scopeLock/priceCalculator';
 import type { JobDetails, PhotoEntry } from '@/lib/scopeLock/jobDetailsSchema';
+import { isValidUsZip5, normalizeUsZip5 } from '@/lib/jobRequestLocation';
 
 const REQUIRED_PHOTO_MIN = 2;
 const MAX_REQUEST_PHOTOS = 12;
@@ -33,7 +34,8 @@ export default function NewRequestPage() {
   const [serviceCategory, setServiceCategory] = useState('');
   const [budgetMin, setBudgetMin] = useState('');
   const [budgetMax, setBudgetMax] = useState('');
-  const [location, setLocation] = useState('');
+  const [locationZip, setLocationZip] = useState('');
+  const [locationNote, setLocationNote] = useState('');
   const [preferredDate, setPreferredDate] = useState('');
   const [preferredTime, setPreferredTime] = useState('');
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
@@ -152,8 +154,9 @@ export default function NewRequestPage() {
       setError('Please select an occupation.');
       return;
     }
-    if (!location.trim()) {
-      setError('Please enter a location.');
+    const zip5 = normalizeUsZip5(locationZip);
+    if (!zip5 || !isValidUsZip5(zip5)) {
+      setError('Please enter a valid 5-digit US ZIP code.');
       return;
     }
     if (isCleaning) {
@@ -186,6 +189,10 @@ export default function NewRequestPage() {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
 
+      const locationLabel = locationNote.trim()
+        ? `${zip5} · ${locationNote.trim()}`
+        : zip5;
+
       const insertPayload: Record<string, unknown> = {
         customer_id: userId,
         title: title.trim(),
@@ -193,7 +200,8 @@ export default function NewRequestPage() {
         service_category: serviceCategory,
         budget_min: budgetMin ? parseFloat(budgetMin) : null,
         budget_max: budgetMax ? parseFloat(budgetMax) : null,
-        location: location.trim(),
+        location: locationLabel,
+        location_zip: zip5,
         photos: photos,
         status: 'open',
         preferred_date: preferredDate || null,
@@ -287,7 +295,7 @@ export default function NewRequestPage() {
                 {categories
                   .filter((c) => c.is_active_phase1 !== false)
                   .map((c) => (
-                    <option key={c.id} value={c.name}>
+                    <option key={c.id} value={c.slug}>
                       {c.name}
                     </option>
                   ))}
@@ -321,16 +329,32 @@ export default function NewRequestPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[#111] mb-1">Location *</label>
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Williamsburg"
-                className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
-                required
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-[#111] mb-1">ZIP code *</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  maxLength={5}
+                  value={locationZip}
+                  onChange={(e) => setLocationZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                  placeholder="e.g. 11212"
+                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                  required
+                />
+                <p className="mt-1 text-xs text-black/50">Used so nearby pros can find your request.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#111] mb-1">Neighborhood (optional)</label>
+                <input
+                  type="text"
+                  value={locationNote}
+                  onChange={(e) => setLocationNote(e.target.value)}
+                  placeholder="e.g. East Flatbush"
+                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

@@ -4,7 +4,7 @@
  * Pro Jobs - unified job discovery
  * Tabs: Incoming (requests sent directly to pro), Open Jobs (demand board / marketplace)
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { DashboardCard, DashboardSectionSkeleton } from '@/components/dashboard/DashboardCard';
 import { useProPresence } from '@/hooks/useProPresence';
@@ -33,6 +33,32 @@ type BoardRequest = {
   final_price_cents: number;
 };
 
+type CustomerJobRequest = {
+  id: string;
+  title: string;
+  description: string | null;
+  service_category: string;
+  location: string;
+  location_zip: string | null;
+  budget_min: number | null;
+  budget_max: number | null;
+  preferred_date: string | null;
+  preferred_time: string | null;
+  created_at: string;
+  expires_at: string;
+};
+
+type OpenJobFilterMeta = {
+  categorySlug: string;
+  categoryName: string;
+  zip: string | null;
+  zipValid: boolean;
+  radiusMiles: number;
+  profileZip: string | null;
+  zipWarning?: string;
+  radiusOptions: number[];
+};
+
 function formatServiceName(slug: string): string {
   return slug
     .split(/[-_]/)
@@ -58,6 +84,15 @@ export default function ProJobsPage() {
   const [boardLoading, setBoardLoading] = useState(true);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
+
+  const [customerRequests, setCustomerRequests] = useState<CustomerJobRequest[]>([]);
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [filterMeta, setFilterMeta] = useState<OpenJobFilterMeta | null>(null);
+  const [draftZip, setDraftZip] = useState('');
+  const [draftRadius, setDraftRadius] = useState(25);
+  const [appliedZip, setAppliedZip] = useState('');
+  const [appliedRadius, setAppliedRadius] = useState(25);
+  const filterFormSynced = useRef(false);
 
   const [incomingBookings, setIncomingBookings] = useState<
     Array<{
@@ -114,6 +149,32 @@ export default function ProJobsPage() {
     };
     void load();
   }, [ready]);
+
+  useEffect(() => {
+    if (!ready || tab !== 'open') return;
+    setCustomerLoading(true);
+    const qs = new URLSearchParams();
+    const z = appliedZip.replace(/\D/g, '').slice(0, 5);
+    if (z.length === 5) qs.set('zip', z);
+    qs.set('radiusMiles', String(appliedRadius));
+    fetch(`/api/pro/open-job-requests?${qs.toString()}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((json: { requests?: CustomerJobRequest[]; filter?: OpenJobFilterMeta }) => {
+        if (Array.isArray(json.requests)) setCustomerRequests(json.requests);
+        if (json.filter) {
+          setFilterMeta(json.filter);
+          if (!filterFormSynced.current) {
+            filterFormSynced.current = true;
+            const prefZip = json.filter.zip ?? json.filter.profileZip ?? '';
+            setDraftZip(prefZip);
+            setDraftRadius(json.filter.radiusMiles ?? 25);
+            setAppliedRadius(json.filter.radiusMiles ?? 25);
+          }
+        }
+      })
+      .catch(() => setCustomerRequests([]))
+      .finally(() => setCustomerLoading(false));
+  }, [ready, tab, appliedZip, appliedRadius]);
 
   useEffect(() => {
     if (!ready || tab !== 'incoming') return;
@@ -275,6 +336,102 @@ export default function ProJobsPage() {
 
           {tab === 'open' && (
             <>
+              <div className="mb-6 space-y-3">
+                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                  Customer requests
+                </h2>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Jobs customers post on the app. Filter by ZIP and how far you&apos;ll travel (
+                  {filterMeta?.categoryName ?? 'your occupation'} only).
+                </p>
+                {filterMeta?.zipWarning && (
+                  <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100 text-sm">
+                    {filterMeta.zipWarning}
+                  </div>
+                )}
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">ZIP code</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={5}
+                      value={draftZip}
+                      onChange={(e) => setDraftZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                      placeholder="Your ZIP"
+                      className="w-28 px-3 py-2 rounded-lg bg-surface border border-border text-gray-900 dark:text-white text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Radius</label>
+                    <select
+                      value={draftRadius}
+                      onChange={(e) => setDraftRadius(Number(e.target.value))}
+                      className="px-3 py-2 rounded-lg bg-surface border border-border text-gray-900 dark:text-white text-sm"
+                    >
+                      {(filterMeta?.radiusOptions ?? [5, 10, 15, 25, 35, 50]).map((miles) => (
+                        <option key={miles} value={miles}>
+                          {miles} mi
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAppliedZip(draftZip.replace(/\D/g, '').slice(0, 5));
+                      setAppliedRadius(draftRadius);
+                    }}
+                    className="px-4 py-2 rounded-lg bg-[#FFC067] text-black font-semibold text-sm hover:opacity-95"
+                  >
+                    Apply filter
+                  </button>
+                </div>
+                {!filterMeta?.profileZip && !filterMeta?.zip && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Add a service ZIP in Business settings to default your search, or enter a ZIP above.
+                  </p>
+                )}
+                {customerLoading ? (
+                  <DashboardSectionSkeleton />
+                ) : customerRequests.length === 0 ? (
+                  <DashboardCard>
+                    <div className="p-4 text-center text-sm text-gray-600 dark:text-gray-400">
+                      No matching customer requests. Try a wider radius or a nearby ZIP.
+                    </div>
+                  </DashboardCard>
+                ) : (
+                  <div className="space-y-2">
+                    {customerRequests.map((r) => (
+                      <Link key={r.id} href={`/pro/requests/${r.id}`}>
+                        <DashboardCard>
+                          <div className="p-4 flex items-center justify-between gap-4">
+                            <div className="min-w-0">
+                              <div className="font-medium text-gray-900 dark:text-white">{r.title}</div>
+                              <div className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                                {r.location_zip && <span className="font-medium text-gray-800 dark:text-gray-200">ZIP {r.location_zip} · </span>}
+                                {r.location}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1 capitalize">
+                                {r.service_category.replace(/-/g, ' ')}
+                              </div>
+                            </div>
+                            <span className="text-muted shrink-0">→</span>
+                          </div>
+                        </DashboardCard>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">
+                Marketplace board
+              </h2>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
+                Separate quick-demand listings (different from customer requests above).
+              </p>
+
               {boardLoading ? (
                 <div className="space-y-4">
                   <DashboardSectionSkeleton />
@@ -309,7 +466,7 @@ export default function ProJobsPage() {
                   {boardRequests.length > 0 && (
                     <div className="mt-6">
                       <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">
-                        Open Requests
+                        Demand listings
                       </h2>
                       <div className="space-y-2">
                         {boardRequests.map((r) => (
@@ -340,7 +497,7 @@ export default function ProJobsPage() {
                   {boardServices.length === 0 && !boardLoading && (
                     <DashboardCard>
                       <div className="p-6 text-center text-gray-600 dark:text-gray-400">
-                        No open requests yet. Check back soon.
+                        No marketplace demand listings right now. Customer requests appear in the section above.
                       </div>
                     </DashboardCard>
                   )}

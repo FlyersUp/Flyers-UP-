@@ -33,6 +33,7 @@ type JobRequest = {
   title: string;
   description: string | null;
   location: string;
+  location_zip?: string | null;
   preferred_date: string | null;
   preferred_time: string | null;
   budget_min?: number | null;
@@ -86,7 +87,7 @@ export default function RequestOffersPage() {
     const load = async () => {
       const { data: reqData } = await supabase
         .from('job_requests')
-        .select('id, title, description, location, preferred_date, preferred_time, budget_min, budget_max, job_details, photos, photos_categorized')
+        .select('id, title, description, location, location_zip, preferred_date, preferred_time, budget_min, budget_max, job_details, photos, photos_categorized')
         .eq('id', requestId)
         .single();
 
@@ -235,7 +236,12 @@ export default function RequestOffersPage() {
           {request && (
             <div className="mb-6 p-4 rounded-xl bg-white border border-black/8">
               <h2 className="font-semibold text-[#111]">{request.title}</h2>
-              <p className="text-sm text-black/60 mt-1">{request.location}</p>
+              <p className="text-sm text-black/60 mt-1">
+                {request.location_zip && (
+                  <span className="font-medium text-black/80">ZIP {request.location_zip} · </span>
+                )}
+                {request.location}
+              </p>
             </div>
           )}
 

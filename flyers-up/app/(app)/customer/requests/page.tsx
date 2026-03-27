@@ -18,6 +18,7 @@ export type JobRequest = {
   budget_min: number | null;
   budget_max: number | null;
   location: string;
+  location_zip: string | null;
   photos: string[];
   status: string;
   preferred_date: string | null;
@@ -64,7 +65,11 @@ function RequestCard({
       </div>
 
       <h3 className="font-semibold text-[#111] text-base mb-1 pr-2">{request.title}</h3>
-      <p className="text-xs text-black/60 mb-2 flex items-center gap-1">
+      <p className="text-xs text-black/60 mb-2 flex items-center gap-1 flex-wrap">
+        {request.location_zip && (
+          <span className="font-semibold text-black/80">ZIP {request.location_zip}</span>
+        )}
+        {request.location_zip && request.location && <span className="text-black/40">·</span>}
         <span>{request.location}</span>
       </p>
       {request.description && (
@@ -255,6 +260,7 @@ function normalizeRequest(row: Record<string, unknown>): JobRequest {
     budget_min: row.budget_min != null ? Number(row.budget_min) : null,
     budget_max: row.budget_max != null ? Number(row.budget_max) : null,
     location: String(row.location ?? ''),
+    location_zip: row.location_zip != null ? String(row.location_zip) : null,
     photos: Array.isArray(photos) ? photos.map(String) : [],
     status: String(row.status ?? 'open'),
     preferred_date: row.preferred_date != null ? String(row.preferred_date) : null,

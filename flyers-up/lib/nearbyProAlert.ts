@@ -52,7 +52,7 @@ export async function notifyNearbyCustomers(ctx: NearbyAlertContext): Promise<nu
 
   const { data: requests, error } = await admin
     .from('job_requests')
-    .select('id, customer_id, location')
+    .select('id, customer_id, location, location_zip')
     .eq('service_category', ctx.categorySlug)
     .eq('status', 'open')
     .eq('preferred_date', ctx.serviceDate)
@@ -62,13 +62,16 @@ export async function notifyNearbyCustomers(ctx: NearbyAlertContext): Promise<nu
 
   let notified = 0;
   for (const req of requests) {
-    const reqZip = extractZipFromAddress((req as { location?: string }).location ?? '');
+    const row = req as { location?: string; location_zip?: string | null };
+    const zipCol = row.location_zip?.trim();
+    const reqZip =
+      (zipCol && /^\d{5}$/.test(zipCol) ? zipCol : null) || extractZipFromAddress(row.location ?? '');
     if (!reqZip || !zipsInRadius.includes(reqZip)) continue;
 
     const customerId = (req as { customer_id?: string }).customer_id;
     if (!customerId || customerId === excludeCustomerId) continue;
 
-    const row = await createNotificationEvent({
+    const eventRow = await createNotificationEvent({
       userId: customerId,
       type: NOTIFICATION_TYPES.NEARBY_PRO_ALERT,
       entityType: 'pro',
@@ -81,7 +84,7 @@ export async function notifyNearbyCustomers(ctx: NearbyAlertContext): Promise<nu
       dedupeWindowSeconds: 3600,
     });
 
-    if (row) notified++;
+    if (eventRow) notified++;
   }
 
   return notified;
