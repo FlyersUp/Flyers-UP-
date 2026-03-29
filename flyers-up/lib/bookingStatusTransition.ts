@@ -57,7 +57,7 @@ export async function transitionBookingStatus(
   const { data: booking, error: fetchErr } = await supabase
     .from('bookings')
     .select(
-      'id, status, status_history, pro_id, accepted_at, en_route_at, on_the_way_at, started_at, completed_at'
+      'id, status, status_history, pro_id, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, is_multi_day'
     )
     .eq('id', bookingId)
     .single();
@@ -144,8 +144,10 @@ export async function transitionBookingStatus(
 
   if (nextDbStatus === 'accepted') update.accepted_at = now;
   else if (nextDbStatus === 'pro_en_route') update.en_route_at = now;
-  else if (nextDbStatus === 'in_progress') update.started_at = now;
-  else if (nextDbStatus === 'awaiting_remaining_payment') update.completed_at = now;
+  else if (nextDbStatus === 'in_progress') {
+    update.started_at = now;
+    update.progress_status = 'work_started';
+  } else if (nextDbStatus === 'awaiting_remaining_payment') update.completed_at = now;
 
   const { data: updated, error: updateErr } = await supabase
     .from('bookings')

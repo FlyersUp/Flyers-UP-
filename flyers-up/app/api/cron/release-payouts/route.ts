@@ -23,6 +23,7 @@ import { createTransfer } from '@/lib/stripe/server';
 import { computeNetToPro } from '@/lib/bookings/money';
 import { evaluatePayoutRiskForPro } from '@/lib/payoutRisk';
 import { isPayoutEligible } from '@/lib/bookings/state-machine';
+import { resolveMilestonePayoutGate } from '@/lib/bookings/multi-day-payout';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
   const { data: candidates, error } = await admin
     .from('bookings')
     .select(
-      'id, pro_id, status, total_amount_cents, amount_total, platform_fee_cents, refunded_total_cents, currency, paid_deposit_at, paid_remaining_at, stripe_destination_account_id, customer_confirmed, auto_confirm_at, arrived_at, started_at, completed_at, dispute_open, cancellation_reason, refund_status, suspicious_completion, service_pros(stripe_account_id, user_id)'
+      'id, pro_id, status, total_amount_cents, amount_total, platform_fee_cents, refunded_total_cents, currency, paid_deposit_at, paid_remaining_at, stripe_destination_account_id, customer_confirmed, auto_confirm_at, arrived_at, started_at, completed_at, dispute_open, cancellation_reason, refund_status, suspicious_completion, is_multi_day, service_pros(stripe_account_id, user_id)'
     )
     .in('status', ['completed', 'customer_confirmed', 'auto_confirmed'])
     .eq('payout_released', false)
@@ -45,8 +46,19 @@ export async function GET(req: NextRequest) {
     .not('paid_deposit_at', 'is', null)
     .not('paid_remaining_at', 'is', null);
 
+  if (error) {
+    console.error('[cron/release-payouts] query failed', error);
+    return NextResponse.json({ error: 'Query failed' }, { status: 500 });
+  }
+
   const toProcess: typeof candidates = [];
   for (const b of candidates ?? []) {
+    const isMultiFlag = (b as { is_multi_day?: boolean }).is_multi_day === true;
+    const gate = await resolveMilestonePayoutGate(admin, b.id, isMultiFlag);
+    if (gate.fetchError) {
+      console.warn('[cron/release-payouts] skip booking (milestone gate query failed)', b.id);
+      continue;
+    }
     const eligibility = isPayoutEligible({
       status: b.status,
       arrived_at: (b as { arrived_at?: string | null }).arrived_at ?? null,
@@ -60,9 +72,12 @@ export async function GET(req: NextRequest) {
       paid_remaining_at: b.paid_remaining_at ?? null,
       refund_status: (b as { refund_status?: string | null }).refund_status ?? null,
       suspicious_completion: (b as { suspicious_completion?: boolean }).suspicious_completion === true,
+      is_multi_day: gate.enforceMilestoneGate,
+      multi_day_schedule_ok: gate.scheduleOk,
     });
     if (!eligibility.eligible) continue;
 
+    // Mirrors isPayoutEligible confirmation clause (defense in depth if logic diverges).
     const customerConfirmed = (b as { customer_confirmed?: boolean }).customer_confirmed === true;
     const autoConfirmAt = (b as { auto_confirm_at?: string | null }).auto_confirm_at;
     const autoConfirmPassed = autoConfirmAt != null && autoConfirmAt < now;
@@ -82,11 +97,6 @@ export async function GET(req: NextRequest) {
         !/^(placeholder|n\/a|none|null|undefined)$/i.test(u.trim())
     );
     if (validUrls.length >= 2 && jc?.booking_id === b.id) toProcess.push(b);
-  }
-
-  if (error) {
-    console.error('[cron/release-payouts] query failed', error);
-    return NextResponse.json({ error: 'Query failed' }, { status: 500 });
   }
 
   let released = 0;

@@ -9,6 +9,7 @@ import { deriveTimelineDisplayStatus, buildTimestampsFromBooking } from '@/compo
 import { TrackBookingStatusHeader } from '@/components/bookings/customer/TrackBookingStatusHeader';
 import { TrackBookingSummaryCard } from '@/components/bookings/customer/TrackBookingSummaryCard';
 import { BookingProgressTracker } from '@/components/bookings/BookingProgressTracker';
+import { MultiDayBookingProgressSection } from '@/components/bookings/MultiDayBookingProgressSection';
 import { BookingProgressTimeline } from '@/components/bookings/customer/BookingProgressTimeline';
 import { TrackBookingMessagingEntry } from '@/components/bookings/customer/TrackBookingMessagingEntry';
 import { TrackBookingPaymentSummary } from '@/components/bookings/customer/TrackBookingPaymentSummary';
@@ -252,6 +253,8 @@ export function BookingDetailContent({
                 fullyPaidAt={booking.fullyPaidAt}
               />
             </section>
+
+            <MultiDayBookingProgressSection bookingId={bookingId} mode="customer" />
 
             {/* 1. Status header */}
             <section className="mb-5">

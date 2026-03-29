@@ -86,7 +86,7 @@ export function ProProfileView({
 
       {/* 6. Availability preview */}
       <section>
-        <AvailabilityPreviewCard businessHours={profile.businessHours} bookHref={bookHref} />
+        <AvailabilityPreviewCard proId={profile.id} businessHours={profile.businessHours} bookHref={bookHref} />
       </section>
 
       {/* 7. About / service area */}

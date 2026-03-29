@@ -86,6 +86,38 @@ describe('bookingToCalendarEvent', () => {
     assert.strictEqual(bookingToCalendarEvent(b as any, 'customer'), null);
   });
 
+  it('returns null for requested on customer calendar', () => {
+    const b = {
+      id: 'x',
+      customer_id: 'c',
+      pro_id: 'p',
+      service_date: '2025-03-20',
+      service_time: '10:00 AM',
+      address: '123 Main',
+      notes: null,
+      status: 'requested',
+    };
+    assert.strictEqual(bookingToCalendarEvent(b as any, 'customer'), null);
+  });
+
+  it('returns event for requested on pro calendar', () => {
+    const b = {
+      id: 'x',
+      customer_id: 'c',
+      pro_id: 'p',
+      service_date: '2025-03-20',
+      service_time: '10:00 AM',
+      address: '123 Main',
+      notes: null,
+      status: 'requested',
+      pro: { displayName: 'Pro', serviceName: 'Plumbing' },
+    };
+    const e = bookingToCalendarEvent(b as any, 'pro');
+    assert.ok(e);
+    assert.strictEqual(e.status, 'requested');
+    assert.ok(e.detailHref.includes('/pro/jobs/'));
+  });
+
   it('returns event for deposit_paid', () => {
     const b = {
       id: 'x',

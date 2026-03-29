@@ -86,3 +86,39 @@ export function isAutoConfirmAllowed(
 
   return { allowed: true };
 }
+
+/**
+ * Milestone pending confirmation can occur before final job_completions row exists.
+ * Same trust gates as isAutoConfirmAllowed except optional photo evidence (final job still requires photos before payout).
+ */
+export function isMilestoneAutoConfirmAllowed(input: AutoConfirmInput): AutoConfirmResult {
+  const { booking, proReliability, hasLatenessIncidentOnBooking } = input;
+
+  if (booking.dispute_open) {
+    return { allowed: false, reason: 'Dispute is open' };
+  }
+  if (booking.cancellation_reason) {
+    return { allowed: false, reason: 'Booking has cancellation reason' };
+  }
+  if (booking.suspicious_completion) {
+    return { allowed: false, reason: 'Suspicious completion requires manual review' };
+  }
+  if (hasLatenessIncidentOnBooking) {
+    return { allowed: false, reason: 'Lateness incident on this booking' };
+  }
+
+  const score = proReliability?.reliability_score ?? 100;
+  if (score < MIN_RELIABILITY_FOR_AUTO_CONFIRM) {
+    return { allowed: false, reason: 'Pro reliability below threshold' };
+  }
+
+  const rule = getCategoryRule(booking.category_slug);
+  if (rule.requiresArrivalVerification && !booking.arrived_at) {
+    return { allowed: false, reason: 'Arrival verification required' };
+  }
+  if (rule.requiresArrivalVerification && booking.arrival_verified === false) {
+    return { allowed: false, reason: 'Low arrival verification confidence' };
+  }
+
+  return { allowed: true };
+}

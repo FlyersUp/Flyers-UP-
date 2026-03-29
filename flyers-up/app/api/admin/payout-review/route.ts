@@ -75,6 +75,28 @@ export async function GET() {
     .in('booking_id', bookingIds);
   const completionMap = new Map((completions ?? []).map((c) => [c.booking_id, c]));
 
+  const { data: milestoneRows } = await admin
+    .from('booking_milestones')
+    .select('booking_id, milestone_index, title, status, confirmation_source, dispute_open')
+    .in('booking_id', bookingIds)
+    .order('milestone_index', { ascending: true });
+
+  type MsRow = {
+    booking_id: string;
+    milestone_index: number;
+    title: string;
+    status: string;
+    confirmation_source: string | null;
+    dispute_open: boolean;
+  };
+
+  const milestonesByBooking = new Map<string, MsRow[]>();
+  for (const row of (milestoneRows ?? []) as MsRow[]) {
+    const list = milestonesByBooking.get(row.booking_id) ?? [];
+    list.push(row);
+    milestonesByBooking.set(row.booking_id, list);
+  }
+
   const items = (queue ?? []).map((q) => {
     const b = bookingMap.get(q.booking_id);
     const pro = b ? proMap.get(b.pro_id) : null;
@@ -89,6 +111,15 @@ export async function GET() {
       ? (jc as { after_photo_urls: string[] }).after_photo_urls.filter((u) => u && String(u).length > 5).length
       : 0;
 
+    const rawMs = milestonesByBooking.get(q.booking_id) ?? [];
+    const milestones = rawMs.map((m) => ({
+      milestone_index: m.milestone_index,
+      title: m.title,
+      status: m.status,
+      confirmation_source: m.confirmation_source,
+      dispute_open: m.dispute_open,
+    }));
+
     return {
       ...q,
       booking: b,
@@ -97,6 +128,7 @@ export async function GET() {
       categoryName: cat?.name ?? cat?.slug ?? '—',
       reliabilityScore: rel ?? null,
       evidenceCounts: { before: beforeCount, after: afterCount },
+      milestones,
     };
   });
 

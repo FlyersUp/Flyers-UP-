@@ -661,6 +661,12 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
                 >
                   View all bookings →
                 </Link>
+                <Link
+                  href="/pro/recurring"
+                  className="block text-sm font-medium text-muted hover:text-text transition-colors mt-1"
+                >
+                  Recurring clients →
+                </Link>
               </div>
             ) : (
               <DashboardCard>

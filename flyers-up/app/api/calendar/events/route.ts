@@ -12,6 +12,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { recordServerErrorEvent } from '@/lib/serverError';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { CALENDAR_COMMITTED_STATUSES } from '@/lib/calendar/committed-states';
+import { PRO_CALENDAR_DISPLAY_STATUSES } from '@/lib/calendar/pro-display-statuses';
 import { bookingToCalendarEvent } from '@/lib/calendar/event-from-booking';
 
 export const runtime = 'nodejs';
@@ -53,7 +54,7 @@ export async function GET(req: Request) {
           'id, customer_id, pro_id, service_date, service_time, booking_timezone, address, notes, status, price, duration_hours, payment_status'
         )
         .eq('pro_id', proRow.id)
-        .in('status', [...CALENDAR_COMMITTED_STATUSES])
+        .in('status', [...PRO_CALENDAR_DISPLAY_STATUSES])
         .order('service_date', { ascending: true })
         .order('service_time', { ascending: true })
         .limit(100);

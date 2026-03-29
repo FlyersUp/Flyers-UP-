@@ -118,6 +118,7 @@ export async function POST(
       arrival_verified_at: locationVerified ? now.toISOString() : null,
       wait_timer_started_at: now.toISOString(),
       wait_timer_expires_at: waitExpires.toISOString(),
+      progress_status: 'pro_arrived',
     })
     .eq('id', id)
     .eq('pro_id', proRow.id);

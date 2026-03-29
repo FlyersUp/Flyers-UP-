@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   const { data: candidates, error } = await admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, dispute_open, cancellation_reason, suspicious_completion, arrived_at, arrival_verified, started_at, completed_at, service_pros(user_id, category_id)'
+      'id, customer_id, pro_id, dispute_open, cancellation_reason, suspicious_completion, arrived_at, arrival_verified, started_at, completed_at, is_multi_day, service_pros(user_id, category_id)'
     )
     .eq('status', 'awaiting_customer_confirmation')
     .is('confirmed_by_customer_at', null)
@@ -81,11 +81,19 @@ export async function GET(req: NextRequest) {
 
     if (!allowed.allowed) continue;
 
+    const isMulti = (b as { is_multi_day?: boolean }).is_multi_day === true;
     const { error: updErr } = await admin
       .from('bookings')
       .update({
         status: 'completed',
         confirmed_by_customer_at: now,
+        ...(isMulti
+          ? {
+              final_confirmed_at: now,
+              final_confirmation_source: 'auto',
+              progress_status: 'completed',
+            }
+          : {}),
       })
       .eq('id', b.id)
       .eq('status', 'awaiting_customer_confirmation');

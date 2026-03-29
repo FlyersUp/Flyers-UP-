@@ -122,5 +122,43 @@ describe('state-machine', () => {
       });
       assert.ok(r.eligible, r.reason);
     });
+
+    it('single-day ignores multi-day gate when is_multi_day false', () => {
+      const r = isPayoutEligible({
+        ...base,
+        is_multi_day: false,
+        multi_day_schedule_ok: false,
+      });
+      assert.ok(r.eligible, r.reason);
+    });
+
+    it('blocks when multi-day milestones not satisfied', () => {
+      const r = isPayoutEligible({
+        ...base,
+        is_multi_day: true,
+        multi_day_schedule_ok: false,
+      });
+      assert.ok(!r.eligible);
+      assert.ok(r.reason?.includes('Multi-day'));
+    });
+
+    it('allows multi-day when schedule ok', () => {
+      const r = isPayoutEligible({
+        ...base,
+        is_multi_day: true,
+        multi_day_schedule_ok: true,
+      });
+      assert.ok(r.eligible, r.reason);
+    });
+
+    it('single-day ignores bad multi_day_schedule_ok when gate off', () => {
+      const r = isPayoutEligible({
+        ...base,
+        is_multi_day: false,
+        multi_day_schedule_ok: false,
+      });
+      assert.ok(r.eligible, r.reason);
+    });
   });
 });
+

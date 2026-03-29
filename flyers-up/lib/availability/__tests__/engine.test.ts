@@ -1,0 +1,260 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { DateTime } from 'luxon';
+import {
+  assertSlotBookable,
+  computeMonthSummaries,
+  computeSlotsForDay,
+  proposedBookingUtcWindow,
+  type ComputeContext,
+} from '@/lib/availability/engine';
+import { bookingStatusBlocksCustomerSlots } from '@/lib/availability/booking-occupancy';
+import { subtractIntervals, mergeIntervals } from '@/lib/availability/intervals';
+import { Interval } from 'luxon';
+
+function baseSettings() {
+  return {
+    pro_user_id: 'u1',
+    timezone: 'America/New_York',
+    slot_interval_minutes: 60,
+    buffer_before_minutes: 0,
+    buffer_after_minutes: 0,
+    min_notice_minutes: 0,
+    max_advance_days: 60,
+  };
+}
+
+function ctx(partial: Partial<ComputeContext>): ComputeContext {
+  return {
+    zone: 'America/New_York',
+    businessHoursJson: null,
+    rules: [],
+    blockedTimes: [],
+    blockedDates: [],
+    bookings: [],
+    settings: baseSettings(),
+    bufferBetweenJobsMinutes: 0,
+    travelBufferMinutes: 0,
+    leadTimeMinutes: 0,
+    maxAdvanceDays: 60,
+    sameDayEnabled: true,
+    nowUtc: DateTime.fromISO('2026-03-04T14:00:00Z', { zone: 'utc' }),
+    ...partial,
+  };
+}
+
+test('bookingStatusBlocksCustomerSlots only firm statuses', () => {
+  assert.equal(bookingStatusBlocksCustomerSlots('accepted'), true);
+  assert.equal(bookingStatusBlocksCustomerSlots('pro_en_route'), true);
+  assert.equal(bookingStatusBlocksCustomerSlots('on_the_way'), true);
+  assert.equal(bookingStatusBlocksCustomerSlots('in_progress'), true);
+  assert.equal(bookingStatusBlocksCustomerSlots('requested'), false);
+  assert.equal(bookingStatusBlocksCustomerSlots('cancelled'), false);
+  assert.equal(bookingStatusBlocksCustomerSlots('completed'), false);
+});
+
+test('subtractIntervals removes overlapping portion', () => {
+  const z = 'America/New_York';
+  const a = DateTime.fromISO('2026-03-04T09:00:00', { zone: z });
+  const b = DateTime.fromISO('2026-03-04T17:00:00', { zone: z });
+  const base = [Interval.fromDateTimes(a, b)];
+  const cut = Interval.fromDateTimes(
+    DateTime.fromISO('2026-03-04T12:00:00', { zone: z }),
+    DateTime.fromISO('2026-03-04T13:00:00', { zone: z })
+  );
+  const out = subtractIntervals(base, [cut]);
+  assert.equal(out.length, 2);
+});
+
+test('computeSlotsForDay respects JS weekday rules (Wed = 3)', () => {
+  const c = ctx({
+    rules: [
+      {
+        id: '1',
+        day_of_week: 3,
+        start_time: '09:00',
+        end_time: '12:00',
+        is_available: true,
+      },
+    ],
+    leadTimeMinutes: 0,
+  });
+  const slots = computeSlotsForDay('2026-03-04', 60, c);
+  assert.ok(slots.length >= 2);
+  assert.ok(slots.some((s) => s.value === '09:00'));
+});
+
+test('requested booking does not block slots', () => {
+  const c = ctx({
+    rules: [
+      {
+        id: '1',
+        day_of_week: 3,
+        start_time: '09:00:00',
+        end_time: '12:00:00',
+        is_available: true,
+      },
+    ],
+    bookings: [
+      {
+        id: 'b1',
+        service_date: '2026-03-04',
+        service_time: '10:00',
+        booking_timezone: 'America/New_York',
+        status: 'requested',
+        duration_hours: 1,
+      },
+    ],
+    leadTimeMinutes: 0,
+  });
+  const slots = computeSlotsForDay('2026-03-04', 60, c);
+  assert.ok(slots.some((s) => s.value === '10:00'));
+});
+
+test('accepted booking blocks overlapping slot', () => {
+  const c = ctx({
+    rules: [
+      {
+        id: '1',
+        day_of_week: 3,
+        start_time: '09:00:00',
+        end_time: '12:00:00',
+        is_available: true,
+      },
+    ],
+    bufferBetweenJobsMinutes: 60,
+    bookings: [
+      {
+        id: 'b1',
+        service_date: '2026-03-04',
+        service_time: '10:00',
+        booking_timezone: 'America/New_York',
+        status: 'accepted',
+        duration_hours: 1,
+      },
+    ],
+    leadTimeMinutes: 0,
+  });
+  const slots = computeSlotsForDay('2026-03-04', 60, c);
+  assert.ok(!slots.some((s) => s.value === '10:00'));
+});
+
+test('pro_blocked_times subtracts from working hours', () => {
+  const c = ctx({
+    rules: [
+      {
+        id: '1',
+        day_of_week: 3,
+        start_time: '09:00',
+        end_time: '12:00',
+        is_available: true,
+      },
+    ],
+    blockedTimes: [
+      {
+        id: 'blk',
+        /** 10:00–11:00 America/New_York (EST, UTC−5) */
+        start_at: '2026-03-04T15:00:00.000Z',
+        end_at: '2026-03-04T16:00:00.000Z',
+        reason: null,
+      },
+    ],
+    leadTimeMinutes: 0,
+  });
+  const slots = computeSlotsForDay('2026-03-04', 60, c);
+  assert.ok(!slots.some((s) => s.value === '10:00'));
+});
+
+test('buffer before/after expands occupied window', () => {
+  const c = ctx({
+    rules: [
+      {
+        id: '1',
+        day_of_week: 3,
+        start_time: '09:00:00',
+        end_time: '12:00:00',
+        is_available: true,
+      },
+    ],
+    settings: {
+      ...baseSettings(),
+      buffer_before_minutes: 30,
+      buffer_after_minutes: 30,
+    },
+    bookings: [
+      {
+        id: 'b1',
+        service_date: '2026-03-04',
+        service_time: '10:00',
+        booking_timezone: 'America/New_York',
+        status: 'accepted',
+        duration_hours: 1,
+      },
+    ],
+    bufferBetweenJobsMinutes: 0,
+    travelBufferMinutes: 0,
+    leadTimeMinutes: 0,
+  });
+  const slots = computeSlotsForDay('2026-03-04', 60, c);
+  assert.ok(!slots.some((s) => s.value === '09:00'));
+});
+
+test('assertSlotBookable rejects times not on slot grid', () => {
+  const c = ctx({
+    rules: [
+      {
+        id: '1',
+        day_of_week: 3,
+        start_time: '09:00:00',
+        end_time: '12:00:00',
+        is_available: true,
+      },
+    ],
+    leadTimeMinutes: 0,
+  });
+  const ok = assertSlotBookable('2026-03-04', '09:15', 60, c);
+  assert.equal(ok.ok, false);
+});
+
+test('computeMonthSummaries marks beyond max_advance as unavailable', () => {
+  const c = ctx({
+    rules: [
+      {
+        id: '1',
+        day_of_week: 3,
+        start_time: '09:00',
+        end_time: '17:00',
+        is_available: true,
+      },
+    ],
+    maxAdvanceDays: 5,
+    nowUtc: DateTime.fromISO('2026-03-01T12:00:00Z', { zone: 'utc' }),
+    leadTimeMinutes: 0,
+  });
+  const days = computeMonthSummaries(2026, 3, 60, c);
+  const late = days.find((d) => d.date === '2026-03-28');
+  assert.ok(late);
+  assert.equal(late!.level, 'unavailable');
+});
+
+test('proposedBookingUtcWindow America/New_York wall clock', () => {
+  const w = proposedBookingUtcWindow('2026-07-15', '14:00', 'America/New_York', 60);
+  assert.ok(w);
+  const start = DateTime.fromISO(w.startUtcIso, { zone: 'utc' });
+  assert.ok(start.isValid);
+  assert.equal(start.setZone('America/New_York').hour, 14);
+});
+
+test('mergeIntervals merges overlap', () => {
+  const z = 'utc';
+  const a = Interval.fromDateTimes(
+    DateTime.fromISO('2026-03-04T09:00:00', { zone: z }),
+    DateTime.fromISO('2026-03-04T11:00:00', { zone: z })
+  );
+  const b = Interval.fromDateTimes(
+    DateTime.fromISO('2026-03-04T10:00:00', { zone: z }),
+    DateTime.fromISO('2026-03-04T12:00:00', { zone: z })
+  );
+  const m = mergeIntervals([a, b]);
+  assert.equal(m.length, 1);
+});

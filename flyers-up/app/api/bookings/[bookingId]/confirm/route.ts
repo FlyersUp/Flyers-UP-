@@ -33,7 +33,7 @@ export async function POST(
   const admin = createAdminSupabaseClient();
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, status_history')
+    .select('id, customer_id, pro_id, status, status_history, is_multi_day')
     .eq('id', id)
     .single();
 
@@ -50,6 +50,7 @@ export async function POST(
   const history = ((booking as { status_history?: { status: string; at: string }[] }).status_history ?? []) as { status: string; at: string }[];
   const newHistory = [...history, { status: 'completed', at: now }];
 
+  const isMulti = (booking as { is_multi_day?: boolean }).is_multi_day === true;
   const { error: updateErr } = await admin
     .from('bookings')
     .update({
@@ -57,6 +58,13 @@ export async function POST(
       customer_confirmed: true,
       confirmed_by_customer_at: now,
       status_history: newHistory,
+      ...(isMulti
+        ? {
+            final_confirmed_at: now,
+            final_confirmation_source: 'customer',
+            progress_status: 'completed',
+          }
+        : {}),
     })
     .eq('id', id)
     .eq('customer_id', user.id);

@@ -11,6 +11,7 @@ import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/sup
 import { getPublicProProfileByIdServer } from '@/lib/profileData';
 import { ProfileTopBar } from '@/components/profile/ProfileTopBar';
 import { ProProfileView } from '@/components/profile/ProProfileView';
+import { ProProfileRelationshipBar } from '@/components/recurring/ProProfileRelationshipBar';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,6 +70,9 @@ export default async function CustomerProProfilePage({
             </div>
           )}
           <ProfileTopBar title={profile.businessName} />
+          <div className="pt-4 mb-4">
+            <ProProfileRelationshipBar proId={profile.id} />
+          </div>
           <div className="pt-4">
             <ProProfileView
               profile={profile}

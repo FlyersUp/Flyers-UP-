@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { CalendarView } from '@/components/calendar/CalendarView';
+import { ProCalendarAvailabilityPanel } from '@/components/pro/ProCalendarAvailabilityPanel';
 import type { CalendarEvent } from '@/lib/calendar/event-from-booking';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { DateTime } from 'luxon';
@@ -162,7 +163,8 @@ export default function ProCalendarPage() {
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="max-w-4xl mx-auto px-4 py-6 space-y-8">
+          <ProCalendarAvailabilityPanel />
           {loading ? (
             <div className="space-y-4">
               <div className="h-24 animate-pulse rounded-2xl bg-surface2" />

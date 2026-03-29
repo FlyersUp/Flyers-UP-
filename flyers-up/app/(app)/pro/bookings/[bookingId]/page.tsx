@@ -4,6 +4,8 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { BookingTimeline } from '@/components/bookings/BookingTimeline';
 import { BookingStatusPill } from '@/components/bookings/BookingStatusPill';
 import { BookingProgressTracker } from '@/components/bookings/BookingProgressTracker';
+import { MultiDayBookingProgressSection } from '@/components/bookings/MultiDayBookingProgressSection';
+import { ProMilestonePlanForm } from '@/components/bookings/ProMilestonePlanForm';
 import { ProJobCompletedCard } from '@/components/bookings/ProJobCompletedCard';
 import { PayoutTimeline } from '@/components/bookings/PayoutTimeline';
 import { ProYouGotPaidCard } from '@/components/bookings/ProYouGotPaidCard';
@@ -27,6 +29,7 @@ export default function ProBookingDetailPage({
   const [initialBooking, setInitialBooking] = useState<BookingDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [signedIn, setSignedIn] = useState(false);
+  const [progressRevision, setProgressRevision] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -186,6 +189,18 @@ export default function ProBookingDetailPage({
                     fullyPaidAt={booking.fullyPaidAt}
                   />
                 </section>
+
+                <ProMilestonePlanForm
+                  bookingId={bookingId}
+                  bookingStatus={booking.status}
+                  reloadKey={progressRevision}
+                  onSaved={() => setProgressRevision((n) => n + 1)}
+                />
+                <MultiDayBookingProgressSection
+                  bookingId={bookingId}
+                  mode="pro"
+                  revision={progressRevision}
+                />
 
                 {/* Pro "You got paid" celebration */}
                 {isPayoutSucceeded && proEarnings > 0 && (

@@ -10,6 +10,7 @@ import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { getMinimumDurationMinutes } from '@/lib/bookings/category-rules';
+import { allMilestonesReadyForProFinalCompletion } from '@/lib/bookings/milestone-workflow';
 
 const MIN_AFTER_PHOTOS = 2;
 
@@ -53,7 +54,7 @@ export async function POST(
   const admin = createAdminSupabaseClient();
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, pro_id, customer_id, status, started_at, status_history')
+    .select('id, pro_id, customer_id, status, started_at, status_history, is_multi_day, auto_confirm_window_hours')
     .eq('id', id)
     .eq('pro_id', proRow.id)
     .maybeSingle();
@@ -77,6 +78,30 @@ export async function POST(
       { error: 'Booking must be in progress to complete' },
       { status: 409 }
     );
+  }
+
+  const isMulti = (booking as { is_multi_day?: boolean }).is_multi_day === true;
+  if (isMulti) {
+    const { data: ms } = await admin
+      .from('booking_milestones')
+      .select('milestone_index, status, dispute_open')
+      .eq('booking_id', id);
+    const list = ms ?? [];
+    if (list.length === 0) {
+      return NextResponse.json(
+        { error: 'Multi-day jobs need at least one milestone before final completion', code: 'milestones_required' },
+        { status: 409 }
+      );
+    }
+    if (!allMilestonesReadyForProFinalCompletion(list)) {
+      return NextResponse.json(
+        {
+          error: 'All milestones must be customer- or auto-confirmed before final completion',
+          code: 'milestones_incomplete',
+        },
+        { status: 409 }
+      );
+    }
   }
 
   const { data: existing } = await admin
@@ -107,7 +132,11 @@ export async function POST(
 
   const now = new Date();
   const nowIso = now.toISOString();
-  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+  const winH = Math.max(
+    1,
+    Math.min(168, Number((booking as { auto_confirm_window_hours?: number }).auto_confirm_window_hours ?? 24) || 24)
+  );
+  const inConfirm = new Date(now.getTime() + winH * 60 * 60 * 1000).toISOString();
   const history = (booking as { status_history?: { status: string; at: string }[] }).status_history ?? [];
   const newHistory = [...history, { status: 'awaiting_remaining_payment', at: nowIso }];
 
@@ -127,8 +156,8 @@ export async function POST(
     status: 'awaiting_remaining_payment',
     completed_at: nowIso,
     completed_by_pro_at: nowIso,
-    remaining_due_at: in24h,
-    auto_confirm_at: in24h,
+    remaining_due_at: inConfirm,
+    auto_confirm_at: inConfirm,
     status_history: newHistory,
     status_updated_at: nowIso,
     status_updated_by: user.id,
@@ -137,6 +166,12 @@ export async function POST(
     suspicious_completion_reason: suspiciousCompletionReason,
     minimum_expected_duration_minutes: minDuration,
   };
+
+  if (isMulti) {
+    updatePayload.final_completion_requested_at = nowIso;
+    updatePayload.final_auto_confirm_at = inConfirm;
+    updatePayload.progress_status = 'final_pending_confirmation';
+  }
 
   const { data: statusUpdated } = await admin
     .from('bookings')

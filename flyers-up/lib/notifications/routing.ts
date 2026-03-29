@@ -18,6 +18,10 @@ export function getTargetPathForNotification(
   const bp = basePath ?? 'customer';
   const prefix = bp === 'pro' ? '/pro' : '/customer';
 
+  if (entityType === 'recurring_series' && entityId) {
+    return `${prefix}/recurring?series=${encodeURIComponent(entityId)}`;
+  }
+
   if (type === 'nearby_pro_alert' && entityType === 'pro' && entityId) {
     return `${prefix}/pros/${entityId}?nearby=1`;
   }

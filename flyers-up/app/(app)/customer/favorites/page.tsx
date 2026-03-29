@@ -52,25 +52,34 @@ export default function CustomerFavoritesPage() {
         ) : (
           <div className="space-y-3">
             {favorites.map((f) => (
-              <Link
+              <div
                 key={f.proId}
-                href={`/pro/${f.proId}`}
                 className="flex gap-4 rounded-2xl border border-[var(--hairline)] p-5 hover:shadow-sm transition-all"
                 style={{ backgroundColor: '#F5F5F5' }}
               >
-                <div className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-surface2 border border-hairline flex items-center justify-center">
-                  {f.pro?.logoUrl ? (
-                    <Image src={f.pro.logoUrl} alt="" width={48} height={48} className="object-cover" />
-                  ) : (
-                    <span className="text-lg text-muted">👤</span>
-                  )}
+                <Link href={`/customer/pros/${f.proId}`} className="flex gap-4 flex-1 min-w-0">
+                  <div className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-surface2 border border-hairline flex items-center justify-center">
+                    {f.pro?.logoUrl ? (
+                      <Image src={f.pro.logoUrl} alt="" width={48} height={48} className="object-cover" />
+                    ) : (
+                      <span className="text-lg text-muted">👤</span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-text">{f.pro?.displayName || 'Pro'}</div>
+                    <div className="text-sm text-muted">{f.pro?.serviceName || 'Service'}</div>
+                    <span className="text-sm text-accent mt-2 inline-block">View profile →</span>
+                  </div>
+                </Link>
+                <div className="flex flex-col items-end justify-center gap-2 shrink-0">
+                  <Link
+                    href={`/customer/recurring/new?proId=${encodeURIComponent(f.proId)}`}
+                    className="text-xs font-medium text-muted hover:text-text"
+                  >
+                    Request recurring
+                  </Link>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-text">{f.pro?.displayName || 'Pro'}</div>
-                  <div className="text-sm text-muted">{f.pro?.serviceName || 'Service'}</div>
-                </div>
-                <span className="text-accent">View profile →</span>
-              </Link>
+              </div>
             ))}
           </div>
         )}

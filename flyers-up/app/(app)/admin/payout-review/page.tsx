@@ -25,6 +25,13 @@ type ReviewItem = {
   categoryName: string;
   reliabilityScore: number | null;
   evidenceCounts: { before: number; after: number };
+  milestones?: Array<{
+    milestone_index: number;
+    title: string;
+    status: string;
+    confirmation_source: string | null;
+    dispute_open: boolean;
+  }>;
 };
 
 export default function AdminPayoutReviewPage() {
@@ -152,6 +159,32 @@ export default function AdminPayoutReviewPage() {
                         (min {item.booking.minimum_expected_duration_minutes} min)
                       </span>
                     )}
+                  </div>
+                )}
+
+                {(item.milestones ?? []).length > 0 && (
+                  <div className="text-sm border-t border-black/5 pt-3">
+                    <div className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+                      Booking milestones
+                    </div>
+                    <ul className="space-y-1.5">
+                      {(item.milestones ?? []).map((m) => (
+                        <li
+                          key={m.milestone_index}
+                          className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs"
+                        >
+                          <span className="font-mono text-muted w-6 shrink-0">{m.milestone_index}</span>
+                          <span className="font-medium text-text flex-1 min-w-[8rem]">{m.title}</span>
+                          <span className="text-muted capitalize">{m.status.replace(/_/g, ' ')}</span>
+                          {m.confirmation_source && (
+                            <span className="text-muted">· {m.confirmation_source}</span>
+                          )}
+                          {m.dispute_open && (
+                            <span className="text-amber-700 dark:text-amber-300 font-medium">dispute</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 

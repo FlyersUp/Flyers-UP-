@@ -12,6 +12,12 @@ import {
 } from '@/lib/datetime';
 import { isCalendarCommittedStatus } from './committed-states';
 
+function isVisibleOnCalendar(status: string, basePath: 'pro' | 'customer'): boolean {
+  if (isCalendarCommittedStatus(status)) return true;
+  if (basePath === 'pro' && (status === 'requested' || status === 'pending')) return true;
+  return false;
+}
+
 export type CalendarEvent = {
   id: string;
   bookingId: string;
@@ -62,7 +68,7 @@ export function bookingToCalendarEvent(
   b: BookingRow,
   basePath: 'pro' | 'customer'
 ): CalendarEvent | null {
-  if (!isCalendarCommittedStatus(b.status)) return null;
+  if (!isVisibleOnCalendar(b.status, basePath)) return null;
   if (!b.service_date || !b.service_time) return null;
 
   const tz = normalizeBookingTimeZone(b.booking_timezone);

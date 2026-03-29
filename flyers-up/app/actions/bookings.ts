@@ -7,12 +7,14 @@
  * IMPORTANT: All pricing calculations happen server-side for security.
  */
 
-import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { recordServerErrorEvent } from '@/lib/serverError';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { geocodeAddress } from '@/lib/geocode';
 import { DEFAULT_BOOKING_TIMEZONE } from '@/lib/datetime';
+import { loadComputeContextForProRange } from '@/lib/availability/load-context';
+import { assertSlotBookable, proposedBookingUtcWindow } from '@/lib/availability/engine';
 import { resolveUrgency } from '@/lib/bookings/urgency';
 import { getOccupationFeeProfile } from '@/lib/bookings/fee-rules';
 
@@ -192,6 +194,66 @@ export async function createBookingWithPayment(
       // ignore geocode failures
     }
 
+    const durationMinutes = 60;
+    const adminClient = createAdminSupabaseClient();
+    let ctxAvail: Awaited<ReturnType<typeof loadComputeContextForProRange>> = null;
+    try {
+      ctxAvail = await loadComputeContextForProRange(adminClient, proId, date, date);
+    } catch (availErr) {
+      void recordServerErrorEvent({
+        message: 'Booking create: availability context load failed',
+        severity: 'error',
+        route: 'action:createBookingWithPayment',
+        userId: user.id,
+        meta: { proId, availErr: availErr instanceof Error ? availErr.message : String(availErr) },
+      });
+      return { success: false, error: 'Unable to verify availability. Please try again shortly.' };
+    }
+    if (!ctxAvail) {
+      return { success: false, error: 'Unable to verify availability. Please try again.' };
+    }
+    const firstCheck = assertSlotBookable(date, time, durationMinutes, ctxAvail);
+    if (!firstCheck.ok) {
+      return { success: false, error: firstCheck.reason };
+    }
+    const ctxAvail2 = await loadComputeContextForProRange(adminClient, proId, date, date);
+    if (!ctxAvail2) {
+      return { success: false, error: 'Unable to verify availability. Please try again.' };
+    }
+    const secondCheck = assertSlotBookable(date, time, durationMinutes, ctxAvail2);
+    if (!secondCheck.ok) {
+      return { success: false, error: 'That time was just taken. Please pick another slot.' };
+    }
+
+    const bookingTimezone = ctxAvail.zone;
+    const windowUtc = proposedBookingUtcWindow(date, time, bookingTimezone, durationMinutes);
+    if (!windowUtc) {
+      return { success: false, error: 'Invalid date or time for booking.' };
+    }
+
+    const { data: conflict, error: rpcErr } = await adminClient.rpc('booking_has_schedule_conflict', {
+      p_pro_id: proId,
+      p_start_utc: windowUtc.startUtcIso,
+      p_end_utc: windowUtc.endUtcIso,
+      p_exclude_booking_id: null,
+    });
+    if (rpcErr) {
+      void recordServerErrorEvent({
+        message: 'Booking create: schedule conflict RPC failed',
+        severity: 'error',
+        route: 'action:createBookingWithPayment',
+        userId: user.id,
+        meta: { proId, rpcErr: (rpcErr as { message?: string }).message },
+      });
+      return { success: false, error: 'Unable to confirm schedule. Please try again.' };
+    }
+    if (conflict === true) {
+      return {
+        success: false,
+        error: 'That time conflicts with an active booking. Please pick another slot.',
+      };
+    }
+
     // 5) Create booking
     const { data: booking, error: bookingErr } = await supabase
       .from('bookings')
@@ -200,7 +262,10 @@ export async function createBookingWithPayment(
         pro_id: proId,
         service_date: date,
         service_time: time,
-        booking_timezone: DEFAULT_BOOKING_TIMEZONE,
+        booking_timezone: bookingTimezone,
+        scheduled_start_at: windowUtc.startUtcIso,
+        scheduled_end_at: windowUtc.endUtcIso,
+        estimated_duration_minutes: durationMinutes,
         address,
         notes: notes || null,
         status: 'requested' satisfies BookingStatus,
@@ -213,6 +278,7 @@ export async function createBookingWithPayment(
         subcategory_id: validatedSubcategoryId,
         address_lat: addressLat,
         address_lng: addressLng,
+        duration_hours: durationMinutes / 60,
       })
       .select('id')
       .single();

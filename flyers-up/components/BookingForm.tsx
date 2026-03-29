@@ -20,6 +20,7 @@ import { createBookingWithPayment } from '@/app/actions/bookings';
 import { QuickRulesSheet, hasSeenQuickRules } from '@/components/booking/QuickRulesSheet';
 import { DateTime } from 'luxon';
 import { DEFAULT_BOOKING_TIMEZONE } from '@/lib/datetime';
+import { CustomerProAvailabilityCalendar } from '@/components/booking/CustomerProAvailabilityCalendar';
 
 interface Subcategory {
   id: string;
@@ -63,6 +64,15 @@ export default function BookingForm({ pro, initialSubcategorySlug, serviceSlug, 
     notes: initialNotes ?? '',
     subcategoryId: '' as string,
   });
+
+  useEffect(() => {
+    setFormData((prev) => {
+      if (prev.date) return prev;
+      const md =
+        DateTime.now().setZone(DEFAULT_BOOKING_TIMEZONE).plus({ days: 1 }).toISODate() ?? '';
+      return { ...prev, date: md };
+    });
+  }, []);
 
   useEffect(() => {
     setFormData((prev) => ({
@@ -267,7 +277,17 @@ export default function BookingForm({ pro, initialSubcategorySlug, serviceSlug, 
         </div>
       )}
 
-      {/* Date field */}
+      <div>
+        <p className="block text-sm font-medium text-text mb-2">Availability *</p>
+        <CustomerProAvailabilityCalendar
+          proId={pro.id}
+          selectedDate={formData.date}
+          selectedTime={formData.time}
+          onSelectDate={(iso) => setFormData((prev) => ({ ...prev, date: iso }))}
+          onSelectTime={(hhmm) => setFormData((prev) => ({ ...prev, time: hhmm }))}
+        />
+      </div>
+
       <div>
         <label htmlFor="date" className="block text-sm font-medium text-text mb-1">
           Date *
@@ -284,10 +304,9 @@ export default function BookingForm({ pro, initialSubcategorySlug, serviceSlug, 
         />
       </div>
 
-      {/* Time field */}
       <div>
         <label htmlFor="time" className="block text-sm font-medium text-text mb-1">
-          Preferred Time *
+          Preferred time *
         </label>
         <input
           type="time"

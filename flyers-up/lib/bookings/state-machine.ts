@@ -125,6 +125,10 @@ export interface PayoutEligibilityInput {
   refund_status: string | null;
   /** Blocks auto-confirm path; customer_confirmed can override */
   suspicious_completion?: boolean;
+  /** Multi-day jobs: every milestone must be confirmed/auto_confirmed with no open milestone dispute */
+  is_multi_day?: boolean;
+  /** Required true when is_multi_day is true; ignored when false/undefined */
+  multi_day_schedule_ok?: boolean;
 }
 
 /**
@@ -167,6 +171,12 @@ export function isPayoutEligible(input: PayoutEligibilityInput): { eligible: boo
 
   if (input.suspicious_completion && !input.customer_confirmed) {
     return { eligible: false, reason: 'Suspicious completion requires customer confirmation' };
+  }
+
+  if (input.is_multi_day) {
+    if (input.multi_day_schedule_ok !== true) {
+      return { eligible: false, reason: 'Multi-day milestones are not fully confirmed' };
+    }
   }
 
   return { eligible: true };
