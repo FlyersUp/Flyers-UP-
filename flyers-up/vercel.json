@@ -27,7 +27,11 @@
     },
     {
       "path": "/api/cron/milestone-auto-confirm",
-      "schedule": "0 * * * *"
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/recurring-generate-bookings",
+      "schedule": "0 1 * * *"
     }
   ]
 }
