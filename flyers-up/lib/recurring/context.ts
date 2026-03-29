@@ -18,6 +18,20 @@ export async function getOrCreateRecurringPreferences(
   return created as RecurringPreferencesRow;
 }
 
+/** Recompute current_recurring_customers from series (defensive; DB trigger also maintains this). */
+export async function refreshRecurringCustomerCount(
+  admin: SupabaseClient,
+  proUserId: string
+): Promise<void> {
+  await getOrCreateRecurringPreferences(admin, proUserId);
+  const count = await countApprovedRecurringCustomers(admin, proUserId);
+  const now = new Date().toISOString();
+  await admin
+    .from('recurring_preferences')
+    .update({ current_recurring_customers: count, updated_at: now })
+    .eq('pro_user_id', proUserId);
+}
+
 export async function loadRelationshipSignals(
   admin: SupabaseClient,
   customerUserId: string,

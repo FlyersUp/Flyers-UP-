@@ -27,6 +27,8 @@ export interface AvailabilityValidationInput {
   sameDayEnabled?: boolean | null;
   blockedDates?: string[] | null;
   existingBookingRanges?: { startAt: Date; endAt: Date }[];
+  /** Extra busy windows (UTC instants), e.g. approved recurring holds without a firm booking row. */
+  extraBusyRangesUtc?: { startAt: Date; endAt: Date }[] | null;
 }
 
 const DEFAULT_LEAD_TIME_MINUTES = 60;
@@ -58,6 +60,7 @@ export function validateProAvailability(input: AvailabilityValidationInput): Ava
     sameDayEnabled = false,
     blockedDates = [],
     existingBookingRanges = [],
+    extraBusyRangesUtc = [],
     durationMinutes = 60,
   } = input;
 
@@ -114,7 +117,8 @@ export function validateProAvailability(input: AvailabilityValidationInput): Ava
   const bufferMin = bufferBetweenJobsMinutes ?? DEFAULT_BUFFER_MINUTES;
   const bufferMs = bufferMin * 60 * 1000;
   const ranges = existingBookingRanges ?? [];
-  for (const range of ranges) {
+  const extra = extraBusyRangesUtc ?? [];
+  for (const range of [...ranges, ...extra]) {
     const rangeStart = range.startAt.getTime();
     const rangeEnd = range.endAt.getTime();
     const propStart = proposedStart.getTime();

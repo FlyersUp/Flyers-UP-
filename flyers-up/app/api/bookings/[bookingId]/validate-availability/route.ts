@@ -11,6 +11,7 @@ import {
   resolveSameDayEnabledFromServicePro,
   validateProAvailability,
 } from '@/lib/operations/availabilityValidation';
+import { loadRecurringHoldRangesForProAroundServiceDate } from '@/lib/recurring/recurring-holds';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -67,6 +68,12 @@ export async function GET(
     return { startAt, endAt };
   });
 
+  const extraBusyRangesUtc = await loadRecurringHoldRangesForProAroundServiceDate(
+    admin,
+    (pro as { user_id: string }).user_id,
+    String(booking.service_date)
+  );
+
   const addressZip = (booking.address as string)?.match(/\b\d{5}(?:-\d{4})?\b/)?.[0] ?? null;
 
   const result = validateProAvailability({
@@ -89,6 +96,7 @@ export async function GET(
     ),
     blockedDates: (blocked ?? []).map((b) => b.blocked_date as string),
     existingBookingRanges,
+    extraBusyRangesUtc,
   });
 
   if (result.allowed === 'instant_book_allowed') {

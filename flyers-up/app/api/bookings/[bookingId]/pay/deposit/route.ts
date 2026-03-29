@@ -30,6 +30,7 @@ import {
   resolveSameDayEnabledFromServicePro,
   validateProAvailability,
 } from '@/lib/operations/availabilityValidation';
+import { loadRecurringHoldRangesForProAroundServiceDate } from '@/lib/recurring/recurring-holds';
 import { buildBookingPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
 
 export const runtime = 'nodejs';
@@ -223,6 +224,12 @@ export async function POST(
     return { startAt: start, endAt: end };
   });
 
+  const extraBusyRangesUtc = await loadRecurringHoldRangesForProAroundServiceDate(
+    admin,
+    (proRow as { user_id: string }).user_id,
+    String(booking.service_date)
+  );
+
   const availResult = validateProAvailability({
     proId: booking.pro_id,
     proUserId: (proRow as { user_id: string }).user_id,
@@ -240,6 +247,7 @@ export async function POST(
     ),
     blockedDates: blockedDates.length ? blockedDates : undefined,
     existingBookingRanges: existingRanges,
+    extraBusyRangesUtc,
   });
   if (availResult.allowed === 'unavailable') {
     return NextResponse.json(

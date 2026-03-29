@@ -32,6 +32,7 @@ function ctx(partial: Partial<ComputeContext>): ComputeContext {
     blockedTimes: [],
     blockedDates: [],
     bookings: [],
+    recurringHoldsUtc: [],
     settings: baseSettings(),
     bufferBetweenJobsMinutes: 0,
     travelBufferMinutes: 0,
@@ -109,6 +110,29 @@ test('requested booking does not block slots', () => {
   });
   const slots = computeSlotsForDay('2026-03-04', 60, c);
   assert.ok(slots.some((s) => s.value === '10:00'));
+});
+
+test('approved recurring hold blocks overlapping slot (UTC window)', () => {
+  const c = ctx({
+    rules: [
+      {
+        id: '1',
+        day_of_week: 3,
+        start_time: '09:00:00',
+        end_time: '12:00:00',
+        is_available: true,
+      },
+    ],
+    recurringHoldsUtc: [
+      {
+        startIso: '2026-03-04T15:00:00.000Z',
+        endIso: '2026-03-04T16:00:00.000Z',
+      },
+    ],
+    leadTimeMinutes: 0,
+  });
+  const slots = computeSlotsForDay('2026-03-04', 60, c);
+  assert.ok(!slots.some((s) => s.value === '10:00'));
 });
 
 test('accepted booking blocks overlapping slot', () => {

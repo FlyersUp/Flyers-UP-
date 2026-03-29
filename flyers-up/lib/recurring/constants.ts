@@ -16,7 +16,21 @@ export const DEFAULT_RECURRING_GENERATION_HORIZON_DAYS = 84;
 
 export const RECURRING_SERIES_ACTIVE_STATUSES = ['pending', 'approved', 'countered', 'paused'] as const;
 
-export const OCCURRENCE_BLOCKING_STATUSES = ['scheduled', 'pending_confirmation', 'confirmed'] as const;
+/** Occurrence windows that reserve the pro calendar (incl. reschedule in flight). */
+export const OCCURRENCE_BLOCKING_STATUSES = [
+  'scheduled',
+  'pending_confirmation',
+  'confirmed',
+  'reschedule_requested',
+] as const;
+
+/** Occurrences eligible for upcoming-service reminders (not finished / dead). */
+export const OCCURRENCE_REMINDER_ELIGIBLE_STATUSES = [
+  'scheduled',
+  'pending_confirmation',
+  'confirmed',
+  'reschedule_requested',
+] as const;
 
 /** Bookings that occupy the pro calendar for conflict detection */
 export const BOOKING_SCHEDULE_OVERLAP_STATUSES = [

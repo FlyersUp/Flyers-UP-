@@ -4,7 +4,11 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { requireProService } from '@/lib/recurring/api-auth';
-import { getOrCreateRecurringPreferences, countApprovedRecurringCustomers } from '@/lib/recurring/context';
+import {
+  getOrCreateRecurringPreferences,
+  countApprovedRecurringCustomers,
+  refreshRecurringCustomerCount,
+} from '@/lib/recurring/context';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,6 +19,7 @@ export async function GET() {
   const pr = await requireProService(admin, supabase);
   if (!pr.ok) return NextResponse.json({ error: pr.error }, { status: pr.status });
 
+  await refreshRecurringCustomerCount(admin, pr.userId);
   const prefs = await getOrCreateRecurringPreferences(admin, pr.userId);
   const count = await countApprovedRecurringCustomers(admin, pr.userId);
   const max = prefs?.max_recurring_customers ?? 5;

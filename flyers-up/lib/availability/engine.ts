@@ -33,6 +33,8 @@ export type ComputeContext = {
   blockedTimes: ProBlockedTimeRow[];
   blockedDates: string[];
   bookings: BookingOccupancyInput[];
+  /** Approved recurring occurrence windows (UTC ISO), excluding double-count with firm bookings. */
+  recurringHoldsUtc: { startIso: string; endIso: string }[];
   settings: ProAvailabilitySettingsRow | null;
   /** service_pros.buffer_between_jobs_minutes */
   bufferBetweenJobsMinutes: number;
@@ -145,13 +147,18 @@ function bookingServiceIntervalUtc(b: BookingOccupancyInput, ctx: ComputeContext
   return Interval.fromDateTimes(s, e);
 }
 
-function bookingOccupancyIntervals(ctx: ComputeContext): Interval[] {
-  const out: Interval[] = [];
-  const padMin =
+function occupancyPadMinutes(ctx: ComputeContext): number {
+  return (
     Math.max(0, ctx.bufferBetweenJobsMinutes) +
     Math.max(0, ctx.travelBufferMinutes) +
     Math.max(0, ctx.settings?.buffer_before_minutes ?? 0) +
-    Math.max(0, ctx.settings?.buffer_after_minutes ?? 0);
+    Math.max(0, ctx.settings?.buffer_after_minutes ?? 0)
+  );
+}
+
+function bookingOccupancyIntervals(ctx: ComputeContext): Interval[] {
+  const out: Interval[] = [];
+  const padMin = occupancyPadMinutes(ctx);
 
   for (const b of ctx.bookings) {
     if (!bookingStatusBlocksCustomerSlots(b.status)) continue;
@@ -159,6 +166,23 @@ function bookingOccupancyIntervals(ctx: ComputeContext): Interval[] {
     if (!ivUtc?.isValid) continue;
     const s = ivUtc.start!;
     const e = ivUtc.end!;
+    const exS = s.minus({ minutes: padMin }).setZone(ctx.zone);
+    const exE = e.plus({ minutes: padMin }).setZone(ctx.zone);
+    const expanded = Interval.fromDateTimes(exS, exE);
+    if (expanded.isValid) out.push(expanded);
+  }
+  return mergeIntervals(out);
+}
+
+function recurringHoldOccupancyIntervals(ctx: ComputeContext): Interval[] {
+  const holds = ctx.recurringHoldsUtc ?? [];
+  if (holds.length === 0) return [];
+  const padMin = occupancyPadMinutes(ctx);
+  const out: Interval[] = [];
+  for (const h of holds) {
+    const s = DateTime.fromISO(h.startIso, { zone: 'utc' });
+    const e = DateTime.fromISO(h.endIso, { zone: 'utc' });
+    if (!s.isValid || !e.isValid || e <= s) continue;
     const exS = s.minus({ minutes: padMin }).setZone(ctx.zone);
     const exE = e.plus({ minutes: padMin }).setZone(ctx.zone);
     const expanded = Interval.fromDateTimes(exS, exE);
@@ -194,7 +218,10 @@ export function computeFreeLocalIntervals(dateISO: string, ctx: ComputeContext):
   const blockedLocal = blockedUtcIntervalsForDay(dateISO, ctx);
   work = subtractIntervals(work, blockedLocal);
 
-  const occLocal = bookingOccupancyIntervals(ctx);
+  const occLocal = mergeIntervals([
+    ...bookingOccupancyIntervals(ctx),
+    ...recurringHoldOccupancyIntervals(ctx),
+  ]);
   work = subtractIntervals(work, occLocal);
 
   return mergeIntervals(work);

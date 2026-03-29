@@ -1,4 +1,3 @@
-// TODO: subtract approved recurring_occurrences (non-flexible) from bookable slots — see /api/pro/calendar/recurring and lib/recurring/conflicts.ts
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { DateTime } from 'luxon';
 import { resolveSameDayEnabledFromServicePro } from '@/lib/operations/availabilityValidation';
@@ -10,6 +9,7 @@ import type {
   ProBlockedTimeRow,
 } from '@/lib/availability/types';
 import { bookingStatusBlocksCustomerSlots } from '@/lib/availability/booking-occupancy';
+import { loadRecurringHoldsForAvailability } from '@/lib/recurring/recurring-holds';
 
 type ServiceProAvailRow = {
   id: string;
@@ -125,6 +125,15 @@ export async function loadComputeContextForProRange(
       estimated_duration_minutes: b.estimated_duration_minutes,
     }));
 
+  let recurringHoldsUtc: { startIso: string; endIso: string }[] = [];
+  if (blockedStartIso && blockedEndIso) {
+    const holds = await loadRecurringHoldsForAvailability(admin, proUserId, blockedStartIso, blockedEndIso);
+    recurringHoldsUtc = holds.map((h) => ({
+      startIso: h.scheduled_start_at,
+      endIso: h.scheduled_end_at,
+    }));
+  }
+
   let ruleRows = (rules ?? []) as ProAvailabilityRuleRow[];
   if (ruleRows.length === 0 && legacyAvail && legacyAvail.length > 0) {
     ruleRows = (legacyAvail as { day_of_week: number; start_time: string; end_time: string }[]).map(
@@ -150,6 +159,7 @@ export async function loadComputeContextForProRange(
     blockedTimes: (blockedTimes ?? []) as ProBlockedTimeRow[],
     blockedDates: (blockedDatesRows ?? []).map((r: { blocked_date: string }) => r.blocked_date),
     bookings,
+    recurringHoldsUtc,
     settings: effSettings,
     bufferBetweenJobsMinutes: Number(p.buffer_between_jobs_minutes ?? 30),
     travelBufferMinutes: Number(p.buffer_minutes ?? 0),

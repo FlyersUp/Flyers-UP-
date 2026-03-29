@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { requireProService } from '@/lib/recurring/api-auth';
-import { getOrCreateRecurringPreferences } from '@/lib/recurring/context';
+import { getOrCreateRecurringPreferences, refreshRecurringCustomerCount } from '@/lib/recurring/context';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -55,6 +55,7 @@ export async function PUT(req: Request) {
     .eq('pro_user_id', pr.userId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await refreshRecurringCustomerCount(admin, pr.userId);
   const row = await getOrCreateRecurringPreferences(admin, pr.userId);
   return NextResponse.json({ ok: true, preferences: row });
 }

@@ -48,8 +48,9 @@ export async function findScheduleConflict(
 
   let oq = admin
     .from('recurring_occurrences')
-    .select('id')
+    .select('id, recurring_series!inner(status)')
     .eq('pro_user_id', p.proUserId)
+    .eq('recurring_series.status', 'approved')
     .in('status', [...OCCURRENCE_BLOCKING_STATUSES])
     .lt('scheduled_start_at', p.endUtcIso)
     .gt('scheduled_end_at', p.startUtcIso)

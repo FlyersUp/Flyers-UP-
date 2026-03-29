@@ -33,6 +33,7 @@ export const NOTIFICATION_TYPES = {
   RECURRING_SERIES_PAUSED: 'recurring.series_paused',
   RECURRING_SERIES_RESUMED: 'recurring.series_resumed',
   RECURRING_SERIES_CANCELED: 'recurring.series_canceled',
+  RECURRING_OCCURRENCE_REMINDER: 'recurring.occurrence_reminder',
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[keyof typeof NOTIFICATION_TYPES];
@@ -88,6 +89,7 @@ export const TYPE_TO_CATEGORY: Record<NotificationType, NotificationCategory> = 
   [NOTIFICATION_TYPES.RECURRING_SERIES_PAUSED]: NOTIFICATION_CATEGORIES.BOOKING,
   [NOTIFICATION_TYPES.RECURRING_SERIES_RESUMED]: NOTIFICATION_CATEGORIES.BOOKING,
   [NOTIFICATION_TYPES.RECURRING_SERIES_CANCELED]: NOTIFICATION_CATEGORIES.BOOKING,
+  [NOTIFICATION_TYPES.RECURRING_OCCURRENCE_REMINDER]: NOTIFICATION_CATEGORIES.BOOKING,
 };
 
 /** MVP priority types (10) */
@@ -363,6 +365,14 @@ export const notificationPayloads: Record<NotificationType, Omit<NotificationPay
     type: NOTIFICATION_TYPES.RECURRING_SERIES_CANCELED,
     title: 'Recurring plan canceled',
     body: 'The recurring plan was canceled.',
+    category: NOTIFICATION_CATEGORIES.BOOKING,
+    priority: NOTIFICATION_PRIORITIES.IMPORTANT,
+    pushEligible: true,
+  },
+  [NOTIFICATION_TYPES.RECURRING_OCCURRENCE_REMINDER]: {
+    type: NOTIFICATION_TYPES.RECURRING_OCCURRENCE_REMINDER,
+    title: 'Upcoming repeat visit',
+    body: 'You have a recurring visit coming up.',
     category: NOTIFICATION_CATEGORIES.BOOKING,
     priority: NOTIFICATION_PRIORITIES.IMPORTANT,
     pushEligible: true,

@@ -11,9 +11,15 @@ import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 import { createNotification } from '@/lib/notify/create-notification';
 import { parseBookingStart } from '@/lib/calendar/time-utils';
 import { DEFAULT_BOOKING_TIMEZONE, serviceDatePrefetchRange } from '@/lib/datetime';
+import { OCCURRENCE_REMINDER_ELIGIBLE_STATUSES } from '@/lib/recurring/constants';
+import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+/** Same active job statues as before, plus recurring rows still in `requested` (materialized from a plan). */
+const BOOKING_REMINDER_STATUS_OR =
+  'status.in.(accepted,pro_en_route,on_the_way,arrived,in_progress,deposit_paid),and(is_recurring.eq.true,status.eq.requested)';
 
 const DEPOSIT_WINDOW_MINUTES = 10;
 const REMAINING_SOON_HOURS = 2;
@@ -88,7 +94,7 @@ export async function GET(req: NextRequest) {
     .select(
       'id, customer_id, pro_id, service_date, service_time, booking_timezone, service_pros(user_id)'
     )
-    .in('status', ['accepted', 'pro_en_route', 'on_the_way', 'arrived', 'in_progress', 'deposit_paid'])
+    .or(BOOKING_REMINDER_STATUS_OR)
     .gte('service_date', svcDateMin)
     .lte('service_date', svcDateMax);
 
@@ -140,7 +146,7 @@ export async function GET(req: NextRequest) {
     .select(
       'id, customer_id, pro_id, service_date, service_time, booking_timezone, service_pros(user_id)'
     )
-    .in('status', ['accepted', 'pro_en_route', 'on_the_way', 'arrived', 'in_progress', 'deposit_paid'])
+    .or(BOOKING_REMINDER_STATUS_OR)
     .gte('service_date', svcDateMin)
     .lte('service_date', svcDateMax);
 
@@ -193,7 +199,7 @@ export async function GET(req: NextRequest) {
     .select(
       'id, customer_id, service_date, service_time, booking_timezone, service_pros(user_id)'
     )
-    .in('status', ['accepted', 'pro_en_route', 'on_the_way', 'arrived', 'in_progress', 'deposit_paid'])
+    .or(BOOKING_REMINDER_STATUS_OR)
     .gte('service_date', svcDateMin)
     .lte('service_date', svcDateMax);
 
@@ -255,6 +261,122 @@ export async function GET(req: NextRequest) {
       await admin.from('booking_events').insert({ booking_id: b.id, type: 'REMAINING_REMINDER_OVERDUE', data: {} });
       await createNotification({ userId: b.customer_id, bookingId: b.id, type: 'remaining_overdue', title: 'Remaining payment overdue', body: 'Remaining payment overdue — action required' });
       sent++;
+    }
+  }
+
+  // 5) Recurring occurrences without a materialized booking yet (same windows as booking reminders)
+  const occHorizonEnd = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
+  const { data: occRows } = await admin
+    .from('recurring_occurrences')
+    .select('id, customer_user_id, pro_user_id, scheduled_start_at, recurring_series!inner(status)')
+    .eq('recurring_series.status', 'approved')
+    .in('status', [...OCCURRENCE_REMINDER_ELIGIBLE_STATUSES])
+    .is('booking_id', null)
+    .gte('scheduled_start_at', now.toISOString())
+    .lte('scheduled_start_at', occHorizonEnd);
+
+  async function sendOccReminder(
+    occurrenceId: string,
+    customerId: string,
+    proUserId: string,
+    eventType: string,
+    titleC: string,
+    bodyC: string,
+    titleP: string,
+    bodyP: string
+  ) {
+    const { data: recent } = await admin
+      .from('recurring_reminder_events')
+      .select('id')
+      .eq('recurring_occurrence_id', occurrenceId)
+      .eq('event_type', eventType)
+      .limit(1);
+    if (recent?.length) return;
+    await admin.from('recurring_reminder_events').insert({ recurring_occurrence_id: occurrenceId, event_type: eventType });
+    await createNotification({
+      userId: customerId,
+      bookingId: null,
+      type: NOTIFICATION_TYPES.RECURRING_OCCURRENCE_REMINDER,
+      title: titleC,
+      body: bodyC,
+    });
+    await createNotification({
+      userId: proUserId,
+      bookingId: null,
+      type: NOTIFICATION_TYPES.RECURRING_OCCURRENCE_REMINDER,
+      title: titleP,
+      body: bodyP,
+    });
+    sent += 2;
+  }
+
+  for (const raw of occRows ?? []) {
+    const row = raw as {
+      id: string;
+      customer_user_id: string;
+      pro_user_id: string;
+      scheduled_start_at: string;
+    };
+    const startMs = new Date(row.scheduled_start_at).getTime();
+    if (Number.isNaN(startMs)) continue;
+    const diffMins = (startMs - now.getTime()) / (60 * 1000);
+    const diffHours = diffMins / 60;
+
+    if (diffHours >= 23 && diffHours <= 25) {
+      await sendOccReminder(
+        row.id,
+        row.customer_user_id,
+        row.pro_user_id,
+        'RECURRING_OCC_24H',
+        'Repeat visit tomorrow',
+        'A recurring visit is scheduled for tomorrow.',
+        'Repeat job tomorrow',
+        'You have a recurring job scheduled for tomorrow.'
+      );
+    } else if (diffMins >= 55 && diffMins <= 65) {
+      await sendOccReminder(
+        row.id,
+        row.customer_user_id,
+        row.pro_user_id,
+        'RECURRING_OCC_1H',
+        'Repeat visit in 1 hour',
+        'Your recurring visit starts in about an hour.',
+        'Recurring job in 1 hour',
+        'Your recurring job starts in about an hour.'
+      );
+    } else if (diffMins >= 110 && diffMins <= 130) {
+      await sendOccReminder(
+        row.id,
+        row.customer_user_id,
+        row.pro_user_id,
+        'RECURRING_OCC_2H',
+        'Repeat visit in 2 hours',
+        'Your recurring visit starts in about 2 hours.',
+        'Recurring job in 2 hours',
+        'Your recurring job starts in about 2 hours.'
+      );
+    } else if (diffMins >= 25 && diffMins <= 35) {
+      await sendOccReminder(
+        row.id,
+        row.customer_user_id,
+        row.pro_user_id,
+        'RECURRING_OCC_30M',
+        'Repeat visit in 30 minutes',
+        'Your recurring visit starts in 30 minutes.',
+        'Recurring job in 30 minutes',
+        'Your recurring job starts in 30 minutes.'
+      );
+    } else if (diffMins >= -5 && diffMins <= 5) {
+      await sendOccReminder(
+        row.id,
+        row.customer_user_id,
+        row.pro_user_id,
+        'RECURRING_OCC_NOW',
+        'Repeat visit starting now',
+        'Your recurring visit is scheduled to start now.',
+        'Recurring job starting now',
+        'Your recurring job is scheduled to start now.'
+      );
     }
   }
 

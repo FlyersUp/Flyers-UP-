@@ -52,6 +52,7 @@ export const NOTIFICATION_ICON_MAP: Record<NotificationType, NotificationIconNam
   [NOTIFICATION_TYPES.RECURRING_SERIES_PAUSED]: 'alert-circle',
   [NOTIFICATION_TYPES.RECURRING_SERIES_RESUMED]: 'check-circle',
   [NOTIFICATION_TYPES.RECURRING_SERIES_CANCELED]: 'x-circle',
+  [NOTIFICATION_TYPES.RECURRING_OCCURRENCE_REMINDER]: 'calendar',
 };
 
 export function getIconForNotificationType(type: string): NotificationIconName {

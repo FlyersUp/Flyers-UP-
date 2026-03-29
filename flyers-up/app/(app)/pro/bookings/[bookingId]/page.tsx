@@ -19,6 +19,7 @@ import { getBookingById, getCurrentUser, type BookingDetails } from '@/lib/api';
 import Link from 'next/link';
 import { use, useEffect, useMemo, useState } from 'react';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
+import { ProCustomerPreferenceActions } from '@/components/bookings/ProCustomerPreferenceActions';
 
 export default function ProBookingDetailPage({
   params,
@@ -233,6 +234,7 @@ export default function ProBookingDetailPage({
                   {booking.notes && (
                     <p className="mt-2 text-sm text-muted">Notes: {booking.notes}</p>
                   )}
+                  <ProCustomerPreferenceActions customerUserId={booking.customerId} />
                   <div className="mt-3 pt-3 border-t border-border">
                     {booking.amountTotal != null && booking.amountTotal > 0 ? (
                       <>
