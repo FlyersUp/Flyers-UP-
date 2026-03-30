@@ -220,6 +220,8 @@ export interface Database {
           created_at: string;
           duration_hours?: number | null;
           miles_distance?: number | null;
+          selected_package_id?: string | null;
+          selected_package_snapshot?: Json | null;
         };
         Insert: {
           id?: string;
@@ -235,6 +237,8 @@ export interface Database {
           created_at?: string;
           duration_hours?: number | null;
           miles_distance?: number | null;
+          selected_package_id?: string | null;
+          selected_package_snapshot?: Json | null;
         };
         Update: {
           id?: string;
@@ -250,6 +254,49 @@ export interface Database {
           created_at?: string;
           duration_hours?: number | null;
           miles_distance?: number | null;
+          selected_package_id?: string | null;
+          selected_package_snapshot?: Json | null;
+        };
+      };
+      service_packages: {
+        Row: {
+          id: string;
+          pro_user_id: string;
+          title: string;
+          short_description: string | null;
+          base_price_cents: number;
+          estimated_duration_minutes: number | null;
+          deliverables: Json;
+          is_active: boolean;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          pro_user_id: string;
+          title: string;
+          short_description?: string | null;
+          base_price_cents: number;
+          estimated_duration_minutes?: number | null;
+          deliverables?: Json;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          pro_user_id?: string;
+          title?: string;
+          short_description?: string | null;
+          base_price_cents?: number;
+          estimated_duration_minutes?: number | null;
+          deliverables?: Json;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
         };
       };
       pro_earnings: {

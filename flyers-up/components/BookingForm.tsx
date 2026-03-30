@@ -21,6 +21,7 @@ import { QuickRulesSheet, hasSeenQuickRules } from '@/components/booking/QuickRu
 import { DateTime } from 'luxon';
 import { DEFAULT_BOOKING_TIMEZONE } from '@/lib/datetime';
 import { CustomerProAvailabilityCalendar } from '@/components/booking/CustomerProAvailabilityCalendar';
+import { ProPackagesPicker } from '@/components/booking/ProPackagesPicker';
 
 interface Subcategory {
   id: string;
@@ -44,9 +45,20 @@ interface BookingFormProps {
   previousBookingId?: string;
   /** Force Quick Rules sheet to show (for testing) */
   forceQuickRules?: boolean;
+  /** Pre-select a service package (e.g. from pro profile link) */
+  initialPackageId?: string;
 }
 
-export default function BookingForm({ pro, initialSubcategorySlug, serviceSlug, initialAddress, initialNotes, previousBookingId, forceQuickRules }: BookingFormProps) {
+export default function BookingForm({
+  pro,
+  initialSubcategorySlug,
+  serviceSlug,
+  initialAddress,
+  initialNotes,
+  previousBookingId,
+  forceQuickRules,
+  initialPackageId,
+}: BookingFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +76,7 @@ export default function BookingForm({ pro, initialSubcategorySlug, serviceSlug, 
     notes: initialNotes ?? '',
     subcategoryId: '' as string,
   });
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(initialPackageId?.trim() || null);
 
   useEffect(() => {
     setFormData((prev) => {
@@ -150,7 +163,8 @@ export default function BookingForm({ pro, initialSubcategorySlug, serviceSlug, 
         formData.notes,
         Array.from(selectedAddonIds),
         formData.subcategoryId || null,
-        previousBookingId || null
+        previousBookingId || null,
+        selectedPackageId
       );
       if (!result.success) {
         setError(result.error || 'Failed to create booking. Please try again.');
@@ -210,6 +224,14 @@ export default function BookingForm({ pro, initialSubcategorySlug, serviceSlug, 
           {error}
         </div>
       )}
+
+      <div className="rounded-xl border border-border bg-surface p-4">
+        <ProPackagesPicker
+          proId={pro.id}
+          selectedPackageId={selectedPackageId}
+          onSelectPackageId={setSelectedPackageId}
+        />
+      </div>
 
       {/* Subcategory field - required when pro offers subcategories (all 5 main services) */}
       {subcategories.length > 0 && (

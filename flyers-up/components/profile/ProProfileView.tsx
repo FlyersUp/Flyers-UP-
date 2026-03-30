@@ -26,6 +26,7 @@ import { GallerySection } from '@/components/profile/GallerySection';
 import { ProReviewSection } from '@/components/profile/ProReviewSection';
 import { AboutServiceAreaSection } from '@/components/profile/AboutServiceAreaSection';
 import { ReportUserBlockUser } from '@/components/moderation/ReportUserBlockUser';
+import { ProPackagesProfileSection } from '@/components/profile/ProPackagesProfileSection';
 
 export function ProProfileView({
   profile,
@@ -68,6 +69,10 @@ export function ProProfileView({
       {/* 3. Services + pricing — highest conviction */}
       <section>
         <ServicesAndPricingSection profile={profile} />
+      </section>
+
+      <section>
+        <ProPackagesProfileSection proId={profile.id} bookHref={bookHref} />
       </section>
 
       {/* 4. Reviews summary + review cards — highest conviction */}

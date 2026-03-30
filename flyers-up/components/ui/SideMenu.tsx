@@ -117,6 +117,7 @@ const PRO_SECTIONS: MenuSection[] = [
       { labelKey: 'sidebar.pro.availability', href: '/pro/settings/pricing-availability' },
       { labelKey: 'sidebar.pro.serviceAreas', href: '/pro/settings/business-profile' },
       { labelKey: 'sidebar.pro.pricingServices', href: '/pro/settings/pricing-availability' },
+      { labelKey: 'sidebar.pro.packages', href: '/pro/packages' },
       { labelKey: 'sidebar.pro.calendar', href: '/pro/calendar' },
     ],
   },

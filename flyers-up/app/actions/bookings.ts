@@ -17,6 +17,7 @@ import { loadComputeContextForProRange } from '@/lib/availability/load-context';
 import { assertSlotBookable, proposedBookingUtcWindow } from '@/lib/availability/engine';
 import { resolveUrgency } from '@/lib/bookings/urgency';
 import { getOccupationFeeProfile } from '@/lib/bookings/fee-rules';
+import { buildSelectedPackageSnapshot, formatPackageScopeNotes } from '@/lib/service-packages/snapshot';
 
 type BookingStatus = 'requested' | 'accepted' | 'declined' | 'completed' | 'cancelled';
 
@@ -42,7 +43,8 @@ export async function createBookingWithPayment(
   notes: string,
   selectedAddonIds: string[],
   subcategoryId?: string | null,
-  previousBookingId?: string | null
+  previousBookingId?: string | null,
+  selectedPackageId?: string | null
 ): Promise<{ success: boolean; bookingId?: string; error?: string }> {
   try {
     const supabase = await createServerSupabaseClient();
@@ -131,7 +133,49 @@ export async function createBookingWithPayment(
       categorySlug,
       categoryName: categoryDisplayName,
     });
-    const basePriceCents = Math.round(Number((proRow as any).starting_price ?? 0) * 100);
+    const proUserId = String((proRow as { user_id: string }).user_id);
+    let basePriceCents = Math.round(Number((proRow as any).starting_price ?? 0) * 100);
+    let durationMinutes = 60;
+    let notesForBooking = notes || '';
+    let selectedPackageIdOut: string | null = null;
+    let selectedPackageSnapshotOut: Record<string, unknown> | null = null;
+
+    const adminForPackage = createAdminSupabaseClient();
+    const pkgIdTrim = selectedPackageId?.trim() ?? '';
+    if (pkgIdTrim) {
+      const { data: pkgRow, error: pkgErr } = await adminForPackage
+        .from('service_packages')
+        .select('*')
+        .eq('id', pkgIdTrim)
+        .eq('pro_user_id', proUserId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (pkgErr || !pkgRow) {
+        return { success: false, error: 'Selected package is not available. Choose another or continue without a package.' };
+      }
+
+      const pkg = pkgRow as Record<string, unknown>;
+      basePriceCents = Math.round(Number(pkg.base_price_cents ?? 0));
+      if (!Number.isFinite(basePriceCents) || basePriceCents <= 0) {
+        return { success: false, error: 'This package has an invalid price. Contact the pro or book without a package.' };
+      }
+      const est = pkg.estimated_duration_minutes;
+      if (est != null && Number(est) > 0) {
+        durationMinutes = Math.round(Number(est));
+      }
+      const snapshot = buildSelectedPackageSnapshot({
+        title: String(pkg.title ?? ''),
+        short_description: pkg.short_description == null ? null : String(pkg.short_description),
+        base_price_cents: basePriceCents,
+        estimated_duration_minutes:
+          est == null || est === '' ? null : Math.round(Number(est)),
+        deliverables: pkg.deliverables,
+      });
+      notesForBooking = formatPackageScopeNotes(snapshot, notes);
+      selectedPackageIdOut = String(pkg.id);
+      selectedPackageSnapshotOut = { ...snapshot };
+    }
 
     // 3) Fetch current add-on prices from database (server-side validation)
     let addonsTotalCents = 0;
@@ -194,7 +238,6 @@ export async function createBookingWithPayment(
       // ignore geocode failures
     }
 
-    const durationMinutes = 60;
     const adminClient = createAdminSupabaseClient();
     let ctxAvail: Awaited<ReturnType<typeof loadComputeContextForProRange>> = null;
     try {
@@ -267,7 +310,7 @@ export async function createBookingWithPayment(
         scheduled_end_at: windowUtc.endUtcIso,
         estimated_duration_minutes: durationMinutes,
         address,
-        notes: notes || null,
+        notes: notesForBooking || null,
         status: 'requested' satisfies BookingStatus,
         status_history: initialStatusHistory,
         price: totalDollars,
@@ -279,6 +322,8 @@ export async function createBookingWithPayment(
         address_lat: addressLat,
         address_lng: addressLng,
         duration_hours: durationMinutes / 60,
+        selected_package_id: selectedPackageIdOut,
+        selected_package_snapshot: selectedPackageSnapshotOut,
       })
       .select('id')
       .single();
@@ -327,7 +372,6 @@ export async function createBookingWithPayment(
     });
 
     // 7) Notify Pro: New booking request
-    const proUserId = (proRow as { user_id?: string }).user_id;
     if (proUserId) {
       void createNotificationEvent({
         userId: proUserId,

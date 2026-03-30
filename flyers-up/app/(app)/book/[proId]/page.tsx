@@ -27,6 +27,7 @@ export default function BookingPage() {
   const notes = searchParams.get('notes')?.trim() ?? undefined;
   const service = searchParams.get('service')?.trim() ?? undefined;
   const rebookBookingId = searchParams.get('rebook')?.trim() ?? undefined;
+  const packageId = searchParams.get('packageId')?.trim() ?? undefined;
   /** Owner preview iframe on /pro/profile — allow pro to see customer UI without redirect */
   const customerPreview = searchParams.get('customerPreview') === '1';
   
@@ -150,6 +151,7 @@ export default function BookingPage() {
             initialAddress={rebookPrefill?.address ?? address}
             initialNotes={rebookPrefill?.notes ?? notes}
             previousBookingId={rebookBookingId}
+            initialPackageId={packageId}
           />
         </div>
 
