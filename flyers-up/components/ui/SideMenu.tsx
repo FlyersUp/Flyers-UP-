@@ -7,6 +7,7 @@ import { X, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { supabase } from '@/lib/supabaseClient';
 import { useGuidanceContext } from '@/contexts/GuidanceContext';
+import { ProGrowthMenuSection } from '@/components/ui/ProGrowthMenuSection';
 
 type Role = 'customer' | 'pro';
 
@@ -130,15 +131,7 @@ const PRO_SECTIONS: MenuSection[] = [
   },
   {
     titleKey: 'sidebar.growth',
-    items: [
-      { labelKey: 'sidebar.pro.insights', href: '/pro', disabled: true },
-      { labelKey: 'sidebar.pro.improveVisibility', href: '/pro', disabled: true },
-      { labelKey: 'sidebar.pro.educationBestPractices', href: '/settings/help-support', disabled: true },
-      { labelKey: 'sidebar.pro.trustStanding', href: '/pro/verified-badge' },
-      { labelKey: 'sidebar.pro.reviewsRatings', href: '/pro/profile', disabled: true },
-      { labelKey: 'sidebar.pro.disputes', href: '/pro/settings/support-legal', disabled: true },
-      { labelKey: 'sidebar.pro.platformPolicies', href: '/pro/settings/support-legal' },
-    ],
+    items: [],
   },
   {
     titleKey: 'sidebar.settings',
@@ -390,18 +383,27 @@ export function SideMenu({
                 </Link>
               </div>
             )}
-          {sections.map((s) => (
-            <Section
-              key={s.titleKey}
-              title={getLabel(s.titleKey)}
-              items={s.items}
-              onNavigate={handleClose}
-              subtitleColor={s.titleKey === 'sidebar.admin' ? NEUTRAL_SUBTITLE : subtitleColor}
-              getLabel={getLabel}
-              comingSoon={t('common.comingSoon')}
-              role={role}
-            />
-          ))}
+          {sections.map((s) =>
+            s.titleKey === 'sidebar.growth' && role === 'pro' ? (
+              <ProGrowthMenuSection
+                key={s.titleKey}
+                title={getLabel(s.titleKey)}
+                subtitleColor={subtitleColor}
+                onNavigate={handleClose}
+              />
+            ) : (
+              <Section
+                key={s.titleKey}
+                title={getLabel(s.titleKey)}
+                items={s.items}
+                onNavigate={handleClose}
+                subtitleColor={s.titleKey === 'sidebar.admin' ? NEUTRAL_SUBTITLE : subtitleColor}
+                getLabel={getLabel}
+                comingSoon={t('common.comingSoon')}
+                role={role}
+              />
+            )
+          )}
         </div>
 
         {/* Footer with Messages + Logout */}
