@@ -88,6 +88,42 @@ export async function customerHasApprovedSeries(
   return Boolean(data?.id);
 }
 
+/** Distinct customers with an approved recurring series tied to this package (same pro). */
+export async function countApprovedCustomersForPackage(
+  admin: SupabaseClient,
+  proUserId: string,
+  packageId: string
+): Promise<number> {
+  const { data, error } = await admin
+    .from('recurring_series')
+    .select('customer_user_id')
+    .eq('pro_user_id', proUserId)
+    .eq('status', 'approved')
+    .eq('requested_package_id', packageId);
+
+  if (error || !data) return 0;
+  return new Set(data.map((r) => (r as { customer_user_id: string }).customer_user_id)).size;
+}
+
+export async function customerHasApprovedSeriesWithPackage(
+  admin: SupabaseClient,
+  proUserId: string,
+  customerUserId: string,
+  packageId: string
+): Promise<boolean> {
+  const { data } = await admin
+    .from('recurring_series')
+    .select('id')
+    .eq('pro_user_id', proUserId)
+    .eq('customer_user_id', customerUserId)
+    .eq('requested_package_id', packageId)
+    .eq('status', 'approved')
+    .limit(1)
+    .maybeSingle();
+
+  return Boolean(data?.id);
+}
+
 export async function isOccupationEnabledForRecurring(
   admin: SupabaseClient,
   proUserId: string,

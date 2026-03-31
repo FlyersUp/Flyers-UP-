@@ -13,8 +13,22 @@ import {
   mergeDynamicPricingReasonsCsv,
   parseBookingPaymentIntentMetadata,
 } from '@/lib/stripe/booking-payment-intent-metadata';
+import {
+  computeReceiptQuoteOverlay,
+  dbRowPricingOverlay,
+} from '@/lib/bookings/receipt-quote-from-booking';
 
 type AdminClient = SupabaseClient;
+
+function firstDefinedCents(
+  ...vals: Array<number | null | undefined>
+): number | undefined {
+  for (const v of vals) {
+    if (v == null) continue;
+    if (typeof v === 'number' && Number.isFinite(v)) return Math.round(v);
+  }
+  return undefined;
+}
 
 async function loadPricingFromPaymentIntentMetadata(
   paymentIntentId: string | null | undefined
@@ -119,6 +133,21 @@ export async function getBookingReceipt(
         'final_payment_intent_id',
         'stripe_payment_intent_deposit_id',
         'stripe_payment_intent_remaining_id',
+        'amount_subtotal',
+        'amount_travel_fee',
+        'amount_platform_fee',
+        'platform_fee_cents',
+        'amount_total',
+        'deposit_amount_cents',
+        'remaining_amount_cents',
+        'duration_hours',
+        'miles_distance',
+        'urgency',
+        'created_at',
+        'payment_due_at',
+        'fee_profile',
+        'pricing_occupation_slug',
+        'pricing_category_slug',
       ].join(', ')
     )
     .eq('id', bookingId)
@@ -141,31 +170,167 @@ export async function getBookingReceipt(
       (b.payment_intent_id as string) ??
       null
   );
-  const mergedPricing = {
-    serviceSubtotalCents:
-      pricingFromFinal.serviceSubtotalCents ?? pricingFromDeposit.serviceSubtotalCents,
-    serviceFeeCents: pricingFromFinal.serviceFeeCents ?? pricingFromDeposit.serviceFeeCents,
-    convenienceFeeCents:
-      pricingFromFinal.convenienceFeeCents ?? pricingFromDeposit.convenienceFeeCents,
-    protectionFeeCents:
-      pricingFromFinal.protectionFeeCents ?? pricingFromDeposit.protectionFeeCents,
-    demandFeeCents: pricingFromFinal.demandFeeCents ?? pricingFromDeposit.demandFeeCents,
-    feeTotalCents: pricingFromFinal.feeTotalCents ?? pricingFromDeposit.feeTotalCents,
-    promoDiscountCents:
-      pricingFromFinal.promoDiscountCents ?? pricingFromDeposit.promoDiscountCents,
-    platformFeeTotalCents:
-      pricingFromFinal.platformFeeTotalCents ?? pricingFromDeposit.platformFeeTotalCents,
-    customerTotalCents:
-      pricingFromFinal.customerTotalCents ?? pricingFromDeposit.customerTotalCents,
-    depositChargeCents:
-      pricingFromDeposit.depositChargeCents ?? pricingFromFinal.depositChargeCents,
-    finalChargeCents:
-      pricingFromFinal.finalChargeCents ?? pricingFromDeposit.finalChargeCents,
+  const dbOverlay = dbRowPricingOverlay(b);
+
+  let mergedPricing: {
+    serviceSubtotalCents: number | undefined;
+    serviceFeeCents: number | undefined;
+    convenienceFeeCents: number | undefined;
+    protectionFeeCents: number | undefined;
+    demandFeeCents: number | undefined;
+    feeTotalCents: number | undefined;
+    promoDiscountCents: number | undefined;
+    platformFeeTotalCents: number | undefined;
+    customerTotalCents: number | undefined;
+    depositChargeCents: number | undefined;
+    finalChargeCents: number | undefined;
+    dynamicPricingReasons: string[];
+  } = {
+    serviceSubtotalCents: firstDefinedCents(
+      pricingFromFinal.serviceSubtotalCents,
+      pricingFromDeposit.serviceSubtotalCents,
+      dbOverlay.serviceSubtotalCents
+    ),
+    serviceFeeCents: firstDefinedCents(
+      pricingFromFinal.serviceFeeCents,
+      pricingFromDeposit.serviceFeeCents
+    ),
+    convenienceFeeCents: firstDefinedCents(
+      pricingFromFinal.convenienceFeeCents,
+      pricingFromDeposit.convenienceFeeCents
+    ),
+    protectionFeeCents: firstDefinedCents(
+      pricingFromFinal.protectionFeeCents,
+      pricingFromDeposit.protectionFeeCents
+    ),
+    demandFeeCents: firstDefinedCents(
+      pricingFromFinal.demandFeeCents,
+      pricingFromDeposit.demandFeeCents
+    ),
+    feeTotalCents: firstDefinedCents(
+      pricingFromFinal.feeTotalCents,
+      pricingFromDeposit.feeTotalCents,
+      dbOverlay.feeTotalCents,
+      dbOverlay.platformFeeTotalCents
+    ),
+    promoDiscountCents: firstDefinedCents(
+      pricingFromFinal.promoDiscountCents,
+      pricingFromDeposit.promoDiscountCents
+    ),
+    platformFeeTotalCents: firstDefinedCents(
+      pricingFromFinal.platformFeeTotalCents,
+      pricingFromDeposit.platformFeeTotalCents,
+      dbOverlay.platformFeeTotalCents,
+      dbOverlay.feeTotalCents
+    ),
+    customerTotalCents: firstDefinedCents(
+      pricingFromFinal.customerTotalCents,
+      pricingFromDeposit.customerTotalCents,
+      dbOverlay.customerTotalCents
+    ),
+    depositChargeCents: firstDefinedCents(
+      pricingFromDeposit.depositChargeCents,
+      pricingFromFinal.depositChargeCents
+    ),
+    finalChargeCents: firstDefinedCents(
+      pricingFromFinal.finalChargeCents,
+      pricingFromDeposit.finalChargeCents
+    ),
     dynamicPricingReasons: mergeDynamicPricingReasonsCsv(
       pricingFromDeposit.dynamicPricingReasons,
       pricingFromFinal.dynamicPricingReasons
     ),
   };
+
+  const customerTotalMissing =
+    mergedPricing.customerTotalCents == null || mergedPricing.customerTotalCents <= 0;
+  const subtotalMissing =
+    mergedPricing.serviceSubtotalCents == null || mergedPricing.serviceSubtotalCents <= 0;
+  const feeTotalMissing = mergedPricing.feeTotalCents == null || mergedPricing.feeTotalCents <= 0;
+  const lineFeesMissing =
+    mergedPricing.serviceFeeCents === undefined &&
+    mergedPricing.convenienceFeeCents === undefined &&
+    mergedPricing.protectionFeeCents === undefined &&
+    mergedPricing.demandFeeCents === undefined;
+
+  const ct = mergedPricing.customerTotalCents ?? 0;
+  const st = mergedPricing.serviceSubtotalCents ?? 0;
+  const ft = mergedPricing.feeTotalCents ?? 0;
+  const pf = mergedPricing.platformFeeTotalCents ?? 0;
+  /** Stored total equals “subtotal” with no fee split — common when list price was copied into both fields. */
+  const totalsLookLikeListPriceOnly = ct > 0 && st > 0 && st === ct && ft <= 0 && pf <= 0;
+
+  const needsLiveQuote =
+    customerTotalMissing ||
+    subtotalMissing ||
+    (feeTotalMissing && lineFeesMissing) ||
+    totalsLookLikeListPriceOnly;
+
+  if (needsLiveQuote) {
+    const quoteOverlay = await computeReceiptQuoteOverlay(admin, b);
+    if (quoteOverlay) {
+      const fillTotal = (
+        cur: number | null | undefined,
+        q: number | null | undefined
+      ): number | undefined =>
+        (cur == null || cur <= 0) && q != null && q > 0 ? q : cur == null ? undefined : cur;
+      const fillLine = (
+        cur: number | null | undefined,
+        q: number | null | undefined
+      ): number | undefined =>
+        (cur === undefined || cur === null) && q != null && q !== undefined ? q : cur == null ? undefined : cur;
+
+      mergedPricing.serviceSubtotalCents = fillTotal(
+        mergedPricing.serviceSubtotalCents,
+        quoteOverlay.serviceSubtotalCents
+      );
+      mergedPricing.serviceFeeCents = fillLine(
+        mergedPricing.serviceFeeCents,
+        quoteOverlay.serviceFeeCents
+      );
+      mergedPricing.convenienceFeeCents = fillLine(
+        mergedPricing.convenienceFeeCents,
+        quoteOverlay.convenienceFeeCents
+      );
+      mergedPricing.protectionFeeCents = fillLine(
+        mergedPricing.protectionFeeCents,
+        quoteOverlay.protectionFeeCents
+      );
+      mergedPricing.demandFeeCents = fillLine(
+        mergedPricing.demandFeeCents,
+        quoteOverlay.demandFeeCents
+      );
+      mergedPricing.feeTotalCents = fillTotal(mergedPricing.feeTotalCents, quoteOverlay.feeTotalCents);
+      mergedPricing.platformFeeTotalCents = fillTotal(
+        mergedPricing.platformFeeTotalCents,
+        quoteOverlay.platformFeeTotalCents
+      );
+      mergedPricing.promoDiscountCents = fillLine(
+        mergedPricing.promoDiscountCents,
+        quoteOverlay.promoDiscountCents
+      );
+      mergedPricing.customerTotalCents = fillTotal(
+        mergedPricing.customerTotalCents,
+        quoteOverlay.customerTotalCents
+      );
+      mergedPricing.depositChargeCents = fillTotal(
+        mergedPricing.depositChargeCents,
+        quoteOverlay.depositChargeCents
+      );
+      mergedPricing.finalChargeCents = fillTotal(
+        mergedPricing.finalChargeCents,
+        quoteOverlay.finalChargeCents
+      );
+      mergedPricing.dynamicPricingReasons = mergeDynamicPricingReasonsCsv(
+        mergedPricing.dynamicPricingReasons.length > 0
+          ? mergedPricing.dynamicPricingReasons.join(',')
+          : null,
+        quoteOverlay.dynamicPricingReasons?.length
+          ? quoteOverlay.dynamicPricingReasons.join(',')
+          : null
+      );
+    }
+  }
 
   let serviceTitle = 'Service';
   let proName = 'Provider';
@@ -209,6 +374,13 @@ export async function getBookingReceipt(
     }
   }
 
+  const depFromRow = typeof b.amount_deposit === 'number' ? b.amount_deposit : null;
+  const remFromRow = typeof b.amount_remaining === 'number' ? b.amount_remaining : null;
+  const depFromDbAlt =
+    typeof b.deposit_amount_cents === 'number' ? b.deposit_amount_cents : null;
+  const remFromDbAlt =
+    typeof b.remaining_amount_cents === 'number' ? b.remaining_amount_cents : null;
+
   const input: UnifiedReceiptBookingInput = {
     bookingId: String(b.id),
     status: String(b.status ?? ''),
@@ -218,8 +390,8 @@ export async function getBookingReceipt(
     paidDepositAt: (b.paid_deposit_at as string) ?? null,
     paidRemainingAt: (b.paid_remaining_at as string) ?? null,
     fullyPaidAt: (b.fully_paid_at as string) ?? null,
-    amountDeposit: (b.amount_deposit as number) ?? null,
-    amountRemaining: (b.amount_remaining as number) ?? null,
+    amountDeposit: firstDefinedCents(depFromRow, depFromDbAlt, mergedPricing.depositChargeCents) ?? null,
+    amountRemaining: firstDefinedCents(remFromRow, remFromDbAlt, mergedPricing.finalChargeCents) ?? null,
     amountTotal: (b.amount_total as number) ?? null,
     totalAmountCents: (b.total_amount_cents as number) ?? null,
     price: (b.price as number) ?? null,

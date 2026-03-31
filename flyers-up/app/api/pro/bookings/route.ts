@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { recordServerErrorEvent } from '@/lib/serverError';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
+import { mapRescheduleRowToPending } from '@/lib/bookings/pending-reschedule';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -89,6 +90,25 @@ export async function GET(req: Request) {
     }
 
     const rows = (bookings as BookingRow[]) ?? [];
+    const bookingIds = rows.map((b) => b.id).filter(Boolean);
+    const pendingByBookingId = new Map<string, ReturnType<typeof mapRescheduleRowToPending>>();
+    if (bookingIds.length > 0) {
+      const { data: pendRows } = await admin
+        .from('reschedule_requests')
+        .select(
+          'id, booking_id, proposed_service_date, proposed_service_time, proposed_start_at, requested_by_role, message, expires_at'
+        )
+        .in('booking_id', bookingIds)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      for (const row of pendRows ?? []) {
+        const bid = (row as { booking_id?: string }).booking_id;
+        if (!bid || pendingByBookingId.has(bid)) continue;
+        const mapped = mapRescheduleRowToPending(row as Record<string, unknown>);
+        if (mapped) pendingByBookingId.set(bid, mapped);
+      }
+    }
+
     const customerIds = Array.from(
       new Set(rows.map((b) => normalizeUuidOrNull(b.customer_id)).filter((v): v is string => Boolean(v)))
     );
@@ -154,10 +174,22 @@ export async function GET(req: Request) {
           const cust = customerById.get(b.customer_id) ?? null;
           const subcatId = (b as { subcategory_id?: string | null }).subcategory_id;
           const serviceName = subcatId ? subcategoryById.get(subcatId) ?? defaultServiceName : defaultServiceName;
+          const pendingReschedule = pendingByBookingId.get(b.id) ?? null;
           return {
             ...b,
             customer: cust,
             serviceName,
+            pending_reschedule: pendingReschedule
+              ? {
+                  id: pendingReschedule.id,
+                  proposed_service_date: pendingReschedule.proposedServiceDate,
+                  proposed_service_time: pendingReschedule.proposedServiceTime,
+                  proposed_start_at: pendingReschedule.proposedStartAt,
+                  requested_by_role: pendingReschedule.requestedByRole,
+                  message: pendingReschedule.message,
+                  expires_at: pendingReschedule.expiresAt,
+                }
+              : null,
           };
         }),
       },

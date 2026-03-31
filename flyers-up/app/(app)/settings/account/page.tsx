@@ -24,6 +24,7 @@ export default function AccountSettingsPage() {
   const [avatarUrl, setAvatarUrl] = useState('');
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [accountUserId, setAccountUserId] = useState<string | null>(null);
 
   // Email change: inline form visibility + fields
   const [showEmailForm, setShowEmailForm] = useState(false);
@@ -46,6 +47,7 @@ export default function AccountSettingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      setAccountUserId(user.id);
       setEmail(user.email || '');
 
       const profile = await loadCustomerProfile(user.id);
@@ -293,6 +295,33 @@ export default function AccountSettingsPage() {
           {loading ? 'Saving...' : 'Save Changes'}
         </button>
       </form>
+
+      {/* Account ID (for your records / support) */}
+      {accountUserId ? (
+        <div className="rounded-2xl border border-black/5 bg-white shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-text mb-1">Account ID</h2>
+          <p className="text-sm text-black/60 mb-3">
+            This is your unique Flyers Up user ID. Pros see your name on bookings, not this ID. You can copy it here if
+            support asks you to confirm your account.
+          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <code className="flex-1 text-xs sm:text-sm font-mono break-all rounded-lg border border-black/10 bg-surface px-3 py-2 text-text">
+              {accountUserId}
+            </code>
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard.writeText(accountUserId);
+                setSuccess('Account ID copied.');
+                setError(null);
+              }}
+              className="shrink-0 px-4 py-2 rounded-xl border border-black/10 bg-surface hover:bg-surface2 text-sm font-medium text-text"
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Card 1: Email */}
       <div className="rounded-2xl border border-black/5 bg-white shadow-sm p-6">

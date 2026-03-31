@@ -177,6 +177,28 @@ describe('buildUnifiedBookingReceipt', () => {
     assert.strictEqual(r.paidDepositAt, null);
   });
 
+  it('derives service subtotal from customer total and fee total when subtotal omitted', () => {
+    const r = buildUnifiedBookingReceipt({
+      bookingId: BID,
+      status: 'payment_required',
+      paymentStatus: 'UNPAID',
+      finalPaymentStatus: 'UNPAID',
+      amountDeposit: 0,
+      amountRemaining: 0,
+      amountTotal: 0,
+      totalAmountCents: 0,
+      customerTotalCents: 3105,
+      feeTotalCents: 405,
+      platformFeeTotalCents: 405,
+      serviceTitle: 'Pet care',
+      proName: 'Alex',
+    });
+    assert.strictEqual(r.serviceSubtotalCents, 2700);
+    assert.strictEqual(r.customerTotalCents, 3105);
+    assert.strictEqual(r.feeTotalCents, 405);
+    assert.ok(r.serviceFeeCents > 0 || r.convenienceFeeCents > 0 || r.protectionFeeCents > 0);
+  });
+
   it('invalid currency normalizes to usd with warning', () => {
     const r = buildUnifiedBookingReceipt({
       bookingId: BID,

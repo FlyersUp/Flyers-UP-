@@ -112,6 +112,10 @@ export async function POST(
       revalidatePath('/pro/calendar');
       revalidatePath('/customer/calendar');
       revalidatePath('/pro/today');
+      revalidatePath('/pro/bookings');
+      revalidatePath(`/pro/bookings/${bid}`);
+      revalidatePath(`/pro/jobs/${bid}`);
+      revalidatePath(`/customer/bookings/${bid}`);
     } catch {
       // ignore
     }

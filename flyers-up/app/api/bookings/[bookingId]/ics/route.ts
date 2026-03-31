@@ -9,6 +9,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { generateIcs } from '@/lib/calendar/ics';
 import { bookingToCalendarEvent } from '@/lib/calendar/event-from-booking';
 import { isCalendarCommittedStatus } from '@/lib/calendar/committed-states';
+import { calendarWallTimesWithPending, mapRescheduleRowToPending } from '@/lib/bookings/pending-reschedule';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -56,10 +57,33 @@ export async function GET(
       return NextResponse.json({ error: 'Booking not available for calendar' }, { status: 400 });
     }
 
+    const { data: pendRow } = await admin
+      .from('reschedule_requests')
+      .select(
+        'id, proposed_service_date, proposed_service_time, proposed_start_at, requested_by_role, message, expires_at'
+      )
+      .eq('booking_id', bookingId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const pending = mapRescheduleRowToPending(pendRow as Record<string, unknown> | null);
+    const wall = calendarWallTimesWithPending(
+      String(booking.service_date),
+      String(booking.service_time),
+      pending
+    );
+
     const basePath = isPro ? 'pro' : 'customer';
     const event = bookingToCalendarEvent(
       {
         ...booking,
+        service_date: wall.serviceDate,
+        service_time: wall.serviceTime,
+        notes: pending
+          ? `${booking.notes ?? ''}\n(Requested reschedule — pending confirmation)`.trim()
+          : booking.notes,
         customer: null,
         pro: { displayName: null, serviceName: 'Service' },
       },

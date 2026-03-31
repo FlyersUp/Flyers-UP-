@@ -21,6 +21,12 @@ type BookingRow = {
   address: string | null;
   status: string;
   customer?: { fullName: string | null } | null;
+  pending_reschedule?: {
+    id: string;
+    proposed_service_date: string;
+    proposed_service_time: string;
+    requested_by_role: string;
+  } | null;
 };
 
 function ProBookingsContent() {
@@ -119,7 +125,18 @@ function ProBookingsContent() {
                             {b.customer?.fullName || 'Customer'}
                           </div>
                           <div className="text-sm text-black/60 mt-0.5">
-                            {b.service_date} at {b.service_time}
+                            <span className="block">
+                              {b.pending_reschedule ? (
+                                <span className="text-xs uppercase tracking-wide text-black/50">Current slot · </span>
+                              ) : null}
+                              {b.service_date} at {b.service_time}
+                            </span>
+                            {b.pending_reschedule ? (
+                              <span className="block mt-1 text-amber-900 font-medium">
+                                Requested: {b.pending_reschedule.proposed_service_date} at{' '}
+                                {b.pending_reschedule.proposed_service_time}
+                              </span>
+                            ) : null}
                           </div>
                           {b.address && (
                             <div className="text-xs text-black/60 mt-1 truncate max-w-[200px]">

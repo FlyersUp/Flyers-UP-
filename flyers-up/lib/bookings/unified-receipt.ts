@@ -202,7 +202,7 @@ export function buildUnifiedBookingReceipt(
     totalBookingCents = depositScheduled + remainingScheduled;
   }
 
-  const serviceSubtotalCents = Math.max(0, safeInt(input.serviceSubtotalCents));
+  let serviceSubtotalCents = Math.max(0, safeInt(input.serviceSubtotalCents));
   let serviceFeeCents = Math.max(0, safeInt(input.serviceFeeCents));
   let convenienceFeeCents = Math.max(0, safeInt(input.convenienceFeeCents));
   let protectionFeeCents = Math.max(0, safeInt(input.protectionFeeCents));
@@ -221,6 +221,16 @@ export function buildUnifiedBookingReceipt(
     platformFeeCents = Math.max(0, customerTotalCents - serviceSubtotalCents);
     if (feeTotalCents <= 0) feeTotalCents = platformFeeCents;
   }
+  if (
+    serviceSubtotalCents <= 0 &&
+    customerTotalCents > 0 &&
+    feeTotalCents > 0
+  ) {
+    serviceSubtotalCents = Math.max(
+      0,
+      customerTotalCents - feeTotalCents + promoDiscountCents
+    );
+  }
   if (serviceSubtotalCents > 0 && serviceFeeCents <= 0 && feeTotalCents > 0) {
     const derivedService = Math.round(serviceSubtotalCents * DEFAULT_SERVICE_FEE_PERCENT);
     const fixedDefaults = DEFAULT_CONVENIENCE_FEE_CENTS + DEFAULT_PROTECTION_FEE_CENTS;
@@ -237,14 +247,24 @@ export function buildUnifiedBookingReceipt(
   if (totalBookingCents <= 0 && customerTotalCents > 0) {
     totalBookingCents = customerTotalCents;
   }
+  if (customerTotalCents > 0) {
+    totalBookingCents = Math.max(totalBookingCents, customerTotalCents);
+  }
 
   const depositScheduledEffective = Math.max(0, safeInt(input.depositChargeCents)) || depositScheduled;
   const remainingScheduledEffective = Math.max(0, safeInt(input.finalChargeCents)) || remainingScheduled;
-  if (totalBookingCents <= 0 && priceCents > 0) {
-    totalBookingCents = priceCents;
-  }
   if (totalBookingCents <= 0 && isSplitPayment) {
     totalBookingCents = depositScheduled + remainingScheduled;
+  }
+
+  if (
+    customerTotalCents <= 0 &&
+    totalBookingCents <= 0 &&
+    priceCents > 0
+  ) {
+    warnings.push(
+      'legacy_booking_has_price_field_but_no_customer_total_do_not_treat_price_as_customer_total'
+    );
   }
 
   const payStatus = (input.paymentStatus ?? 'UNPAID').toUpperCase();

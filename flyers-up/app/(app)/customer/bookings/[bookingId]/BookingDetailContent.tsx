@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useHydrated } from '@/hooks/useHydrated';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { TrackBookingRealtime, type TrackBookingData } from '@/components/bookings/TrackBookingRealtime';
 import { deriveTimelineDisplayStatus, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 import { TrackBookingStatusHeader } from '@/components/bookings/customer/TrackBookingStatusHeader';
@@ -25,6 +25,8 @@ import { isCalendarCommittedStatus } from '@/lib/calendar/committed-states';
 import { InstantRebookCard } from '@/components/marketplace/InstantRebookCard';
 import { JobCompletedFlyer } from '@/components/marketplace/JobCompletedFlyer';
 import { bottomChrome } from '@/lib/layout/bottomChrome';
+import { ProPendingReschedulePanel } from '@/components/bookings/ProPendingReschedulePanel';
+import { calendarWallTimesWithPending, pendingRescheduleLine } from '@/lib/bookings/pending-reschedule';
 
 export interface BookingDetailData {
   id: string;
@@ -45,6 +47,8 @@ export interface BookingDetailData {
   amountDeposit?: number | null;
   amountRemaining?: number | null;
   amountTotal?: number | null;
+  /** Pro service subtotal in cents when stored on the booking */
+  amountSubtotalCents?: number | null;
   price?: number;
   createdAt: string;
   acceptedAt?: string | null;
@@ -60,6 +64,7 @@ export interface BookingDetailData {
   proPhotoUrl?: string | null;
   serviceDate?: string;
   serviceTime?: string;
+  bookingTimezone?: string | null;
   address?: string;
   notes?: string;
   arrival?: {
@@ -76,6 +81,7 @@ export interface BookingDetailData {
   noShowEligibleAt?: string | null;
   scheduledStartAt?: string | null;
   gracePeriodMinutes?: number;
+  pendingReschedule?: import('@/lib/bookings/pending-reschedule').PendingRescheduleInfo | null;
 }
 
 function toTrackBookingData(b: BookingDetailData): TrackBookingData {
@@ -111,7 +117,9 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     proName: b.proName,
     serviceDate: b.serviceDate,
     serviceTime: b.serviceTime,
+    bookingTimezone: b.bookingTimezone ?? null,
     address: b.address,
+    pendingReschedule: b.pendingReschedule ?? null,
   };
 }
 
@@ -197,6 +205,8 @@ export function BookingDetailContent({
   bookingId: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const rescheduleViewerRole: 'pro' | 'customer' = pathname?.includes('/pro/') ? 'pro' : 'customer';
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -277,6 +287,16 @@ export function BookingDetailContent({
 
             {/* 2. Booking summary card */}
             <section className="mb-5">
+              {fullBooking.pendingReschedule && (
+                <div className="mb-3">
+                  <ProPendingReschedulePanel
+                    bookingId={bookingId}
+                    pending={fullBooking.pendingReschedule}
+                    viewerRole={rescheduleViewerRole}
+                    onResolved={() => router.refresh()}
+                  />
+                </div>
+              )}
               {booking.serviceDate &&
                 booking.serviceTime &&
                 isCalendarCommittedStatus(booking.status) && (
@@ -284,10 +304,14 @@ export function BookingDetailContent({
                     <AddToCalendarButton
                       bookingId={bookingId}
                       booking={{
-                        serviceDate: booking.serviceDate,
-                        serviceTime: booking.serviceTime,
-                        serviceTitle: booking.serviceName || 'Service',
+                        ...calendarWallTimesWithPending(
+                          booking.serviceDate,
+                          booking.serviceTime,
+                          fullBooking.pendingReschedule ?? null
+                        ),
+                        serviceTitle: (booking.serviceName || 'Service') + (fullBooking.pendingReschedule ? ' (requested time)' : ''),
                         address: fullBooking.address,
+                        bookingTimezone: fullBooking.bookingTimezone ?? undefined,
                       }}
                     />
                   </div>
@@ -299,6 +323,11 @@ export function BookingDetailContent({
                 categoryName={(fullBooking as { categoryName?: string }).categoryName}
                 serviceDate={booking.serviceDate}
                 serviceTime={booking.serviceTime}
+                pendingRescheduleSummary={
+                  fullBooking.pendingReschedule
+                    ? pendingRescheduleLine(fullBooking.pendingReschedule)
+                    : null
+                }
                 address={fullBooking.address}
                 scopeSummary={fullBooking.notes}
               />
@@ -339,6 +368,7 @@ export function BookingDetailContent({
                 amountDeposit={booking.amountDeposit}
                 amountRemaining={booking.amountRemaining}
                 amountTotal={booking.amountTotal}
+                serviceSubtotalCents={fullBooking.amountSubtotalCents ?? null}
                 paidAt={booking.paidAt}
                 paidDepositAt={booking.paidDepositAt}
                 paidRemainingAt={booking.paidRemainingAt}

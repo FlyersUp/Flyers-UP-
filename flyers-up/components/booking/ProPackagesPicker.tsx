@@ -88,7 +88,10 @@ export function ProPackagesPicker({
           </button>
         )}
       </div>
-      <p className="text-xs text-muted/80">Optional — select a package to prefill scope and suggested price for your request.</p>
+      <p className="text-xs text-muted/80">
+        Optional — pick one package to set scope and price. When a package is selected, you do not choose a separate
+        service type; the package is enough.
+      </p>
       <ul className="space-y-3">
         {packages.map((pkg) => {
           const selected = selectedPackageId === pkg.id;

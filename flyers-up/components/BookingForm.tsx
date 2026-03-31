@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser, getActiveAddonsForPro, type ServicePro, type ServiceAddon } from '@/lib/api';
 import { createBookingWithPayment } from '@/app/actions/bookings';
@@ -149,7 +150,7 @@ export default function BookingForm({
         setIsSubmitting(false);
         return;
       }
-      if (subcategories.length > 0 && !formData.subcategoryId) {
+      if (subcategories.length > 0 && !selectedPackageId && !formData.subcategoryId) {
         setError('Please select a service type');
         setIsSubmitting(false);
         return;
@@ -162,7 +163,7 @@ export default function BookingForm({
         formData.address,
         formData.notes,
         Array.from(selectedAddonIds),
-        formData.subcategoryId || null,
+        selectedPackageId ? null : formData.subcategoryId || null,
         previousBookingId || null,
         selectedPackageId
       );
@@ -192,7 +193,7 @@ export default function BookingForm({
       setError('Please fill in all required fields');
       return;
     }
-    if (subcategories.length > 0 && !formData.subcategoryId) {
+    if (subcategories.length > 0 && !selectedPackageId && !formData.subcategoryId) {
       setError('Please select a service type');
       return;
     }
@@ -225,16 +226,30 @@ export default function BookingForm({
         </div>
       )}
 
-      <div className="rounded-xl border border-border bg-surface p-4">
+      <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
         <ProPackagesPicker
           proId={pro.id}
           selectedPackageId={selectedPackageId}
           onSelectPackageId={setSelectedPackageId}
         />
+        {selectedPackageId ? (
+          <p className="text-xs text-muted/90 rounded-lg bg-surface2/60 border border-border/60 px-3 py-2">
+            Service type is hidden because this package defines what you&apos;re booking. Clear the package if you prefer
+            to choose a specific service type instead.
+          </p>
+        ) : null}
+        {selectedPackageId ? (
+          <Link
+            href={`/customer/recurring/new?proId=${encodeURIComponent(pro.id)}&packageId=${encodeURIComponent(selectedPackageId)}`}
+            className="inline-block text-sm font-medium text-[hsl(var(--accent-customer))] hover:underline"
+          >
+            Request a recurring schedule with this package
+          </Link>
+        ) : null}
       </div>
 
-      {/* Subcategory field - required when pro offers subcategories (all 5 main services) */}
-      {subcategories.length > 0 && (
+      {/* Subcategory / service type — not needed when a package defines scope */}
+      {subcategories.length > 0 && !selectedPackageId && (
         <div>
           <label className="block text-sm font-medium text-text mb-1">
             Service type *

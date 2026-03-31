@@ -12,6 +12,10 @@ export type EligibilityInput = {
   atRecurringCustomerCapacity: boolean;
   /** True if this customer already has an approved series with the pro (does not consume extra slot). */
   customerAlreadyApprovedWithPro: boolean;
+  /** When requesting recurring with a package that has a per-package cap. */
+  atPackageRecurringCustomerCapacity?: boolean;
+  /** Customer already has an approved series for this same package (does not consume another package slot). */
+  customerAlreadyApprovedForThisPackage?: boolean;
 };
 
 export type EligibilityResult = {
@@ -47,12 +51,19 @@ export function evaluateRecurringEligibility(input: EligibilityInput): Eligibili
     reasonsBlocked.push('recurring_customer_capacity_full');
   }
 
+  const packageCapacityBlocks =
+    input.atPackageRecurringCustomerCapacity === true && !input.customerAlreadyApprovedForThisPackage;
+  if (packageCapacityBlocks) {
+    reasonsBlocked.push('package_recurring_capacity_full');
+  }
+
   const recurringRequestAllowed =
     !input.signals.proBlockedRecurring &&
     input.proRecurringEnabled &&
     input.occupationEnabledForRecurring &&
     (!input.onlyPreferredClientsCanRequest || input.signals.proMarkedPreferred) &&
-    !capacityBlocks;
+    !capacityBlocks &&
+    !packageCapacityBlocks;
 
   const autoApprovalAllowed =
     recurringRequestAllowed &&

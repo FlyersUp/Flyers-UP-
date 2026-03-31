@@ -8,6 +8,7 @@
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { CustomerBookingPageClient } from './CustomerBookingPageClient';
+import { mapRescheduleRowToPending } from '@/lib/bookings/pending-reschedule';
 
 async function getCustomerBooking(bookingId: string) {
   const id = normalizeUuidOrNull(bookingId);
@@ -34,7 +35,7 @@ async function getCustomerBooking(bookingId: string) {
   let bookingQuery = admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_deposit, amount_remaining, amount_total, service_date, service_time, address, notes, status, price, created_at, accepted_at, en_route_at, on_the_way_at, arrived_at, started_at, completed_at, cancelled_at, status_history, job_request_id, scope_confirmed_at, no_show_eligible_at, scheduled_start_at, grace_period_minutes'
+      'id, customer_id, pro_id, payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_subtotal, amount_deposit, amount_remaining, amount_total, service_date, service_time, booking_timezone, address, notes, status, price, created_at, accepted_at, en_route_at, on_the_way_at, arrived_at, started_at, completed_at, cancelled_at, status_history, job_request_id, scope_confirmed_at, no_show_eligible_at, scheduled_start_at, grace_period_minutes'
     )
     .eq('id', id);
 
@@ -57,6 +58,17 @@ async function getCustomerBooking(bookingId: string) {
     return null;
   }
   if (!booking) return null;
+
+  const { data: pendRow } = await admin
+    .from('reschedule_requests')
+    .select(
+      'id, proposed_service_date, proposed_service_time, proposed_start_at, requested_by_role, message, expires_at'
+    )
+    .eq('booking_id', id)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   const { data: arrival } = await admin
     .from('job_arrivals')
@@ -129,6 +141,7 @@ async function getCustomerBooking(bookingId: string) {
     proId: booking.pro_id,
     serviceDate: booking.service_date,
     serviceTime: booking.service_time,
+    bookingTimezone: (booking as { booking_timezone?: string | null }).booking_timezone ?? null,
     address: booking.address ?? undefined,
     notes: booking.notes ?? undefined,
     status: booking.status,
@@ -148,6 +161,7 @@ async function getCustomerBooking(bookingId: string) {
     amountDeposit: b.amount_deposit ?? null,
     amountRemaining: b.amount_remaining ?? null,
     amountTotal: b.total_amount_cents ?? b.amount_total ?? null,
+    amountSubtotalCents: (booking as { amount_subtotal?: number | null }).amount_subtotal ?? null,
     price: booking.price ?? undefined,
     createdAt: booking.created_at,
     acceptedAt: booking.accepted_at ?? null,
@@ -181,6 +195,7 @@ async function getCustomerBooking(bookingId: string) {
     noShowEligibleAt: (booking as { no_show_eligible_at?: string | null }).no_show_eligible_at ?? null,
     scheduledStartAt: (booking as { scheduled_start_at?: string | null }).scheduled_start_at ?? null,
     gracePeriodMinutes: (booking as { grace_period_minutes?: number | null }).grace_period_minutes ?? 60,
+    pendingReschedule: mapRescheduleRowToPending(pendRow as Record<string, unknown> | null),
   };
 }
 

@@ -14,7 +14,7 @@ import {
   updateProPayoutPreferences,
   type ProPayoutPreferences,
 } from '@/lib/api';
-import PaymentSettingsPage from '@/app/(app)/settings/payments/page';
+import { ProStripeConnectPayoutsSection } from '@/components/pro/ProStripeConnectPayoutsSection';
 import { ProAccessNotice } from '@/components/ui/ProAccessNotice';
 
 export default function ProPaymentsPayoutsSettingsPage() {
@@ -76,7 +76,7 @@ export default function ProPaymentsPayoutsSettingsPage() {
             ← Back to Settings
           </Link>
           <div className="mt-3">
-            <PlacardHeader title="Payments & Payouts" subtitle="Payout schedule, tax, and what you see in earnings." tone="primary" />
+            <PlacardHeader title="Payments & Payouts" subtitle="Payout schedule, Stripe Connect, and what you see in earnings." tone="primary" />
           </div>
           <div className="mt-3">
             <TrustRow />
@@ -144,9 +144,13 @@ export default function ProPaymentsPayoutsSettingsPage() {
         </Card>
 
         <Card withRail>
-          <Label>PAYOUT METHOD + TAX</Label>
+          <Label>STRIPE PAYOUTS</Label>
           <div className="mt-4">
-            <PaymentSettingsPage />
+            {!userId && !loading ? (
+              <p className="text-sm text-muted">Sign in as a pro to set up Stripe payouts.</p>
+            ) : userId ? (
+              <ProStripeConnectPayoutsSection variant="embedded" returnPath="/pro/settings/payments-payouts" />
+            ) : null}
           </div>
         </Card>
 

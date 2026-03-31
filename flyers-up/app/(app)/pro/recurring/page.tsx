@@ -127,11 +127,17 @@ export default function ProRecurringDashboardPage() {
         </div>
 
         {spots && (
-          <div className="rounded-xl border border-border bg-[hsl(var(--card-neutral))] px-4 py-3 text-sm">
-            <span className="font-medium text-text">Recurring spots left:</span>{' '}
-            <span className="text-muted">
-              {spots.left} of {spots.max} ({spots.used} repeat clients)
-            </span>
+          <div className="rounded-xl border border-border bg-[hsl(var(--card-neutral))] px-4 py-3 text-sm space-y-1">
+            <div>
+              <span className="font-medium text-text">Account recurring spots:</span>{' '}
+              <span className="text-muted">
+                {spots.left} left of {spots.max} max ({spots.used} repeat clients)
+              </span>
+            </div>
+            <p className="text-xs text-muted">
+              Set the account max under Recurring settings. For tighter limits per offer, set “Recurring client cap” on
+              each package in Packages — customers who request recurring with that package count against that cap.
+            </p>
           </div>
         )}
 
@@ -157,7 +163,7 @@ export default function ProRecurringDashboardPage() {
                             <>
                               <button
                                 type="button"
-                                className="text-xs rounded-full bg-emerald-600 text-white px-3 py-1"
+                                className="text-xs rounded-full bg-[#AAA06D] text-[#F8F4EE] px-3 py-1 hover:brightness-95"
                                 onClick={() =>
                                   fetch(`/api/recurring/series/${r.id}/approve`, {
                                     method: 'POST',
@@ -278,7 +284,7 @@ export default function ProRecurringDashboardPage() {
                           </label>
                           <button
                             type="button"
-                            className="rounded-full bg-text text-white px-3 py-1.5 text-xs font-medium"
+                            className="rounded-full bg-[#E48C35] text-white px-3 py-1.5 text-xs font-medium shadow-sm hover:brightness-105"
                             onClick={() => void submitCounter(r.id)}
                           >
                             Send counter

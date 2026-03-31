@@ -224,6 +224,19 @@ export function TrackBookingPaymentSummary({
 
   const receipt = apiReceipt ?? clientReceipt;
 
+  /** When we have a quoted customer total (or API receipt), show full breakdown including $0.00 lines. */
+  const showFullFeeBreakdown =
+    Boolean(apiReceipt) ||
+    receipt.customerTotalCents > 0 ||
+    receipt.totalBookingCents > 0 ||
+    receipt.serviceSubtotalCents > 0 ||
+    receipt.feeTotalCents > 0;
+
+  const lineMoney = (cents: number) => {
+    if (!showFullFeeBreakdown) return cents > 0 ? formatCents(cents) : '—';
+    return formatCents(cents);
+  };
+
   if (isExpired) {
     return (
       <section
@@ -272,28 +285,28 @@ export function TrackBookingPaymentSummary({
         <div className="flex justify-between gap-4">
           <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Service subtotal</span>
           <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
-            {receipt.serviceSubtotalCents > 0 ? formatCents(receipt.serviceSubtotalCents) : '—'}
+            {lineMoney(receipt.serviceSubtotalCents)}
           </span>
         </div>
 
         <div className="flex justify-between gap-4">
           <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Service fee</span>
           <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
-            {receipt.serviceFeeCents > 0 ? formatCents(receipt.serviceFeeCents) : '—'}
+            {lineMoney(receipt.serviceFeeCents)}
           </span>
         </div>
 
         <div className="flex justify-between gap-4">
           <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Convenience fee</span>
           <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
-            {receipt.convenienceFeeCents > 0 ? formatCents(receipt.convenienceFeeCents) : '—'}
+            {lineMoney(receipt.convenienceFeeCents)}
           </span>
         </div>
 
         <div className="flex justify-between gap-4">
           <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Protection & guarantee</span>
           <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
-            {receipt.protectionFeeCents > 0 ? formatCents(receipt.protectionFeeCents) : '—'}
+            {lineMoney(receipt.protectionFeeCents)}
           </span>
         </div>
 
@@ -309,11 +322,15 @@ export function TrackBookingPaymentSummary({
         <div className="flex justify-between gap-4">
           <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Fee total</span>
           <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
-            {receipt.feeTotalCents > 0
-              ? formatCents(receipt.feeTotalCents)
-              : receipt.platformFeeCents > 0
-                ? formatCents(receipt.platformFeeCents)
-                : '—'}
+            {showFullFeeBreakdown
+              ? lineMoney(
+                  receipt.feeTotalCents > 0 ? receipt.feeTotalCents : receipt.platformFeeCents
+                )
+              : receipt.feeTotalCents > 0
+                ? formatCents(receipt.feeTotalCents)
+                : receipt.platformFeeCents > 0
+                  ? formatCents(receipt.platformFeeCents)
+                  : '—'}
           </span>
         </div>
 
@@ -342,7 +359,11 @@ export function TrackBookingPaymentSummary({
         <div className="flex justify-between gap-4">
           <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Customer total</span>
           <span className="font-semibold text-[#111111] dark:text-[#F5F7FA] tabular-nums">
-            {receipt.customerTotalCents > 0 ? formatCents(receipt.customerTotalCents) : '—'}
+            {showFullFeeBreakdown
+              ? formatCents(receipt.customerTotalCents)
+              : receipt.customerTotalCents > 0
+                ? formatCents(receipt.customerTotalCents)
+                : '—'}
           </span>
         </div>
 

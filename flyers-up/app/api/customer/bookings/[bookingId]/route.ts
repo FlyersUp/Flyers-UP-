@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
+import { mapRescheduleRowToPending } from '@/lib/bookings/pending-reschedule';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -56,7 +57,7 @@ export async function GET(
       'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at, accepted_at, on_the_way_at, started_at, completed_at, cancelled_at, status_history';
     // Extended columns (migrations 031+) - may not exist if migrations not applied
     const EXTENDED_COLUMNS =
-      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_deposit, amount_remaining, amount_total, en_route_at, arrived_at, job_request_id, scope_confirmed_at, job_details_snapshot, photos_snapshot, no_show_eligible_at, scheduled_start_at, grace_period_minutes';
+      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_subtotal, amount_deposit, amount_remaining, amount_total, booking_timezone, en_route_at, arrived_at, job_request_id, scope_confirmed_at, job_details_snapshot, photos_snapshot, no_show_eligible_at, scheduled_start_at, grace_period_minutes';
 
     let proIdForQuery: string | null = null;
     if (role === 'pro') {
@@ -135,6 +136,17 @@ export async function GET(
       .from('job_completions')
       .select('id, after_photo_urls, completion_note, completed_at')
       .eq('booking_id', id)
+      .maybeSingle();
+
+    const { data: pendRow } = await admin
+      .from('reschedule_requests')
+      .select(
+        'id, proposed_service_date, proposed_service_time, proposed_start_at, requested_by_role, message, expires_at'
+      )
+      .eq('booking_id', id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     // Fetch pro info separately (same pattern as list API)
@@ -217,6 +229,8 @@ export async function GET(
           amountDeposit: b.amount_deposit ?? null,
           amountRemaining: b.amount_remaining ?? null,
           amountTotal: b.total_amount_cents ?? b.amount_total ?? null,
+          amountSubtotalCents: (booking as { amount_subtotal?: number | null }).amount_subtotal ?? null,
+          pendingReschedule: mapRescheduleRowToPending(pendRow as Record<string, unknown> | null),
           price: booking.price,
           createdAt: booking.created_at,
           acceptedAt: booking.accepted_at,

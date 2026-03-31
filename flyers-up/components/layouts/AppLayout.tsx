@@ -39,7 +39,7 @@ function LayoutContent({
     <div
       data-role={mode}
       data-accent={accentDensity}
-      className="min-h-dvh min-h-[100svh] w-full max-w-full overflow-x-clip bg-bg text-text flex pb-[calc(7rem+env(safe-area-inset-bottom,0px))]"
+      className="min-h-dvh min-h-[100svh] w-full max-w-full overflow-x-clip bg-bg text-text flex"
     >
       {showRailForMode && <Rail className="self-stretch min-h-dvh shrink-0" showLabel />}
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top_right,rgba(156,167,100,0.08),transparent_42%),radial-gradient(circle_at_bottom_left,rgba(229,156,92,0.07),transparent_46%)]">
@@ -49,9 +49,10 @@ function LayoutContent({
         >
           <NotificationBell basePath={basePath} />
         </div>
-        <div className="relative z-[1] min-h-0 min-w-0 flex-1">{children}</div>
+        {/* pb-fu-nav: reserve space for fixed FloatingBottomNav + safe area (see globals --fu-*) */}
+        <div className="relative z-[1] flex min-h-0 min-w-0 flex-1 flex-col pb-fu-nav">{children}</div>
+        <FloatingBottomNav />
       </div>
-      <FloatingBottomNav />
     </div>
   );
 }

@@ -26,6 +26,7 @@ function emptyForm() {
     priceDollars: '',
     durationMinutes: '',
     deliverables: ['', '', '', '', ''] as string[],
+    maxRecurringSlots: '',
     isActive: true,
   };
 }
@@ -81,6 +82,8 @@ export default function ProPackagesPage() {
       priceDollars: (pkg.base_price_cents / 100).toFixed(2),
       durationMinutes: pkg.estimated_duration_minutes != null ? String(pkg.estimated_duration_minutes) : '',
       deliverables: d.slice(0, DELIVERABLE_SLOTS),
+      maxRecurringSlots:
+        pkg.max_recurring_customer_slots != null ? String(pkg.max_recurring_customer_slots) : '',
       isActive: pkg.is_active,
     });
     setError(null);
@@ -114,12 +117,23 @@ export default function ProPackagesPage() {
       }
       estimated_duration_minutes = n;
     }
+    const capRaw = form.maxRecurringSlots.trim();
+    let max_recurring_customer_slots: number | null = null;
+    if (capRaw) {
+      const n = Number.parseInt(capRaw, 10);
+      if (!Number.isFinite(n) || n < 0 || n > 100) {
+        setError('Recurring client cap must be 0–100, or leave blank for no package cap.');
+        return null;
+      }
+      max_recurring_customer_slots = n;
+    }
     return {
       title: form.title,
       short_description: form.shortDescription.trim() || null,
       base_price_cents: cents,
       estimated_duration_minutes,
       deliverables,
+      max_recurring_customer_slots,
       is_active: form.isActive,
     };
   };
@@ -290,6 +304,19 @@ export default function ProPackagesPage() {
                 </div>
               </div>
               <div>
+                <label className="block text-sm font-medium text-text mb-1">Recurring client cap (optional)</label>
+                <Input
+                  inputMode="numeric"
+                  value={form.maxRecurringSlots}
+                  onChange={(e) => setForm((f) => ({ ...f, maxRecurringSlots: e.target.value }))}
+                  placeholder="Blank = no limit beyond account max"
+                />
+                <p className="text-xs text-text2 mt-1">
+                  Max distinct customers who can have an approved recurring plan tied to this package. Leave blank to use
+                  only your account-wide recurring spots.
+                </p>
+              </div>
+              <div>
                 <p className="text-sm font-medium text-text mb-2">What&apos;s included * (1–5 items)</p>
                 <div className="space-y-2">
                   {form.deliverables.map((line, i) => (
@@ -373,6 +400,11 @@ export default function ProPackagesPage() {
                             <li key={i}>{d}</li>
                           ))}
                         </ul>
+                      )}
+                      {pkg.max_recurring_customer_slots != null && (
+                        <p className="mt-2 text-xs text-text2">
+                          Recurring client cap: {pkg.max_recurring_customer_slots} for this package
+                        </p>
                       )}
                     </div>
                     <div className="flex flex-col gap-2 sm:items-end">

@@ -105,6 +105,41 @@ describe('recurring eligibility', () => {
     });
     assert.equal(same.recurringRequestAllowed, true);
   });
+
+  it('blocks new customer when package recurring cap is full', () => {
+    const blocked = evaluateRecurringEligibility({
+      signals: { customerFavoritedPro: true, proMarkedPreferred: true, proBlockedRecurring: false },
+      proRecurringEnabled: true,
+      occupationEnabledForRecurring: true,
+      onlyPreferredClientsCanRequest: false,
+      allowAutoApprovalForMutualPreference: false,
+      requireMutualPreferenceForAutoApproval: true,
+      slotFitsRecurringWindows: true,
+      hasScheduleConflicts: false,
+      atRecurringCustomerCapacity: false,
+      customerAlreadyApprovedWithPro: false,
+      atPackageRecurringCustomerCapacity: true,
+      customerAlreadyApprovedForThisPackage: false,
+    });
+    assert.equal(blocked.recurringRequestAllowed, false);
+    assert.ok(blocked.reasonsBlocked.includes('package_recurring_capacity_full'));
+
+    const samePkg = evaluateRecurringEligibility({
+      signals: { customerFavoritedPro: true, proMarkedPreferred: true, proBlockedRecurring: false },
+      proRecurringEnabled: true,
+      occupationEnabledForRecurring: true,
+      onlyPreferredClientsCanRequest: false,
+      allowAutoApprovalForMutualPreference: false,
+      requireMutualPreferenceForAutoApproval: true,
+      slotFitsRecurringWindows: true,
+      hasScheduleConflicts: false,
+      atRecurringCustomerCapacity: false,
+      customerAlreadyApprovedWithPro: false,
+      atPackageRecurringCustomerCapacity: true,
+      customerAlreadyApprovedForThisPackage: true,
+    });
+    assert.equal(samePkg.recurringRequestAllowed, true);
+  });
 });
 
 describe('occurrence generator', () => {

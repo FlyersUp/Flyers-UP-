@@ -108,9 +108,7 @@ function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel, mode }
       />
       {isActive ? (
         <span className="whitespace-nowrap font-medium text-xs sm:text-sm">{label}</span>
-      ) : (
-        <span className="sr-only">{label}</span>
-      )}
+      ) : null}
     </Link>
   );
 }

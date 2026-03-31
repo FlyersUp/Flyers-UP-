@@ -29,8 +29,8 @@
   /* Borders – cool gray */
   --border: 50 6% 84%;
   --border-2: 50 5% 76%;
-  --ring: rgba(156, 167, 100, 0.45);
-  --ring-green: rgba(156, 167, 100, 0.48);
+  --ring: rgba(170, 160, 109, 0.45);
+  --ring-green: rgba(170, 160, 109, 0.48);
   --ring-orange: rgba(229, 156, 92, 0.45);
 
   /* Shadows – neutral gray */
@@ -63,7 +63,7 @@
   --card-border: 1px solid rgba(0, 0, 0, 0.08);
 
   /* Role accents (hex for color-mix) */
-  --customer-accent: #9CA764;
+  --customer-accent: #AAA06D;
   --pro-accent: #E59C5C;
   --surface-hex: #F6F5F3;
   --customer-border: color-mix(in srgb, var(--customer-accent) 65%, #000 35%);
@@ -92,17 +92,17 @@
   --role-accent: var(--customer-accent);
   --role-border: var(--customer-border);
   --role-tint: var(--customer-tint);
-  --role-accent-hsl: 75 23% 52%;
-  --accent: 75 23% 52%;
+  --role-accent-hsl: 51 26% 55%;
+  --accent: 51 26% 55%;
   --accent-contrast: 54 16% 14%;
-  --accent-customer: 75 23% 52%;
+  --accent-customer: 51 26% 55%;
   --accent-pro: 30 72% 63%;
   --text-muted: 48 9% 40%;
   --success: 84 28% 63%;
   --warning: 30 68% 64%;
   --info: 45 36% 66%;
   --danger: 9 48% 57%;
-  --selected-green: 75 23% 52% / 0.18;
+  --selected-green: 51 26% 55% / 0.18;
   --selected-orange: 30 72% 63% / 0.18;
 
   /* Nav + surfaces */
@@ -123,8 +123,8 @@
   --rail-width: 4px;
   --stripe-width: 1px;
 
-  /* Fixed bottom chrome — FloatingBottomNav (h-11 + bottom margin) + optional sticky CTAs */
-  --fu-bottom-nav-inner: 2.75rem;
+  /* Fixed bottom chrome — FloatingBottomNav (h-11 xs, sm:h-14 + bottom margin) + optional sticky CTAs */
+  --fu-bottom-nav-inner: 3.5rem;
   --fu-bottom-nav-margin: max(0.75rem, env(safe-area-inset-bottom, 0px));
   --fu-bottom-nav-chrome: calc(var(--fu-bottom-nav-inner) + var(--fu-bottom-nav-margin));
   /* Sticky booking/pay bar: py-3 + primary control row + border */
@@ -142,9 +142,9 @@
   --role-accent: var(--customer-accent);
   --role-border: var(--customer-border);
   --role-tint: var(--customer-tint);
-  --role-accent-hsl: 75 23% 52%;
-  --accent: 75 23% 52%;
-  --accent-customer: 75 23% 52%;
+  --role-accent-hsl: 51 26% 55%;
+  --accent: 51 26% 55%;
+  --accent-customer: 51 26% 55%;
 }
 [data-role="pro"] {
   --role-accent: var(--pro-accent);
@@ -173,11 +173,11 @@
 
 /* .theme-customer / .theme-pro on root (ThemeContext) – fallback when data-role not on layout */
 .theme-customer {
-  --accent: 75 23% 52%;
+  --accent: 51 26% 55%;
   --accent-contrast: 54 16% 14%;
   --ring: var(--accent);
   --role-accent-hsl: var(--accent);
-  --switch-accent: 75 23% 52%;
+  --switch-accent: 51 26% 55%;
   --page-pad-y: 24px;
   --stack-gap: 18px;
   --card-pad: 20px;
@@ -212,8 +212,8 @@
   /* Borders */
   --border: 34 16% 28%;
   --border-2: 34 14% 36%;
-  --ring: rgba(156, 167, 100, 0.4);
-  --ring-green: rgba(156, 167, 100, 0.45);
+  --ring: rgba(170, 160, 109, 0.4);
+  --ring-green: rgba(170, 160, 109, 0.45);
   --ring-orange: rgba(229, 156, 92, 0.42);
 
   /* Shadows */
@@ -230,7 +230,7 @@
   --warning: 30 68% 62%;
   --info: 45 30% 58%;
   --danger: 9 50% 60%;
-  --customer-accent: #9CA764;
+  --customer-accent: #AAA06D;
   --pro-accent: #E59C5C;
 
   /* Role accents: dark-safe borders/tints */
@@ -270,19 +270,19 @@
   --panel-pad-y: 20px;
   --badge-bg: rgba(243, 234, 212, 0.08);
   --badge-border: rgba(243, 234, 212, 0.14);
-  --accent-customer: 75 23% 52%;
+  --accent-customer: 51 26% 55%;
   --accent-pro: 30 72% 63%;
   --role-tint: hsl(var(--role-accent-hsl) / 0.12);
   --role-border: hsl(var(--role-accent-hsl) / 0.35);
-  --selected-green: 75 23% 52% / 0.2;
+  --selected-green: 51 26% 55% / 0.2;
   --selected-orange: 30 72% 63% / 0.2;
 }
 
 /* Role-based accents (dark) */
 .dark.theme-customer {
-  --accent: 75 23% 52%;
+  --accent: 51 26% 55%;
   --role-accent-hsl: var(--accent);
-  --switch-accent: 75 23% 52%;
+  --switch-accent: 51 26% 55%;
   --page-pad-y: 24px;
   --stack-gap: 18px;
   --card-pad: 20px;
@@ -315,7 +315,7 @@
   /* Borders */
   --border: 50 6% 84%;
   --border-2: 50 5% 76%;
-  --ring: rgba(156, 167, 100, 0.45);
+  --ring: rgba(170, 160, 109, 0.45);
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 10px 24px rgba(0, 0, 0, 0.07);
@@ -325,7 +325,7 @@
   --shadow-card-hover: 0 1px 0 rgba(0, 0, 0, 0.06), 0 8px 18px rgba(0, 0, 0, 0.07);
   /* Hex for color-mix */
   --surface-hex: #F6F5F3;
-  --customer-accent: #9CA764;
+  --customer-accent: #AAA06D;
   --pro-accent: #fbbb62;
   --customer-border: color-mix(in srgb, var(--customer-accent) 65%, #000 35%);
   --pro-border: color-mix(in srgb, var(--pro-accent) 65%, #000 35%);
@@ -349,10 +349,10 @@
   --role-accent: var(--customer-accent);
   --role-border: var(--customer-border);
   --role-tint: var(--customer-tint);
-  --role-accent-hsl: 75 23% 52%;
-  --accent: 75 23% 52%;
+  --role-accent-hsl: 51 26% 55%;
+  --accent: 51 26% 55%;
   --accent-contrast: 54 16% 14%;
-  --accent-customer: 75 23% 52%;
+  --accent-customer: 51 26% 55%;
   --accent-pro: 39 95% 68%;
   --text-muted: 48 9% 40%;
   --ring: var(--role-accent);

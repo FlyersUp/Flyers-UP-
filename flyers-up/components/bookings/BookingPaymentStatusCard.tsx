@@ -90,7 +90,7 @@ export function BookingPaymentStatusCard({
             <div className="mt-2 rounded-xl border border-[hsl(var(--accent-customer)/0.2)] bg-[hsl(var(--accent-customer)/0.06)] p-3">
               <p className="text-sm font-semibold text-[hsl(var(--accent-customer))]">You keep what you earn</p>
               <p className="mt-1 text-xs text-muted">
-                You keep 100% of your service price. Customers pay the Flyers Up Protection Fee separately.
+                You keep 100% of your service price. Customers pay marketplace & protection fees separately.
               </p>
               <p className="mt-1 text-xs font-medium text-primary">No hidden cuts. No surprises.</p>
               {proTakeHome > 0 ? (

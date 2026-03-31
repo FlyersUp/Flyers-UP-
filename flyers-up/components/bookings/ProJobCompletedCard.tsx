@@ -66,7 +66,7 @@ export function ProJobCompletedCard({
         <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">Customer paid</p>
         <PriceRow label="Service" value={formatCents(servicePrice)} />
         {fee > 0 && (
-          <PriceRow label="Flyers Up Protection Fee" value={formatCents(fee)} />
+          <PriceRow label="Marketplace & protection fees (customer-paid)" value={formatCents(fee)} />
         )}
         <div className={cn('pt-2 border-t border-border')}>
           <PriceRow label="Total paid" value={formatCents(total)} emphasize />

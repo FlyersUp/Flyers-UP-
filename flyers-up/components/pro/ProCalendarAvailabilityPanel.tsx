@@ -15,13 +15,29 @@ const DAYS: { dow: number; label: string }[] = [
 
 type RuleRow = { id?: string; day_of_week: number; start_time: string; end_time: string; is_available?: boolean };
 
+function parseIntDraft(s: string): number | null {
+  const t = s.trim();
+  if (t === '') return null;
+  const n = Number.parseInt(t, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, n));
+}
+
 export function ProCalendarAvailabilityPanel() {
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [slotInterval, setSlotInterval] = useState(30);
+  const [slotIntervalInput, setSlotIntervalInput] = useState('30');
   const [bufBefore, setBufBefore] = useState(0);
+  const [bufBeforeInput, setBufBeforeInput] = useState('0');
   const [bufAfter, setBufAfter] = useState(0);
+  const [bufAfterInput, setBufAfterInput] = useState('0');
   const [minNotice, setMinNotice] = useState(60);
+  const [minNoticeInput, setMinNoticeInput] = useState('60');
   const [maxAdvance, setMaxAdvance] = useState(60);
+  const [maxAdvanceInput, setMaxAdvanceInput] = useState('60');
   const [tz, setTz] = useState('');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -52,11 +68,21 @@ export function ProCalendarAvailabilityPanel() {
     const r = await fetch('/api/pro/availability/settings', { cache: 'no-store', credentials: 'include' });
     const j = await r.json();
     if (r.ok && j.ok && j.settings) {
-      setSlotInterval(Number(j.settings.slot_interval_minutes ?? 30));
-      setBufBefore(Number(j.settings.buffer_before_minutes ?? 0));
-      setBufAfter(Number(j.settings.buffer_after_minutes ?? 0));
-      setMinNotice(Number(j.settings.min_notice_minutes ?? 60));
-      setMaxAdvance(Number(j.settings.max_advance_days ?? 60));
+      const si = clamp(Number(j.settings.slot_interval_minutes ?? 30), 5, 240);
+      const bb = clamp(Number(j.settings.buffer_before_minutes ?? 0), 0, 240);
+      const ba = clamp(Number(j.settings.buffer_after_minutes ?? 0), 0, 240);
+      const mn = clamp(Number(j.settings.min_notice_minutes ?? 60), 0, 10080);
+      const ma = clamp(Number(j.settings.max_advance_days ?? 60), 1, 365);
+      setSlotInterval(si);
+      setSlotIntervalInput(String(si));
+      setBufBefore(bb);
+      setBufBeforeInput(String(bb));
+      setBufAfter(ba);
+      setBufAfterInput(String(ba));
+      setMinNotice(mn);
+      setMinNoticeInput(String(mn));
+      setMaxAdvance(ma);
+      setMaxAdvanceInput(String(ma));
       setTz(typeof j.settings.timezone === 'string' ? j.settings.timezone : '');
     }
   }, []);
@@ -106,22 +132,43 @@ export function ProCalendarAvailabilityPanel() {
   const saveSettings = async () => {
     setSaving(true);
     setMsg(null);
+    const slotParsed = parseIntDraft(slotIntervalInput);
+    const bbParsed = parseIntDraft(bufBeforeInput);
+    const baParsed = parseIntDraft(bufAfterInput);
+    const mnParsed = parseIntDraft(minNoticeInput);
+    const maParsed = parseIntDraft(maxAdvanceInput);
+    const slotToSave = slotParsed != null ? clamp(slotParsed, 5, 240) : slotInterval;
+    const bbToSave = bbParsed != null ? clamp(bbParsed, 0, 240) : bufBefore;
+    const baToSave = baParsed != null ? clamp(baParsed, 0, 240) : bufAfter;
+    const mnToSave = mnParsed != null ? clamp(mnParsed, 0, 10080) : minNotice;
+    const maToSave = maParsed != null ? clamp(maParsed, 1, 365) : maxAdvance;
     const res = await fetch('/api/pro/availability/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        slot_interval_minutes: slotInterval,
-        buffer_before_minutes: bufBefore,
-        buffer_after_minutes: bufAfter,
-        min_notice_minutes: minNotice,
-        max_advance_days: maxAdvance,
+        slot_interval_minutes: slotToSave,
+        buffer_before_minutes: bbToSave,
+        buffer_after_minutes: baToSave,
+        min_notice_minutes: mnToSave,
+        max_advance_days: maToSave,
         timezone: tz.trim() || 'America/New_York',
       }),
     });
     setSaving(false);
-    if (res.ok) setMsg('Settings saved.');
-    else {
+    if (res.ok) {
+      setSlotInterval(slotToSave);
+      setSlotIntervalInput(String(slotToSave));
+      setBufBefore(bbToSave);
+      setBufBeforeInput(String(bbToSave));
+      setBufAfter(baToSave);
+      setBufAfterInput(String(baToSave));
+      setMinNotice(mnToSave);
+      setMinNoticeInput(String(mnToSave));
+      setMaxAdvance(maToSave);
+      setMaxAdvanceInput(String(maToSave));
+      setMsg('Settings saved.');
+    } else {
       const j = await res.json().catch(() => ({}));
       setMsg(j.error || 'Could not save settings');
     }
@@ -230,11 +277,21 @@ export function ProCalendarAvailabilityPanel() {
           <label className="text-sm">
             <span className="text-muted block mb-1">Slot interval (minutes)</span>
             <input
-              type="number"
-              min={5}
-              max={240}
-              value={slotInterval}
-              onChange={(e) => setSlotInterval(Number(e.target.value))}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              value={slotIntervalInput}
+              onChange={(e) => setSlotIntervalInput(e.target.value)}
+              onBlur={() => {
+                const p = parseIntDraft(slotIntervalInput);
+                if (p != null) {
+                  const c = clamp(p, 5, 240);
+                  setSlotInterval(c);
+                  setSlotIntervalInput(String(c));
+                } else {
+                  setSlotIntervalInput(String(slotInterval));
+                }
+              }}
               className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm"
             />
           </label>
@@ -251,44 +308,84 @@ export function ProCalendarAvailabilityPanel() {
           <label className="text-sm">
             <span className="text-muted block mb-1">Buffer before jobs (min)</span>
             <input
-              type="number"
-              min={0}
-              max={240}
-              value={bufBefore}
-              onChange={(e) => setBufBefore(Number(e.target.value))}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              value={bufBeforeInput}
+              onChange={(e) => setBufBeforeInput(e.target.value)}
+              onBlur={() => {
+                const p = parseIntDraft(bufBeforeInput);
+                if (p != null) {
+                  const c = clamp(p, 0, 240);
+                  setBufBefore(c);
+                  setBufBeforeInput(String(c));
+                } else {
+                  setBufBeforeInput(String(bufBefore));
+                }
+              }}
               className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm"
             />
           </label>
           <label className="text-sm">
             <span className="text-muted block mb-1">Buffer after jobs (min)</span>
             <input
-              type="number"
-              min={0}
-              max={240}
-              value={bufAfter}
-              onChange={(e) => setBufAfter(Number(e.target.value))}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              value={bufAfterInput}
+              onChange={(e) => setBufAfterInput(e.target.value)}
+              onBlur={() => {
+                const p = parseIntDraft(bufAfterInput);
+                if (p != null) {
+                  const c = clamp(p, 0, 240);
+                  setBufAfter(c);
+                  setBufAfterInput(String(c));
+                } else {
+                  setBufAfterInput(String(bufAfter));
+                }
+              }}
               className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm"
             />
           </label>
           <label className="text-sm">
             <span className="text-muted block mb-1">Min notice (min)</span>
             <input
-              type="number"
-              min={0}
-              max={10080}
-              value={minNotice}
-              onChange={(e) => setMinNotice(Number(e.target.value))}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              value={minNoticeInput}
+              onChange={(e) => setMinNoticeInput(e.target.value)}
+              onBlur={() => {
+                const p = parseIntDraft(minNoticeInput);
+                if (p != null) {
+                  const c = clamp(p, 0, 10080);
+                  setMinNotice(c);
+                  setMinNoticeInput(String(c));
+                } else {
+                  setMinNoticeInput(String(minNotice));
+                }
+              }}
               className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm"
             />
           </label>
           <label className="text-sm">
             <span className="text-muted block mb-1">Max advance (days)</span>
             <input
-              type="number"
-              min={1}
-              max={365}
-              value={maxAdvance}
-              onChange={(e) => setMaxAdvance(Number(e.target.value))}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              value={maxAdvanceInput}
+              onChange={(e) => setMaxAdvanceInput(e.target.value)}
+              onBlur={() => {
+                const p = parseIntDraft(maxAdvanceInput);
+                if (p != null) {
+                  const c = clamp(p, 1, 365);
+                  setMaxAdvance(c);
+                  setMaxAdvanceInput(String(c));
+                } else {
+                  setMaxAdvanceInput(String(maxAdvance));
+                }
+              }}
               className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm"
             />
           </label>

@@ -55,6 +55,9 @@ export async function PUT(req: Request, ctx: Ctx) {
   if (parsed.deliverables !== undefined) patch.deliverables = parsed.deliverables;
   if (parsed.is_active !== undefined) patch.is_active = parsed.is_active;
   if (parsed.sort_order !== undefined) patch.sort_order = parsed.sort_order;
+  if (parsed.max_recurring_customer_slots !== undefined) {
+    patch.max_recurring_customer_slots = parsed.max_recurring_customer_slots;
+  }
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({

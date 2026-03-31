@@ -24,6 +24,8 @@ const bodySchema = z.object({
   duration_minutes: z.number().int().min(15).max(24 * 60),
   timezone: z.string().min(3).max(80),
   customer_note: z.string().max(2000).optional(),
+  /** When set, must belong to this pro; stored on the series for per-package recurring caps. */
+  package_id: z.string().uuid().optional(),
 });
 
 export async function POST(req: Request) {
@@ -48,6 +50,20 @@ export async function POST(req: Request) {
   if (!proRow?.user_id) return NextResponse.json({ error: 'Pro not found' }, { status: 404 });
 
   const proUserId = proRow.user_id as string;
+
+  let requestedPackageId: string | null = null;
+  if (parsed.data.package_id) {
+    const { data: pkg } = await admin
+      .from('service_packages')
+      .select('id, pro_user_id')
+      .eq('id', parsed.data.package_id)
+      .maybeSingle();
+    if (!pkg || (pkg as { pro_user_id: string }).pro_user_id !== proUserId) {
+      return NextResponse.json({ error: 'Invalid package for this pro' }, { status: 400 });
+    }
+    requestedPackageId = parsed.data.package_id;
+  }
+
   const eligibility = await buildEligibilityForNewRequest({
     admin,
     customerUserId: auth.userId,
@@ -61,6 +77,7 @@ export async function POST(req: Request) {
     daysOfWeek: parsed.data.days_of_week,
     frequency: parsed.data.frequency,
     intervalCount: parsed.data.interval_count,
+    requestedPackageId,
   });
 
   if (!eligibility.recurringRequestAllowed) {
@@ -86,6 +103,7 @@ export async function POST(req: Request) {
     status: 'pending',
     requested_by_user_id: auth.userId,
     customer_note: parsed.data.customer_note ?? null,
+    requested_package_id: requestedPackageId,
     recurring_slot_locked: true,
     is_flexible: false,
     created_at: now,

@@ -6,6 +6,7 @@
  */
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { changePassword } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
@@ -258,20 +259,28 @@ export default function PrivacySecurityPage() {
         </button>
       </form>
 
-      {/* 2FA (Coming Soon) */}
+      {/* 2FA — informational only until TOTP is implemented */}
       <div id="2fa" className="border-b border-border pb-6 scroll-mt-4">
         <h2 className="text-lg font-semibold text-text mb-4">Two-Factor Authentication</h2>
-        <div className="p-4 bg-surface2 border border-border rounded-lg">
-          <p className="text-sm text-muted mb-2">
-            Two-factor authentication adds an extra layer of security to your account.
+        <div
+          className="rounded-xl border border-dashed border-border bg-surface2/90 p-4 sm:p-5"
+          role="region"
+          aria-label="Two-factor authentication status"
+        >
+          <p className="text-sm text-text">
+            Two-factor authentication (2FA) is <span className="font-medium">not available</span> on Flyers Up yet. You
+            cannot turn it on from this screen.
           </p>
-          <button
-            type="button"
-            disabled
-            className="px-4 py-2 bg-surface border border-border text-muted rounded-lg cursor-not-allowed"
+          <p className="mt-3 text-sm text-muted leading-relaxed">
+            When we add support—likely with an authenticator app and recovery codes—you&apos;ll enroll here. For now,
+            use a strong, unique password and protect access to your email account.
+          </p>
+          <p
+            className="mt-4 inline-flex max-w-full items-center rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text3 select-none"
+            aria-live="polite"
           >
-            Coming Soon
-          </button>
+            Status: not available yet
+          </p>
         </div>
       </div>
 
@@ -279,16 +288,16 @@ export default function PrivacySecurityPage() {
       <div id="your-data" className="border-b border-border pb-6 scroll-mt-4">
         <h2 className="text-lg font-semibold text-text mb-4">Your Data</h2>
         <div className="p-4 bg-surface2 border border-border rounded-lg">
-          <p className="text-sm text-muted mb-2">
-            View and download your account data (coming soon).
+          <p className="text-sm text-muted mb-3">
+            View a snapshot of your profile, recent bookings, and payment-related fields on those bookings. Download a JSON
+            copy for your records.
           </p>
-          <button
-            type="button"
-            disabled
-            className="px-4 py-2 bg-surface border border-border text-muted rounded-lg cursor-not-allowed"
+          <Link
+            href={accountDataHref}
+            className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accentContrast hover:opacity-95 transition-opacity"
           >
-            View Data
-          </button>
+            View &amp; download data
+          </Link>
         </div>
       </div>
 

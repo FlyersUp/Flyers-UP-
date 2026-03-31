@@ -86,8 +86,7 @@ const CUSTOMER_SECTIONS: MenuSection[] = [
       { labelKey: 'sidebar.customer.privacy', href: '/customer/settings/privacy-security' },
       { labelKey: 'sidebar.customer.security', href: '/customer/settings/privacy-security' },
       { labelKey: 'sidebar.customer.twoFactor', href: '/customer/settings/privacy-security#2fa' },
-      { labelKey: 'sidebar.customer.yourData', href: '/customer/settings/privacy-security#your-data' },
-      { labelKey: 'sidebar.logout', href: null, disabled: true },
+      { labelKey: 'sidebar.customer.yourData', href: '/customer/settings/data' },
     ],
   },
 ];
@@ -141,7 +140,7 @@ const PRO_SECTIONS: MenuSection[] = [
       { labelKey: 'sidebar.customer.privacy', href: '/pro/settings/privacy-security' },
       { labelKey: 'sidebar.customer.security', href: '/pro/settings/account-identity' },
       { labelKey: 'sidebar.customer.twoFactor', href: '/pro/settings/privacy-security#2fa' },
-      { labelKey: 'sidebar.customer.yourData', href: '/pro/settings/privacy-security#your-data' },
+      { labelKey: 'sidebar.customer.yourData', href: '/pro/settings/data' },
       { labelKey: 'sidebar.pro.connectedAccounts', href: '/pro/settings/payments-payouts' },
       { labelKey: 'sidebar.customer.helpCenter', href: '/pro/settings/help-support' },
       { labelKey: 'sidebar.customer.contactSupport', href: '/pro/settings/help-support' },

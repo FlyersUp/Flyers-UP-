@@ -55,7 +55,7 @@ export function CustomerPageShell({ title, children, userName: userNameProp, sub
         </div>
       </div>
 
-      <div className="mobile-page-root flex-1 min-h-0 pb-fu-nav">
+      <div className="mobile-page-root flex-1 min-h-0">
         {subtitle && (
           <div className="max-w-4xl w-full min-w-0 mx-auto px-4 pt-4">
             <p className="text-sm text-text3">{subtitle}</p>

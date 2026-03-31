@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
 import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
+import type { PendingRescheduleInfo } from '@/lib/bookings/pending-reschedule';
 
 export interface TrackBookingData {
   id: string;
@@ -67,7 +68,13 @@ export function TrackBookingRealtime({
 
   useEffect(() => {
     setBooking(initialBooking);
-  }, [initialBooking.id, initialBooking.status]);
+  }, [
+    initialBooking.id,
+    initialBooking.status,
+    initialBooking.serviceDate,
+    initialBooking.serviceTime,
+    initialBooking.pendingReschedule?.id,
+  ]);
 
   useEffect(() => {
     const channel = supabase

@@ -307,6 +307,10 @@ export default function ProTodayPage() {
       notes: string | null;
       status: string;
       customer?: { fullName: string | null; phone: string | null } | null;
+      pending_reschedule?: {
+        proposed_service_date: string;
+        proposed_service_time: string;
+      } | null;
     }>
   >([]);
 
@@ -548,6 +552,12 @@ export default function ProTodayPage() {
                       <div className="text-base font-semibold text-text">
                         {b.service_time} • {b.customer?.fullName || 'Customer'}
                       </div>
+                      {b.pending_reschedule ? (
+                        <div className="text-sm font-medium text-amber-900 dark:text-amber-200 mt-1">
+                          Reschedule requested: {b.pending_reschedule.proposed_service_date} at{' '}
+                          {b.pending_reschedule.proposed_service_time}
+                        </div>
+                      ) : null}
                       <div className="text-sm text-muted mt-0.5 line-clamp-2">{b.address}</div>
                       {b.notes ? <div className="text-sm text-muted mt-1 line-clamp-2">Notes: {b.notes}</div> : null}
                       <div className="mt-2">

@@ -27,6 +27,8 @@ export interface TrackBookingSummaryCardProps {
   categoryName?: string | null;
   serviceDate?: string;
   serviceTime?: string;
+  /** Shown when a reschedule is pending (booking row still shows current slot above). */
+  pendingRescheduleSummary?: string | null;
   address?: string | null;
   scopeSummary?: string | null;
   className?: string;
@@ -39,6 +41,7 @@ export function TrackBookingSummaryCard({
   categoryName,
   serviceDate,
   serviceTime,
+  pendingRescheduleSummary,
   address,
   scopeSummary,
   className = '',
@@ -74,8 +77,18 @@ export function TrackBookingSummaryCard({
             {categoryName ? ` · ${categoryName}` : ''}
           </p>
           <p className="mt-1 text-sm text-[#3A3A3A] dark:text-[#A1A8B3]">
+            {pendingRescheduleSummary ? (
+              <span className="block text-xs uppercase tracking-wide text-[#6A6A6A] dark:text-[#A1A8B3] mb-0.5">
+                Currently scheduled
+              </span>
+            ) : null}
             {formatDateTime(serviceDate, serviceTime)}
           </p>
+          {pendingRescheduleSummary ? (
+            <p className="mt-2 text-sm font-medium text-amber-900 dark:text-amber-200">
+              Requested new time: {pendingRescheduleSummary}
+            </p>
+          ) : null}
           {address && address.trim() && (
             <p className="mt-0.5 text-sm text-[#6A6A6A] dark:text-[#A1A8B3]">{address}</p>
           )}

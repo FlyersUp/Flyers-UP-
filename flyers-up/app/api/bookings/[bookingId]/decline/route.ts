@@ -67,7 +67,7 @@ export async function POST(
   const history = ((booking as { status_history?: { status: string; at: string }[] }).status_history ?? []) as { status: string; at: string }[];
   const newHistory = [...history, { status: 'declined', at: now }];
 
-  const { error: updateErr } = await admin
+  const { data: updated, error: updateErr } = await admin
     .from('bookings')
     .update({
       status: 'declined',
@@ -76,10 +76,19 @@ export async function POST(
       status_updated_by: user.id,
     })
     .eq('id', id)
-    .eq('pro_id', proId);
+    .eq('pro_id', proId)
+    .in('status', ['requested', 'pending'])
+    .select('id')
+    .maybeSingle();
 
   if (updateErr) {
     return NextResponse.json({ error: 'Failed to decline booking' }, { status: 500 });
+  }
+  if (!updated) {
+    return NextResponse.json(
+      { error: 'This request was already accepted, declined, or is no longer pending.' },
+      { status: 409 }
+    );
   }
 
   if (booking.customer_id) {

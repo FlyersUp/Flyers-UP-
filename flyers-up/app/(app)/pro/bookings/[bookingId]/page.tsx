@@ -17,9 +17,13 @@ import { BookingEventsAccordion } from '@/components/bookings/BookingEventsAccor
 import { deriveTimelineDisplayStatus, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 import { getBookingById, getCurrentUser, type BookingDetails } from '@/lib/api';
 import Link from 'next/link';
-import { use, useEffect, useMemo, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { ProCustomerPreferenceActions } from '@/components/bookings/ProCustomerPreferenceActions';
+import { ProBookingJobNotes } from '@/components/bookings/ProBookingJobNotes';
+import { ProCustomerPricingBreakdown } from '@/components/bookings/ProCustomerPricingBreakdown';
+import { ProPendingReschedulePanel } from '@/components/bookings/ProPendingReschedulePanel';
+import { formatWallDateLong } from '@/lib/bookings/pending-reschedule';
 
 export default function ProBookingDetailPage({
   params,
@@ -31,6 +35,7 @@ export default function ProBookingDetailPage({
   const [loading, setLoading] = useState(true);
   const [signedIn, setSignedIn] = useState(false);
   const [progressRevision, setProgressRevision] = useState(0);
+  const [scheduleRevision, setScheduleRevision] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -61,18 +66,6 @@ export default function ProBookingDetailPage({
     void load();
     return () => { mounted = false; };
   }, [bookingId]);
-
-  const formattedDate = useMemo(() => {
-    if (!initialBooking) return null;
-    const d = new Date(initialBooking.serviceDate);
-    if (Number.isNaN(d.getTime())) return null;
-    return d.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  }, [initialBooking]);
 
   if (loading && !initialBooking) {
     return (
@@ -131,9 +124,17 @@ export default function ProBookingDetailPage({
           ← Back to bookings
         </Link>
 
-        <ProBookingRealtime bookingId={bookingId} initialBooking={initialBooking}>
+        <ProBookingRealtime
+          bookingId={bookingId}
+          initialBooking={initialBooking}
+          reloadKey={scheduleRevision}
+        >
           {(booking) => {
             if (!booking) return null;
+            const headerDate = formatWallDateLong(booking.serviceDate);
+            const proposedDateLabel = booking.pendingReschedule
+              ? formatWallDateLong(booking.pendingReschedule.proposedServiceDate)
+              : null;
             const paymentCtx = {
               paidAt: booking.paidAt,
               paidDepositAt: booking.paidDepositAt,
@@ -170,9 +171,28 @@ export default function ProBookingDetailPage({
               <>
                 <header className="mb-6">
                   <h1 className="text-2xl font-semibold text-text">Booking Details</h1>
-                  <p className="mt-1 text-sm text-muted">
-                    {formattedDate || '—'} {booking.serviceTime ? `at ${booking.serviceTime}` : ''}
+                  {booking.pendingReschedule && (
+                    <div className="mt-2 mb-3">
+                      <ProPendingReschedulePanel
+                        bookingId={bookingId}
+                        pending={booking.pendingReschedule}
+                        viewerRole="pro"
+                        onResolved={() => setScheduleRevision((n) => n + 1)}
+                      />
+                    </div>
+                  )}
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                    {booking.pendingReschedule ? 'Currently scheduled' : 'Scheduled'}
                   </p>
+                  <p className="mt-1 text-sm text-muted">
+                    {headerDate || '—'} {booking.serviceTime ? `at ${booking.serviceTime}` : ''}
+                  </p>
+                  {booking.pendingReschedule && (
+                    <p className="mt-2 text-sm font-medium text-amber-900 dark:text-amber-200">
+                      Requested new time: {proposedDateLabel || booking.pendingReschedule.proposedServiceDate} at{' '}
+                      {booking.pendingReschedule.proposedServiceTime}
+                    </p>
+                  )}
                   <p className="mt-0.5 text-sm text-muted">
                     Created {new Date(booking.createdAt).toLocaleDateString()}
                   </p>
@@ -227,58 +247,25 @@ export default function ProBookingDetailPage({
                   style={{ backgroundColor: '#F5F5F5' }}
                 >
                   <div className="text-sm font-medium text-muted mb-2">Customer</div>
-                  <p className="text-text">Customer ID: {booking.customerId.slice(0, 8)}…</p>
+                  <p className="text-text text-base font-semibold">
+                    {booking.customerDisplayName?.trim() || 'Customer'}
+                  </p>
                   {booking.address && (
                     <p className="mt-2 text-sm text-text">{booking.address}</p>
                   )}
-                  {booking.notes && (
-                    <p className="mt-2 text-sm text-muted">Notes: {booking.notes}</p>
-                  )}
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Job notes</p>
+                    <ProBookingJobNotes notes={booking.notes} />
+                  </div>
                   <ProCustomerPreferenceActions customerUserId={booking.customerId} />
                   <div className="mt-3 pt-3 border-t border-border">
-                    {booking.amountTotal != null && booking.amountTotal > 0 ? (
-                      <>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted">Subtotal (your rate)</span>
-                          <span className="text-text">
-                            ${(((booking.amountTotal - (booking.platformFeeCents ?? 0)) / 100)).toFixed(2)}
-                          </span>
-                        </div>
-                        {(booking.platformFeeCents ?? 0) > 0 && (
-                          <div className="flex justify-between text-sm mt-1">
-                            <span className="text-muted">Flyers Up Protection Fee (15%)</span>
-                            <span className="text-text">
-                              ${((booking.platformFeeCents ?? 0) / 100).toFixed(2)}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex justify-between text-sm font-semibold mt-2 pt-2 border-t border-border">
-                          <span className="text-text">Total (customer pays)</span>
-                          <span className="text-text">${(booking.amountTotal / 100).toFixed(2)}</span>
-                        </div>
-                      </>
-                    ) : booking.price != null && booking.price > 0 ? (
-                      <>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted">Subtotal (your rate)</span>
-                          <span className="text-text">${Number(booking.price).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-sm mt-1">
-                          <span className="text-muted">Flyers Up Protection Fee (15%)</span>
-                          <span className="text-text">
-                            ${(Math.round(Number(booking.price) * 100 * 0.15) / 100).toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm font-semibold mt-2 pt-2 border-t border-border">
-                          <span className="text-text">Total (customer pays)</span>
-                          <span className="text-text">
-                            ${(Number(booking.price) * 1.15).toFixed(2)}
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="text-sm font-semibold text-text">TBD</p>
-                    )}
+                    <ProCustomerPricingBreakdown
+                      bookingId={bookingId}
+                      amountTotalCents={booking.amountTotal}
+                      platformFeeCents={booking.platformFeeCents}
+                      amountSubtotalCents={booking.amountSubtotalCents}
+                      priceDollars={booking.price}
+                    />
                   </div>
                 </div>
 
@@ -336,19 +323,23 @@ export default function ProBookingDetailPage({
                     style={{ backgroundColor: '#F5F5F5' }}
                   >
                     <div className="p-6">
-                      <BookingTimeline
-                        status={status}
-                        timestamps={{
-                          booked: timestamps.BOOKED,
-                          awaitingAcceptance: timestamps.AWAITING_ACCEPTANCE,
-                          accepted: timestamps.ACCEPTED,
-                          onTheWay: timestamps.ON_THE_WAY,
-                          arrived: timestamps.ARRIVED,
-                          started: timestamps.IN_PROGRESS,
-                          completed: timestamps.COMPLETED,
-                          paid: timestamps.PAID,
-                        }}
-                      />
+                      {(booking.status || '').toLowerCase() === 'declined' ? (
+                        <p className="text-sm text-muted">This request was declined and will not continue.</p>
+                      ) : (
+                        <BookingTimeline
+                          status={status}
+                          timestamps={{
+                            booked: timestamps.BOOKED,
+                            awaitingAcceptance: timestamps.AWAITING_ACCEPTANCE,
+                            accepted: timestamps.ACCEPTED,
+                            onTheWay: timestamps.ON_THE_WAY,
+                            arrived: timestamps.ARRIVED,
+                            started: timestamps.IN_PROGRESS,
+                            completed: timestamps.COMPLETED,
+                            paid: timestamps.PAID,
+                          }}
+                        />
+                      )}
                     </div>
                     <JobNextAction
                       booking={booking}

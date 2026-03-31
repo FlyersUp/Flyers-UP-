@@ -64,6 +64,10 @@ export const createServicePackageSchema = z.object({
     .transform((v) => (v === undefined ? null : v)),
   deliverables: deliverablesSchema,
   is_active: z.boolean().optional().default(true),
+  max_recurring_customer_slots: z
+    .union([z.coerce.number().int().min(0).max(100), z.null(), z.undefined()])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v)),
 });
 
 export type CreateServicePackageParsed = z.infer<typeof createServicePackageSchema>;
@@ -120,6 +124,10 @@ export const updateServicePackageSchema = z.object({
   deliverables: optionalDeliverables,
   is_active: z.boolean().optional(),
   sort_order: z.coerce.number().int().min(0).max(1_000_000).optional(),
+  max_recurring_customer_slots: z
+    .union([z.coerce.number().int().min(0).max(100), z.null(), z.undefined()])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v)),
 });
 
 export function parseUpdateServicePackageInput(body: unknown): UpdateServicePackageInput {

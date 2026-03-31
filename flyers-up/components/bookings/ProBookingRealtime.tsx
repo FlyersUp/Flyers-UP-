@@ -9,6 +9,8 @@ import { getBookingById, type BookingDetails } from '@/lib/api';
 interface ProBookingRealtimeProps {
   bookingId: string;
   initialBooking: BookingDetails | null;
+  /** Increment to refetch booking (e.g. after reschedule accept). */
+  reloadKey?: number;
   children: (booking: BookingDetails | null) => React.ReactNode;
 }
 
@@ -19,6 +21,7 @@ interface ProBookingRealtimeProps {
 export function ProBookingRealtime({
   bookingId,
   initialBooking,
+  reloadKey = 0,
   children,
 }: ProBookingRealtimeProps) {
   const [booking, setBooking] = useState<BookingDetails | null>(initialBooking);
@@ -31,7 +34,16 @@ export function ProBookingRealtime({
 
   useEffect(() => {
     setBooking(initialBooking);
-  }, [initialBooking?.id, initialBooking?.status]);
+  }, [
+    initialBooking?.id,
+    initialBooking?.status,
+    initialBooking?.serviceDate,
+    initialBooking?.pendingReschedule?.id,
+  ]);
+
+  useEffect(() => {
+    if (reloadKey > 0) void refresh();
+  }, [reloadKey, refresh]);
 
   useEffect(() => {
     const channel = supabase

@@ -69,6 +69,7 @@ export async function POST(req: Request) {
       base_price_cents: parsed.base_price_cents,
       estimated_duration_minutes: parsed.estimated_duration_minutes,
       deliverables: parsed.deliverables,
+      max_recurring_customer_slots: parsed.max_recurring_customer_slots ?? null,
       is_active: parsed.is_active ?? true,
       sort_order: nextOrder,
     })

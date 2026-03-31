@@ -9,9 +9,16 @@ import { JobNextAction } from '@/components/jobs/JobNextAction';
 import Link from 'next/link';
 import { AddToCalendarButton } from '@/components/calendar/AddToCalendarButton';
 import { isCalendarCommittedStatus } from '@/lib/calendar/committed-states';
-import { use, useEffect, useMemo, useState } from 'react';
+import { use, useCallback, useEffect, useMemo, useState } from 'react';
 import { getBookingById, getCurrentUser, type BookingDetails } from '@/lib/api';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
+import { ProBookingJobNotes } from '@/components/bookings/ProBookingJobNotes';
+import { ProCustomerPricingBreakdown } from '@/components/bookings/ProCustomerPricingBreakdown';
+import { ProPendingReschedulePanel } from '@/components/bookings/ProPendingReschedulePanel';
+import {
+  calendarWallTimesWithPending,
+  formatWallDateLong,
+} from '@/lib/bookings/pending-reschedule';
 
 /**
  * Active Job Screen - Screen 17
@@ -22,6 +29,13 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [signedIn, setSignedIn] = useState<boolean>(false);
+
+  const refreshBooking = useCallback(async () => {
+    const id = normalizeUuidOrNull(jobId);
+    if (!id) return;
+    const b = await getBookingById(id);
+    setBooking(b);
+  }, [jobId]);
 
   useEffect(() => {
     let mounted = true;
@@ -58,11 +72,14 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
   }, [jobId]);
 
   const formattedDate = useMemo(() => {
-    if (!booking) return null;
-    const d = new Date(booking.serviceDate);
-    if (Number.isNaN(d.getTime())) return null;
-    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-  }, [booking]);
+    if (!booking?.serviceDate) return null;
+    return formatWallDateLong(booking.serviceDate);
+  }, [booking?.serviceDate]);
+
+  const formattedProposedDate = useMemo(() => {
+    if (!booking?.pendingReschedule?.proposedServiceDate) return null;
+    return formatWallDateLong(booking.pendingReschedule.proposedServiceDate);
+  }, [booking?.pendingReschedule?.proposedServiceDate]);
 
   return (
     <AppLayout mode="pro">
@@ -101,9 +118,9 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
             <div className="space-y-6">
               <div>
                 <Label className="mb-2 block">CUSTOMER</Label>
-                <div className="text-sm text-muted/80">
-                  Customer ID: <span className="font-mono text-text">{booking.customerId.slice(0, 8)}…</span>
-                </div>
+                <p className="text-base font-semibold text-text">
+                  {booking.customerDisplayName?.trim() || 'Customer'}
+                </p>
               </div>
 
               <div>
@@ -113,9 +130,28 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
 
               <div className="border-t border-border pt-4">
                 <Label className="mb-2 block">TIME</Label>
+                {booking.pendingReschedule && (
+                  <div className="mb-3">
+                    <ProPendingReschedulePanel
+                      bookingId={jobId}
+                      pending={booking.pendingReschedule}
+                      viewerRole="pro"
+                      onResolved={() => void refreshBooking()}
+                    />
+                  </div>
+                )}
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                  {booking.pendingReschedule ? 'Currently scheduled' : 'Scheduled'}
+                </p>
                 <p className="text-text">
                   {formattedDate || '—'} {booking.serviceTime ? `at ${booking.serviceTime}` : ''}
                 </p>
+                {booking.pendingReschedule && (
+                  <p className="mt-2 text-sm font-medium text-amber-900 dark:text-amber-200">
+                    Requested new time: {formattedProposedDate || booking.pendingReschedule.proposedServiceDate}{' '}
+                    at {booking.pendingReschedule.proposedServiceTime}
+                  </p>
+                )}
                 <div className="mt-2 flex flex-wrap gap-3">
                   <Link
                     href="/pro/calendar"
@@ -129,10 +165,14 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
                       <AddToCalendarButton
                         bookingId={jobId}
                         booking={{
-                          serviceDate: booking.serviceDate,
-                          serviceTime: booking.serviceTime,
-                          serviceTitle: 'Job',
+                          ...calendarWallTimesWithPending(
+                            booking.serviceDate,
+                            booking.serviceTime,
+                            booking.pendingReschedule ?? null
+                          ),
+                          serviceTitle: 'Job' + (booking.pendingReschedule ? ' (requested time)' : ''),
                           address: booking.address,
+                          bookingTimezone: booking.bookingTimezone ?? undefined,
                         }}
                       />
                     )}
@@ -140,57 +180,19 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
               </div>
 
               <div className="border-t border-border pt-4">
-                <Label className="mb-2 block">CUSTOMER NOTES</Label>
-                <p className="text-text">{booking.notes || '—'}</p>
+                <Label className="mb-2 block">JOB NOTES &amp; SCOPE</Label>
+                <ProBookingJobNotes notes={booking.notes} />
               </div>
 
               <div className="rounded-lg p-4 border border-border bg-surface2 border-l-[3px] border-l-accent space-y-2">
-                {booking.amountTotal != null && booking.amountTotal > 0 ? (
-                  <>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted">Subtotal (your rate)</span>
-                      <span className="text-text">
-                        ${(((booking.amountTotal - (booking.platformFeeCents ?? 0)) / 100)).toFixed(2)}
-                      </span>
-                    </div>
-                    {(booking.platformFeeCents ?? 0) > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted">Flyers Up Protection Fee (15%)</span>
-                        <span className="text-text">
-                          ${((booking.platformFeeCents ?? 0) / 100).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center pt-2 border-t border-border">
-                      <Label>Total (customer pays)</Label>
-                      <div className="text-2xl font-bold text-text">${(booking.amountTotal / 100).toFixed(2)}</div>
-                    </div>
-                  </>
-                ) : booking.price != null && booking.price > 0 ? (
-                  <>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted">Subtotal (your rate)</span>
-                      <span className="text-text">${Number(booking.price).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted">Flyers Up Protection Fee (15%)</span>
-                      <span className="text-text">
-                        ${(Math.round(Number(booking.price) * 100 * 0.15) / 100).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-border">
-                      <Label>Total (customer pays)</Label>
-                      <div className="text-2xl font-bold text-text">
-                        ${(Number(booking.price) * 1.15).toFixed(2)}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex justify-between items-center">
-                    <Label>TOTAL</Label>
-                    <div className="text-2xl font-bold text-text">TBD</div>
-                  </div>
-                )}
+                <Label className="mb-2 block">CUSTOMER PRICING</Label>
+                <ProCustomerPricingBreakdown
+                  bookingId={jobId}
+                  amountTotalCents={booking.amountTotal}
+                  platformFeeCents={booking.platformFeeCents}
+                  amountSubtotalCents={booking.amountSubtotalCents}
+                  priceDollars={booking.price}
+                />
               </div>
             </div>
           </Card>
@@ -220,13 +222,21 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
               const t = booking.paidDepositAt ?? booking.paidAt;
               if (t) timestamps.AWAITING_ACCEPTANCE = t;
             }
+            const isDeclined = (booking.status || '').toLowerCase() === 'declined';
             return (
               <div className="mb-6 rounded-2xl border border-black/10 shadow-sm overflow-hidden bg-[hsl(var(--surface))]">
-                <JobTimelineCard
-                  status={timelineStatus}
-                  timestamps={timestamps}
-                  className="rounded-t-2xl border-0 shadow-none mb-0"
-                />
+                {isDeclined ? (
+                  <div className="p-6 border-b border-black/10">
+                    <h2 className="text-base font-semibold text-text">Job timeline</h2>
+                    <p className="mt-2 text-sm text-muted">This request was declined and will not continue.</p>
+                  </div>
+                ) : (
+                  <JobTimelineCard
+                    status={timelineStatus}
+                    timestamps={timestamps}
+                    className="rounded-t-2xl border-0 shadow-none mb-0"
+                  />
+                )}
                 <JobNextAction booking={booking} onUpdated={setBooking} jobId={jobId} />
               </div>
             );

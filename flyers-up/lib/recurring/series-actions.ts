@@ -6,7 +6,9 @@ import { evaluateRecurringEligibility } from './eligibility';
 import { generateOccurrenceWindows } from './occurrence-generator';
 import {
   countApprovedRecurringCustomers,
+  countApprovedCustomersForPackage,
   customerHasApprovedSeries,
+  customerHasApprovedSeriesWithPackage,
   getOrCreateRecurringPreferences,
   isOccupationEnabledForRecurring,
   loadRecurringWindows,
@@ -57,6 +59,8 @@ export async function buildEligibilityForNewRequest(params: {
   daysOfWeek: number[];
   frequency: RecurringFrequency;
   intervalCount: number;
+  /** Optional package when customer started recurring from a package — enforces per-package caps. */
+  requestedPackageId?: string | null;
 }): Promise<ReturnType<typeof evaluateRecurringEligibility>> {
   const prefs = await getOrCreateRecurringPreferences(params.admin, params.proUserId);
   const signals = await loadRelationshipSignals(params.admin, params.customerUserId, params.proUserId);
@@ -70,6 +74,30 @@ export async function buildEligibilityForNewRequest(params: {
   const already = await customerHasApprovedSeries(params.admin, params.proUserId, params.customerUserId);
   const max = prefs?.max_recurring_customers ?? 5;
   const atCapacity = approvedCount >= max;
+
+  let atPackageRecurringCustomerCapacity = false;
+  let customerAlreadyApprovedForThisPackage = false;
+  const pkgId = params.requestedPackageId?.trim();
+  if (pkgId) {
+    const { data: pkgRow } = await params.admin
+      .from('service_packages')
+      .select('id, max_recurring_customer_slots, pro_user_id')
+      .eq('id', pkgId)
+      .maybeSingle();
+    const slotCap = (pkgRow as { max_recurring_customer_slots?: number | null; pro_user_id?: string } | null)
+      ?.max_recurring_customer_slots;
+    const pkgPro = (pkgRow as { pro_user_id?: string } | null)?.pro_user_id;
+    if (pkgRow && pkgPro === params.proUserId && slotCap != null && slotCap >= 0) {
+      const used = await countApprovedCustomersForPackage(params.admin, params.proUserId, pkgId);
+      atPackageRecurringCustomerCapacity = used >= slotCap;
+      customerAlreadyApprovedForThisPackage = await customerHasApprovedSeriesWithPackage(
+        params.admin,
+        params.proUserId,
+        params.customerUserId,
+        pkgId
+      );
+    }
+  }
 
   const zone = params.timezone || prefs?.timezone || 'America/New_York';
   const localStart = DateTime.fromISO(`${params.startDate}T${params.preferredStartTime}`, { zone });
@@ -122,6 +150,8 @@ export async function buildEligibilityForNewRequest(params: {
     hasScheduleConflicts: hasConflicts,
     atRecurringCustomerCapacity: atCapacity,
     customerAlreadyApprovedWithPro: already,
+    atPackageRecurringCustomerCapacity,
+    customerAlreadyApprovedForThisPackage,
   });
 }
 

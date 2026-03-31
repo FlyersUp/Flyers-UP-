@@ -499,7 +499,7 @@ function PaymentSummaryCard({ booking }: { booking: BookingData }) {
         </div>
         {platformFee > 0 && (
           <div className="flex justify-between">
-            <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Flyers Up Protection Fee</span>
+            <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Marketplace & protection fees</span>
             <span className="text-[#111111] dark:text-[#F5F7FA]">{formatCents(platformFee)}</span>
           </div>
         )}

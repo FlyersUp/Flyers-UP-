@@ -10,6 +10,8 @@ export type ServicePackageRow = {
   base_price_cents: number;
   estimated_duration_minutes: number | null;
   deliverables: string[];
+  /** Cap on distinct recurring customers for this package; null = no package-specific cap. */
+  max_recurring_customer_slots: number | null;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -24,6 +26,7 @@ export type CreateServicePackageInput = {
   base_price_cents: number;
   estimated_duration_minutes?: number | null;
   deliverables: string[];
+  max_recurring_customer_slots?: number | null;
   /** Defaults true when omitted on create */
   is_active?: boolean;
 };
@@ -48,6 +51,7 @@ export function rowToPublic(row: ServicePackageRow): ServicePackagePublic {
     base_price_cents,
     estimated_duration_minutes,
     deliverables,
+    max_recurring_customer_slots,
     is_active,
     sort_order,
   } = row;
@@ -58,6 +62,7 @@ export function rowToPublic(row: ServicePackageRow): ServicePackagePublic {
     base_price_cents,
     estimated_duration_minutes,
     deliverables,
+    max_recurring_customer_slots,
     is_active,
     sort_order,
   };

@@ -1,6 +1,9 @@
 /**
  * Shared Tailwind classes aligned with CSS vars in globals.css (`--fu-*`).
- * Use for app shells, sticky footers, and scroll areas that sit above fixed bottom UI.
+ * Source of truth for nav height: `FloatingBottomNav` (h-11 / sm:h-14) + marginBottom
+ * matches `--fu-bottom-nav-inner` and `--fu-bottom-nav-margin`.
+ * AppLayout applies `pb-fu-nav` on the main content column; use `pbNavAndStickyCta` / `pbStickyBarOnly`
+ * when a sticky bar stacks above the nav.
  */
 export const bottomChrome = {
   /** Main scroll padding when only the floating bottom nav is present */

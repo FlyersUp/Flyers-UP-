@@ -86,9 +86,11 @@ export async function createBookingWithPayment(
       return { success: false, error: 'Service pro not available.' };
     }
 
-    // Validate subcategoryId if provided (must be one this pro offers)
+    // Validate subcategoryId if provided (must be one this pro offers).
+    // Package bookings define scope server-side; never store a subcategory alongside a selected package.
     let validatedSubcategoryId: string | null = null;
-    if (subcategoryId?.trim()) {
+    const willUsePackage = Boolean(selectedPackageId?.trim());
+    if (!willUsePackage && subcategoryId?.trim()) {
       const { data: link } = await supabase
         .from('pro_service_subcategories')
         .select('subcategory_id')

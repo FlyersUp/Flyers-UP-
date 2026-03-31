@@ -14,6 +14,8 @@
  */
 
 import { supabase } from './supabaseClient';
+import type { PendingRescheduleInfo } from '@/lib/bookings/pending-reschedule';
+import { mapRescheduleRowToPending } from '@/lib/bookings/pending-reschedule';
 import { perfLog, perfLoggingEnabled, perfNoteGetCurrentUser } from '@/lib/perfBoot';
 import type { UserRole, BookingStatus } from '@/types/database';
 
@@ -104,6 +106,8 @@ export interface ScopeReview {
 export interface BookingDetails {
   id: string;
   customerId: string;
+  /** Display name for pros (from profiles); not a substitute for admin user-id tooling. */
+  customerDisplayName?: string;
   proId: string;
   serviceDate: string;
   serviceTime: string;
@@ -140,6 +144,12 @@ export interface BookingDetails {
   amountDeposit?: number | null;
   amountRemaining?: number | null;
   amountTotal?: number | null;
+  /** Service subtotal in cents (pro rate + travel), when persisted on the booking row */
+  amountSubtotalCents?: number | null;
+  /** IANA zone for interpreting service_date + service_time */
+  bookingTimezone?: string | null;
+  /** Pending reschedule request (booking row still holds the last agreed slot). */
+  pendingReschedule?: PendingRescheduleInfo | null;
 }
 
 // Status history entry for tracking booking lifecycle
@@ -176,6 +186,8 @@ export interface Booking {
    * - Location data when job was completed
    */
   statusHistory?: StatusHistoryEntry[];
+  /** Pending reschedule (booking.date/time remain the last agreed slot). */
+  pendingReschedule?: PendingRescheduleInfo | null;
 }
 
 export interface CreateBookingPayload {
@@ -1037,6 +1049,11 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
           id,
           display_name,
           user_id
+        ),
+        customer_profile:profiles!bookings_customer_id_fkey (
+          id,
+          full_name,
+          first_name
         )
       `
       )
@@ -1045,10 +1062,31 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
 
     if (error || !data) return null;
 
+    const { data: pendRow } = await supabase
+      .from('reschedule_requests')
+      .select(
+        'id, proposed_service_date, proposed_service_time, proposed_start_at, requested_by_role, message, expires_at'
+      )
+      .eq('booking_id', bookingId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     const d = data as Record<string, unknown>;
+    const cp = d.customer_profile as { full_name?: string | null; first_name?: string | null } | null;
+    const customerDisplayName = (() => {
+      const full = typeof cp?.full_name === 'string' ? cp.full_name.trim() : '';
+      if (full) return full;
+      const first = typeof cp?.first_name === 'string' ? cp.first_name.trim() : '';
+      if (first) return first;
+      return 'Customer';
+    })();
+
     return {
       id: data.id,
       customerId: data.customer_id,
+      customerDisplayName,
       proId: data.pro_id,
       serviceDate: data.service_date,
       serviceTime: data.service_time,
@@ -1082,6 +1120,9 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       amountDeposit: d.amount_deposit as number | null | undefined,
       amountRemaining: d.amount_remaining as number | null | undefined,
       amountTotal: (d.total_amount_cents ?? d.amount_total) as number | null | undefined,
+      amountSubtotalCents: (d.amount_subtotal as number | null | undefined) ?? null,
+      bookingTimezone: (d.booking_timezone as string | null | undefined) ?? null,
+      pendingReschedule: mapRescheduleRowToPending(pendRow as Record<string, unknown> | null),
     };
   } catch {
     return null;
@@ -1301,9 +1342,29 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
       return [];
     }
 
+    const bookingRows = data ?? [];
+    const bookingIds = bookingRows.map((b: { id: string }) => b.id).filter(Boolean);
+    const pendingByBookingId = new Map<string, PendingRescheduleInfo>();
+    if (bookingIds.length > 0) {
+      const { data: pendRows } = await supabase
+        .from('reschedule_requests')
+        .select(
+          'id, booking_id, proposed_service_date, proposed_service_time, proposed_start_at, requested_by_role, message, expires_at'
+        )
+        .in('booking_id', bookingIds)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      for (const row of pendRows ?? []) {
+        const bid = (row as { booking_id?: string }).booking_id;
+        if (!bid || pendingByBookingId.has(bid)) continue;
+        const mapped = mapRescheduleRowToPending(row as Record<string, unknown>);
+        if (mapped) pendingByBookingId.set(bid, mapped);
+      }
+    }
+
     const customerIds = Array.from(
       new Set(
-        (data ?? [])
+        bookingRows
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((b: any) => b?.customer_id as string | null | undefined)
           .filter((v): v is string => typeof v === 'string' && v.length > 0)
@@ -1348,7 +1409,7 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
       .eq('id', proData.id)
       .single();
 
-    return data.map((booking) => ({
+    return bookingRows.map((booking) => ({
       id: booking.id,
       customerId: booking.customer_id,
       customerName: customerNameById.get(booking.customer_id) || 'Customer',
@@ -1365,6 +1426,7 @@ export async function getProJobs(proUserId: string): Promise<Booking[]> {
       price: booking.price || undefined,
       createdAt: booking.created_at,
       statusHistory: booking.status_history as StatusHistoryEntry[] | undefined,
+      pendingReschedule: pendingByBookingId.get(booking.id) ?? null,
     }));
   } catch (err) {
     // Supabase not available - return empty array for UI-only mode
@@ -1873,8 +1935,8 @@ export async function updateBookingStatus(
 
 /**
  * Create an earnings record for a completed booking.
- * Uses real pricing: total - platform_fee - refunded.
- * Falls back to price - computed platform fee when payment breakdown not yet set.
+ * Uses total_amount_cents - platform_fee_cents - refunded when totals exist;
+ * else amount_subtotal - refunded; else list price (no legacy 15% haircut).
  */
 async function createEarningsForBooking(
   proId: string,
@@ -1895,7 +1957,7 @@ async function createEarningsForBooking(
 
   const { data: booking } = await supabase
     .from('bookings')
-    .select('price, total_amount_cents, platform_fee_cents, refunded_total_cents')
+    .select('price, total_amount_cents, platform_fee_cents, refunded_total_cents, amount_subtotal')
     .eq('id', bookingId)
     .single();
 
@@ -1903,15 +1965,17 @@ async function createEarningsForBooking(
   const totalCents = Number(booking?.total_amount_cents ?? 0);
   const platformFeeCents = Number(booking?.platform_fee_cents ?? 0);
   const refundedCents = Number(booking?.refunded_total_cents ?? 0);
+  const subtotalCents = Number(booking?.amount_subtotal ?? 0);
 
   if (totalCents > 0) {
     const netCents = Math.max(0, totalCents - platformFeeCents - refundedCents);
     amountDollars = netCents / 100;
+  } else if (subtotalCents > 0) {
+    amountDollars = Math.max(0, (subtotalCents - refundedCents) / 100);
   } else {
     const grossDollars = Number(booking?.price ?? startingPrice ?? 50);
     const grossCents = Math.round(grossDollars * 100);
-    const feeCents = platformFeeCents > 0 ? platformFeeCents : Math.round(grossCents * 0.15);
-    amountDollars = Math.max(0, (grossCents - feeCents - refundedCents) / 100);
+    amountDollars = Math.max(0, (grossCents - refundedCents) / 100);
   }
 
   amountDollars = Math.max(amountDollars, 0);

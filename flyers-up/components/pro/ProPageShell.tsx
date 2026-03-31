@@ -53,7 +53,7 @@ export function ProPageShell({ title, children, userName: userNameProp, subtitle
         </div>
       </div>
 
-      <div className="mobile-page-root flex-1 min-h-0 pb-24 safe-area-bottom">
+      <div className="mobile-page-root flex-1 min-h-0">
         {subtitle && (
           <div className="max-w-4xl w-full min-w-0 mx-auto px-4 pt-4">
             <p className="text-sm text-text3">{subtitle}</p>

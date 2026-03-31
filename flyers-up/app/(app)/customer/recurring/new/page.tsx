@@ -1,10 +1,11 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
+import type { ServicePackagePublic } from '@/types/service-packages';
 
 const DAYS = [
   { v: 0, l: 'Sun' },
@@ -19,6 +20,7 @@ const DAYS = [
 function CustomerRecurringNewInner() {
   const sp = useSearchParams();
   const proId = useMemo(() => normalizeUuidOrNull(sp.get('proId')), [sp]);
+  const packageId = useMemo(() => normalizeUuidOrNull(sp.get('packageId')), [sp]);
 
   const [frequency, setFrequency] = useState<'weekly' | 'biweekly' | 'monthly'>('weekly');
   const [days, setDays] = useState<number[]>([1]);
@@ -27,9 +29,86 @@ function CustomerRecurringNewInner() {
   const [duration, setDuration] = useState(60);
   const [timezone, setTimezone] = useState('America/New_York');
   const [note, setNote] = useState('');
-  const [occupationSlug, setOccupationSlug] = useState('tutoring');
+  const [occupationSlug, setOccupationSlug] = useState('');
+  const [occupationLocked, setOccupationLocked] = useState(false);
+  const [metaLoading, setMetaLoading] = useState(false);
+  const [packageForRequest, setPackageForRequest] = useState<ServicePackagePublic | null>(null);
+  const [packageLoadError, setPackageLoadError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!proId) return;
+    let cancelled = false;
+    setMetaLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch(`/api/customer/pros/${encodeURIComponent(proId)}/meta`, {
+          credentials: 'include',
+        });
+        const j = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          setOccupationLocked(false);
+          return;
+        }
+        const slug = typeof j.occupation_slug === 'string' ? j.occupation_slug.trim() : '';
+        if (slug) {
+          setOccupationSlug(slug);
+          setOccupationLocked(true);
+        } else {
+          setOccupationLocked(false);
+        }
+      } catch {
+        if (!cancelled) setOccupationLocked(false);
+      } finally {
+        if (!cancelled) setMetaLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [proId]);
+
+  useEffect(() => {
+    if (!proId || !packageId) {
+      setPackageForRequest(null);
+      setPackageLoadError(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      setPackageLoadError(null);
+      try {
+        const res = await fetch(`/api/pros/${encodeURIComponent(proId)}/packages`, {
+          credentials: 'include',
+        });
+        const j = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          setPackageForRequest(null);
+          setPackageLoadError(typeof j.error === 'string' ? j.error : 'Could not load package');
+          return;
+        }
+        const list = (j.packages as ServicePackagePublic[] | undefined) ?? [];
+        const found = list.find((p) => p.id === packageId) ?? null;
+        setPackageForRequest(found);
+        if (!found) {
+          setPackageLoadError('That package is not available for this pro.');
+        } else if (found.estimated_duration_minutes != null && found.estimated_duration_minutes > 0) {
+          setDuration(found.estimated_duration_minutes);
+        }
+      } catch {
+        if (!cancelled) {
+          setPackageForRequest(null);
+          setPackageLoadError('Could not load package');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [proId, packageId]);
 
   function toggleDay(d: number) {
     setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
@@ -38,6 +117,19 @@ function CustomerRecurringNewInner() {
   async function submit() {
     if (!proId) {
       setMsg('Missing pro');
+      return;
+    }
+    const occ = occupationSlug.trim();
+    if (!occ) {
+      setMsg(
+        occupationLocked
+          ? 'This pro has no service category on file. Ask them to set their occupation in settings, then try again.'
+          : 'Enter a service category (occupation slug) for this request.'
+      );
+      return;
+    }
+    if (packageId && !packageForRequest) {
+      setMsg(packageLoadError ?? 'Selected package is not valid.');
       return;
     }
     if (days.length === 0) {
@@ -53,7 +145,7 @@ function CustomerRecurringNewInner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           pro_id: proId,
-          occupation_slug: occupationSlug,
+          occupation_slug: occ,
           frequency,
           interval_count: 1,
           days_of_week: days,
@@ -62,6 +154,7 @@ function CustomerRecurringNewInner() {
           duration_minutes: duration,
           timezone,
           customer_note: note || undefined,
+          ...(packageForRequest ? { package_id: packageForRequest.id } : {}),
         }),
       });
       const j = await res.json();
@@ -97,15 +190,44 @@ function CustomerRecurringNewInner() {
 
         {!proId && <p className="text-sm text-amber-700">Open this page from a pro profile to attach the request.</p>}
 
-        <label className="block text-sm">
-          <span className="text-muted">Occupation slug</span>
-          <input
-            value={occupationSlug}
-            onChange={(e) => setOccupationSlug(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            placeholder="tutoring"
-          />
-        </label>
+        {packageId && (
+          <div className="rounded-lg border border-border bg-surface px-4 py-3 text-sm space-y-1">
+            {packageLoadError && <p className="text-amber-800">{packageLoadError}</p>}
+            {packageForRequest && (
+              <>
+                <p className="font-medium text-text">Package: {packageForRequest.title}</p>
+                {packageForRequest.max_recurring_customer_slots != null && (
+                  <p className="text-muted text-xs">
+                    This offer allows up to {packageForRequest.max_recurring_customer_slots} recurring clients at once
+                    (in addition to your overall account limit).
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="block text-sm space-y-1">
+          <span className="text-muted">Service category</span>
+          {metaLoading ? (
+            <p className="text-xs text-muted">Loading from pro profile…</p>
+          ) : occupationLocked ? (
+            <p className="mt-1 rounded-lg border border-border bg-background px-3 py-2 text-text capitalize">{occupationSlug}</p>
+          ) : (
+            <input
+              value={occupationSlug}
+              onChange={(e) => setOccupationSlug(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              placeholder="Matches the pro's main service (e.g. dog-walking)"
+            />
+          )}
+          {!occupationLocked && !metaLoading && (
+            <p className="text-xs text-muted">
+              We could not read this automatically — use the same category as on the pro's profile, or open this form from
+              their profile after signing in.
+            </p>
+          )}
+        </div>
 
         <label className="block text-sm">
           <span className="text-muted">Frequency</span>
@@ -128,8 +250,10 @@ function CustomerRecurringNewInner() {
                 key={d.v}
                 type="button"
                 onClick={() => toggleDay(d.v)}
-                className={`rounded-full px-3 py-1 text-xs font-medium border ${
-                  days.includes(d.v) ? 'bg-[hsl(var(--accent-customer))] text-black border-transparent' : 'border-border'
+                className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+                  days.includes(d.v)
+                    ? 'border-transparent bg-[#5D695D] text-[#F8F4EE] shadow-sm'
+                    : 'border-[#5D695D]/20 bg-[#F8F4EE]/60 text-[#5D695D] hover:border-[#5D695D]/35'
                 }`}
               >
                 {d.l}
@@ -193,9 +317,9 @@ function CustomerRecurringNewInner() {
 
         <button
           type="button"
-          disabled={loading || !proId}
+          disabled={loading || !proId || (packageId ? !packageForRequest : false)}
           onClick={() => void submit()}
-          className="w-full rounded-full bg-[hsl(var(--accent-customer))] text-black py-3 text-sm font-semibold disabled:opacity-50"
+          className="w-full rounded-full bg-[#E48C35] text-white py-3 text-sm font-semibold shadow-md transition hover:brightness-105 disabled:opacity-50"
         >
           {loading ? 'Sending…' : 'Submit recurring request'}
         </button>

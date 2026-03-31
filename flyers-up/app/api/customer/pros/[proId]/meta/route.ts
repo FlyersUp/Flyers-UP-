@@ -21,10 +21,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ proId: 
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const admin = createAdminSupabaseClient();
-  const { data: sp } = await admin.from('service_pros').select('user_id').eq('id', proId).maybeSingle();
+  const { data: sp } = await admin.from('service_pros').select('user_id, occupation_id').eq('id', proId).maybeSingle();
   if (!sp?.user_id) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const proUserId = sp.user_id as string;
+  const occId = (sp as { occupation_id?: string | null }).occupation_id;
+  let occupation_slug: string | null = null;
+  if (occId) {
+    const { data: occ } = await admin.from('occupations').select('slug').eq('id', occId).maybeSingle();
+    occupation_slug = occ?.slug != null ? String((occ as { slug: string }).slug) : null;
+  }
   const signals = await loadRelationshipSignals(admin, auth.userId, proUserId);
   const mutualPreference = computeMutualPreference(signals);
 
@@ -44,5 +50,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ proId: 
     proBlockedRecurring: signals.proBlockedRecurring,
     mutualPreference,
     hasCompletedBooking: Boolean(completed?.id),
+    occupation_slug,
   });
 }
