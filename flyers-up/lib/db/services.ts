@@ -47,6 +47,20 @@ export interface MarketplacePro {
 /** Create a Supabase client - pass from route/action. */
 type SupabaseClient = Awaited<ReturnType<typeof import('@/lib/supabaseServer').createServerSupabaseClient>>;
 
+async function filterMarketplaceProsExcludeClosedAccounts(
+  prosIn: Record<string, unknown>[]
+): Promise<Record<string, unknown>[]> {
+  if (prosIn.length === 0) return prosIn;
+  const { createAdminSupabaseClient } = await import('@/lib/supabaseServer');
+  const { getClosedProfileUserIds } = await import('@/lib/pro/filter-marketplace-pros');
+  const admin = createAdminSupabaseClient();
+  const closed = await getClosedProfileUserIds(
+    admin,
+    prosIn.map((p) => String(p.user_id))
+  );
+  return prosIn.filter((p) => !closed.has(String(p.user_id)));
+}
+
 /**
  * Get all active services, sorted by sort_order.
  */
@@ -195,7 +209,8 @@ export async function getMarketplacePros(
       return [];
     }
 
-    const prosList = (pros ?? []) as Record<string, unknown>[];
+    let prosList = (pros ?? []) as Record<string, unknown>[];
+    prosList = await filterMarketplaceProsExcludeClosedAccounts(prosList);
     const profilePhotoUrls = await getProfilePhotoUrlsForPros(supabase, prosList);
     return prosList.map((p) => ({
       id: p.id,
@@ -233,7 +248,8 @@ export async function getMarketplacePros(
     return [];
   }
 
-  const prosList = (prosData ?? []) as Record<string, unknown>[];
+  let prosList = (prosData ?? []) as Record<string, unknown>[];
+  prosList = await filterMarketplaceProsExcludeClosedAccounts(prosList);
   const profilePhotoUrls = await getProfilePhotoUrlsForPros(supabase, prosList);
   return prosList.map((p) => ({
     id: p.id,

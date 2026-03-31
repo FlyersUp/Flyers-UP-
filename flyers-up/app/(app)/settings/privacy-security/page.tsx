@@ -24,6 +24,9 @@ export default function PrivacySecurityPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePhrase, setDeletePhrase] = useState('');
   const [accountKind, setAccountKind] = useState<'loading' | 'customer' | 'pro' | 'admin'>('loading');
+  const [proAccountStatus, setProAccountStatus] = useState<string | null>(null);
+  const [showCloseAccountModal, setShowCloseAccountModal] = useState(false);
+  const [closeAccountLoading, setCloseAccountLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +38,11 @@ export default function PrivacySecurityPage() {
         if (!cancelled) setAccountKind('customer');
         return;
       }
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, account_status')
+        .eq('id', user.id)
+        .maybeSingle();
       if (cancelled) return;
       if (profile?.role === 'admin') {
         setAccountKind('admin');
@@ -43,6 +50,7 @@ export default function PrivacySecurityPage() {
       }
       const { data: sp } = await supabase.from('service_pros').select('id').eq('user_id', user.id).maybeSingle();
       if (cancelled) return;
+      setProAccountStatus((profile as { account_status?: string | null })?.account_status ?? 'active');
       setAccountKind(sp ? 'pro' : 'customer');
     })();
     return () => {
@@ -110,6 +118,57 @@ export default function PrivacySecurityPage() {
     } catch {
       setError('An unexpected error occurred');
       setLoading(false);
+    }
+  }
+
+  type ProCloseApiResponse = {
+    success: boolean;
+    status: string;
+    blocked_by: { code: string; message: string }[];
+    message: string;
+  };
+
+  async function handleConfirmCloseProAccount() {
+    setCloseAccountLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch('/api/pro/account/close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+      const data = (await res.json().catch(() => ({}))) as ProCloseApiResponse;
+
+      if (res.status === 409 && !data.success) {
+        setError(
+          data.message ||
+            'You can’t close your account yet because you still have active jobs or payout issues to resolve.'
+        );
+        setShowCloseAccountModal(false);
+        setCloseAccountLoading(false);
+        return;
+      }
+
+      if (!res.ok || !data.success) {
+        setError(data.message || 'Could not close your account. Please try again or contact support.');
+        setCloseAccountLoading(false);
+        return;
+      }
+
+      setShowCloseAccountModal(false);
+      try {
+        sessionStorage.setItem('fu_pro_account_closed', '1');
+      } catch {
+        /* ignore */
+      }
+      await supabase.auth.signOut();
+      window.location.href = '/';
+    } catch {
+      setError('An unexpected error occurred');
+    } finally {
+      setCloseAccountLoading(false);
     }
   }
 
@@ -241,17 +300,49 @@ export default function PrivacySecurityPage() {
           <div className="p-4 bg-surface2 border border-border rounded-lg text-sm text-muted">Loading…</div>
         )}
 
-        {accountKind === 'pro' && (
+        {accountKind === 'pro' && proAccountStatus === 'closed' && (
           <div className="p-4 bg-surface2 border border-border rounded-lg text-sm text-text">
-            <p className="mb-2">
-              Service pro accounts can’t be deleted in the app (payments, Connect, and tax records). To close your
-              account, email{' '}
+            <p className="mb-2">Your service pro account is closed. Your profile is hidden and you will not receive new bookings.</p>
+            <p className="text-muted text-xs">
+              For full data requests, contact{' '}
               <a className="text-accent underline" href="mailto:support@flyersup.app">
                 support@flyersup.app
               </a>
               .
             </p>
           </div>
+        )}
+
+        {accountKind === 'pro' &&
+          (proAccountStatus === 'active' || proAccountStatus === 'closure_requested') && (
+          <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg space-y-4">
+            <p className="text-sm text-text">
+              Closing your account removes your profile from Flyers Up and stops new bookings. Payment, payout, and tax
+              records are retained as required.
+            </p>
+            <p className="text-xs text-muted">
+              Service Pro accounts can’t be fully deleted in-app because payment, payout, and tax records must be retained.
+            </p>
+            <p className="text-xs text-muted">
+              For full data requests, contact{' '}
+              <a className="text-accent underline" href="mailto:support@flyersup.app">
+                support@flyersup.app
+              </a>
+              .
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowCloseAccountModal(true)}
+              disabled={closeAccountLoading}
+              className="px-4 py-2 bg-red-600 text-accentContrast rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+            >
+              Close my account
+            </button>
+          </div>
+        )}
+
+        {accountKind === 'pro' && proAccountStatus === null && (
+          <div className="p-4 bg-surface2 border border-border rounded-lg text-sm text-muted">Loading…</div>
         )}
 
         {accountKind === 'admin' && (
@@ -324,6 +415,45 @@ export default function PrivacySecurityPage() {
           </div>
         )}
       </div>
+
+      {showCloseAccountModal && accountKind === 'pro' && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="close-account-title"
+        >
+          <div className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-lg text-text">
+            <h3 id="close-account-title" className="text-lg font-semibold mb-3">
+              Close your account?
+            </h3>
+            <ul className="text-sm text-muted space-y-2 list-disc pl-5 mb-6">
+              <li>You won’t receive new bookings</li>
+              <li>Your profile will be removed from search</li>
+              <li>Existing payment and tax records will be retained</li>
+              <li>Some closures may be temporarily blocked until active jobs or payout issues are resolved</li>
+            </ul>
+            <div className="flex flex-wrap gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCloseAccountModal(false)}
+                disabled={closeAccountLoading}
+                className="px-4 py-2 bg-surface border border-border text-muted rounded-lg hover:bg-surface2 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmCloseProAccount()}
+                disabled={closeAccountLoading}
+                className="px-4 py-2 bg-red-600 text-accentContrast rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {closeAccountLoading ? 'Closing…' : 'Confirm closure'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

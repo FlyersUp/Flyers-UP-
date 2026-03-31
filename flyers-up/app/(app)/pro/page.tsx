@@ -19,7 +19,7 @@ export default async function ProDashboardPage() {
     redirect('/auth?next=%2Fpro');
   }
 
-  const selectCols = 'id, email, role, first_name, last_name, phone, zip_code, onboarding_step';
+  const selectCols = 'id, email, role, first_name, last_name, phone, zip_code, onboarding_step, account_status';
 
   // Server-side get-or-create (RLS allows users to insert their own profile).
   const { data: profileExisting } = await supabase
@@ -41,6 +41,10 @@ export default async function ProDashboardPage() {
 
   if (!profile || profile.role !== 'pro') {
     redirect('/onboarding/role?next=%2Fpro');
+  }
+
+  if ((profile as { account_status?: string | null }).account_status === 'closed') {
+    redirect('/pro/account-closed');
   }
 
   const firstNameMissing = !profile.first_name || profile.first_name.trim().length === 0;

@@ -92,8 +92,30 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  // Refresh session cookies if needed.
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (
+    user &&
+    pathname.startsWith('/pro') &&
+    !pathname.startsWith('/pro/account-closed') &&
+    !pathname.startsWith('/api/')
+  ) {
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('role, account_status')
+      .eq('id', user.id)
+      .maybeSingle();
+    const st = (prof as { account_status?: string | null } | null)?.account_status;
+    if (prof?.role === 'pro' && st === 'closed') {
+      const redir = NextResponse.redirect(new URL('/pro/account-closed', request.url));
+      response.cookies.getAll().forEach((c) => {
+        redir.cookies.set(c.name, c.value);
+      });
+      return redir;
+    }
+  }
 
   return response;
 }

@@ -15,6 +15,8 @@ interface AppLayoutProps {
   mode?: 'customer' | 'pro';
   showRail?: boolean;
   accentDensity?: 'default' | 'focus';
+  /** When false, hide the fixed top-right bell (use inline header actions instead). */
+  showFloatingNotificationBell?: boolean;
 }
 
 function LayoutContent({
@@ -22,11 +24,13 @@ function LayoutContent({
   showRail = true,
   mode,
   accentDensity,
+  showFloatingNotificationBell = true,
 }: {
   children: ReactNode;
   showRail: boolean;
   mode: 'customer' | 'pro';
   accentDensity: 'default' | 'focus';
+  showFloatingNotificationBell: boolean;
 }) {
   const showRailForMode = showRail && mode === 'pro';
   const basePath = mode === 'pro' ? 'pro' : 'customer';
@@ -62,6 +66,7 @@ export function AppLayout({
   mode = 'customer',
   showRail = true,
   accentDensity: accentDensityProp,
+  showFloatingNotificationBell = true,
 }: AppLayoutProps) {
   const accentFromContext = useAccentDensity();
   const accentDensity = accentDensityProp ?? accentFromContext;
@@ -70,7 +75,12 @@ export function AppLayout({
       <NotificationProvider>
         <>
           <OneSignalInit />
-          <LayoutContent showRail={showRail} mode={mode} accentDensity={accentDensity}>
+          <LayoutContent
+            showRail={showRail}
+            mode={mode}
+            accentDensity={accentDensity}
+            showFloatingNotificationBell={showFloatingNotificationBell}
+          >
             {children}
           </LayoutContent>
           <NotificationToast />

@@ -57,7 +57,7 @@ export default async function CustomerProProfilePage({
   const callHref = profile.phonePublic && profile.phone ? `tel:${profile.phone}` : null;
 
   return (
-    <AppLayout mode="customer">
+    <AppLayout mode="customer" showFloatingNotificationBell={false}>
       <div className="max-w-[720px] mx-auto px-4 py-6">
         <div className="theme-pro">
           {fromNearbyAlert && (
@@ -69,7 +69,7 @@ export default async function CustomerProProfilePage({
               <p className="text-xs text-muted mt-1">Book or message them now.</p>
             </div>
           )}
-          <ProfileTopBar title={profile.businessName} />
+          <ProfileTopBar title={profile.businessName} notificationBasePath="customer" />
           <div className="pt-4 mb-4">
             <ProProfileRelationshipBar proId={profile.id} />
           </div>

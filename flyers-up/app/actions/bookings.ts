@@ -18,6 +18,7 @@ import { assertSlotBookable, proposedBookingUtcWindow } from '@/lib/availability
 import { resolveUrgency } from '@/lib/bookings/urgency';
 import { getOccupationFeeProfile } from '@/lib/bookings/fee-rules';
 import { buildSelectedPackageSnapshot, formatPackageScopeNotes } from '@/lib/service-packages/snapshot';
+import { isServiceProBookableByCustomers } from '@/lib/pro/pro-bookability';
 
 type BookingStatus = 'requested' | 'accepted' | 'declined' | 'completed' | 'cancelled';
 
@@ -79,7 +80,9 @@ export async function createBookingWithPayment(
       return { success: false, error: 'Service pro not found.' };
     }
 
-    if (!(proRow as any).available) {
+    const adminClient = createAdminSupabaseClient();
+    const customerBookable = await isServiceProBookableByCustomers(adminClient, proId);
+    if (!customerBookable) {
       return { success: false, error: 'Service pro not available.' };
     }
 
@@ -140,10 +143,9 @@ export async function createBookingWithPayment(
     let selectedPackageIdOut: string | null = null;
     let selectedPackageSnapshotOut: Record<string, unknown> | null = null;
 
-    const adminForPackage = createAdminSupabaseClient();
     const pkgIdTrim = selectedPackageId?.trim() ?? '';
     if (pkgIdTrim) {
-      const { data: pkgRow, error: pkgErr } = await adminForPackage
+      const { data: pkgRow, error: pkgErr } = await adminClient
         .from('service_packages')
         .select('*')
         .eq('id', pkgIdTrim)
@@ -238,7 +240,6 @@ export async function createBookingWithPayment(
       // ignore geocode failures
     }
 
-    const adminClient = createAdminSupabaseClient();
     let ctxAvail: Awaited<ReturnType<typeof loadComputeContextForProRange>> = null;
     try {
       ctxAvail = await loadComputeContextForProRange(adminClient, proId, date, date);

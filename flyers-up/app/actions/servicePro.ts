@@ -23,6 +23,22 @@ export async function updateMyServiceProAction(
   try {
     const { userId } = await requireProUser({ accessToken });
 
+    const gateWriter =
+      (() => {
+        try {
+          return createAdminSupabaseClient();
+        } catch {
+          return null;
+        }
+      })() ?? (await createServerSupabaseClient());
+    const { data: acct } = await gateWriter.from('profiles').select('account_status').eq('id', userId).maybeSingle();
+    if ((acct as { account_status?: string | null } | null)?.account_status === 'closed') {
+      return {
+        success: false,
+        error: 'Your pro account is closed. Contact support@flyersup.app if you need help.',
+      };
+    }
+
     // Build the update payload (DB column names).
     const updateData: Record<string, unknown> = {};
     if (params.display_name !== undefined) updateData.display_name = params.display_name;

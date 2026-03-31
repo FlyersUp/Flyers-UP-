@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
+import { getClosedProfileUserIds } from '@/lib/pro/filter-marketplace-pros';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const zipcodes = require('zipcodes');
 
@@ -78,7 +79,16 @@ export async function GET(request: NextRequest) {
   }
 
   const admin = createAdminSupabaseClient();
-  const proIds = rawPros.map((p: { id: string }) => p.id);
+  const closedUserIds = await getClosedProfileUserIds(
+    admin,
+    rawPros.map((p: { user_id: string }) => p.user_id)
+  );
+  const rawProsOpen = rawPros.filter((p: { user_id: string }) => !closedUserIds.has(p.user_id));
+  if (rawProsOpen.length === 0) {
+    return Response.json({ ok: true, pros: [], categoryName: category.name });
+  }
+
+  const proIds = rawProsOpen.map((p: { id: string }) => p.id);
   const { data: reliabilityRows } = await admin
     .from('pro_reliability')
     .select('pro_id, reliability_score, no_show_count_30d, booking_restriction_level')
@@ -94,7 +104,7 @@ export async function GET(request: NextRequest) {
     ])
   );
 
-  let filtered = rawPros.filter((p: { id: string }) => {
+  let filtered = rawProsOpen.filter((p: { id: string }) => {
     const rel = relByPro.get(p.id);
     if (rel?.restricted) return false; // threshold breach: block from search
     if (availableToday && (rel?.noShowCount ?? 0) >= NO_SHOW_THRESHOLD_URGENT) return false; // repeated no-shows disable urgent

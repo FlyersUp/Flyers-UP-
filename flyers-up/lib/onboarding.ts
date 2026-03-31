@@ -12,6 +12,7 @@
  */
 
 import { supabase } from '@/lib/supabaseClient';
+import { routeAfterAuthFromProfile } from '@/lib/authRouting';
 
 export type AppRole = 'customer' | 'pro';
 
@@ -31,12 +32,13 @@ export interface ProfileRow {
   phone: string | null;
   zip_code: string | null;
   onboarding_step: string | null;
+  account_status?: string | null;
 }
 
 export async function getProfile(userId: string): Promise<ProfileRow | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, role, first_name, last_name, phone, zip_code, onboarding_step')
+    .select('id, email, role, first_name, last_name, phone, zip_code, onboarding_step, account_status')
     .eq('id', userId)
     .maybeSingle();
 
@@ -61,7 +63,7 @@ export async function getOrCreateProfile(userId: string, email: string | null): 
       role: null,
       onboarding_step: 'role',
     })
-    .select('id, email, role, first_name, last_name, phone, zip_code, onboarding_step')
+    .select('id, email, role, first_name, last_name, phone, zip_code, onboarding_step, account_status')
     .single();
 
   if (error) {
@@ -102,48 +104,8 @@ export async function upsertServicePro(input: {
   return { success: true };
 }
 
-function isSafeNext(next: string | null): string | null {
-  if (!next) return null;
-  if (!next.startsWith('/')) return null;
-  // avoid open redirects and auth loops
-  if (next.startsWith('/auth')) return null;
-  return next;
-}
-
 export function routeAfterAuth(profile: ProfileRow, next?: string | null): string {
-  const safeNext = isSafeNext(next ?? null);
-  // Prevent cross-role redirect loops (e.g. customer being sent to /pro).
-  const roleSafeNext =
-    profile.role === 'customer'
-      ? safeNext && (safeNext.startsWith('/pro') || safeNext.startsWith('/dashboard/pro')) ? null : safeNext
-      : profile.role === 'pro'
-        ? safeNext && (safeNext.startsWith('/customer') || safeNext.startsWith('/dashboard/customer')) ? null : safeNext
-        : safeNext;
-
-  // If onboarding_step is set, route there (resume).
-  if (profile.onboarding_step === 'role' || profile.role == null) {
-    return safeNext ? `/onboarding/role?next=${encodeURIComponent(safeNext)}` : '/onboarding/role';
-  }
-
-  const firstNameMissing = !profile.first_name || profile.first_name.trim().length === 0;
-  const lastNameMissing = !profile.last_name || profile.last_name.trim().length === 0;
-  const zipMissing = !profile.zip_code || profile.zip_code.trim().length === 0;
-
-  if (profile.role === 'customer') {
-    // Allow dashboard access; name is collected when they try to book.
-    return roleSafeNext ?? '/customer';
-  }
-
-  if (profile.role === 'pro') {
-    // Pro requires first_name + last_name + later service_pros fields (collected on /onboarding/pro)
-    if (profile.onboarding_step === 'pro_profile' || firstNameMissing || lastNameMissing || zipMissing) {
-      return roleSafeNext ? `/onboarding/pro?next=${encodeURIComponent(roleSafeNext)}` : '/onboarding/pro';
-    }
-    return roleSafeNext ?? '/pro';
-  }
-
-  // Fallback
-  return '/onboarding/role';
+  return routeAfterAuthFromProfile(profile, next);
 }
 
 

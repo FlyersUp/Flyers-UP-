@@ -15,6 +15,23 @@ export async function checkProBookingEligibility(proId: string): Promise<ProElig
   const { createSupabaseAdmin } = await import('@/lib/supabase/server-admin');
   const admin = createSupabaseAdmin();
 
+  const { data: proRef } = await admin
+    .from('service_pros')
+    .select('user_id, closed_at')
+    .eq('id', proId)
+    .maybeSingle();
+  if (!proRef) {
+    return { canAccept: false, reason: 'Pro profile not found.' };
+  }
+  const uid = String((proRef as { user_id: string }).user_id);
+  if ((proRef as { closed_at?: string | null }).closed_at) {
+    return { canAccept: false, reason: 'This pro account is closed.' };
+  }
+  const { data: prof } = await admin.from('profiles').select('account_status').eq('id', uid).maybeSingle();
+  if ((prof as { account_status?: string | null } | null)?.account_status === 'closed') {
+    return { canAccept: false, reason: 'This pro account is closed.' };
+  }
+
   const { data: rel } = await admin
     .from('pro_reliability')
     .select('reliability_score, booking_restriction_level, no_show_count_30d')

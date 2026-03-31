@@ -4,6 +4,7 @@
  */
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
+import { isServiceProBookableByCustomers } from '@/lib/pro/pro-bookability';
 import { loadComputeContextForProRange } from '@/lib/availability/load-context';
 import { assertSlotBookable, proposedBookingUtcWindow } from '@/lib/availability/engine';
 
@@ -53,9 +54,22 @@ export async function POST(
   }
 
   const admin = createAdminSupabaseClient();
-  const { data: pro } = await admin.from('service_pros').select('id, available').eq('id', proId.trim()).maybeSingle();
-  if (!pro?.id) {
+  const { data: proExists } = await admin.from('service_pros').select('id').eq('id', proId.trim()).maybeSingle();
+  if (!proExists?.id) {
     return NextResponse.json({ ok: false, error: 'Pro not found' }, { status: 404 });
+  }
+  const bookable = await isServiceProBookableByCustomers(admin, proId.trim());
+  if (!bookable) {
+    return NextResponse.json(
+      {
+        ok: true,
+        bookable: false,
+        reason: 'unavailable',
+        startAtUtc: null,
+        endAtUtc: null,
+      },
+      { status: 200, headers: { 'Cache-Control': 'no-store' } }
+    );
   }
 
   const ctx = await loadComputeContextForProRange(admin, proId.trim(), date, date);

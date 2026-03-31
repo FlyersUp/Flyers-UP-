@@ -22,6 +22,7 @@ import { TrustBadgesRow } from '@/components/pro-profile/TrustBadgesRow';
 import { ServicesAndPricingSection } from '@/components/pro-profile/ServicesAndPricingSection';
 import { AvailabilityPreviewCard } from '@/components/pro-profile/AvailabilityPreviewCard';
 import { StickyBookingBar } from '@/components/pro-profile/StickyBookingBar';
+import { bottomChrome } from '@/lib/layout/bottomChrome';
 import { GallerySection } from '@/components/profile/GallerySection';
 import { ProReviewSection } from '@/components/profile/ProReviewSection';
 import { AboutServiceAreaSection } from '@/components/profile/AboutServiceAreaSection';
@@ -48,7 +49,7 @@ export function ProProfileView({
   const messageDisabled = !messageHref;
 
   return (
-    <div className="space-y-6 pb-36">
+    <div className={`space-y-6 ${bottomChrome.pbStickyBarOnly}`}>
       {/* 1. Hero / identity block */}
       <section className="relative">
         <div className="absolute top-4 right-4 z-10">

@@ -45,8 +45,8 @@ export function ProProfileTopBar({
   }, [shareUrl, title]);
 
   return (
-    <div className="sticky top-0 z-40 -mx-4 px-4 py-3 bg-white/95 dark:bg-[#171A20]/95 backdrop-blur-md border-b border-black/5 dark:border-white/10">
-      <div className="flex items-center justify-between gap-3">
+    <div className="sticky top-0 z-40 -mx-4 px-4 py-3 bg-white/95 dark:bg-[#171A20]/95 backdrop-blur-md border-b border-black/5 dark:border-white/10 safe-area-top">
+      <div className="flex items-center gap-2 min-w-0">
         <button
           type="button"
           onClick={() => router.back()}
@@ -55,7 +55,7 @@ export function ProProfileTopBar({
         >
           ←
         </button>
-        <h1 className="min-w-0 flex-1 text-center text-base font-semibold text-[#111111] dark:text-[#F5F7FA] truncate">
+        <h1 className="min-w-0 flex-1 text-center text-base font-semibold text-[#111111] dark:text-[#F5F7FA] truncate px-1">
           {title}
         </h1>
         <div className="flex items-center gap-1.5 shrink-0">

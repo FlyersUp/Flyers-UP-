@@ -13,7 +13,7 @@ interface UseSignOutRedirectResult {
 /**
  * Shared sign-out flow used by account/settings entry points.
  */
-export function useSignOutRedirect(redirectTo = '/auth'): UseSignOutRedirectResult {
+export function useSignOutRedirect(redirectTo = '/'): UseSignOutRedirectResult {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);

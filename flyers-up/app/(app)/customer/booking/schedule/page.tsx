@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useState, Suspense } from 'react';
+import { bottomChrome } from '@/lib/layout/bottomChrome';
 
 /**
  * Booking - Select Date & Time - Screen 6
@@ -26,7 +27,7 @@ function BookingScheduleContent() {
 
   return (
     <AppLayout mode="customer">
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className={`max-w-4xl mx-auto px-4 py-6 ${bottomChrome.pbStickyBarOnly}`}>
         <h1 className="text-2xl font-semibold text-text mb-6">
           Choose a date &amp; time
         </h1>
@@ -64,7 +65,7 @@ function BookingScheduleContent() {
           </div>
         </div>
 
-        <div className="fixed bottom-16 left-0 right-0 bg-surface border-t border-border p-4">
+        <div className={`fixed left-0 right-0 z-40 bg-surface border-t border-border p-4 ${bottomChrome.fixedAboveNav}`}>
           <div className="max-w-4xl mx-auto">
             <Button
               className="w-full"

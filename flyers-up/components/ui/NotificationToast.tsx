@@ -16,7 +16,8 @@ export function NotificationToast() {
 
   return (
     <div
-      className="fixed bottom-20 left-0 right-0 z-[100] p-4 pointer-events-auto"
+      className="fixed left-0 right-0 z-[100] p-4 pointer-events-auto"
+      style={{ bottom: 'calc(var(--fu-bottom-nav-chrome) + 0.35rem)' }}
       role="alert"
       aria-live="polite"
     >

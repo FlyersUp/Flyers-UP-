@@ -204,7 +204,7 @@ function DepositContent({ bookingId }: { bookingId: string }) {
 
   return (
     <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0d0d0f]">
-      <div className="max-w-lg md:max-w-xl mx-auto px-4 md:px-6 py-6 pb-44">
+      <div className="max-w-lg md:max-w-xl mx-auto px-4 md:px-6 py-6 pb-fu-sticky-only">
         <Link
           href={`/customer/bookings/${bookingId}`}
           className="mb-6 inline-flex items-center gap-1 text-sm text-[#717171] dark:text-white/60 hover:text-[#222] dark:hover:text-white transition-colors"
@@ -328,7 +328,7 @@ export default function DepositPage({
       <Suspense
         fallback={
           <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0d0d0f]">
-            <div className="max-w-lg md:max-w-xl mx-auto px-4 md:px-6 py-8 pb-40">
+            <div className="max-w-lg md:max-w-xl mx-auto px-4 md:px-6 py-8 pb-fu-sticky-only">
               <div className="h-4 w-48 rounded bg-surface mb-6" />
               <div className="h-8 w-64 rounded bg-surface mb-6" />
               <div className="space-y-4 animate-pulse">

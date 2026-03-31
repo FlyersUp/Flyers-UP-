@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
+import { isServiceProBookableByCustomers } from '@/lib/pro/pro-bookability';
 import { mapServicePackageRow, SERVICE_PACKAGE_DB_SELECT } from '@/lib/service-packages/db-map';
 import { rowToPublic } from '@/types/service-packages';
 
@@ -20,18 +21,14 @@ export async function GET(_req: Request, ctx: { params: Promise<{ proId: string 
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: pro, error: proErr } = await supabase
-    .from('service_pros')
-    .select('user_id, available')
-    .eq('id', id)
-    .maybeSingle();
-
-  if (proErr) return NextResponse.json({ error: proErr.message }, { status: 500 });
-  if (!pro) return NextResponse.json({ ok: true, packages: [] });
-
-  if (!(pro as { available?: boolean }).available) {
+  const admin = createAdminSupabaseClient();
+  const bookable = await isServiceProBookableByCustomers(admin, id);
+  if (!bookable) {
     return NextResponse.json({ ok: true, packages: [] });
   }
+
+  const { data: pro, error: proErr } = await admin.from('service_pros').select('user_id').eq('id', id).maybeSingle();
+  if (proErr || !pro) return NextResponse.json({ ok: true, packages: [] });
 
   const proUserId = String((pro as { user_id: string }).user_id);
 

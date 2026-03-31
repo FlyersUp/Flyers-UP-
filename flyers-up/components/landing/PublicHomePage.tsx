@@ -20,8 +20,20 @@ import { RequestIcon, MatchIcon, MessageIcon, ScheduleIcon } from '@/components/
 
 type Occupation = { id: string; name: string; slug: string; icon: string | null; featured: boolean };
 
-export default function HomePage() {
+export default function PublicHomePage() {
   const [featuredOccupations, setFeaturedOccupations] = useState<Occupation[]>([]);
+  const [proClosedBanner, setProClosedBanner] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('fu_pro_account_closed')) {
+        sessionStorage.removeItem('fu_pro_account_closed');
+        setProClosedBanner(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     fetch('/api/occupations?featured=true', { cache: 'no-store' })
@@ -31,6 +43,21 @@ export default function HomePage() {
   }, []);
   return (
     <div className="min-h-screen bg-[#FAF6F0]" style={{ '--accent-customer': '111 91% 82%' } as React.CSSProperties}>
+      {proClosedBanner ? (
+        <div
+          className="px-4 py-3 text-center text-sm text-[#2C2825] border-b border-[#2C2825]/15 bg-[#E8F4E8]"
+          role="status"
+        >
+          Your account has been closed. You’ve been signed out.
+          <button
+            type="button"
+            onClick={() => setProClosedBanner(false)}
+            className="ml-3 underline text-[#2C2825]/80 hover:text-[#2C2825]"
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
       {/* Header */}
       <header
         className="sticky top-0 z-50 flex items-center justify-between h-16 md:h-[72px] px-6 md:px-6 border-b border-[#2C2825]/10 transition-all duration-200 ease-out"

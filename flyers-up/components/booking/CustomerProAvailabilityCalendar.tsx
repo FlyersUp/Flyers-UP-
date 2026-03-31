@@ -12,10 +12,14 @@ type DaySummary = { date: string; level: DayLevel; slotCount: number };
 type Slot = { value: string; label: string; startAtUtc: string };
 
 const levelStyles: Record<DayLevel, string> = {
-  unavailable: 'bg-surface2 text-muted cursor-not-allowed line-through decoration-muted/40',
-  fully_booked: 'bg-amber-500/15 text-amber-900 dark:text-amber-100 cursor-not-allowed',
-  limited: 'bg-amber-400/20 text-text',
-  available: 'bg-emerald-500/15 text-emerald-900 dark:text-emerald-100 hover:ring-2 hover:ring-accent/40',
+  unavailable:
+    'bg-surface2/90 text-muted cursor-not-allowed line-through decoration-muted/50 border border-dashed border-border/70 opacity-80',
+  fully_booked:
+    'bg-rose-500/18 text-rose-950 dark:text-rose-50 cursor-not-allowed border-2 border-rose-600/50 dark:border-rose-400/45 shadow-[inset_0_0_0_1px_rgba(225,29,72,0.12)]',
+  limited:
+    'bg-amber-100/95 text-amber-950 dark:bg-amber-950/40 dark:text-amber-50 border-2 border-dashed border-amber-600/60 dark:border-amber-400/55',
+  available:
+    'bg-emerald-500/14 text-emerald-900 dark:text-emerald-100 border border-emerald-600/30 dark:border-emerald-400/25 hover:ring-2 hover:ring-accent/40',
 };
 
 function weekdayHeaders(zone: string) {
@@ -203,18 +207,20 @@ export function CustomerProAvailabilityCalendar({
               );
             })}
           </div>
-          <div className="flex flex-wrap gap-3 text-[11px] text-muted">
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-500/60" /> Open
+          <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-text2">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-4 w-4 shrink-0 rounded-md border border-emerald-600/35 bg-emerald-500/14" /> Open
             </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-amber-400/70" /> Limited
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-4 w-4 shrink-0 rounded-md border-2 border-dashed border-amber-600/60 bg-amber-100/95 dark:bg-amber-950/40" />{' '}
+              Limited
             </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-amber-500/40" /> Booked
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-4 w-4 shrink-0 rounded-md border-2 border-rose-600/50 bg-rose-500/18" /> Booked
             </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-border" /> Off
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-4 w-4 shrink-0 rounded-md border border-dashed border-border/70 bg-surface2 line-through opacity-80" />{' '}
+              Off
             </span>
           </div>
         </>

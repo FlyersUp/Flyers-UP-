@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useState } from 'react';
 import { MessageCircle, Share2 } from 'lucide-react';
+import { bottomChrome } from '@/lib/layout/bottomChrome';
 
 interface StickyBookingBarProps {
   bookHref: string;
@@ -50,7 +51,7 @@ export function StickyBookingBar({
   return (
     <div
       className={`fixed left-0 right-0 z-40 border-t border-black/5 dark:border-white/10 bg-white/95 dark:bg-[#171A20]/95 px-4 py-3 shadow-[0_-2px_10px_rgba(0,0,0,0.06)] dark:shadow-[0_-2px_10px_rgba(0,0,0,0.3)] backdrop-blur-sm ${
-        aboveBottomNav ? 'bottom-16' : 'bottom-0 pb-safe'
+        aboveBottomNav ? bottomChrome.fixedAboveNav : 'bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]'
       }`}
     >
       <div className="mx-auto flex max-w-[720px] items-center gap-2 sm:gap-3">

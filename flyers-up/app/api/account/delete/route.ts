@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            'Service pro accounts cannot be self-deleted in the app (Stripe Connect, payouts, and tax records). Email support@flyersup.app to close your pro account.',
+            'Service pro accounts cannot be permanently deleted in the app (payment, payout, and tax records must be retained). Close your account from Settings → Privacy & Security → Close my account, or email support@flyersup.app for help.',
         },
         { status: 403 }
       );

@@ -6,6 +6,7 @@
  */
 
 import Link from 'next/link';
+import { bottomChrome } from '@/lib/layout/bottomChrome';
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -26,6 +27,8 @@ export interface DepositPayBarProps {
   backHref?: string;
   /** Show "Booking Rules" link */
   showBookingRulesLink?: boolean;
+  /** When the page also shows FloatingBottomNav, sit above it */
+  aboveBottomNav?: boolean;
 }
 
 export function DepositPayBar({
@@ -36,12 +39,17 @@ export function DepositPayBar({
   label = 'Pay deposit',
   backHref,
   showBookingRulesLink = true,
+  aboveBottomNav = true,
 }: DepositPayBarProps) {
   const displayAmount = formatCents(amountCents);
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#0d0d0f] border-t border-[#ebebeb] dark:border-white/10 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+      className={`fixed left-0 right-0 z-40 bg-white dark:bg-[#0d0d0f] border-t border-[#ebebeb] dark:border-white/10 p-4 ${
+        aboveBottomNav
+          ? `${bottomChrome.fixedAboveNav} pb-3`
+          : 'bottom-0 pb-[max(1rem,env(safe-area-inset-bottom,0px))]'
+      }`}
       role="region"
       aria-label="Payment"
     >

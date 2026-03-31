@@ -106,16 +106,11 @@ function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel, mode }
         icon={icon}
         badge={badge}
       />
-      <span
-        className="whitespace-nowrap font-medium text-xs sm:text-sm overflow-hidden"
-        style={{
-          maxWidth: isActive ? 56 : 0,
-          opacity: isActive ? 1 : 0,
-          transition: `max-width ${TRANSITION_MS}ms ease-out, opacity ${TRANSITION_MS}ms ease-out`,
-        }}
-      >
-        {label}
-      </span>
+      {isActive ? (
+        <span className="whitespace-nowrap font-medium text-xs sm:text-sm">{label}</span>
+      ) : (
+        <span className="sr-only">{label}</span>
+      )}
     </Link>
   );
 }
@@ -150,7 +145,7 @@ export default function FloatingBottomNav() {
   if (mode === 'pro') {
     const labels = NAV_LABELS.pro;
     return (
-      <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center safe-area-x">
+      <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center safe-area-x isolate">
         <div
           className="pointer-events-auto flex w-full max-w-full min-w-0 items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-4 sm:max-w-md"
           style={{ marginBottom: 'max(12px, env(safe-area-inset-bottom))' }}
@@ -195,7 +190,7 @@ export default function FloatingBottomNav() {
 
   const labels = NAV_LABELS.customer;
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center safe-area-x">
+    <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center safe-area-x isolate">
       <div
         className="pointer-events-auto flex w-full max-w-full min-w-0 items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-4 sm:max-w-md"
         style={{ marginBottom: 'max(12px, env(safe-area-inset-bottom))' }}

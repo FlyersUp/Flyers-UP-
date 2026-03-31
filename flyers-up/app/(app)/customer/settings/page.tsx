@@ -10,7 +10,7 @@ import { useSignOutRedirect } from '@/hooks/useSignOutRedirect';
  * Apple/Stripe/Linear-style grouped settings rows.
  */
 export default function CustomerSettings() {
-  const { signingOut, signOutError, signOut } = useSignOutRedirect('/auth');
+  const { signingOut, signOutError, signOut } = useSignOutRedirect();
 
   const sections: SettingsHomeSection[] = [
     {

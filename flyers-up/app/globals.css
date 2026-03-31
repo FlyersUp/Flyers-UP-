@@ -122,6 +122,19 @@
   --badge-border: rgba(0,0,0,0.08);
   --rail-width: 4px;
   --stripe-width: 1px;
+
+  /* Fixed bottom chrome — FloatingBottomNav (h-11 + bottom margin) + optional sticky CTAs */
+  --fu-bottom-nav-inner: 2.75rem;
+  --fu-bottom-nav-margin: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  --fu-bottom-nav-chrome: calc(var(--fu-bottom-nav-inner) + var(--fu-bottom-nav-margin));
+  /* Sticky booking/pay bar: py-3 + primary control row + border */
+  --fu-sticky-action-bar-chrome: calc(1.5rem + 2.75rem + 2px);
+  --fu-content-pad-below-nav: calc(var(--fu-bottom-nav-chrome) + 0.75rem);
+  --fu-content-pad-nav-plus-sticky: calc(
+    var(--fu-bottom-nav-chrome) + var(--fu-sticky-action-bar-chrome) + 0.5rem
+  );
+  /* Use with AppLayout/PageLayout that already apply pb-fu-nav — only the second fixed row */
+  --fu-content-pad-sticky-only: calc(var(--fu-sticky-action-bar-chrome) + 0.75rem);
 }
 
 /* Swap role tokens by data-role (AppLayout) */
@@ -634,6 +647,20 @@ button[style*="background-color"]:hover {
 .safe-area-x {
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* App layout: reserve space for fixed bottom nav (+ optional second row of chrome) */
+.pb-fu-nav {
+  padding-bottom: var(--fu-content-pad-below-nav);
+}
+.pb-fu-nav-sticky {
+  padding-bottom: var(--fu-content-pad-nav-plus-sticky);
+}
+.bottom-fu-above-nav {
+  bottom: var(--fu-bottom-nav-chrome);
+}
+.pb-fu-sticky-only {
+  padding-bottom: var(--fu-content-pad-sticky-only);
 }
 
 /**

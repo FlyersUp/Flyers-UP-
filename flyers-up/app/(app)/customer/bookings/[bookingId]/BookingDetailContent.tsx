@@ -24,6 +24,7 @@ import { AddToCalendarButton } from '@/components/calendar/AddToCalendarButton';
 import { isCalendarCommittedStatus } from '@/lib/calendar/committed-states';
 import { InstantRebookCard } from '@/components/marketplace/InstantRebookCard';
 import { JobCompletedFlyer } from '@/components/marketplace/JobCompletedFlyer';
+import { bottomChrome } from '@/lib/layout/bottomChrome';
 
 export interface BookingDetailData {
   id: string;
@@ -232,7 +233,7 @@ export function BookingDetailContent({
         const showConfirmSlot = booking.status === 'awaiting_customer_confirmation';
 
         return (
-          <div className={primaryAction ? 'pb-24' : ''} data-role="customer">
+          <div className={primaryAction ? bottomChrome.pbStickyBarOnly : ''} data-role="customer">
             {/* Back + page title */}
             <div className="flex items-center justify-between gap-4 mb-6">
               <Link
@@ -520,7 +521,9 @@ export function BookingDetailContent({
 
             {/* Sticky bottom bar for primary action (mobile) */}
             {primaryAction && (
-              <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-black/5 dark:border-white/10 bg-white/95 dark:bg-[#171A20]/95 backdrop-blur-sm px-4 py-3 safe-area-pb sm:hidden">
+              <div
+                className={`fixed left-0 right-0 z-40 border-t border-black/5 dark:border-white/10 bg-white/95 dark:bg-[#171A20]/95 backdrop-blur-sm px-4 py-3 sm:hidden ${bottomChrome.fixedAboveNav}`}
+              >
                 {primaryAction}
               </div>
             )}

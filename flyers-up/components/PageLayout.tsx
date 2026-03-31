@@ -48,7 +48,7 @@ export default function PageLayout({
     <div
       data-role={resolvedMode}
       data-accent={accentDensity}
-      className={`min-h-dvh min-h-[100svh] w-full max-w-full overflow-x-clip bg-bg text-text pb-[calc(8rem+env(safe-area-inset-bottom,0px))] ${className}`}
+      className={`min-h-dvh min-h-[100svh] w-full max-w-full overflow-x-clip bg-bg text-text pb-fu-nav ${className}`}
     >
       {/* Back Button Header */}
       {showBackButton && (

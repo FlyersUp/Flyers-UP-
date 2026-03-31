@@ -309,7 +309,7 @@ export function SideMenu({
 
   return (
     <div
-      className={`fixed inset-0 z-[60] ${open ? 'visible pointer-events-auto' : 'invisible pointer-events-none'}`}
+      className={`fixed inset-0 z-[110] ${open ? 'visible pointer-events-auto' : 'invisible pointer-events-none'}`}
       aria-hidden={!open}
     >
       {/* Backdrop overlay */}
@@ -326,7 +326,7 @@ export function SideMenu({
 
       {/* Drawer panel - left-side slide-in */}
       <aside
-        className={`fixed left-0 top-0 z-[61] h-dvh w-[86%] max-w-[430px] flex flex-col shadow-[var(--shadow-md)] transition-transform duration-300 ease-out
+        className={`fixed left-0 top-0 z-[111] h-dvh w-[86%] max-w-[430px] flex flex-col shadow-[var(--shadow-md)] transition-transform duration-300 ease-out
           bg-surface text-text border-r border-border`}
         style={{
           transform: open ? 'translateX(0)' : 'translateX(-100%)',
@@ -408,7 +408,7 @@ export function SideMenu({
         </div>
 
         {/* Footer with Messages + Logout */}
-        <div className="flex-shrink-0 border-t border-border px-6 py-4">
+        <div className="flex-shrink-0 border-t border-border px-6 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))]">
           <div className="flex items-center justify-between gap-3">
             <Link
               href={role === 'pro' ? '/pro/messages' : '/customer/messages'}

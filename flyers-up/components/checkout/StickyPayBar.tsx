@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { bottomChrome } from '@/lib/layout/bottomChrome';
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -20,6 +21,7 @@ export function StickyPayBar({
   onSubmit,
   label = 'Confirm & Pay',
   showBookingRulesLink,
+  aboveBottomNav = true,
 }: {
   amountTotal: number;
   currency: string;
@@ -29,12 +31,18 @@ export function StickyPayBar({
   label?: string;
   /** Show "Booking Rules" link under the button */
   showBookingRulesLink?: boolean;
+  /** When the page also shows FloatingBottomNav, sit above it */
+  aboveBottomNav?: boolean;
 }) {
   const displayAmount = currency === 'usd' ? formatCents(amountTotal) : `${(amountTotal / 100).toFixed(2)} ${currency.toUpperCase()}`;
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface/95 dark:bg-surface/95 backdrop-blur-sm p-4 pb-[env(safe-area-inset-bottom)]"
+      className={`fixed left-0 right-0 z-40 border-t border-border bg-surface/95 dark:bg-surface/95 backdrop-blur-sm p-4 ${
+        aboveBottomNav
+          ? `${bottomChrome.fixedAboveNav} pb-3`
+          : 'bottom-0 pb-[max(1rem,env(safe-area-inset-bottom,0px))]'
+      }`}
     >
       <div className="max-w-lg mx-auto">
         <button

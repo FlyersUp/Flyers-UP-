@@ -19,6 +19,9 @@ export type Json =
 // Role type matching the database CHECK constraint
 export type UserRole = 'customer' | 'pro' | 'admin';
 
+/** profiles.account_status (migration 103) */
+export type ProfileAccountStatusDb = 'active' | 'closure_requested' | 'closed';
+
 // Booking status matching the database CHECK constraint (migrations 042, 047)
 export type BookingStatus =
   | 'requested'
@@ -64,6 +67,10 @@ export interface Database {
           phone: string | null;
           avatar_url: string | null;
           language_preference: string | null;
+          account_status: ProfileAccountStatusDb;
+          closed_at: string | null;
+          closure_requested_at: string | null;
+          closure_reason: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -78,6 +85,10 @@ export interface Database {
           phone?: string | null;
           avatar_url?: string | null;
           language_preference?: string | null;
+          account_status?: ProfileAccountStatusDb;
+          closed_at?: string | null;
+          closure_requested_at?: string | null;
+          closure_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -92,6 +103,10 @@ export interface Database {
           phone?: string | null;
           avatar_url?: string | null;
           language_preference?: string | null;
+          account_status?: ProfileAccountStatusDb;
+          closed_at?: string | null;
+          closure_requested_at?: string | null;
+          closure_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -154,6 +169,7 @@ export interface Database {
           logo_url?: string | null;
           service_descriptions?: string | null;
           before_after_photos?: Json | null;
+          closed_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -178,6 +194,7 @@ export interface Database {
           logo_url?: string | null;
           service_descriptions?: string | null;
           before_after_photos?: Json | null;
+          closed_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -202,6 +219,7 @@ export interface Database {
           logo_url?: string | null;
           service_descriptions?: string | null;
           before_after_photos?: Json | null;
+          closed_at?: string | null;
           created_at?: string;
         };
       };

@@ -6,7 +6,7 @@ import { SettingsHome, type SettingsHomeSection } from '@/components/settings/Se
 import { useSignOutRedirect } from '@/hooks/useSignOutRedirect';
 
 export default function ProSettingsIndex() {
-  const { signingOut, signOutError, signOut } = useSignOutRedirect('/auth');
+  const { signingOut, signOutError, signOut } = useSignOutRedirect();
 
   const sections: SettingsHomeSection[] = [
     {
