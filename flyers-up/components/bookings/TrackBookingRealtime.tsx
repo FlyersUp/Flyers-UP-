@@ -38,7 +38,9 @@ export interface TrackBookingData {
   proName?: string;
   serviceDate?: string;
   serviceTime?: string;
+  bookingTimezone?: string | null;
   address?: string;
+  pendingReschedule?: PendingRescheduleInfo | null;
 }
 
 interface TrackBookingRealtimeProps {

@@ -67,7 +67,7 @@ const CUSTOMER_SECTIONS: MenuSection[] = [
     items: [
       { labelKey: 'sidebar.customer.paymentHistory', href: '/customer/settings/payments' },
       { labelKey: 'sidebar.customer.receipts', href: '/customer/settings/payments' },
-      { labelKey: 'sidebar.customer.refunds', href: '/customer/settings/payments' },
+      { labelKey: 'sidebar.customer.refunds', href: '/customer/settings/refunds' },
     ],
   },
   {

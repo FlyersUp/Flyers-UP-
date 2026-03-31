@@ -15,6 +15,12 @@ import { TrustRow } from '@/components/ui/TrustRow';
 const DELETE_CONFIRM_PHRASE = 'DELETE MY ACCOUNT';
 
 export default function PrivacySecurityPage() {
+  const pathname = usePathname() ?? '';
+  const accountDataHref =
+    pathname.startsWith('/pro') || pathname.includes('/dashboard/pro')
+      ? '/pro/settings/data'
+      : '/customer/settings/data';
+
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -89,7 +89,8 @@ async function fetchBookingsForExport(
     });
     return [];
   }
-  return (data as BookingRow[]) ?? [];
+  if (!data || !Array.isArray(data)) return [];
+  return data as unknown as BookingRow[];
 }
 
 export async function GET() {
