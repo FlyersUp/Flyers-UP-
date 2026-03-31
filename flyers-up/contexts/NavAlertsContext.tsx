@@ -55,8 +55,9 @@ export function NavAlertsProvider({ children }: { children: React.ReactNode }) {
         channel = null;
       }
 
+      // Per-user channel name; RLS still scopes postgres_changes payloads to permitted rows.
       channel = supabase
-        .channel('nav-alerts-messages')
+        .channel(`nav-alerts-messages-${user.id}`)
         .on(
           'postgres_changes',
           {

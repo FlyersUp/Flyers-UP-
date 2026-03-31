@@ -37,9 +37,9 @@ export function CustomerPageShell({ title, children, userName: userNameProp, sub
   }, [userNameProp]);
 
   return (
-    <div className="min-h-screen bg-bg">
-        <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur-sm border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col w-full max-w-full overflow-x-clip bg-bg">
+        <div className="sticky top-0 z-20 safe-area-top bg-bg/95 backdrop-blur-sm border-b border-border">
+        <div className="max-w-4xl w-full min-w-0 mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
@@ -48,14 +48,16 @@ export function CustomerPageShell({ title, children, userName: userNameProp, sub
           >
             ☰
           </button>
-          <h1 className="text-xl font-semibold text-text truncate max-w-[60vw]">{title}</h1>
+          <h1 className="text-lg sm:text-xl font-semibold text-text truncate min-w-0 flex-1 text-center px-1">
+            {title}
+          </h1>
           <div className="w-10" />
         </div>
       </div>
 
-      <div className="pb-24 safe-area-bottom">
+      <div className="mobile-page-root flex-1 min-h-0 pb-24 safe-area-bottom">
         {subtitle && (
-          <div className="max-w-4xl mx-auto px-4 pt-4">
+          <div className="max-w-4xl w-full min-w-0 mx-auto px-4 pt-4">
             <p className="text-sm text-text3">{subtitle}</p>
           </div>
         )}

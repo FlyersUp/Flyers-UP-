@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { requireProService } from '@/lib/recurring/api-auth';
 import { computeReorderUpdates } from '@/lib/service-packages/reorder';
-import { mapServicePackageRow } from '@/lib/service-packages/db-map';
+import { mapServicePackageRow, SERVICE_PACKAGE_DB_SELECT } from '@/lib/service-packages/db-map';
 import { rowToPublic } from '@/types/service-packages';
 
 export const runtime = 'nodejs';
@@ -60,7 +60,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
   }
 
-  const { data: full } = await supabase.from('service_packages').select('*').eq('pro_user_id', pr.userId).order('sort_order', { ascending: true });
+  const { data: full } = await supabase
+    .from('service_packages')
+    .select(SERVICE_PACKAGE_DB_SELECT)
+    .eq('pro_user_id', pr.userId)
+    .order('sort_order', { ascending: true });
 
   return NextResponse.json({
     ok: true,

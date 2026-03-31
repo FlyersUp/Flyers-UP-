@@ -316,7 +316,9 @@ export async function POST(
     statement_descriptor_suffix: stripeMeta.statement_descriptor_suffix,
   };
 
-  const paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
+  const paymentIntent = await stripe.paymentIntents.create(paymentIntentData, {
+    idempotencyKey: `legacy-payment-${id}`,
+  });
 
   const piStatus = paymentIntent.status;
   const newPaymentStatus =

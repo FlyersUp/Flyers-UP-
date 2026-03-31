@@ -454,16 +454,19 @@ export async function POST(
     },
   });
 
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amountDeposit,
-    currency: quote.currency,
-    automatic_payment_methods: { enabled: true },
-    customer: customerResult.stripeCustomerId,
-    metadata: stripeFields.metadata,
-    description: stripeFields.description,
-    statement_descriptor_suffix: stripeFields.statement_descriptor_suffix,
-    // No transfer_data: funds go to platform. Pro paid later via release-payouts.
-  });
+  const paymentIntent = await stripe.paymentIntents.create(
+    {
+      amount: amountDeposit,
+      currency: quote.currency,
+      automatic_payment_methods: { enabled: true },
+      customer: customerResult.stripeCustomerId,
+      metadata: stripeFields.metadata,
+      description: stripeFields.description,
+      statement_descriptor_suffix: stripeFields.statement_descriptor_suffix,
+      // No transfer_data: funds go to platform. Pro paid later via release-payouts.
+    },
+    { idempotencyKey: `deposit-${id}` }
+  );
 
   const piStatus = paymentIntent.status;
   const newPaymentStatus =

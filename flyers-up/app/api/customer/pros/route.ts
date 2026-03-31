@@ -127,5 +127,12 @@ export async function GET(request: NextRequest) {
     sameDayAvailable: Boolean(p.same_day_available),
   }));
 
-  return Response.json({ ok: true, pros, categoryName: category.name });
+  return Response.json(
+    { ok: true, pros, categoryName: category.name },
+    {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+      },
+    }
+  );
 }

@@ -21,7 +21,9 @@ export async function GET(
 
   const { data: rep } = await admin
     .from('pro_reputation')
-    .select('*')
+    .select(
+      'jobs_completed, average_rating, on_time_rate, scope_accuracy_rate, repeat_customer_rate, completion_rate'
+    )
     .eq('pro_id', id)
     .maybeSingle();
 

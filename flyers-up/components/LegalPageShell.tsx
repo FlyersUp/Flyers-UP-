@@ -13,9 +13,9 @@ export function LegalPageShell({ children, backHref }: LegalPageShellProps) {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text flex flex-col">
-      <header className="border-b border-[var(--surface-border)] bg-[var(--surface-solid)] shrink-0">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+    <div className="min-h-dvh min-h-[100svh] w-full max-w-full overflow-x-clip bg-gradient-to-b from-bg via-surface to-bg text-text flex flex-col">
+      <header className="safe-area-top border-b border-[var(--surface-border)] bg-[var(--surface-solid)] shrink-0">
+        <div className="max-w-3xl w-full min-w-0 mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-3">
           {backHref ? (
             <Link
               href={backHref}
@@ -38,12 +38,12 @@ export function LegalPageShell({ children, backHref }: LegalPageShellProps) {
         </div>
       </header>
 
-      <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-10">
+      <main className="flex-1 mobile-page-root max-w-3xl w-full mx-auto px-4 py-8 sm:py-10 min-w-0">
         {children}
       </main>
 
-      <footer className="border-t border-[var(--surface-border)] bg-[var(--surface-solid)] py-6 mt-auto shrink-0">
-        <div className="max-w-3xl mx-auto px-4">
+      <footer className="safe-area-bottom border-t border-[var(--surface-border)] bg-[var(--surface-solid)] py-6 mt-auto shrink-0">
+        <div className="max-w-3xl w-full min-w-0 mx-auto px-4">
           <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-muted">
             <Link href="/" className="hover:text-text transition-colors">Home</Link>
             <Link href="/legal/terms" className="hover:text-text transition-colors">Terms</Link>

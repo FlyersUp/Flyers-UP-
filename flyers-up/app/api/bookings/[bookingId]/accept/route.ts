@@ -50,7 +50,7 @@ export async function POST(
   const admin = createAdminSupabaseClient();
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, price, address, service_date, service_time')
+    .select('id, customer_id, pro_id, status, price, address, service_date, service_time, status_history')
     .eq('id', id)
     .single();
 
@@ -117,7 +117,7 @@ export async function POST(
     .eq('id', id)
     .eq('pro_id', proId)
     .in('status', ['requested', 'pending'])
-    .select()
+    .select('id, status, status_history, accepted_at')
     .single();
 
   if (updateErr || !updated) {

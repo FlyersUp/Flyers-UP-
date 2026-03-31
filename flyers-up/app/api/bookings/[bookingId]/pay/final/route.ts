@@ -402,15 +402,18 @@ export async function POST(
   });
 
   // Platform holds remaining — NO transfer_data. Pro paid via release-payouts.
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amountRemaining,
-    currency: (booking.currency as string) || 'usd',
-    automatic_payment_methods: { enabled: true },
-    customer: customerResult.stripeCustomerId,
-    metadata: stripeFields.metadata,
-    description: stripeFields.description,
-    statement_descriptor_suffix: stripeFields.statement_descriptor_suffix,
-  });
+  const paymentIntent = await stripe.paymentIntents.create(
+    {
+      amount: amountRemaining,
+      currency: (booking.currency as string) || 'usd',
+      automatic_payment_methods: { enabled: true },
+      customer: customerResult.stripeCustomerId,
+      metadata: stripeFields.metadata,
+      description: stripeFields.description,
+      statement_descriptor_suffix: stripeFields.statement_descriptor_suffix,
+    },
+    { idempotencyKey: `final-${id}` }
+  );
 
   const piStatus = paymentIntent.status;
   const newFinalStatus =

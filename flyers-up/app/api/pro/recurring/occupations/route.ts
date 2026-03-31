@@ -13,7 +13,10 @@ export async function GET() {
   const pr = await requireProService(admin, supabase);
   if (!pr.ok) return NextResponse.json({ error: pr.error }, { status: pr.status });
 
-  const { data } = await admin.from('recurring_occupations').select('*').eq('pro_user_id', pr.userId);
+  const { data } = await admin
+    .from('recurring_occupations')
+    .select('id, pro_user_id, occupation_slug, is_enabled, created_at, updated_at')
+    .eq('pro_user_id', pr.userId);
   const rows = data ?? [];
   if (rows.length === 0) {
     return NextResponse.json({
@@ -62,6 +65,9 @@ export async function PUT(req: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const { data } = await admin.from('recurring_occupations').select('*').eq('pro_user_id', pr.userId);
+  const { data } = await admin
+    .from('recurring_occupations')
+    .select('id, pro_user_id, occupation_slug, is_enabled, created_at, updated_at')
+    .eq('pro_user_id', pr.userId);
   return NextResponse.json({ ok: true, occupations: data ?? [] });
 }

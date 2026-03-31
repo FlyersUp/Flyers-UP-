@@ -21,15 +21,15 @@ export default function Navbar({ title = 'Flyers Up', showBackButton = false, hi
 
   return (
     <nav
-      className="sticky top-0 z-50 flex items-center h-16 md:h-[72px] border-b"
+      className="sticky top-0 z-50 flex items-center min-h-16 md:min-h-[72px] border-b safe-area-top"
       style={{
         backgroundColor: '#F5F5F5',
         borderColor: '#F5F5F5',
         boxShadow: '0 1px 0 rgba(0,0,0,0.04)',
       }}
     >
-      <div className="max-w-[1200px] w-full mx-auto flex items-center justify-between px-6">
-        <div className="flex items-center gap-4">
+      <div className="max-w-[1200px] w-full min-w-0 mx-auto flex items-center justify-between gap-3 px-4 sm:px-6 py-2 md:py-0">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
           {showBackButton && (
             <button
               onClick={() => router.back()}
@@ -43,16 +43,20 @@ export default function Navbar({ title = 'Flyers Up', showBackButton = false, hi
           {title === 'Flyers Up' ? (
             <HeaderBrand />
           ) : (
-            <div className="flex items-center gap-3">
-              <HeaderBrand />
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <span className="shrink-0">
+                <HeaderBrand />
+              </span>
               <span className="w-px h-6 bg-[#F5F5F5]" style={{ margin: '0 12px' }} aria-hidden />
-              <span className="font-semibold text-[#1A1A1A] text-base">{title}</span>
+              <span className="font-semibold text-[#1A1A1A] text-sm sm:text-base truncate min-w-0">
+                {title}
+              </span>
             </div>
           )}
         </div>
 
         {!hideRightLinks && (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <Link
               href="/"
               className="text-sm text-[#1A1A1A]/70 hover:text-[#1A1A1A] font-medium transition-opacity duration-150"

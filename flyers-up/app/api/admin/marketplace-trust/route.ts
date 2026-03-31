@@ -29,7 +29,9 @@ export async function GET() {
   try {
     const { data: analytics, error } = await admin
       .from('admin_marketplace_trust_analytics')
-      .select('*')
+      .select(
+        'arrival_verified_count, arrival_total_count, arrival_verification_rate, rebook_customer_count, rebook_event_count, completion_proof_count, flyer_share_count, neighborhood_jobs_7d'
+      )
       .limit(1)
       .maybeSingle();
 

@@ -27,10 +27,10 @@ export function BookingsTabsLayout({
 }: BookingsTabsLayoutProps) {
   const tabs: BookingsTab[] = ['active', 'completed', 'cancelled'];
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
+    <div className="max-w-4xl w-full min-w-0 mx-auto px-4 py-6">
       <h2 className="text-sm font-semibold text-text2 uppercase tracking-wide mb-3">{title}</h2>
 
-      <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
+      <div className="mb-6 flex flex-wrap gap-2 sm:flex-nowrap sm:overflow-x-auto sm:pb-1">
         {tabs.map((tab) => (
           <button
             key={tab}

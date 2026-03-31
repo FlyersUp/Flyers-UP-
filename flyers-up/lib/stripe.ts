@@ -32,19 +32,22 @@ export async function createPaymentIntent(
   }
 
   try {
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountCents,
-      currency: 'usd',
-      // Use snake_case keys so webhook handlers and Stripe dashboard are consistent.
-      metadata: {
-        booking_id: metadata.bookingId,
-        customer_id: metadata.customerId,
-        pro_id: metadata.proId,
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: amountCents,
+        currency: 'usd',
+        // Use snake_case keys so webhook handlers and Stripe dashboard are consistent.
+        metadata: {
+          booking_id: metadata.bookingId,
+          customer_id: metadata.customerId,
+          pro_id: metadata.proId,
+        },
+        automatic_payment_methods: {
+          enabled: true,
+        },
       },
-      automatic_payment_methods: {
-        enabled: true,
-      },
-    });
+      { idempotencyKey: `legacy-payment-${metadata.bookingId}` }
+    );
 
     return {
       success: true,

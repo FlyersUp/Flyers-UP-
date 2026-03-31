@@ -12,7 +12,12 @@ export async function GET() {
   const pr = await requireProService(admin, supabase);
   if (!pr.ok) return NextResponse.json({ error: pr.error }, { status: pr.status });
 
-  const { data, error } = await admin.from('recurring_availability_windows').select('*').eq('pro_user_id', pr.userId);
+  const { data, error } = await admin
+    .from('recurring_availability_windows')
+    .select(
+      'id, pro_user_id, day_of_week, start_minute, end_minute, occupation_slug, recurring_only, is_flexible, is_active, created_at, updated_at'
+    )
+    .eq('pro_user_id', pr.userId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, windows: data ?? [] });
 }
@@ -73,6 +78,11 @@ export async function PUT(req: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const { data } = await admin.from('recurring_availability_windows').select('*').eq('pro_user_id', pr.userId);
+  const { data } = await admin
+    .from('recurring_availability_windows')
+    .select(
+      'id, pro_user_id, day_of_week, start_minute, end_minute, occupation_slug, recurring_only, is_flexible, is_active, created_at, updated_at'
+    )
+    .eq('pro_user_id', pr.userId);
   return NextResponse.json({ ok: true, windows: data ?? [] });
 }

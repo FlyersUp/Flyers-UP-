@@ -33,7 +33,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ occupations: data ?? [] }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json(
+      { occupations: data ?? [] },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+        },
+      }
+    );
   } catch (err) {
     console.error('[api/occupations] error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

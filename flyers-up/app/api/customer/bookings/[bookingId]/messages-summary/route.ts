@@ -51,7 +51,7 @@ export async function GET(
   if (lastCustomerAt) {
     const { count } = await admin
       .from('booking_messages')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('booking_id', id)
       .eq('sender_role', 'pro')
       .gt('created_at', lastCustomerAt);
@@ -59,7 +59,7 @@ export async function GET(
   } else {
     const { count } = await admin
       .from('booking_messages')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('booking_id', id)
       .eq('sender_role', 'pro');
     unreadCount = count ?? 0;

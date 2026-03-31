@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
-import { mapServicePackageRow } from '@/lib/service-packages/db-map';
+import { mapServicePackageRow, SERVICE_PACKAGE_DB_SELECT } from '@/lib/service-packages/db-map';
 import { rowToPublic } from '@/types/service-packages';
 
 export const runtime = 'nodejs';
@@ -37,7 +37,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ proId: string 
 
   const { data, error } = await supabase
     .from('service_packages')
-    .select('*')
+    .select(SERVICE_PACKAGE_DB_SELECT)
     .eq('pro_user_id', proUserId)
     .eq('is_active', true)
     .order('sort_order', { ascending: true })

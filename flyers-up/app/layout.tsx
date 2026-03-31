@@ -5,7 +5,13 @@ import { NextIntlClientProvider } from "next-intl";
 import { LocaleSync } from "@/components/LocaleSync";
 import OneSignalLoader from "@/components/notifications/OneSignalLoader";
 import { getLocale } from "next-intl/server";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   icons: {
@@ -59,7 +65,10 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen bg-bg text-text antialiased" suppressHydrationWarning>
+      <body
+        className="min-h-dvh min-h-[100svh] w-full max-w-full overflow-x-clip bg-bg text-text antialiased"
+        suppressHydrationWarning
+      >
         <OneSignalLoader />
         <NextIntlClientProvider>
           <ThemeProviderWrapper>

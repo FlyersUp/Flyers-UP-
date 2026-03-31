@@ -302,7 +302,7 @@ export default function CustomerDashboard() {
     return (
       <AppLayout mode="customer">
         <CustomerPageShell title={userName} userName={userName}>
-          <div className="max-w-4xl mx-auto px-4 pt-2 pb-8 space-y-8">
+          <div className="max-w-4xl w-full min-w-0 mx-auto px-4 pt-2 pb-8 space-y-8">
             <DashboardSectionSkeleton />
             <DashboardSectionSkeleton />
             <DashboardSectionSkeleton />
@@ -315,7 +315,7 @@ export default function CustomerDashboard() {
   return (
     <AppLayout mode="customer">
       <CustomerPageShell title={userName} userName={userName}>
-        <div className="max-w-4xl mx-auto px-4 pt-2 pb-8 space-y-8">
+        <div className="max-w-4xl w-full min-w-0 mx-auto px-4 pt-2 pb-8 space-y-8">
           {/* 1. ACTIVE BOOKING (priority) */}
           <section>
             <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
@@ -421,10 +421,10 @@ export default function CustomerDashboard() {
                   return (
                     <Link key={r.id} href="/customer/requests">
                       <DashboardCard>
-                        <div className="p-4 flex items-center justify-between gap-4">
+                        <div className="p-4 flex items-center justify-between gap-3 min-w-0">
                           <div className="min-w-0 flex-1">
-                            <div className="font-medium text-text truncate">{r.title}</div>
-                            <div className="text-sm text-muted mt-0.5">
+                            <div className="font-medium text-text break-words line-clamp-2">{r.title}</div>
+                            <div className="text-sm text-muted mt-0.5 break-words">
                               ${r.budget_min ?? '?'}–${r.budget_max ?? '?'}
                               {needLabel && (
                                 <span className="ml-2">• {needLabel}</span>

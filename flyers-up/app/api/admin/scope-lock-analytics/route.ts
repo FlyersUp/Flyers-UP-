@@ -29,7 +29,9 @@ export async function GET() {
   try {
     const { data: analytics, error } = await admin
       .from('admin_scope_lock_analytics')
-      .select('*')
+      .select(
+        'total_mismatches, scope_confirmed_count, pending_scope_count, avg_price_adjustment_dollars, frequent_misrepresentation_count, avg_job_price'
+      )
       .limit(1)
       .maybeSingle();
 

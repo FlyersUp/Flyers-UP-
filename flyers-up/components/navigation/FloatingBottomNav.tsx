@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 
-const ICON_SIZE = 22;
+const ICON_SIZE = 20;
 const ICON_STROKE = 1.75;
 const TRANSITION_MS = 220;
 
@@ -71,7 +71,7 @@ interface MorphingNavItemProps {
 
 function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel, mode }: MorphingNavItemProps) {
   const base =
-    'flex items-center justify-center h-12 sm:h-14 rounded-full border backdrop-blur-md overflow-hidden ' +
+    'flex items-center justify-center h-11 sm:h-14 rounded-full border backdrop-blur-md overflow-hidden ' +
     'active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus:outline-none ' +
     'focus-visible:ring-[var(--ring-green)] focus-visible:ring-offset-bg ' +
     'shadow-[var(--shadow-2)] ' +
@@ -92,10 +92,10 @@ function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel, mode }
         isActive ? activeIcon : `${inactiveIcon} hover:text-text hover:bg-hover`
       }`}
       style={{
-        width: isActive ? 104 : 48,
-        minWidth: isActive ? 88 : 48,
-        paddingLeft: isActive ? 14 : 0,
-        paddingRight: isActive ? 14 : 0,
+        width: isActive ? 96 : 44,
+        minWidth: isActive ? 84 : 44,
+        paddingLeft: isActive ? 12 : 0,
+        paddingRight: isActive ? 12 : 0,
         gap: isActive ? 6 : 0,
         transition: `min-width ${TRANSITION_MS}ms ease-out, width ${TRANSITION_MS}ms ease-out, padding ${TRANSITION_MS}ms ease-out, gap ${TRANSITION_MS}ms ease-out, background-color ${TRANSITION_MS}ms, color ${TRANSITION_MS}ms`,
       }}
@@ -109,7 +109,7 @@ function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel, mode }
       <span
         className="whitespace-nowrap font-medium text-xs sm:text-sm overflow-hidden"
         style={{
-          maxWidth: isActive ? 64 : 0,
+          maxWidth: isActive ? 56 : 0,
           opacity: isActive ? 1 : 0,
           transition: `max-width ${TRANSITION_MS}ms ease-out, opacity ${TRANSITION_MS}ms ease-out`,
         }}
@@ -150,9 +150,9 @@ export default function FloatingBottomNav() {
   if (mode === 'pro') {
     const labels = NAV_LABELS.pro;
     return (
-      <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center">
+      <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center safe-area-x">
         <div
-          className="pointer-events-auto flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 max-w-md"
+          className="pointer-events-auto flex w-full max-w-full min-w-0 items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-4 sm:max-w-md"
           style={{ marginBottom: 'max(12px, env(safe-area-inset-bottom))' }}
         >
           <MorphingNavItem
@@ -195,9 +195,9 @@ export default function FloatingBottomNav() {
 
   const labels = NAV_LABELS.customer;
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center">
+    <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center safe-area-x">
       <div
-        className="pointer-events-auto flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 max-w-md"
+        className="pointer-events-auto flex w-full max-w-full min-w-0 items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-4 sm:max-w-md"
         style={{ marginBottom: 'max(12px, env(safe-area-inset-bottom))' }}
       >
         <MorphingNavItem

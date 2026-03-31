@@ -142,9 +142,9 @@ export function SignInClient() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-bg via-surface to-bg text-text flex flex-col">
-      <header className="px-4 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+    <div className="min-h-dvh min-h-[100svh] w-full max-w-full overflow-x-clip bg-gradient-to-b from-bg via-surface to-bg text-text flex flex-col">
+      <header className="safe-area-top px-4 py-3 sm:py-4">
+        <div className="max-w-6xl w-full min-w-0 mx-auto flex items-center justify-between gap-3">
           <Logo size="md" />
           <button
             type="button"

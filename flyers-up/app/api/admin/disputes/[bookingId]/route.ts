@@ -45,19 +45,51 @@ export async function GET(
 
   const { data: dispute } = await admin
     .from('booking_disputes')
-    .select('*')
+    .select(
+      'id, booking_id, dispute_reason_code, customer_claim, pro_claim, risk_flags, admin_decision, admin_notes, admin_user_id, resolved_at, created_at, updated_at'
+    )
     .eq('booking_id', id)
     .maybeSingle();
 
   const { data: evidence } = booking.evidence_bundle_id
-    ? await admin.from('evidence_bundles').select('*').eq('id', booking.evidence_bundle_id).maybeSingle()
+    ? await admin
+        .from('evidence_bundles')
+        .select(
+          'id, booking_id, bundle_type, gps_arrival_lat, gps_arrival_lng, gps_arrival_at, chat_attempts, call_attempts, photo_urls, status_changes, completeness_score, created_at, updated_at'
+        )
+        .eq('id', booking.evidence_bundle_id)
+        .maybeSingle()
     : { data: null };
 
-  const { data: arrivals } = await admin.from('job_arrivals').select('*').eq('booking_id', id).maybeSingle();
-  const { data: completions } = await admin.from('job_completions').select('*').eq('booking_id', id).maybeSingle();
-  const { data: contactAttempts } = await admin.from('contact_attempts').select('*').eq('booking_id', id);
-  const { data: events } = await admin.from('booking_events').select('*').eq('booking_id', id).order('created_at', { ascending: true });
-  const { data: issues } = await admin.from('booking_issues').select('*').eq('booking_id', id);
+  const { data: arrivals } = await admin
+    .from('job_arrivals')
+    .select(
+      'id, booking_id, pro_id, arrival_lat, arrival_lng, arrival_timestamp, arrival_photo_url, location_verified, created_at'
+    )
+    .eq('booking_id', id)
+    .maybeSingle();
+  const { data: completions } = await admin
+    .from('job_completions')
+    .select(
+      'id, booking_id, pro_id, after_photo_urls, completion_note, completed_at, share_count, created_at'
+    )
+    .eq('booking_id', id)
+    .maybeSingle();
+  const { data: contactAttempts } = await admin
+    .from('contact_attempts')
+    .select('id, booking_id, initiated_by, attempt_type, created_at')
+    .eq('booking_id', id);
+  const { data: events } = await admin
+    .from('booking_events')
+    .select('id, booking_id, type, data, created_at, actor_type, actor_id, old_status, new_status')
+    .eq('booking_id', id)
+    .order('created_at', { ascending: true });
+  const { data: issues } = await admin
+    .from('booking_issues')
+    .select(
+      'id, booking_id, user_id, issue_type, notes, created_at, status, description, evidence_urls, requested_resolution, resolution_outcome, status_reason, resolved_at, updated_at'
+    )
+    .eq('booking_id', id);
 
   const { data: customer } = booking.customer_id
     ? await admin.from('profiles').select('id, full_name, email').eq('id', booking.customer_id).maybeSingle()

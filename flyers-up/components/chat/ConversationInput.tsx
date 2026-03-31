@@ -40,7 +40,9 @@ export function ConversationInput({
   const canSend = value.trim().length > 0 && !sending && !disabled;
 
   return (
-    <div className="safe-area-pb sticky bottom-0 flex items-center gap-2 border-t border-border bg-surface p-3">
+    <div
+      className="sticky bottom-0 z-10 flex min-w-0 items-center gap-2 border-t border-border bg-surface px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
+    >
       {showAttachmentPlaceholder && (
         <button
           type="button"
@@ -61,7 +63,7 @@ export function ConversationInput({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className="h-11 flex-1 rounded-xl border border-border bg-card px-4 text-sm text-primary placeholder:text-muted focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[hsl(var(--success)/0.5)] disabled:opacity-60"
+        className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-card px-3 sm:px-4 text-sm text-primary placeholder:text-muted focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[hsl(var(--success)/0.5)] disabled:opacity-60"
         aria-label="Message input"
       />
       <button

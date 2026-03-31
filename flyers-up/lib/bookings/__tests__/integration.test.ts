@@ -50,8 +50,8 @@ describe('integration: payout hardening', { skip: !RUN_INTEGRATION || !HAS_SUPAB
 
     it('Stripe idempotency key is fixed per booking', () => {
       const bookingId = 'abc-123';
-      const idempotencyKey = `payout-booking-${bookingId}`;
-      assert.strictEqual(idempotencyKey, 'payout-booking-abc-123');
+      const idempotencyKey = `payout-${bookingId}`;
+      assert.strictEqual(idempotencyKey, 'payout-abc-123');
     });
   });
 

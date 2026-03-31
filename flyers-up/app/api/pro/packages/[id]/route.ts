@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { requireProService } from '@/lib/recurring/api-auth';
 import { parseUpdateServicePackageInput } from '@/lib/service-packages/validation';
-import { mapServicePackageRow } from '@/lib/service-packages/db-map';
+import { mapServicePackageRow, SERVICE_PACKAGE_DB_SELECT } from '@/lib/service-packages/db-map';
 import { rowToPublic } from '@/types/service-packages';
 
 export const runtime = 'nodejs';
@@ -37,7 +37,7 @@ export async function PUT(req: Request, ctx: Ctx) {
 
   const { data: existing, error: exErr } = await supabase
     .from('service_packages')
-    .select('*')
+    .select(SERVICE_PACKAGE_DB_SELECT)
     .eq('id', packageId)
     .eq('pro_user_id', pr.userId)
     .maybeSingle();
@@ -68,7 +68,7 @@ export async function PUT(req: Request, ctx: Ctx) {
     .update(patch)
     .eq('id', packageId)
     .eq('pro_user_id', pr.userId)
-    .select('*')
+    .select(SERVICE_PACKAGE_DB_SELECT)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

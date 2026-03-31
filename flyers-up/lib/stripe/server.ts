@@ -38,10 +38,13 @@ export async function refundPaymentIntent(
       console.warn('[stripe] No charge to refund for PI', paymentIntentId);
       return null;
     }
-    const refund = await s.refunds.create({
-      charge: chargeId,
-      metadata: reasonMetadata ?? {},
-    });
+    const refund = await s.refunds.create(
+      {
+        charge: chargeId,
+        metadata: reasonMetadata ?? {},
+      },
+      { idempotencyKey: `refund-${paymentIntentId}` }
+    );
     return refund.id;
   } catch (err) {
     console.error('[stripe] refundPaymentIntent failed', paymentIntentId, err);
@@ -61,7 +64,7 @@ export async function createTransfer(params: {
 }): Promise<string | null> {
   try {
     const s = getStripe();
-    const idempotencyKey = `payout-booking-${params.bookingId}`;
+    const idempotencyKey = `payout-${params.bookingId}`;
     const t = await s.transfers.create(
       {
         amount: params.amount,

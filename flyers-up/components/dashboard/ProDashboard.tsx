@@ -418,9 +418,9 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
 
   return (
     <AppLayout mode="pro">
-      <div className="min-h-screen bg-bg overflow-x-hidden w-full">
-        <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur-sm border-b border-border">
-          <div className="w-full max-w-4xl mx-auto px-4 py-4 flex items-center justify-between min-w-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-bg overflow-x-hidden w-full max-w-full">
+        <div className="sticky top-0 z-20 safe-area-top bg-bg/95 backdrop-blur-sm border-b border-border">
+          <div className="w-full max-w-4xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between min-w-0 gap-2">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
@@ -429,7 +429,9 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
             >
               ☰
             </button>
-            <h1 className="text-xl font-semibold text-text truncate max-w-[60vw]">{userName}</h1>
+            <h1 className="text-lg sm:text-xl font-semibold text-text truncate min-w-0 flex-1 text-center px-1">
+              {userName}
+            </h1>
             <div className="w-10" />
           </div>
         </div>
@@ -439,12 +441,12 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
           {proId && (
             <section>
               <DashboardCard>
-                <div className="p-4 flex items-center justify-between gap-4">
-                  <div>
+                <div className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <div className="min-w-0">
                     <div className="font-semibold text-text">Share your profile</div>
                     <div className="text-sm text-muted mt-0.5">Customers can rebook you directly</div>
                   </div>
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex flex-wrap gap-2 shrink-0">
                     <Link
                       href="/pro/profile"
                       className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-surface2 inline-flex items-center justify-center"
@@ -479,8 +481,8 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
             ) : (
               <DashboardCard>
                 <div className="p-5">
-                  <div className="flex items-center justify-between gap-6">
-                    <div className="flex items-center gap-3">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
                         <DollarSign size={24} className="text-amber-600 dark:text-amber-400" strokeWidth={2} />
                       </div>
@@ -491,11 +493,11 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
                         <div className="text-sm text-muted">Today&apos;s earnings</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center">
+                    <div className="flex items-center gap-3 sm:ml-auto min-w-0">
+                      <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center shrink-0">
                         <Briefcase size={24} className="text-accent" strokeWidth={2} />
                       </div>
-                      <div className="text-right">
+                      <div className="text-left sm:text-right min-w-0">
                         <div className="text-2xl font-bold text-text">{todayJobs.length}</div>
                         <div className="text-sm text-muted">Jobs today</div>
                       </div>
@@ -518,10 +520,10 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
                 {todayJobs.map((job) => (
                   <Link key={job.id} href={`/pro/jobs/${job.id}`}>
                     <DashboardCard>
-                      <div className="p-4 flex items-center justify-between gap-4">
+                      <div className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                         <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-text">{job.service}</div>
-                          <div className="text-sm text-muted mt-0.5">
+                          <div className="font-semibold text-text break-words">{job.service}</div>
+                          <div className="text-sm text-muted mt-0.5 break-words">
                             {job.customerName} • {job.time}
                           </div>
                           <span
@@ -530,11 +532,11 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
                             {job.statusLabel}
                           </span>
                         </div>
-                        <div className="shrink-0 text-right">
-                          <div className="text-lg font-bold text-amber-600 dark:text-amber-400">
+                        <div className="flex shrink-0 items-center justify-between gap-2 sm:flex-col sm:items-end sm:text-right">
+                          <div className="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums">
                             ${job.total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                           </div>
-                          <ChevronRight size={18} className="text-muted mt-0.5" />
+                          <ChevronRight size={18} className="text-muted sm:mt-0.5" />
                         </div>
                       </div>
                     </DashboardCard>

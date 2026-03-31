@@ -41,7 +41,11 @@ export async function GET(
 
     return NextResponse.json(
       { occupation, services: services ?? [] },
-      { headers: { 'Cache-Control': 'no-store' } }
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+        },
+      }
     );
   } catch (err) {
     console.error('[api/occupations/[slug]] error:', err);

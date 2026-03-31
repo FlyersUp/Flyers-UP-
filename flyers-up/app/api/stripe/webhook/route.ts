@@ -2,7 +2,7 @@
  * Stripe Webhook Handler
  * Idempotent via stripe_events. Signature verified with STRIPE_WEBHOOK_SECRET.
  * Handles: payment_intent.succeeded, charge.succeeded (ordering), payment_intent.payment_failed,
- * charge.refunded, disputes. Customer receipt emails run after DB writes; stripe_events marks last.
+ * charge.refunded, disputes. DB updates + stripe_events mark run in-request; receipt email via `after()`.
  * Late pay after cancel → auto-refund.
  * stripe listen --forward-to localhost:3000/api/stripe/webhook
  */
@@ -13,7 +13,8 @@ import Stripe from 'stripe';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 import { recordServerErrorEvent } from '@/lib/serverError';
 import { resolveWebhookPaymentKind } from '@/lib/stripe/webhook-payment-phase';
-import { sendCustomerBookingReceiptEmailAfterCommit } from '@/lib/bookings/webhook-customer-receipt-email';
+import { enqueueAfterResponse } from '@/lib/jobs/enqueue';
+import { customerBookingReceiptEmailWorker } from '@/lib/jobs/workers';
 import { applySucceededPaymentIntent } from '@/lib/stripe/apply-succeeded-payment-intent';
 import { computeChargeRefundedDeltaCents } from '@/lib/stripe/charge-refund-delta';
 import { logWebhookReceiptEvent } from '@/lib/stripe/webhook-receipt-log';
@@ -172,17 +173,21 @@ export async function POST(req: NextRequest) {
             break;
           }
 
+          await markStripeEventProcessed(eventId, event.type);
+
           if (!applied.lateAutoRefund) {
             const chargeRef = paymentIntent.latest_charge;
             const chargeId =
               typeof chargeRef === 'string' ? chargeRef : chargeRef?.id ?? null;
-            await sendCustomerBookingReceiptEmailAfterCommit(admin, {
-              bookingId: applied.bookingId,
-              kind: applied.paymentKind,
-              stripeEventId: eventId,
-              paymentIntentId: paymentIntent.id,
-              chargeId,
-            });
+            enqueueAfterResponse('customer-booking-receipt-email', () =>
+              customerBookingReceiptEmailWorker({
+                bookingId: applied.bookingId,
+                kind: applied.paymentKind,
+                stripeEventId: eventId,
+                paymentIntentId: paymentIntent.id,
+                chargeId,
+              })
+            );
           } else {
             logWebhookReceiptEvent({
               bookingId: applied.bookingId,
@@ -194,8 +199,6 @@ export async function POST(req: NextRequest) {
               detail: 'late_auto_refund',
             });
           }
-
-          await markStripeEventProcessed(eventId, event.type);
         } catch (e) {
           console.warn('Webhook persistence failed', e);
           throw e;
@@ -223,16 +226,18 @@ export async function POST(req: NextRequest) {
           }
           const admin = createSupabaseAdmin();
           const applied = await applySucceededPaymentIntent(admin, pi);
-          if (applied.handled && !applied.lateAutoRefund) {
-            await sendCustomerBookingReceiptEmailAfterCommit(admin, {
-              bookingId: applied.bookingId,
-              kind: applied.paymentKind,
-              stripeEventId: eventId,
-              paymentIntentId: pi.id,
-              chargeId: charge.id,
-            });
-          }
           await markStripeEventProcessed(eventId, event.type);
+          if (applied.handled && !applied.lateAutoRefund) {
+            enqueueAfterResponse('customer-booking-receipt-email', () =>
+              customerBookingReceiptEmailWorker({
+                bookingId: applied.bookingId,
+                kind: applied.paymentKind,
+                stripeEventId: eventId,
+                paymentIntentId: pi.id,
+                chargeId: charge.id,
+              })
+            );
+          }
         } catch (e) {
           console.warn('[webhook:charge.succeeded] failed', e);
           throw e;

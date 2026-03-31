@@ -11,7 +11,7 @@ export default function PublicLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="public-light min-h-screen">
+    <div className="public-light min-h-dvh min-h-[100svh] w-full max-w-full overflow-x-clip">
       {children}
     </div>
   );

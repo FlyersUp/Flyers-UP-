@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { requireProService } from '@/lib/recurring/api-auth';
 import { parseCreateServicePackageInput } from '@/lib/service-packages/validation';
-import { mapServicePackageRow } from '@/lib/service-packages/db-map';
+import { mapServicePackageRow, SERVICE_PACKAGE_DB_SELECT } from '@/lib/service-packages/db-map';
 import { rowToPublic } from '@/types/service-packages';
 
 export const runtime = 'nodejs';
@@ -16,7 +16,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('service_packages')
-    .select('*')
+    .select(SERVICE_PACKAGE_DB_SELECT)
     .eq('pro_user_id', pr.userId)
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       is_active: parsed.is_active ?? true,
       sort_order: nextOrder,
     })
-    .select('*')
+    .select(SERVICE_PACKAGE_DB_SELECT)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

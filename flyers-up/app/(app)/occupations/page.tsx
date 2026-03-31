@@ -5,6 +5,7 @@
  */
 import { useEffect, useState, useMemo } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
+import { MobileScrollRoot } from '@/components/layouts/MobileScrollRoot';
 import { OccupationGrid } from '@/components/occupations/OccupationGrid';
 import { OccupationSearchBar } from '@/components/occupations/OccupationSearchBar';
 
@@ -41,8 +42,8 @@ export default function OccupationsPage() {
 
   return (
     <AppLayout mode="customer">
-      <div className="min-h-screen bg-bg pb-32">
-        <div className="max-w-4xl mx-auto px-4">
+      <MobileScrollRoot className="flex min-h-0 flex-1 flex-col bg-bg pb-32">
+        <div className="max-w-4xl w-full min-w-0 mx-auto px-4">
           {/* Hero */}
           <section className="pt-6 pb-5">
             <h1 className="text-2xl md:text-3xl font-bold text-text tracking-tight">
@@ -109,7 +110,7 @@ export default function OccupationsPage() {
             </div>
           )}
         </div>
-      </div>
+      </MobileScrollRoot>
     </AppLayout>
   );
 }

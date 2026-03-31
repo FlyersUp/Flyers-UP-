@@ -365,7 +365,11 @@
 /* Theme-aware html/body: use CSS variables so .dark class drives colors */
 html {
   background: hsl(var(--bg));
-  min-height: 100vh;
+  min-height: 100vh; /* fallback */
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 body {
   background: hsl(var(--bg));
@@ -373,7 +377,11 @@ body {
   font-family: var(--font-montserrat), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  min-height: 100vh;
+  min-height: 100vh; /* fallback */
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 html.dark {
   background: #211d17;
@@ -606,13 +614,37 @@ button[style*="background-color"]:hover {
    RESPONSIVE HELPERS
    ============================================ */
 
-/* Safe area for mobile devices */
+/* Safe area for mobile devices (notch, Dynamic Island, home indicator) */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .safe-area-top {
   padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-pt {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-x {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/**
+ * Default page content column: mobile-first, no horizontal bleed, flex children can shrink.
+ * Use inside app shells (not necessarily at root — wrap scrollable main content).
+ */
+.mobile-page-root {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* Landing — subtle grain (Flat 2.0, non-intrusive) */
