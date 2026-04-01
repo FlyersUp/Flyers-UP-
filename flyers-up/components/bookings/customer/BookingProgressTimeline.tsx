@@ -3,9 +3,11 @@
 import { BookingTimeline } from '@/components/bookings/BookingTimeline';
 import { deriveTimelineDisplayStatus, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
 import type { Status } from '@/components/jobs/jobStatus';
+import { DEFAULT_BOOKING_TIMEZONE } from '@/lib/datetime';
 
 export interface BookingProgressTimelineProps {
   status: string;
+  bookingTimezone?: string | null;
   createdAt: string;
   statusHistory?: { status: string; at: string }[];
   acceptedAt?: string | null;
@@ -21,6 +23,7 @@ export interface BookingProgressTimelineProps {
 
 export function BookingProgressTimeline({
   status,
+  bookingTimezone,
   createdAt,
   statusHistory,
   acceptedAt,
@@ -33,6 +36,7 @@ export function BookingProgressTimeline({
   paidDepositAt,
   fullyPaidAt,
 }: BookingProgressTimelineProps) {
+  const tz = bookingTimezone?.trim() || DEFAULT_BOOKING_TIMEZONE;
   const paymentCtx = { paidAt, paidDepositAt, fullyPaidAt };
   const timelineStatus = deriveTimelineDisplayStatus(status, paymentCtx) as Status;
   const timestamps = buildTimestampsFromBooking(createdAt, statusHistory, {
@@ -53,6 +57,7 @@ export function BookingProgressTimeline({
     <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 shadow-sm">
       <BookingTimeline
         status={timelineStatus}
+        timeZone={tz}
         timestamps={{
           booked: timestamps.BOOKED,
           awaitingAcceptance: timestamps.AWAITING_ACCEPTANCE,

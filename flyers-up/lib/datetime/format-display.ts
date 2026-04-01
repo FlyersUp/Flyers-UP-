@@ -36,3 +36,22 @@ export function formatBookingDateTimeInZone(
   if (!dt.isValid) return '';
   return dt.toFormat('M/d/yy, h:mm a');
 }
+
+/**
+ * Status timeline stamps, e.g. "Apr 1, 9:43 AM" in the booking zone.
+ * Uses toFormat (not toLocaleString) so SSR and browser match.
+ */
+export function formatTimelineTimestampInZone(
+  raw: string,
+  timeZone: string = DEFAULT_BOOKING_TIMEZONE
+): string {
+  const z = normalizeBookingTimeZone(timeZone);
+  let dt = DateTime.fromISO(raw, { zone: 'utc' });
+  if (!dt.isValid) {
+    const js = new Date(raw);
+    if (Number.isNaN(js.getTime())) return raw;
+    dt = DateTime.fromJSDate(js, { zone: 'utc' });
+  }
+  if (!dt.isValid) return raw;
+  return dt.setZone(z).toFormat('MMM d, h:mm a');
+}

@@ -7,12 +7,15 @@ import {
   STATUS_LABELS,
   getStageState,
 } from '@/components/jobs/jobStatus';
+import { DEFAULT_BOOKING_TIMEZONE, formatTimelineTimestampInZone } from '@/lib/datetime';
 
 const GREEN = '#B2FBA5';
 const ORANGE = '#FFC067';
 
 export interface BookingTimelineProps {
   status: Status;
+  /** IANA zone for timeline stamps; avoids SSR/client toLocaleString mismatches. */
+  timeZone?: string;
   timestamps: Partial<Record<Status, string>> & {
     booked?: string;
     awaitingAcceptance?: string;
@@ -26,22 +29,12 @@ export interface BookingTimelineProps {
   compact?: boolean;
 }
 
-function formatTimestamp(raw: string): string {
-  try {
-    const d = new Date(raw);
-    if (Number.isNaN(d.getTime())) return raw;
-    return d.toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  } catch {
-    return raw;
-  }
-}
-
-export function BookingTimeline({ status, timestamps, compact = false }: BookingTimelineProps) {
+export function BookingTimeline({
+  status,
+  timestamps,
+  compact = false,
+  timeZone = DEFAULT_BOOKING_TIMEZONE,
+}: BookingTimelineProps) {
   const tsMap: Partial<Record<Status, string>> = {
     BOOKED: timestamps.booked ?? timestamps.BOOKED,
     AWAITING_ACCEPTANCE: timestamps.awaitingAcceptance ?? timestamps.AWAITING_ACCEPTANCE,
@@ -126,7 +119,7 @@ export function BookingTimeline({ status, timestamps, compact = false }: Booking
                 </span>
                 {ts && (
                   <span className="ml-2 text-xs opacity-80">
-                    {formatTimestamp(ts)}
+                    {formatTimelineTimestampInZone(ts, timeZone)}
                   </span>
                 )}
               </div>

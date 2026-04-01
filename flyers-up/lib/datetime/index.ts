@@ -20,6 +20,7 @@ export {
   formatBookingDateInZone,
   formatBookingTimeInZone,
   formatBookingDateTimeInZone,
+  formatTimelineTimestampInZone,
 } from './format-display';
 export {
   formatGoogleCalendarDatesParam,

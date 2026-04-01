@@ -328,6 +328,7 @@ export default function ProBookingDetailPage({
                       ) : (
                         <BookingTimeline
                           status={status}
+                          timeZone={booking.bookingTimezone ?? undefined}
                           timestamps={{
                             booked: timestamps.BOOKED,
                             awaitingAcceptance: timestamps.AWAITING_ACCEPTANCE,

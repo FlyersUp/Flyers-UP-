@@ -8,12 +8,8 @@ function formatDateTime(serviceDate?: string, serviceTime?: string): string {
   try {
     const dt = DateTime.fromISO(serviceDate, { zone: DEFAULT_BOOKING_TIMEZONE });
     if (!dt.isValid) return serviceDate;
-    const dateStr = dt.toLocaleString({
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    // toFormat (not toLocaleString) keeps SSR and browser output identical.
+    const dateStr = dt.toFormat('cccc, MMMM d, yyyy');
     return serviceTime ? `${dateStr} at ${serviceTime}` : dateStr;
   } catch {
     return serviceDate;

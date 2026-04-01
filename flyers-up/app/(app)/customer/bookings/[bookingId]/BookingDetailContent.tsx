@@ -338,6 +338,7 @@ export function BookingDetailContent({
               <h2 className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-3">Progress</h2>
               <BookingProgressTimeline
                 status={booking.status}
+                bookingTimezone={fullBooking.bookingTimezone ?? booking.bookingTimezone}
                 createdAt={booking.createdAt}
                 statusHistory={booking.statusHistory}
                 acceptedAt={booking.acceptedAt}
@@ -361,6 +362,7 @@ export function BookingDetailContent({
             <section className="mb-5">
               <TrackBookingPaymentSummary
                 bookingId={bookingId}
+                bookingTimezone={fullBooking.bookingTimezone ?? booking.bookingTimezone}
                 status={booking.status}
                 paymentStatus={booking.paymentStatus}
                 finalPaymentStatus={booking.finalPaymentStatus}

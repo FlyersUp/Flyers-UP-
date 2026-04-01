@@ -7,6 +7,7 @@ import {
   type UnifiedBookingReceipt,
   type UnifiedReceiptOverallStatus,
 } from '@/lib/bookings/unified-receipt';
+import { DEFAULT_BOOKING_TIMEZONE, formatBookingDateTimeInZone } from '@/lib/datetime';
 import { labelDynamicPricingReason } from '@/lib/bookings/dynamic-pricing-reason-labels';
 
 function formatCents(cents: number): string {
@@ -47,6 +48,8 @@ function statusLabel(status: UnifiedReceiptOverallStatus): string {
 
 export interface TrackBookingPaymentSummaryProps {
   bookingId: string;
+  /** For deposit deadline / receipt lines — avoids SSR toLocaleString drift. */
+  bookingTimezone?: string | null;
   status: string;
   paymentStatus?: string;
   finalPaymentStatus?: string | null;
@@ -83,6 +86,7 @@ export interface TrackBookingPaymentSummaryProps {
 
 export function TrackBookingPaymentSummary({
   bookingId,
+  bookingTimezone = null,
   status,
   paymentStatus = 'UNPAID',
   finalPaymentStatus = null,
@@ -115,6 +119,7 @@ export function TrackBookingPaymentSummary({
   primaryAction,
   className = '',
 }: TrackBookingPaymentSummaryProps) {
+  const tz = bookingTimezone?.trim() || DEFAULT_BOOKING_TIMEZONE;
   const [computedDeposit, setComputedDeposit] = useState<number | null>(null);
   const [apiReceipt, setApiReceipt] = useState<UnifiedBookingReceipt | null>(null);
 
@@ -413,7 +418,7 @@ export function TrackBookingPaymentSummary({
                 {receipt.isSplitPayment ? 'Deposit paid' : 'Paid in full'}
               </span>
               <span className="text-[#6A6A6A] dark:text-[#A1A8B3] shrink-0">
-                {new Date(receipt.paidDepositAt).toLocaleString()}
+                {formatBookingDateTimeInZone(receipt.paidDepositAt, tz) || receipt.paidDepositAt}
               </span>
             </div>
           )}
@@ -421,7 +426,7 @@ export function TrackBookingPaymentSummary({
             <div className="flex justify-between gap-2 text-xs">
               <span className="text-[#111111] dark:text-[#F5F7FA]">Paid in full</span>
               <span className="text-[#6A6A6A] dark:text-[#A1A8B3] shrink-0">
-                {new Date(receipt.paidRemainingAt).toLocaleString()}
+                {formatBookingDateTimeInZone(receipt.paidRemainingAt, tz) || receipt.paidRemainingAt}
               </span>
             </div>
           )}
@@ -459,7 +464,7 @@ export function TrackBookingPaymentSummary({
 
         {needsDeposit && paymentDueAt && (
           <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
-            Complete deposit before {new Date(paymentDueAt).toLocaleString()}.
+            Complete deposit before {formatBookingDateTimeInZone(paymentDueAt, tz) || paymentDueAt}.
           </p>
         )}
       </div>
