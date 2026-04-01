@@ -31,8 +31,10 @@ import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import type { NotificationType } from '@/lib/notifications/types';
 import {
   canProMarkBookingEnRoute,
+  evaluateEnRouteScheduleGate,
   proEnRouteDepositBlockedResponse,
-} from '@/lib/bookings/pro-en-route-deposit-guard';
+  proEnRouteScheduleBlockedResponse,
+} from '@/lib/bookings/pro-en-route-readiness';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -128,7 +130,7 @@ export async function PATCH(
     const { data: booking, error: fetchErr } = await supabase
       .from('bookings')
       .select(
-        'id, status, status_history, pro_id, customer_id, payment_intent_id, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, status_updated_at, status_updated_by, paid_deposit_at, payment_status, amount_deposit'
+        'id, status, status_history, pro_id, customer_id, payment_intent_id, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, status_updated_at, status_updated_by, paid_deposit_at, payment_status, amount_deposit, service_date, service_time, booking_timezone'
       )
       .eq('id', id)
       .single();
@@ -206,6 +208,9 @@ export async function PATCH(
         paid_deposit_at?: string | null;
         payment_status?: string | null;
         amount_deposit?: number | null;
+        service_date?: string | null;
+        service_time?: string | null;
+        booking_timezone?: string | null;
       };
       if (
         !canProMarkBookingEnRoute({
@@ -216,6 +221,14 @@ export async function PATCH(
         })
       ) {
         return NextResponse.json(proEnRouteDepositBlockedResponse(), { status: 409 });
+      }
+      const scheduleGate = evaluateEnRouteScheduleGate({
+        service_date: String(b.service_date ?? ''),
+        service_time: b.service_time ?? null,
+        booking_timezone: b.booking_timezone ?? null,
+      });
+      if (!scheduleGate.ok) {
+        return NextResponse.json(proEnRouteScheduleBlockedResponse(scheduleGate), { status: 409 });
       }
     }
 

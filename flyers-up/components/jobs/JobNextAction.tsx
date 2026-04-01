@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { deriveTimelineDisplayStatus, getNextStatus, type Status } from './jobStatus';
 import {
   canProMarkBookingEnRoute,
+  evaluateEnRouteScheduleGate,
   DEPOSIT_REQUIRED_BEFORE_EN_ROUTE_CODE,
-} from '@/lib/bookings/pro-en-route-deposit-guard';
+  EN_ROUTE_TOO_EARLY_CODE,
+} from '@/lib/bookings/pro-en-route-readiness';
 import { getBookingById, type BookingDetails } from '@/lib/api';
 import { ArrivalVerificationModal } from '@/components/marketplace/ArrivalVerificationModal';
 import { JobCompletionModal } from '@/components/marketplace/JobCompletionModal';
@@ -56,15 +58,27 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
   const nextStatus = getNextStatus(timelineStatus);
   const isCompleted = timelineStatus === 'COMPLETED' || timelineStatus === 'PAID';
 
+  const isOnMyWayStep = timelineStatus === 'ACCEPTED' && nextStatus === 'ON_THE_WAY';
+
   const depositBlocksEnRoute =
-    timelineStatus === 'ACCEPTED' &&
-    nextStatus === 'ON_THE_WAY' &&
+    isOnMyWayStep &&
     !canProMarkBookingEnRoute({
       status: booking.status,
       paid_deposit_at: booking.paidDepositAt ?? null,
       payment_status: booking.paymentStatus ?? null,
       amount_deposit: booking.amountDeposit ?? null,
     });
+
+  const scheduleGateResult =
+    isOnMyWayStep && !depositBlocksEnRoute
+      ? evaluateEnRouteScheduleGate({
+          service_date: booking.serviceDate,
+          service_time: booking.serviceTime,
+          booking_timezone: booking.bookingTimezone ?? null,
+        })
+      : null;
+
+  const scheduleBlocksEnRoute = Boolean(scheduleGateResult && !scheduleGateResult.ok);
 
   const handleAccept = async () => {
     setLoading(true);
@@ -135,6 +149,12 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
             typeof data.hint === 'string' && data.hint
               ? data.hint
               : data.error || 'Customer deposit must be paid first.'
+          );
+        } else if (data.code === EN_ROUTE_TOO_EARLY_CODE) {
+          setError(
+            typeof data.hint === 'string' && data.hint
+              ? data.hint
+              : data.error || 'Not available yet for travel.'
           );
         } else {
           setError(data.error || 'Failed to update status');
@@ -324,6 +344,27 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
               className="w-full h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black/50 bg-black/10 cursor-not-allowed"
             >
               Waiting for customer deposit
+            </button>
+          </>
+        ) : scheduleBlocksEnRoute && scheduleGateResult && !scheduleGateResult.ok ? (
+          <>
+            <p className="text-xs text-muted">
+              {scheduleGateResult.reason === 'future_service_day'
+                ? 'On the Way unlocks on the scheduled service date (from two hours before start time that day).'
+                : scheduleGateResult.reason === 'before_unlock'
+                  ? `You can mark On the Way starting at ${scheduleGateResult.unlockLabel} (two hours before the scheduled start).`
+                  : 'Appointment time could not be verified. Try refreshing the page.'}
+            </p>
+            <button
+              type="button"
+              disabled
+              className="w-full h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black/50 bg-black/10 cursor-not-allowed"
+            >
+              {scheduleGateResult.reason === 'future_service_day'
+                ? 'Available on booking day'
+                : scheduleGateResult.reason === 'before_unlock'
+                  ? `Available at ${scheduleGateResult.unlockLabel}`
+                  : 'Unavailable'}
             </button>
           </>
         ) : (

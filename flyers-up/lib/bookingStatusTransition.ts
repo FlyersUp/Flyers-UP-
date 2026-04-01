@@ -9,8 +9,10 @@ import { createServerSupabaseClient, createAdminSupabaseClient } from './supabas
 import { isValidTransition } from '@/components/jobs/jobStatus';
 import {
   canProMarkBookingEnRoute,
+  evaluateEnRouteScheduleGate,
   proEnRouteDepositBlockedResponse,
-} from '@/lib/bookings/pro-en-route-deposit-guard';
+  proEnRouteScheduleBlockedResponse,
+} from '@/lib/bookings/pro-en-route-readiness';
 
 type AllowedDbStatus = 'accepted' | 'pro_en_route' | 'in_progress' | 'awaiting_remaining_payment';
 
@@ -61,7 +63,7 @@ export async function transitionBookingStatus(
   const { data: booking, error: fetchErr } = await supabase
     .from('bookings')
     .select(
-      'id, status, status_history, pro_id, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, is_multi_day, paid_deposit_at, payment_status, amount_deposit'
+      'id, status, status_history, pro_id, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, is_multi_day, paid_deposit_at, payment_status, amount_deposit, service_date, service_time, booking_timezone'
     )
     .eq('id', bookingId)
     .single();
@@ -140,6 +142,9 @@ export async function transitionBookingStatus(
       paid_deposit_at?: string | null;
       payment_status?: string | null;
       amount_deposit?: number | null;
+      service_date?: string | null;
+      service_time?: string | null;
+      booking_timezone?: string | null;
     };
     if (
       !canProMarkBookingEnRoute({
@@ -150,6 +155,14 @@ export async function transitionBookingStatus(
       })
     ) {
       return NextResponse.json(proEnRouteDepositBlockedResponse(), { status: 409 });
+    }
+    const scheduleGate = evaluateEnRouteScheduleGate({
+      service_date: String(b.service_date ?? ''),
+      service_time: b.service_time ?? null,
+      booking_timezone: b.booking_timezone ?? null,
+    });
+    if (!scheduleGate.ok) {
+      return NextResponse.json(proEnRouteScheduleBlockedResponse(scheduleGate), { status: 409 });
     }
   }
 
