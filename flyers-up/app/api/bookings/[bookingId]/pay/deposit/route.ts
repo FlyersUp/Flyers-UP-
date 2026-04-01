@@ -87,6 +87,17 @@ const ELIGIBLE_STATUSES = [
   'awaiting_deposit_payment',
 ];
 
+/**
+ * If the job moved past "accepted" before deposit was collected (legacy bug or race),
+ * still allow the customer to pay the deposit so the booking can reconcile. Do not use
+ * for in_progress+ (work started without deposit is an ops edge case).
+ */
+const DEPOSIT_RECOVERY_PRE_WORK_STATUSES = ['pro_en_route', 'on_the_way', 'arrived'] as const;
+
+function isDepositRecoveryStatus(status: string): boolean {
+  return (DEPOSIT_RECOVERY_PRE_WORK_STATUSES as readonly string[]).includes(status);
+}
+
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ bookingId: string }> }
@@ -114,7 +125,7 @@ export async function POST(
   // Do not require profile.role === 'customer' — that blocked valid payers with role "pro".
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, service_date, service_time, address, job_request_id, scope_confirmed_at, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug')
+    .select('id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, paid_deposit_at, service_date, service_time, address, job_request_id, scope_confirmed_at, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug')
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();
@@ -138,24 +149,28 @@ export async function POST(
   }
 
   const status = String(booking.status);
-  const paymentStatus = String(booking.payment_status ?? 'UNPAID');
+  const paymentStatus = String(booking.payment_status ?? 'UNPAID').toUpperCase();
+  const paidDepositAt = (booking as { paid_deposit_at?: string | null }).paid_deposit_at;
 
-  if (!ELIGIBLE_STATUSES.includes(status)) {
-    return NextResponse.json(
-      { error: `Booking is not ready for deposit (status: ${status})` },
-      { status: 409 }
-    );
-  }
-
-  if (paymentStatus === 'PAID') {
+  if (paymentStatus === 'PAID' || paidDepositAt) {
     return NextResponse.json(
       { error: 'Deposit already paid' },
       { status: 409 }
     );
   }
 
+  const recovery = isDepositRecoveryStatus(status);
+  const statusOk = ELIGIBLE_STATUSES.includes(status) || recovery;
+  if (!statusOk) {
+    return NextResponse.json(
+      { error: `Booking is not ready for deposit (status: ${status})` },
+      { status: 409 }
+    );
+  }
+
   const paymentDueAt = (booking as { payment_due_at?: string | null }).payment_due_at;
-  if (paymentDueAt) {
+  // Recovery path: original 30m window may have expired while the booking was stuck; still allow deposit.
+  if (paymentDueAt && !recovery) {
     const due = new Date(paymentDueAt).getTime();
     if (Date.now() >= due) {
       return NextResponse.json(

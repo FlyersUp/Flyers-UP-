@@ -3,6 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { deriveTimelineDisplayStatus, getNextStatus, type Status } from './jobStatus';
+import {
+  canProMarkBookingEnRoute,
+  DEPOSIT_REQUIRED_BEFORE_EN_ROUTE_CODE,
+} from '@/lib/bookings/pro-en-route-deposit-guard';
 import { getBookingById, type BookingDetails } from '@/lib/api';
 import { ArrivalVerificationModal } from '@/components/marketplace/ArrivalVerificationModal';
 import { JobCompletionModal } from '@/components/marketplace/JobCompletionModal';
@@ -51,6 +55,16 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
   });
   const nextStatus = getNextStatus(timelineStatus);
   const isCompleted = timelineStatus === 'COMPLETED' || timelineStatus === 'PAID';
+
+  const depositBlocksEnRoute =
+    timelineStatus === 'ACCEPTED' &&
+    nextStatus === 'ON_THE_WAY' &&
+    !canProMarkBookingEnRoute({
+      status: booking.status,
+      paid_deposit_at: booking.paidDepositAt ?? null,
+      payment_status: booking.paymentStatus ?? null,
+      amount_deposit: booking.amountDeposit ?? null,
+    });
 
   const handleAccept = async () => {
     setLoading(true);
@@ -116,7 +130,15 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
         if (data.code === 'completion_photos_required') {
           setCompletionModalOpen(true);
         }
-        setError(data.error || 'Failed to update status');
+        if (data.code === DEPOSIT_REQUIRED_BEFORE_EN_ROUTE_CODE) {
+          setError(
+            typeof data.hint === 'string' && data.hint
+              ? data.hint
+              : data.error || 'Customer deposit must be paid first.'
+          );
+        } else {
+          setError(data.error || 'Failed to update status');
+        }
         return;
       }
       const updated = await getBookingById(booking.id);
@@ -288,6 +310,20 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
               className="w-full h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 disabled:opacity-70 transition-all"
             >
               {arrivalLabel}
+            </button>
+          </>
+        ) : depositBlocksEnRoute ? (
+          <>
+            <p className="text-xs text-muted">
+              The customer still needs to pay the deposit. You can head out once payment is confirmed—refresh this
+              page after they pay.
+            </p>
+            <button
+              type="button"
+              disabled
+              className="w-full h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black/50 bg-black/10 cursor-not-allowed"
+            >
+              Waiting for customer deposit
             </button>
           </>
         ) : (

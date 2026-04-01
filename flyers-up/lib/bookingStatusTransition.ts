@@ -7,6 +7,10 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from './supabaseServer';
 import { isValidTransition } from '@/components/jobs/jobStatus';
+import {
+  canProMarkBookingEnRoute,
+  proEnRouteDepositBlockedResponse,
+} from '@/lib/bookings/pro-en-route-deposit-guard';
 
 type AllowedDbStatus = 'accepted' | 'pro_en_route' | 'in_progress' | 'awaiting_remaining_payment';
 
@@ -57,7 +61,7 @@ export async function transitionBookingStatus(
   const { data: booking, error: fetchErr } = await supabase
     .from('bookings')
     .select(
-      'id, status, status_history, pro_id, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, is_multi_day'
+      'id, status, status_history, pro_id, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, is_multi_day, paid_deposit_at, payment_status, amount_deposit'
     )
     .eq('id', bookingId)
     .single();
@@ -129,6 +133,24 @@ export async function transitionBookingStatus(
       },
       { status: 409 }
     );
+  }
+
+  if (nextDbStatus === 'pro_en_route') {
+    const b = booking as {
+      paid_deposit_at?: string | null;
+      payment_status?: string | null;
+      amount_deposit?: number | null;
+    };
+    if (
+      !canProMarkBookingEnRoute({
+        status: currentDbStatus,
+        paid_deposit_at: b.paid_deposit_at ?? null,
+        payment_status: b.payment_status ?? null,
+        amount_deposit: b.amount_deposit ?? null,
+      })
+    ) {
+      return NextResponse.json(proEnRouteDepositBlockedResponse(), { status: 409 });
+    }
   }
 
   const now = new Date().toISOString();

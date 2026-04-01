@@ -414,6 +414,14 @@ export default function ProTodayPage() {
     try {
         if (next === 'in_progress') {
         const s = (dbStatus ?? '').toLowerCase();
+        if (
+          s === 'awaiting_deposit_payment' ||
+          s === 'payment_required' ||
+          s === 'accepted_pending_payment'
+        ) {
+          console.warn('[today] start blocked: customer deposit not paid yet', { bookingId, dbStatus });
+          return false;
+        }
         if (s === 'accepted' || s === 'deposit_paid' || s === 'scheduled') {
           const r1 = await fetch(`/api/jobs/${bookingId}/status`, {
             method: 'PATCH',

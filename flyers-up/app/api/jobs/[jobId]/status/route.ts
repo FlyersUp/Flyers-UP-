@@ -29,6 +29,10 @@ import {
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import type { NotificationType } from '@/lib/notifications/types';
+import {
+  canProMarkBookingEnRoute,
+  proEnRouteDepositBlockedResponse,
+} from '@/lib/bookings/pro-en-route-deposit-guard';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -124,7 +128,7 @@ export async function PATCH(
     const { data: booking, error: fetchErr } = await supabase
       .from('bookings')
       .select(
-        'id, status, status_history, pro_id, customer_id, payment_intent_id, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, status_updated_at, status_updated_by'
+        'id, status, status_history, pro_id, customer_id, payment_intent_id, accepted_at, en_route_at, on_the_way_at, started_at, completed_at, status_updated_at, status_updated_by, paid_deposit_at, payment_status, amount_deposit'
       )
       .eq('id', id)
       .single();
@@ -195,6 +199,24 @@ export async function PATCH(
         },
         { status: 409 }
       );
+    }
+
+    if (nextDbStatus === 'pro_en_route') {
+      const b = booking as {
+        paid_deposit_at?: string | null;
+        payment_status?: string | null;
+        amount_deposit?: number | null;
+      };
+      if (
+        !canProMarkBookingEnRoute({
+          status: currentDbStatus,
+          paid_deposit_at: b.paid_deposit_at ?? null,
+          payment_status: b.payment_status ?? null,
+          amount_deposit: b.amount_deposit ?? null,
+        })
+      ) {
+        return NextResponse.json(proEnRouteDepositBlockedResponse(), { status: 409 });
+      }
     }
 
     const now = new Date().toISOString();
