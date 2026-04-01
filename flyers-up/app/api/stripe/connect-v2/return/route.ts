@@ -6,6 +6,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { stripe } from '@/lib/stripe';
+import {
+  connectReturnQueryHint,
+  resolveStripeConnectUiState,
+} from '@/lib/stripe/connectUiState';
 import { getAccountStatusV2, getStripeConnectClient } from '@/lib/stripeConnect';
 import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabaseServer';
 
@@ -14,21 +19,26 @@ export const preferredRegion = ['cle1'];
 
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
-  const nextParam = req.nextUrl.searchParams.get('next') ?? '/pro/earnings';
+  const nextParam = req.nextUrl.searchParams.get('next') ?? '/pro/settings/payments-payouts';
+  const payoutsDefault = '/pro/settings/payments-payouts';
 
   if (!getStripeConnectClient()) {
-    return NextResponse.redirect(new URL(`/pro/earnings?connect=not_configured`, origin));
+    const d = new URL(nextParam, origin);
+    d.searchParams.set('connect', 'not_configured');
+    return NextResponse.redirect(d);
   }
 
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.redirect(new URL(`/auth?next=${encodeURIComponent('/pro/earnings')}`, origin));
+    return NextResponse.redirect(new URL(`/auth?next=${encodeURIComponent(payoutsDefault)}`, origin));
   }
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
   if (!profile || profile.role !== 'pro') {
-    return NextResponse.redirect(new URL(`/pro/earnings?connect=unauthorized`, origin));
+    const d = new URL(nextParam, origin);
+    d.searchParams.set('connect', 'unauthorized');
+    return NextResponse.redirect(d);
   }
 
   const { data: proRow } = await supabase
@@ -39,12 +49,45 @@ export async function GET(req: NextRequest) {
 
   const accountId = proRow?.stripe_account_id ?? null;
   if (!accountId) {
-    return NextResponse.redirect(new URL(`/pro/earnings?connect=missing_account`, origin));
+    const d = new URL(nextParam, origin);
+    d.searchParams.set('connect', 'missing_account');
+    return NextResponse.redirect(d);
   }
 
-  const status = await getAccountStatusV2(accountId);
-  const readyToReceivePayments = status.readyToReceivePayments ?? false;
-  const onboardingComplete = status.onboardingComplete ?? false;
+  let detailsSubmitted = false;
+  let chargesEnabled = false;
+  let payoutsEnabled = false;
+  let disabledReason: string | null = null;
+
+  if (stripe) {
+    try {
+      const acct = await stripe.accounts.retrieve(accountId);
+      detailsSubmitted = Boolean(acct.details_submitted);
+      chargesEnabled = Boolean(acct.charges_enabled);
+      payoutsEnabled = Boolean(acct.payouts_enabled);
+      disabledReason = acct.requirements?.disabled_reason ?? null;
+    } catch {
+      const status = await getAccountStatusV2(accountId);
+      const ready = status.readyToReceivePayments ?? false;
+      detailsSubmitted = status.onboardingComplete ?? false;
+      chargesEnabled = ready;
+      payoutsEnabled = ready;
+      disabledReason =
+        status.requirementsStatus === 'past_due' || status.requirementsStatus === 'currently_due'
+          ? (status.requirementsStatus ?? null)
+          : null;
+    }
+  } else {
+    const status = await getAccountStatusV2(accountId);
+    const ready = status.readyToReceivePayments ?? false;
+    detailsSubmitted = status.onboardingComplete ?? false;
+    chargesEnabled = ready;
+    payoutsEnabled = ready;
+    disabledReason =
+      status.requirementsStatus === 'past_due' || status.requirementsStatus === 'currently_due'
+        ? (status.requirementsStatus ?? null)
+        : null;
+  }
 
   let admin: ReturnType<typeof createAdminSupabaseClient> | null = null;
   try {
@@ -57,14 +100,21 @@ export async function GET(req: NextRequest) {
   await client
     .from('service_pros')
     .update({
-      stripe_details_submitted: onboardingComplete,
-      stripe_charges_enabled: readyToReceivePayments,
-      stripe_payouts_enabled: readyToReceivePayments,
+      stripe_details_submitted: detailsSubmitted,
+      stripe_charges_enabled: chargesEnabled,
+      stripe_payouts_enabled: payoutsEnabled,
     })
     .eq('user_id', user.id);
 
-  const connectStatus = readyToReceivePayments ? 'complete' : 'pending';
+  const uiState = resolveStripeConnectUiState({
+    accountId,
+    chargesEnabled,
+    payoutsEnabled,
+    detailsSubmitted,
+    disabledReason,
+  });
+  const hint = connectReturnQueryHint(uiState);
   const dest = new URL(nextParam, origin);
-  dest.searchParams.set('connect', connectStatus);
+  dest.searchParams.set('connect', hint);
   return NextResponse.redirect(dest);
 }

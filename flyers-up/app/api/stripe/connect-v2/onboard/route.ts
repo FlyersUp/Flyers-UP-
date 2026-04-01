@@ -21,10 +21,14 @@ export const preferredRegion = ['cle1'];
 
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
-  const nextParam = req.nextUrl.searchParams.get('next') ?? '/pro/earnings';
+  const nextParam = req.nextUrl.searchParams.get('next') ?? '/pro/settings/payments-payouts';
 
-  const redirectError = (msg: string) =>
-    NextResponse.redirect(new URL(`/pro/earnings?connect=error&msg=${encodeURIComponent(msg)}`, origin));
+  const redirectError = (msg: string) => {
+    console.error('Stripe Connect v2 onboard:', msg);
+    const d = new URL(nextParam, origin);
+    d.searchParams.set('connect', 'error');
+    return NextResponse.redirect(d);
+  };
 
   try {
     if (!getStripeConnectClient()) {

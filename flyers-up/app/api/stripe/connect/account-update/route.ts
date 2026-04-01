@@ -14,7 +14,9 @@ export async function GET(req: NextRequest) {
   const nextParam = req.nextUrl.searchParams.get('next') || '/pro/settings/payments-payouts';
 
   if (!stripe) {
-    return NextResponse.redirect(new URL(`${nextParam}?connect=not_configured`, origin));
+    const d = new URL(nextParam, origin);
+    d.searchParams.set('connect', 'not_configured');
+    return NextResponse.redirect(d);
   }
 
   const supabase = await createServerSupabaseClient();
@@ -52,11 +54,15 @@ export async function GET(req: NextRequest) {
       return_url: returnUrl.toString(),
     });
     if (!link?.url) {
-      return NextResponse.redirect(new URL(`${nextParam}?connect=error`, origin));
+      const d = new URL(nextParam, origin);
+      d.searchParams.set('connect', 'error');
+      return NextResponse.redirect(d);
     }
     return NextResponse.redirect(link.url);
   } catch (err) {
     console.error('Stripe account_update link:', err);
-    return NextResponse.redirect(new URL(`${nextParam}?connect=error`, origin));
+    const d = new URL(nextParam, origin);
+    d.searchParams.set('connect', 'error');
+    return NextResponse.redirect(d);
   }
 }

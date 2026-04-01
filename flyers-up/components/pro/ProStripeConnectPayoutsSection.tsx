@@ -1,14 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  isStripeConnectFullyActive,
+  type StripeConnectUiState,
+} from '@/lib/stripe/connectUiState';
 import { TrustRow } from '@/components/ui/TrustRow';
-
-type ConnectUiPhase = 'not_started' | 'pending_verification' | 'enabled' | 'disabled';
 
 type StatusPayload = {
   ok: boolean;
   stripeConfigured?: boolean;
-  phase?: ConnectUiPhase;
+  uiState?: StripeConnectUiState;
   accountId?: string | null;
   chargesEnabled?: boolean;
   payoutsEnabled?: boolean;
@@ -30,9 +33,23 @@ export function ProStripeConnectPayoutsSection({
   /** `embedded` = under Payments & Payouts card; `page` = full settings/payments view */
   variant?: 'embedded' | 'page';
 }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<StatusPayload | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+
+  /** Live Connect state from API — source of truth; URL ?connect= is only hints after redirects. */
+  const isStripeConnected = useCallback((d: StatusPayload | null) => {
+    if (!d?.ok) return false;
+    if (d.uiState === 'connected') return true;
+    return isStripeConnectFullyActive({
+      accountId: d.accountId,
+      chargesEnabled: d.chargesEnabled ?? false,
+      payoutsEnabled: d.payoutsEnabled ?? false,
+      detailsSubmitted: d.detailsSubmitted ?? false,
+      disabledReason: d.disabledReason,
+    });
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,31 +68,86 @@ export function ProStripeConnectPayoutsSection({
     void load();
   }, [load]);
 
+  /**
+   * Handle Stripe return query params only after we know account status.
+   * If fully active, ignore stale ?connect=error (and similar) and strip the URL.
+   */
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const connect = new URLSearchParams(window.location.search).get('connect');
-    if (connect === 'complete') {
-      setBanner('Stripe setup looks complete. Charges and payouts are enabled.');
+    if (loading || typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const connect = params.get('connect');
+    const hadStripeQueryNoise =
+      connect != null || params.has('refresh') || params.has('msg');
+    if (!hadStripeQueryNoise) return;
+
+    const clearHandledParamsFromUrl = () => {
+      router.replace(returnPath.split('?')[0] || returnPath, { scroll: false });
+    };
+
+    const connected = isStripeConnected(data);
+
+    if (connected) {
+      setBanner(null);
+      clearHandledParamsFromUrl();
+      return;
+    }
+
+    if (connect === 'success' || connect === 'complete') {
+      setBanner(
+        'Stripe saved your return. If anything is still pending below, finish the remaining steps to enable payouts.'
+      );
       void load();
-    } else if (connect === 'pending') {
+      clearHandledParamsFromUrl();
+      return;
+    }
+    if (connect === 'pending') {
       setBanner('Stripe still needs a bit more information. Continue setup when you’re ready.');
       void load();
-    } else if (connect === 'error' || connect === 'not_configured' || connect === 'missing_account') {
-      setBanner(
-        connect === 'not_configured'
-          ? 'Stripe is not configured on this environment.'
-          : connect === 'missing_account'
-            ? 'No Connect account found yet. Start setup below.'
-            : 'Something went wrong with Stripe. Try again or contact support.'
-      );
+      clearHandledParamsFromUrl();
+      return;
     }
-  }, [load]);
+    if (connect === 'needs_action') {
+      setBanner('Stripe needs more information or verification before payouts can go live. Use Continue setup or update your account.');
+      void load();
+      clearHandledParamsFromUrl();
+      return;
+    }
+    if (connect === 'error') {
+      setBanner('Something went wrong with Stripe. Try again or contact support.');
+      clearHandledParamsFromUrl();
+      return;
+    }
+    if (connect === 'not_configured') {
+      setBanner('Stripe is not configured on this environment.');
+      clearHandledParamsFromUrl();
+      return;
+    }
+    if (connect === 'missing_account' || connect === 'no_account') {
+      setBanner('No Connect account found yet. Start setup below.');
+      clearHandledParamsFromUrl();
+      return;
+    }
+    if (connect === 'unauthorized') {
+      setBanner('You need a pro account to set up payouts.');
+      clearHandledParamsFromUrl();
+      return;
+    }
+
+    if (params.has('refresh')) {
+      void load();
+      clearHandledParamsFromUrl();
+      return;
+    }
+
+    clearHandledParamsFromUrl();
+  }, [loading, data, returnPath, router, load, isStripeConnected]);
 
   const nextEncoded = encodeURIComponent(returnPath);
   const onboardHref = `/api/stripe/connect/onboard?next=${nextEncoded}`;
   const updateHref = `/api/stripe/connect/account-update?next=${nextEncoded}`;
 
-  const phase = data?.phase ?? 'not_started';
+  const uiState: StripeConnectUiState = data?.uiState ?? 'not_started';
   const stripeReady = data?.stripeConfigured !== false;
 
   const titleClass = variant === 'page' ? 'text-2xl font-bold text-text' : 'text-lg font-semibold text-text';
@@ -116,23 +188,23 @@ export function ProStripeConnectPayoutsSection({
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
-                phase === 'enabled'
+                uiState === 'connected'
                   ? 'bg-[hsl(var(--accent-pro)/0.15)] border-[hsl(var(--accent-pro)/0.35)] text-text'
-                  : phase === 'disabled'
+                  : uiState === 'needs_action'
                     ? 'bg-danger/10 border-danger/30 text-text'
-                    : phase === 'not_started'
+                    : uiState === 'not_started'
                       ? 'bg-surface2 text-muted border-border'
                       : 'bg-amber-500/10 border-amber-500/30 text-text'
               }`}
             >
-              {phase === 'enabled' && 'Payouts enabled'}
-              {phase === 'pending_verification' && 'Setup in progress'}
-              {phase === 'not_started' && 'Not started'}
-              {phase === 'disabled' && 'Restricted'}
+              {uiState === 'connected' && 'Payouts enabled'}
+              {uiState === 'pending' && 'Finish Stripe setup'}
+              {uiState === 'not_started' && 'Not started'}
+              {uiState === 'needs_action' && 'Action required'}
             </span>
           </div>
 
-          {phase === 'enabled' && (
+          {uiState === 'connected' && (
             <div className="text-sm text-text space-y-1">
               <p>Your Connect account is active. Customer payments can be accepted for your jobs.</p>
               {(data.bankLast4 || data.bankName) && (
@@ -150,46 +222,54 @@ export function ProStripeConnectPayoutsSection({
             </div>
           )}
 
-          {phase === 'pending_verification' && (
+          {uiState === 'pending' && (
             <p className="text-sm text-muted">
               Finish Stripe&apos;s steps to verify your identity and bank account. You can leave and come back anytime—use
               &quot;Continue setup&quot; to resume.
             </p>
           )}
 
-          {phase === 'not_started' && (
+          {uiState === 'not_started' && (
             <p className="text-sm text-muted">
-              Start Stripe Connect to receive payouts. You&apos;ll complete tax and banking in Stripe&apos;s flow—we only store
-              your linked Stripe account ID.
+              Set up payouts securely with Stripe. You&apos;ll enter tax and banking in Stripe&apos;s flow—we only store your
+              linked Connect account ID.
             </p>
           )}
 
-          {phase === 'disabled' && (
+          {uiState === 'needs_action' && (
             <p className="text-sm text-muted">
               {data.disabledReason
                 ? `Stripe reported an issue: ${data.disabledReason.replace(/_/g, ' ')}. Update your account to restore payouts.`
-                : 'This Connect account needs attention in Stripe before payouts can resume.'}
+                : 'Stripe still needs information or verification before payouts can be enabled.'}
             </p>
           )}
 
           <div className="flex flex-col sm:flex-row gap-2 pt-1">
-            {(phase === 'not_started' || phase === 'pending_verification') && (
+            {(uiState === 'not_started' || uiState === 'pending') && (
               <a
-                href={onboardHref}
+                href={`/pro/connect?next=${nextEncoded}`}
                 className="inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold text-[hsl(var(--accent-contrast))] bg-[hsl(var(--accent-pro))] hover:brightness-95 transition-all text-center"
               >
-                {phase === 'not_started' ? 'Set up payouts' : 'Continue setup'}
+                {uiState === 'not_started' ? 'Set up payouts' : 'Continue setup'}
               </a>
             )}
-            {phase === 'disabled' && (
-              <a
-                href={updateHref}
-                className="inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold text-[hsl(var(--accent-contrast))] bg-red-600 hover:bg-red-700 transition-colors text-center"
-              >
-                Fix in Stripe
-              </a>
+            {uiState === 'needs_action' && (
+              <>
+                <a
+                  href={updateHref}
+                  className="inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold text-[hsl(var(--accent-contrast))] bg-red-600 hover:bg-red-700 transition-colors text-center"
+                >
+                  Fix in Stripe
+                </a>
+                <a
+                  href={`/pro/connect?next=${nextEncoded}`}
+                  className="inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold border-2 border-border text-text hover:bg-hover transition-colors text-center"
+                >
+                  Continue setup
+                </a>
+              </>
             )}
-            {phase === 'enabled' && (
+            {uiState === 'connected' && (
               <a
                 href={updateHref}
                 className="inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold border-2 border-border text-text hover:bg-hover transition-colors text-center"

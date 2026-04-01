@@ -6,7 +6,7 @@ import Logo from '@/components/Logo';
 
 function ConnectInner() {
   const searchParams = useSearchParams();
-  const nextParam = searchParams.get('next') || '/pro/earnings';
+  const nextParam = searchParams.get('next') || '/pro/settings/payments-payouts';
 
   useEffect(() => {
     const url = `/api/stripe/connect-v2/onboard?next=${encodeURIComponent(nextParam)}`;

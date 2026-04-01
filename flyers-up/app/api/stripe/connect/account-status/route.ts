@@ -4,13 +4,17 @@
  */
 import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
+import {
+  resolveStripeConnectUiState,
+  type StripeConnectUiState,
+} from '@/lib/stripe/connectUiState';
 import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabaseServer';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
-export type ConnectUiPhase = 'not_started' | 'pending_verification' | 'enabled' | 'disabled';
+export type { StripeConnectUiState };
 
 export async function GET() {
   try {
@@ -37,16 +41,23 @@ export async function GET() {
     const stripeConfigured = Boolean(stripe);
 
     if (!accountId) {
+      const uiState = resolveStripeConnectUiState({
+        accountId: null,
+        chargesEnabled: false,
+        payoutsEnabled: false,
+        detailsSubmitted: false,
+      });
       return NextResponse.json({
         ok: true,
         stripeConfigured,
-        phase: 'not_started' as ConnectUiPhase,
+        uiState,
         accountId: null,
         chargesEnabled: false,
         payoutsEnabled: false,
         detailsSubmitted: false,
         bankLast4: null as string | null,
         bankName: null as string | null,
+        disabledReason: null as string | null,
       });
     }
 
@@ -64,11 +75,11 @@ export async function GET() {
         payoutsEnabled = Boolean(acct.payouts_enabled);
         detailsSubmitted = Boolean(acct.details_submitted);
         const reqs = acct.requirements;
-        if (acct.charges_enabled === false && reqs?.disabled_reason) {
+        if (reqs?.disabled_reason) {
           disabledReason = reqs.disabled_reason;
         }
-        const data = acct.external_accounts?.data ?? [];
-        const bank = data.find((x) => x.object === 'bank_account');
+        const ext = acct.external_accounts?.data ?? [];
+        const bank = ext.find((x) => x.object === 'bank_account');
         if (bank && bank.object === 'bank_account') {
           bankLast4 = bank.last4 ?? null;
           bankName = bank.bank_name ?? null;
@@ -88,26 +99,23 @@ export async function GET() {
           /* DB sync best-effort */
         }
       } catch {
-        // Use DB snapshot only
+        // Use DB snapshot only; disabledReason unknown
       }
     }
 
-    let phase: ConnectUiPhase = 'pending_verification';
-    if (disabledReason) {
-      phase = 'disabled';
-    } else if (chargesEnabled && payoutsEnabled && detailsSubmitted) {
-      phase = 'enabled';
-    } else if (accountId) {
-      phase = 'pending_verification';
-    } else {
-      phase = 'not_started';
-    }
+    const uiState = resolveStripeConnectUiState({
+      accountId,
+      chargesEnabled,
+      payoutsEnabled,
+      detailsSubmitted,
+      disabledReason,
+    });
 
     return NextResponse.json(
       {
         ok: true,
         stripeConfigured,
-        phase,
+        uiState,
         accountId,
         chargesEnabled,
         payoutsEnabled,

@@ -7,25 +7,27 @@ import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/sup
 
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
-  const nextParam = req.nextUrl.searchParams.get('next') || '/pro/earnings';
+  const nextParam = req.nextUrl.searchParams.get('next') || '/pro/settings/payments-payouts';
   // Use /pro/connect as intermediate so session has time to persist before API hit
   const onboardNext = `/pro/connect?next=${encodeURIComponent(nextParam)}`;
 
-  const redirectToError = (reason: string) => {
-    console.error('Stripe Connect onboard:', reason);
-    return NextResponse.redirect(new URL(`/pro/earnings?connect=error`, origin));
+  const redirectWithConnectHint = (hint: string, logReason?: string) => {
+    if (logReason) console.error('Stripe Connect onboard:', logReason);
+    const dest = new URL(nextParam, origin);
+    dest.searchParams.set('connect', hint);
+    return NextResponse.redirect(dest);
   };
 
   try {
     if (!stripe) {
-      return NextResponse.redirect(new URL('/pro/earnings?connect=not_configured', origin));
+      return redirectWithConnectHint('not_configured');
     }
 
     let supabase;
     try {
       supabase = await createServerSupabaseClient();
     } catch (e) {
-      return redirectToError(String(e));
+      return redirectWithConnectHint('error', String(e));
     }
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -43,7 +45,7 @@ export async function GET(req: NextRequest) {
         .maybeSingle();
       proRow = pr;
     } catch (e) {
-      return redirectToError(String(e));
+      return redirectWithConnectHint('error', String(e));
     }
 
     if (!profile || profile.role !== 'pro') {
@@ -102,7 +104,7 @@ export async function GET(req: NextRequest) {
         const client = admin ?? supabase;
         await client.from('service_pros').update({ stripe_account_id: accountId }).eq('user_id', user.id);
       } catch (e) {
-        return redirectToError(String(e));
+        return redirectWithConnectHint('error', String(e));
       }
     }
 
@@ -118,15 +120,15 @@ export async function GET(req: NextRequest) {
       });
 
       if (!link?.url) {
-        return NextResponse.redirect(new URL('/pro/earnings?connect=error', origin));
+        return redirectWithConnectHint('error', 'missing_account_link_url');
       }
       return NextResponse.redirect(link.url);
     } catch (err) {
       console.error('Stripe Connect onboard error:', err);
-      return NextResponse.redirect(new URL('/pro/earnings?connect=error', origin));
+      return redirectWithConnectHint('error', err instanceof Error ? err.message : String(err));
     }
   } catch (err) {
-    return redirectToError(err instanceof Error ? err.message : String(err));
+    return redirectWithConnectHint('error', err instanceof Error ? err.message : String(err));
   }
 }
 
