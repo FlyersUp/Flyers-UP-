@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { DARK_MODE_END_USER_ENABLED } from '@/lib/themeFeatureFlags';
 
 type ThemeMode = 'customer' | 'pro';
 type ThemePreference = 'light' | 'dark' | 'system';
@@ -68,7 +69,8 @@ export function ThemeProvider({
 
   // Option C: only enable dark mode when explicitly chosen by the user.
   // `system` is treated as light (prevents OS preference from forcing dark).
-  const resolvedDark = theme === 'dark';
+  // When DARK_MODE_END_USER_ENABLED is false, we keep preference in state/storage but never apply .dark.
+  const resolvedDark = DARK_MODE_END_USER_ENABLED && theme === 'dark';
 
   // Apply classes as early as possible (avoid one-frame flash).
   useLayoutEffect(() => {

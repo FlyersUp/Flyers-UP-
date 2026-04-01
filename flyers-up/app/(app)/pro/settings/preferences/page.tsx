@@ -18,6 +18,7 @@ import {
 import { supabase } from '@/lib/supabaseClient';
 import { TOP_LANGUAGES } from '@/lib/languages';
 import { useTheme } from '@/contexts/ThemeContext';
+import { DARK_MODE_END_USER_ENABLED } from '@/lib/themeFeatureFlags';
 
 export default function ProPreferencesSettingsPage() {
   return (
@@ -133,17 +134,19 @@ function ProPreferencesSettingsInner() {
         ) : (
           <>
             <div className="divide-y divide-black/5">
-              <div className="px-4">
-                <ToggleRow
-                  title="Dark mode"
-                  description="Store your preference."
-                  checked={prefs.darkMode}
-                  onChange={(next) => {
-                    handlePrefChange({ darkMode: next });
-                    setDarkMode(next);
-                  }}
-                />
-              </div>
+              {DARK_MODE_END_USER_ENABLED ? (
+                <div className="px-4">
+                  <ToggleRow
+                    title="Dark mode"
+                    description="Store your preference."
+                    checked={prefs.darkMode}
+                    onChange={(next) => {
+                      handlePrefChange({ darkMode: next });
+                      setDarkMode(next);
+                    }}
+                  />
+                </div>
+              ) : null}
               <div className="px-4">
                 <ToggleRow
                   title="Location enabled"

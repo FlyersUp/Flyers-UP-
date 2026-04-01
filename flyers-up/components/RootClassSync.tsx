@@ -2,6 +2,7 @@
 
 import { useLayoutEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { DARK_MODE_END_USER_ENABLED } from '@/lib/themeFeatureFlags';
 
 type ThemeMode = 'customer' | 'pro';
 
@@ -52,8 +53,8 @@ export function RootClassSync() {
   useLayoutEffect(() => {
     const root = document.documentElement;
 
-    // Dark mode
-    root.classList.toggle('dark', resolveDarkFromStorage());
+    // Dark mode (skipped entirely while DARK_MODE_END_USER_ENABLED is false)
+    root.classList.toggle('dark', DARK_MODE_END_USER_ENABLED && resolveDarkFromStorage());
 
     // Role theme
     const mode = resolveMode(pathname, searchParams);

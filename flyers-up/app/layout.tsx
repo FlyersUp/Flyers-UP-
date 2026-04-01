@@ -33,13 +33,16 @@ export const metadata: Metadata = {
 /**
  * Blocking script: apply .dark class before first paint to prevent theme flash.
  * Must run synchronously before body renders.
+ * Keep logic in sync with DARK_MODE_END_USER_ENABLED in lib/themeFeatureFlags.ts (dark off => always false here).
  */
 const themeInitScript = `
 (function(){
   try {
+    var darkModeShipped = false; /* DARK_MODE_END_USER_ENABLED */
     var t = localStorage.getItem('flyersup:theme');
     var d = localStorage.getItem('flyersup:darkMode');
-    var dark = t === 'dark' || ((!t || t === 'system') && d === '1');
+    var wouldDark = t === 'dark' || ((!t || t === 'system') && d === '1');
+    var dark = darkModeShipped && wouldDark;
     document.documentElement.classList.toggle('dark', dark);
   } catch(e){}
 })();

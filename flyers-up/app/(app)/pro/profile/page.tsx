@@ -23,6 +23,7 @@ import {
   validateWeeklyHours,
 } from '@/lib/utils/businessHours';
 import { warnLegacyServicesNotInOccupationServices } from '@/lib/proProfileCanonical';
+import { DARK_MODE_END_USER_ENABLED } from '@/lib/themeFeatureFlags';
 
 interface ProProfileData {
   displayName: string;
@@ -251,8 +252,10 @@ export default function ProProfilePage() {
         localStorage.setItem('proProfile_extended', JSON.stringify(ext));
       } catch {}
 
-      // Save dark mode preference
-      localStorage.setItem('darkMode', formData.darkMode.toString());
+      // Save dark mode preference (legacy key; only when dark mode is shipped)
+      if (DARK_MODE_END_USER_ENABLED) {
+        localStorage.setItem('darkMode', formData.darkMode.toString());
+      }
 
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
@@ -450,22 +453,24 @@ export default function ProProfilePage() {
                   <p className="text-2xl font-bold text-text">{formData.yearsExperience || '0'}</p>
                 )}
               </div>
-              <div>
-                <p className="text-sm text-muted/70">Dark Mode</p>
-                {isEditing ? (
-                  <label className="flex items-center gap-2 mt-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.darkMode}
-                      onChange={(e) => setFormData({ ...formData, darkMode: e.target.checked })}
-                      className="w-5 h-5 rounded border-border text-accent focus:ring-accent/40"
-                    />
-                    <span className="text-sm text-text">Enable</span>
-                  </label>
-                ) : (
-                  <p className="text-2xl font-bold text-text">{formData.darkMode ? '🌙 On' : '☀️ Off'}</p>
-                )}
-              </div>
+              {DARK_MODE_END_USER_ENABLED ? (
+                <div>
+                  <p className="text-sm text-muted/70">Dark Mode</p>
+                  {isEditing ? (
+                    <label className="flex items-center gap-2 mt-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.darkMode}
+                        onChange={(e) => setFormData({ ...formData, darkMode: e.target.checked })}
+                        className="w-5 h-5 rounded border-border text-accent focus:ring-accent/40"
+                      />
+                      <span className="text-sm text-text">Enable</span>
+                    </label>
+                  ) : (
+                    <p className="text-2xl font-bold text-text">{formData.darkMode ? '🌙 On' : '☀️ Off'}</p>
+                  )}
+                </div>
+              ) : null}
             </div>
           </div>
 

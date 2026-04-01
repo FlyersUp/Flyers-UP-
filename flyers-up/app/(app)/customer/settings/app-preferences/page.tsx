@@ -17,6 +17,7 @@ import {
 import { supabase } from '@/lib/supabaseClient';
 import { TOP_LANGUAGES } from '@/lib/languages';
 import { useTheme } from '@/contexts/ThemeContext';
+import { DARK_MODE_END_USER_ENABLED } from '@/lib/themeFeatureFlags';
 
 export default function CustomerAppPreferencesSettingsPage() {
   return (
@@ -27,7 +28,7 @@ export default function CustomerAppPreferencesSettingsPage() {
 }
 
 function CustomerAppPreferencesSettingsInner() {
-  const { setDarkMode } = useTheme();
+  const { setDarkMode } = useTheme(); // still used when DARK_MODE_END_USER_ENABLED && dark toggle visible
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,17 +122,19 @@ function CustomerAppPreferencesSettingsInner() {
         ) : (
           <>
             <div className="divide-y divide-black/5">
-              <div className="px-4">
-                <ToggleRow
-                  title="Dark mode"
-                  description="Store your preference."
-                  checked={prefs.darkMode}
-                  onChange={(next) => {
-                    handlePrefChange({ darkMode: next });
-                    setDarkMode(next);
-                  }}
-                />
-              </div>
+              {DARK_MODE_END_USER_ENABLED ? (
+                <div className="px-4">
+                  <ToggleRow
+                    title="Dark mode"
+                    description="Store your preference."
+                    checked={prefs.darkMode}
+                    onChange={(next) => {
+                      handlePrefChange({ darkMode: next });
+                      setDarkMode(next);
+                    }}
+                  />
+                </div>
+              ) : null}
               <div className="px-4">
                 <ToggleRow
                   title="Location enabled"
