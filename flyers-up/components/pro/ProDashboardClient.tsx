@@ -11,6 +11,7 @@ import { AtAGlanceCard } from '@/components/ui/AtAGlanceCard';
 import { ReliabilityCard } from '@/components/pro/ReliabilityCard';
 import { getProJobs, type Booking } from '@/lib/api';
 import { DEFAULT_BOOKING_TIMEZONE, todayIsoInBookingTimezone } from '@/lib/datetime';
+import { isProCommittedScheduleStatus } from '@/lib/bookings/pro-dashboard-bookings';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function ProDashboardClient({ userName }: { userName: string }) {
@@ -57,9 +58,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
   const todayJobs = useMemo(() => {
     return jobs
       .filter((j) => j.date === todayIso)
-      .filter((j) =>
-        ['requested', 'pending', 'accepted', 'pro_en_route', 'on_the_way', 'in_progress', 'completed_pending_payment', 'awaiting_payment'].includes(j.status)
-      )
+      .filter((j) => isProCommittedScheduleStatus(j.status))
       .map((j) => ({
         id: j.id,
         date: j.date,
@@ -76,9 +75,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
   const nextJobs = useMemo(() => {
     // Show active upcoming work (bookings never disappear until completed/cancelled)
     const upcoming = jobs
-      .filter((j) =>
-        ['requested', 'pending', 'accepted', 'pro_en_route', 'on_the_way', 'in_progress', 'completed_pending_payment', 'awaiting_payment'].includes(j.status)
-      )
+      .filter((j) => isProCommittedScheduleStatus(j.status))
       .slice()
       .sort((a, b) => {
         const aKey = `${a.date}T${a.time}`;

@@ -26,6 +26,7 @@ import { MiniScheduleWidget } from '@/components/calendar/MiniScheduleWidget';
 import type { CalendarEvent } from '@/lib/calendar/event-from-booking';
 import { DateTime } from 'luxon';
 import { DEFAULT_BOOKING_TIMEZONE, todayIsoInBookingTimezone } from '@/lib/datetime';
+import { isProCommittedScheduleStatus } from '@/lib/bookings/pro-dashboard-bookings';
 
 type PendingRequest = {
   id: string;
@@ -58,9 +59,6 @@ type UpcomingJob = {
   total: number;
   status: string;
 };
-
-const TODAY_STATUSES =
-  'requested,pending,accepted,deposit_paid,pro_en_route,on_the_way,arrived,in_progress,completed_pending_payment,awaiting_payment,awaiting_remaining_payment';
 
 function formatStatus(s: string): string {
   const lower = (s || '').toLowerCase();
@@ -360,7 +358,7 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
   const todayJobs = useMemo((): TodayJob[] => {
     return jobs
       .filter((j) => j.date === todayIso)
-      .filter((j) => TODAY_STATUSES.split(',').includes(j.status))
+      .filter((j) => isProCommittedScheduleStatus(j.status))
       .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))
       .map((j) => ({
         id: j.id,
@@ -376,7 +374,7 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
   const upcomingJobs = useMemo((): UpcomingJob[] => {
     return jobs
       .filter((j) => j.date > todayIso)
-      .filter((j) => TODAY_STATUSES.split(',').includes(j.status))
+      .filter((j) => isProCommittedScheduleStatus(j.status))
       .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))
       .slice(0, 5)
       .map((j) => ({

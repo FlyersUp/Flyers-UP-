@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 import { getTodayOverview, type TodayAlert, type TodayJob, type TodayOverview, type TodayTask } from '@/lib/today';
 import { DEFAULT_BOOKING_TIMEZONE, todayIsoInBookingTimezone } from '@/lib/datetime';
+import { PRO_TODAY_WORK_STATUSES } from '@/lib/bookings/pro-dashboard-bookings';
 
 function formatHeaderDate(dateISO: string) {
   const d = new Date(dateISO + 'T00:00:00');
@@ -315,7 +316,7 @@ export default function ProTodayPage() {
   >([]);
 
   const canStartReal = (s: string) =>
-    ['deposit_paid', 'accepted', 'pro_en_route', 'on_the_way', 'pending', 'requested'].includes((s ?? '').toLowerCase());
+    ['deposit_paid', 'accepted', 'scheduled', 'pro_en_route', 'on_the_way', 'arrived'].includes((s ?? '').toLowerCase());
   const canCompleteReal = (s: string) => (s ?? '').toLowerCase() === 'in_progress';
 
   useEffect(() => {
@@ -361,22 +362,8 @@ export default function ProTodayPage() {
         // Replace mock timeline jobs with real bookings for today (if any).
         try {
           const todayISO = todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE);
-          const todayStatuses = [
-            'deposit_paid',
-            'requested',
-            'accepted',
-            'pro_en_route',
-            'on_the_way',
-            'arrived',
-            'in_progress',
-            'completed_pending_payment',
-            'awaiting_payment',
-            'awaiting_remaining_payment',
-            'awaiting_customer_confirmation',
-            'completed',
-          ];
           const res = await fetch(
-            `/api/pro/bookings?from=${encodeURIComponent(todayISO)}&to=${encodeURIComponent(todayISO)}&limit=50&statuses=${encodeURIComponent(todayStatuses.join(','))}`,
+            `/api/pro/bookings?from=${encodeURIComponent(todayISO)}&to=${encodeURIComponent(todayISO)}&limit=50&statuses=${encodeURIComponent(PRO_TODAY_WORK_STATUSES.join(','))}`,
             { cache: 'no-store' }
           );
           const json = (await res.json()) as { ok: boolean; bookings?: any[] };
@@ -427,7 +414,7 @@ export default function ProTodayPage() {
     try {
         if (next === 'in_progress') {
         const s = (dbStatus ?? '').toLowerCase();
-        if (s === 'accepted' || s === 'pending' || s === 'requested') {
+        if (s === 'accepted' || s === 'deposit_paid' || s === 'scheduled') {
           const r1 = await fetch(`/api/jobs/${bookingId}/status`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },

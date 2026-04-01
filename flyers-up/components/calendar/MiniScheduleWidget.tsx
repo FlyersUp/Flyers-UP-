@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import type { CalendarEvent } from '@/lib/calendar/event-from-booking';
+import { isProCommittedScheduleStatus } from '@/lib/bookings/pro-dashboard-bookings';
 
 type Props = {
   events: CalendarEvent[];
@@ -30,6 +31,7 @@ function formatStatus(s: string): string {
 
 export function MiniScheduleWidget({ events, mode, detailHref }: Props) {
   const nextEvent = events
+    .filter((e) => isProCommittedScheduleStatus(e.status))
     .filter((e) => new Date(e.startAt) >= new Date())
     .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())[0];
 

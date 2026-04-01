@@ -1,4 +1,5 @@
 import { getProJobs } from '@/lib/api';
+import { isProCommittedScheduleStatus } from '@/lib/bookings/pro-dashboard-bookings';
 import {
   DEFAULT_BOOKING_TIMEZONE,
   todayIsoInBookingTimezone,
@@ -110,7 +111,9 @@ export async function getTodayOverview(proUserId: string): Promise<TodayOverview
   let jobs: TodayJob[] = [];
   if (SUPABASE_CONFIGURED) {
     const all = await getProJobs(proUserId);
-    const todays = (all || []).filter((b) => b.date === dateISO);
+    const todays = (all || [])
+      .filter((b) => b.date === dateISO)
+      .filter((b) => isProCommittedScheduleStatus(b.status));
 
     const tzFor = (b: (typeof todays)[number]) =>
       normalizeBookingTimeZone(b.bookingTimezone ?? DEFAULT_BOOKING_TIMEZONE);

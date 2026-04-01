@@ -19,5 +19,6 @@ export const CALENDAR_COMMITTED_STATUSES = [
 ] as const;
 
 export function isCalendarCommittedStatus(status: string): boolean {
-  return (CALENDAR_COMMITTED_STATUSES as readonly string[]).includes(status);
+  const s = (status || '').toLowerCase();
+  return (CALENDAR_COMMITTED_STATUSES as readonly string[]).includes(s);
 }
