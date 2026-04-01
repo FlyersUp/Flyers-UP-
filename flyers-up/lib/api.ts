@@ -1040,6 +1040,8 @@ export async function getProByUserId(userId: string): Promise<ServicePro | null>
  */
 export async function getBookingById(bookingId: string): Promise<BookingDetails | null> {
   try {
+    // Do not embed profiles via bookings_customer_id_fkey: customer_id references auth.users,
+    // not public.profiles, so PostgREST rejects that hint with 400.
     const { data, error } = await supabase
       .from('bookings')
       .select(
@@ -1049,11 +1051,6 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
           id,
           display_name,
           user_id
-        ),
-        customer_profile:profiles!bookings_customer_id_fkey (
-          id,
-          full_name,
-          first_name
         )
       `
       )
@@ -1061,6 +1058,17 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       .single();
 
     if (error || !data) return null;
+
+    const customerId = data.customer_id as string | null | undefined;
+    let customerProfile: { full_name?: string | null; first_name?: string | null } | null = null;
+    if (customerId) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('id, full_name, first_name')
+        .eq('id', customerId)
+        .maybeSingle();
+      customerProfile = prof;
+    }
 
     const { data: pendRow } = await supabase
       .from('reschedule_requests')
@@ -1074,11 +1082,10 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       .maybeSingle();
 
     const d = data as Record<string, unknown>;
-    const cp = d.customer_profile as { full_name?: string | null; first_name?: string | null } | null;
     const customerDisplayName = (() => {
-      const full = typeof cp?.full_name === 'string' ? cp.full_name.trim() : '';
+      const full = typeof customerProfile?.full_name === 'string' ? customerProfile.full_name.trim() : '';
       if (full) return full;
-      const first = typeof cp?.first_name === 'string' ? cp.first_name.trim() : '';
+      const first = typeof customerProfile?.first_name === 'string' ? customerProfile.first_name.trim() : '';
       if (first) return first;
       return 'Customer';
     })();
