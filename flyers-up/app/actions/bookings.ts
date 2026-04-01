@@ -18,10 +18,10 @@ import { assertSlotBookable, proposedBookingUtcWindow } from '@/lib/availability
 import { resolveUrgency } from '@/lib/bookings/urgency';
 import { getOccupationFeeProfile } from '@/lib/bookings/fee-rules';
 import {
-  buildSelectedPackageSnapshot,
-  formatAddonScopeSection,
-  formatPackageScopeNotes,
-} from '@/lib/service-packages/snapshot';
+  bookingAddonsInsertRows,
+  buildNotesAndPackageSnapshotForRequest,
+  validateActiveAddonsForProCategory,
+} from '@/lib/bookings/booking-request-scope';
 import { isServiceProBookableByCustomers } from '@/lib/pro/pro-bookability';
 
 type BookingStatus = 'requested' | 'accepted' | 'declined' | 'completed' | 'cancelled';
@@ -143,58 +143,29 @@ export async function createBookingWithPayment(
       categoryName: categoryDisplayName,
     });
     const proUserId = String((proRow as { user_id: string }).user_id);
-    let basePriceCents = Math.round(Number((proRow as any).starting_price ?? 0) * 100);
-    let durationMinutes = 60;
-    let notesForBooking = '';
-    let selectedPackageIdOut: string | null = null;
-    let selectedPackageSnapshotOut: Record<string, unknown> | null = null;
+    const startingPriceCents = Math.round(Number((proRow as any).starting_price ?? 0) * 100);
 
-    type ValidatedAddon = { id: string; title: string; price_cents: number };
-    let validatedAddons: ValidatedAddon[] = [];
-    if (selectedAddonIds.length > 0) {
-      if (!categorySlug) {
-        return { success: false, error: 'Service category not found for this pro.' };
-      }
-
-      const { data: activeAddons, error: addonsErr } = await supabase
-        .from('service_addons')
-        .select('id, title, price_cents')
-        .eq('pro_id', (proRow as any).user_id)
-        .eq('service_category', categorySlug)
-        .eq('is_active', true);
-
-      if (addonsErr) {
+    const addonResult = await validateActiveAddonsForProCategory(
+      supabase,
+      proUserId,
+      categorySlug,
+      selectedAddonIds
+    );
+    if (!addonResult.ok) {
+      if (selectedAddonIds.length > 0) {
         void recordServerErrorEvent({
-          message: 'Booking create: add-on validation query failed',
+          message: 'Booking create: add-on validation failed',
           severity: 'error',
           route: 'action:createBookingWithPayment',
           userId: user.id,
-          meta: {
-            proId,
-            selectedAddonCount: selectedAddonIds.length,
-            addonsErr: { code: (addonsErr as any).code, message: (addonsErr as any).message },
-          },
+          meta: { proId, selectedAddonCount: selectedAddonIds.length, error: addonResult.error },
         });
-        return { success: false, error: 'Could not validate add-ons. Please try again.' };
       }
-
-      const picked = (activeAddons || []).filter((a) => selectedAddonIds.includes(a.id));
-      if (picked.length !== selectedAddonIds.length) {
-        return { success: false, error: 'One or more selected add-ons are no longer available.' };
-      }
-
-      validatedAddons = picked.map((a) => ({
-        id: a.id,
-        title: String(a.title ?? ''),
-        price_cents: Number(a.price_cents ?? 0),
-      }));
+      return { success: false, error: addonResult.error };
     }
+    const validatedAddons = addonResult.addons;
 
-    const addonScopeLines = validatedAddons.map((a) => ({
-      title: a.title,
-      price_cents: a.price_cents,
-    }));
-
+    let pkgRowForScope: Record<string, unknown> | null = null;
     const pkgIdTrim = selectedPackageId?.trim() ?? '';
     if (pkgIdTrim) {
       const { data: pkgRow, error: pkgErr } = await adminClient
@@ -210,45 +181,24 @@ export async function createBookingWithPayment(
       }
 
       const pkg = pkgRow as Record<string, unknown>;
-      basePriceCents = Math.round(Number(pkg.base_price_cents ?? 0));
-      if (!Number.isFinite(basePriceCents) || basePriceCents <= 0) {
+      const pkgBaseCents = Math.round(Number(pkg.base_price_cents ?? 0));
+      if (!Number.isFinite(pkgBaseCents) || pkgBaseCents <= 0) {
         return { success: false, error: 'This package has an invalid price. Contact the pro or book without a package.' };
       }
-      const est = pkg.estimated_duration_minutes;
-      if (est != null && Number(est) > 0) {
-        durationMinutes = Math.round(Number(est));
-      }
-      const snapshot = buildSelectedPackageSnapshot({
-        title: String(pkg.title ?? ''),
-        short_description: pkg.short_description == null ? null : String(pkg.short_description),
-        base_price_cents: basePriceCents,
-        estimated_duration_minutes:
-          est == null || est === '' ? null : Math.round(Number(est)),
-        deliverables: pkg.deliverables,
-      });
-      notesForBooking = formatPackageScopeNotes(snapshot, notes, addonScopeLines);
-      selectedPackageIdOut = String(pkg.id);
-      selectedPackageSnapshotOut = {
-        ...snapshot,
-        ...(validatedAddons.length > 0
-          ? {
-              selected_addons: validatedAddons.map((a) => ({
-                addon_id: a.id,
-                title: a.title,
-                price_cents: a.price_cents,
-              })),
-            }
-          : {}),
-      };
-    } else {
-      const cn = (notes || '').trim();
-      if (validatedAddons.length > 0) {
-        const addonBlock = formatAddonScopeSection(addonScopeLines);
-        notesForBooking = cn ? `${addonBlock}\n\nCustomer notes:\n${cn}` : addonBlock;
-      } else {
-        notesForBooking = cn;
-      }
+      pkgRowForScope = pkg;
     }
+
+    const scope = buildNotesAndPackageSnapshotForRequest({
+      packageRow: pkgRowForScope,
+      customerNotes: notes,
+      validatedAddons,
+      startingPriceCents,
+    });
+    const notesForBooking = scope.notesForBooking;
+    const selectedPackageIdOut = scope.selectedPackageId;
+    const selectedPackageSnapshotOut = scope.selectedPackageSnapshot;
+    const basePriceCents = scope.basePriceCents;
+    const durationMinutes = scope.durationMinutes;
 
     const addonsTotalCents = validatedAddons.reduce((sum, a) => sum + a.price_cents, 0);
 
@@ -421,15 +371,9 @@ export async function createBookingWithPayment(
       });
     }
 
-    // 8) Snapshot selected add-ons (best-effort; uses same validated list as pricing/notes)
+    // 8) Snapshot selected add-ons (same validated list as pricing/notes)
     if (validatedAddons.length > 0) {
-      const snapshots = validatedAddons.map((addon) => ({
-        booking_id: booking.id,
-        addon_id: addon.id,
-        title_snapshot: addon.title,
-        price_snapshot_cents: addon.price_cents,
-      }));
-      await supabase.from('booking_addons').insert(snapshots);
+      await supabase.from('booking_addons').insert(bookingAddonsInsertRows(booking.id, validatedAddons));
     }
 
     return {

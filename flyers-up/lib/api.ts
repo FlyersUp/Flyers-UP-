@@ -14,6 +14,11 @@
  */
 
 import { supabase } from './supabaseClient';
+import {
+  bookingAddonsInsertRows,
+  buildNotesAndPackageSnapshotForRequest,
+  validateActiveAddonsForProCategory,
+} from '@/lib/bookings/booking-request-scope';
 import type { PendingRescheduleInfo } from '@/lib/bookings/pending-reschedule';
 import { mapRescheduleRowToPending } from '@/lib/bookings/pending-reschedule';
 import { perfLog, perfLoggingEnabled, perfNoteGetCurrentUser } from '@/lib/perfBoot';
@@ -216,6 +221,8 @@ export interface CreateBookingPayload {
   jobDetailsSnapshot?: Record<string, unknown>;
   /** Snapshot of photos at booking creation */
   photosSnapshot?: Array<{ category: string; url: string }>;
+  /** When set, persists the same package snapshot + scoped notes as createBookingWithPayment */
+  selectedPackageId?: string | null;
 }
 
 export interface EarningsSummary {
@@ -1631,6 +1638,74 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
     throw new Error('Booking customer mismatch. Please refresh and try again.');
   }
 
+  const selectedAddonIds = payload.selectedAddonIds ?? [];
+  const pkgIdTrim = payload.selectedPackageId?.trim() ?? '';
+
+  const { data: proRowFull, error: proLoadErr } = await supabase
+    .from('service_pros')
+    .select('user_id, starting_price, category_id, display_name')
+    .eq('id', payload.proId)
+    .maybeSingle();
+
+  if (proLoadErr || !proRowFull) {
+    throw new Error('Service pro not found.');
+  }
+
+  const proUserId = String(proRowFull.user_id);
+  let categorySlug: string | undefined;
+  try {
+    const { data: cat } = await supabase
+      .from('service_categories')
+      .select('slug')
+      .eq('id', proRowFull.category_id)
+      .maybeSingle();
+    categorySlug = cat?.slug ?? undefined;
+  } catch {
+    categorySlug = undefined;
+  }
+
+  const addonResult = await validateActiveAddonsForProCategory(
+    supabase,
+    proUserId,
+    categorySlug,
+    selectedAddonIds
+  );
+  if (!addonResult.ok) {
+    throw new Error(addonResult.error);
+  }
+  const validatedAddons = addonResult.addons;
+
+  let pkgRowForScope: Record<string, unknown> | null = null;
+  if (pkgIdTrim) {
+    const { data: pkg, error: pkgErr } = await supabase
+      .from('service_packages')
+      .select('*')
+      .eq('id', pkgIdTrim)
+      .eq('pro_user_id', proUserId)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (pkgErr || !pkg) {
+      throw new Error('Selected package is not available.');
+    }
+    const pkgBaseCents = Math.round(Number((pkg as { base_price_cents?: unknown }).base_price_cents ?? 0));
+    if (!Number.isFinite(pkgBaseCents) || pkgBaseCents <= 0) {
+      throw new Error('This package has an invalid price. Contact the pro or book without a package.');
+    }
+    pkgRowForScope = pkg as Record<string, unknown>;
+  }
+
+  const startingPriceCents = Math.round(Number(proRowFull.starting_price ?? 0) * 100);
+  const scope = buildNotesAndPackageSnapshotForRequest({
+    packageRow: pkgRowForScope,
+    customerNotes: payload.notes,
+    validatedAddons,
+    startingPriceCents,
+  });
+
+  const addonsTotalCents = validatedAddons.reduce((s, a) => s + a.price_cents, 0);
+  const scopeNeedsComputedPrice = Boolean(pkgIdTrim) || selectedAddonIds.length > 0;
+  const computedTotalDollars = (scope.basePriceCents + addonsTotalCents) / 100;
+
   // Initialize status_history with the 'requested' entry
   const initialStatusHistory: StatusHistoryEntry[] = [
     { status: 'requested', at: new Date().toISOString() }
@@ -1642,14 +1717,18 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
     service_date: payload.date,
     service_time: payload.time,
     address: payload.address,
-    notes: payload.notes || null,
+    notes: scope.notesForBooking || null,
     status: 'requested',
     status_history: initialStatusHistory,
+    selected_package_id: scope.selectedPackageId,
+    selected_package_snapshot: scope.selectedPackageSnapshot,
   };
   if (payload.customerBudget != null && Number.isFinite(payload.customerBudget)) {
     insertData.customer_budget = payload.customerBudget;
   }
-  if (payload.price != null && Number.isFinite(payload.price)) {
+  if (scopeNeedsComputedPrice) {
+    insertData.price = computedTotalDollars;
+  } else if (payload.price != null && Number.isFinite(payload.price)) {
     insertData.price = payload.price;
   }
   if (payload.jobRequestId) {
@@ -1677,34 +1756,12 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
     throw new Error(error.message);
   }
 
-  // Snapshot selected add-ons if any
-  if (payload.selectedAddonIds && payload.selectedAddonIds.length > 0) {
-    // Fetch current add-on data to snapshot
-    const { data: addonsData, error: addonsError } = await supabase
-      .from('service_addons')
-      .select('id, title, price_cents')
-      .in('id', payload.selectedAddonIds);
-
-    if (addonsError) {
-      console.error('Error fetching add-ons for snapshot:', addonsError);
-      // Continue without add-ons rather than failing the booking
-    } else if (addonsData && addonsData.length > 0) {
-      // Create snapshots
-      const snapshots = addonsData.map(addon => ({
-        booking_id: data.id,
-        addon_id: addon.id,
-        title_snapshot: addon.title,
-        price_snapshot_cents: addon.price_cents,
-      }));
-
-      const { error: snapshotError } = await supabase
-        .from('booking_addons')
-        .insert(snapshots);
-
-      if (snapshotError) {
-        console.error('Error creating add-on snapshots:', snapshotError);
-        // Continue without add-ons rather than failing the booking
-      }
+  if (validatedAddons.length > 0) {
+    const { error: snapshotError } = await supabase
+      .from('booking_addons')
+      .insert(bookingAddonsInsertRows(data.id, validatedAddons));
+    if (snapshotError) {
+      console.error('Error creating add-on snapshots:', snapshotError);
     }
   }
 
@@ -1712,30 +1769,11 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
   const { data: profile } = await supabase
     .from('profiles')
     .select('full_name')
-    .eq('id', payload.customerId)
+    .eq('id', authed.id)
     .maybeSingle();
 
-  let proName = 'Service Pro';
-  let categorySlug = 'general';
-  try {
-    const { data: proRow } = await supabase
-      .from('service_pros')
-      .select('display_name, category_id')
-      .eq('id', payload.proId)
-      .maybeSingle();
-    if (proRow?.display_name) proName = proRow.display_name;
-
-    if (proRow?.category_id) {
-      const { data: cat } = await supabase
-        .from('service_categories')
-        .select('slug')
-        .eq('id', proRow.category_id)
-        .maybeSingle();
-      if (cat?.slug) categorySlug = cat.slug;
-    }
-  } catch {
-    // ignore
-  }
+  const proName = proRowFull.display_name?.trim() ? String(proRowFull.display_name) : 'Service Pro';
+  const categorySlugForReturn = categorySlug ?? 'general';
 
   return {
     id: data.id,
@@ -1743,7 +1781,7 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
     customerName: profile?.full_name || 'Customer',
     proId: data.pro_id,
     proName,
-    category: categorySlug,
+    category: categorySlugForReturn,
     date: data.service_date,
     time: data.service_time,
     address: data.address,
