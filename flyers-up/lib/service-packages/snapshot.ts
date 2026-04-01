@@ -23,7 +23,24 @@ export function buildSelectedPackageSnapshot(row: PackageLike): SelectedPackageS
   };
 }
 
-export function formatPackageScopeNotes(snapshot: SelectedPackageSnapshot, customerNotes: string): string {
+export type AddonScopeLine = { title: string; price_cents: number };
+
+/** Human-readable add-on block for booking.notes (SSR-safe, no locale APIs). */
+export function formatAddonScopeSection(addons: AddonScopeLine[]): string {
+  if (!addons.length) return '';
+  const lines = ['Add-ons:'];
+  for (const a of addons) {
+    const dollars = (Number(a.price_cents) || 0) / 100;
+    lines.push(`• ${a.title} (+$${dollars.toFixed(2)})`);
+  }
+  return lines.join('\n');
+}
+
+export function formatPackageScopeNotes(
+  snapshot: SelectedPackageSnapshot,
+  customerNotes: string,
+  selectedAddons?: AddonScopeLine[]
+): string {
   const lines: string[] = [`Package: ${snapshot.title}`];
   if (snapshot.short_description) {
     lines.push(snapshot.short_description);
@@ -34,7 +51,11 @@ export function formatPackageScopeNotes(snapshot: SelectedPackageSnapshot, custo
       lines.push(`• ${d}`);
     }
   }
-  const scope = lines.join('\n');
+  let scope = lines.join('\n');
+  const addonBlock = formatAddonScopeSection(selectedAddons ?? []);
+  if (addonBlock) {
+    scope = `${scope}\n\n${addonBlock}`;
+  }
   const extra = customerNotes.trim();
   if (!extra) return scope;
   return `${scope}\n\nCustomer notes:\n${extra}`;

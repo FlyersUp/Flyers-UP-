@@ -216,6 +216,22 @@ describe('buildUnifiedBookingReceipt', () => {
     assert.strictEqual(r.currency, 'usd');
     assert.ok(r.warnings.includes('currency_normalized_to_usd'));
   });
+
+  it('includes addonLineItems on receipt', () => {
+    const r = buildUnifiedBookingReceipt({
+      bookingId: BID,
+      status: 'requested',
+      paymentStatus: 'UNPAID',
+      amountDeposit: 0,
+      amountRemaining: 0,
+      amountTotal: 5000,
+      totalAmountCents: 5000,
+      serviceTitle: 'X',
+      proName: 'Y',
+      addonLineItems: [{ title: 'Rush', priceCents: 1500 }],
+    });
+    assert.deepStrictEqual(r.addonLineItems, [{ title: 'Rush', priceCents: 1500 }]);
+  });
 });
 
 describe('inferPaymentPhaseFromBookingIds', () => {

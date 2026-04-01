@@ -309,6 +309,7 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
           onConfirmStart={() => void handleAdvance()}
           address={booking.address ?? ''}
           notes={booking.notes}
+          bookingAddonSnapshots={booking.bookingAddonSnapshots}
           loading={loading}
         />
         <ArrivalVerificationModal

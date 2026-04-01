@@ -35,12 +35,21 @@ export type UpdateServicePackageInput = Partial<CreateServicePackageInput> & {
   sort_order?: number;
 };
 
+/** Add-ons chosen at booking time (immutable; mirrors booking_addons). */
+export type SelectedPackageAddonSnapshot = {
+  addon_id: string;
+  title: string;
+  price_cents: number;
+};
+
 export type SelectedPackageSnapshot = {
   title: string;
   short_description: string | null;
   base_price_cents: number;
   estimated_duration_minutes: number | null;
   deliverables: string[];
+  /** Present when the customer selected service add-ons with this package. */
+  selected_addons?: SelectedPackageAddonSnapshot[];
 };
 
 export function rowToPublic(row: ServicePackageRow): ServicePackagePublic {

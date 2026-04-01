@@ -255,7 +255,10 @@ export default function ProBookingDetailPage({
                   )}
                   <div className="mt-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Job notes</p>
-                    <ProBookingJobNotes notes={booking.notes} />
+                    <ProBookingJobNotes
+                      notes={booking.notes}
+                      bookingAddonSnapshots={booking.bookingAddonSnapshots}
+                    />
                   </div>
                   <ProCustomerPreferenceActions customerUserId={booking.customerId} />
                   <div className="mt-3 pt-3 border-t border-border">

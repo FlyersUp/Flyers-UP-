@@ -17,7 +17,11 @@ import { loadComputeContextForProRange } from '@/lib/availability/load-context';
 import { assertSlotBookable, proposedBookingUtcWindow } from '@/lib/availability/engine';
 import { resolveUrgency } from '@/lib/bookings/urgency';
 import { getOccupationFeeProfile } from '@/lib/bookings/fee-rules';
-import { buildSelectedPackageSnapshot, formatPackageScopeNotes } from '@/lib/service-packages/snapshot';
+import {
+  buildSelectedPackageSnapshot,
+  formatAddonScopeSection,
+  formatPackageScopeNotes,
+} from '@/lib/service-packages/snapshot';
 import { isServiceProBookableByCustomers } from '@/lib/pro/pro-bookability';
 
 type BookingStatus = 'requested' | 'accepted' | 'declined' | 'completed' | 'cancelled';
@@ -141,9 +145,55 @@ export async function createBookingWithPayment(
     const proUserId = String((proRow as { user_id: string }).user_id);
     let basePriceCents = Math.round(Number((proRow as any).starting_price ?? 0) * 100);
     let durationMinutes = 60;
-    let notesForBooking = notes || '';
+    let notesForBooking = '';
     let selectedPackageIdOut: string | null = null;
     let selectedPackageSnapshotOut: Record<string, unknown> | null = null;
+
+    type ValidatedAddon = { id: string; title: string; price_cents: number };
+    let validatedAddons: ValidatedAddon[] = [];
+    if (selectedAddonIds.length > 0) {
+      if (!categorySlug) {
+        return { success: false, error: 'Service category not found for this pro.' };
+      }
+
+      const { data: activeAddons, error: addonsErr } = await supabase
+        .from('service_addons')
+        .select('id, title, price_cents')
+        .eq('pro_id', (proRow as any).user_id)
+        .eq('service_category', categorySlug)
+        .eq('is_active', true);
+
+      if (addonsErr) {
+        void recordServerErrorEvent({
+          message: 'Booking create: add-on validation query failed',
+          severity: 'error',
+          route: 'action:createBookingWithPayment',
+          userId: user.id,
+          meta: {
+            proId,
+            selectedAddonCount: selectedAddonIds.length,
+            addonsErr: { code: (addonsErr as any).code, message: (addonsErr as any).message },
+          },
+        });
+        return { success: false, error: 'Could not validate add-ons. Please try again.' };
+      }
+
+      const picked = (activeAddons || []).filter((a) => selectedAddonIds.includes(a.id));
+      if (picked.length !== selectedAddonIds.length) {
+        return { success: false, error: 'One or more selected add-ons are no longer available.' };
+      }
+
+      validatedAddons = picked.map((a) => ({
+        id: a.id,
+        title: String(a.title ?? ''),
+        price_cents: Number(a.price_cents ?? 0),
+      }));
+    }
+
+    const addonScopeLines = validatedAddons.map((a) => ({
+      title: a.title,
+      price_cents: a.price_cents,
+    }));
 
     const pkgIdTrim = selectedPackageId?.trim() ?? '';
     if (pkgIdTrim) {
@@ -176,47 +226,31 @@ export async function createBookingWithPayment(
           est == null || est === '' ? null : Math.round(Number(est)),
         deliverables: pkg.deliverables,
       });
-      notesForBooking = formatPackageScopeNotes(snapshot, notes);
+      notesForBooking = formatPackageScopeNotes(snapshot, notes, addonScopeLines);
       selectedPackageIdOut = String(pkg.id);
-      selectedPackageSnapshotOut = { ...snapshot };
+      selectedPackageSnapshotOut = {
+        ...snapshot,
+        ...(validatedAddons.length > 0
+          ? {
+              selected_addons: validatedAddons.map((a) => ({
+                addon_id: a.id,
+                title: a.title,
+                price_cents: a.price_cents,
+              })),
+            }
+          : {}),
+      };
+    } else {
+      const cn = (notes || '').trim();
+      if (validatedAddons.length > 0) {
+        const addonBlock = formatAddonScopeSection(addonScopeLines);
+        notesForBooking = cn ? `${addonBlock}\n\nCustomer notes:\n${cn}` : addonBlock;
+      } else {
+        notesForBooking = cn;
+      }
     }
 
-    // 3) Fetch current add-on prices from database (server-side validation)
-    let addonsTotalCents = 0;
-    if (selectedAddonIds.length > 0) {
-      if (!categorySlug) {
-        return { success: false, error: 'Service category not found for this pro.' };
-      }
-
-      const { data: activeAddons, error: addonsErr } = await supabase
-        .from('service_addons')
-        .select('id, title, price_cents')
-        .eq('pro_id', (proRow as any).user_id)
-        .eq('service_category', categorySlug)
-        .eq('is_active', true);
-
-      if (addonsErr) {
-        void recordServerErrorEvent({
-          message: 'Booking create: add-on validation query failed',
-          severity: 'error',
-          route: 'action:createBookingWithPayment',
-          userId: user.id,
-          meta: {
-            proId,
-            selectedAddonCount: selectedAddonIds.length,
-            addonsErr: { code: (addonsErr as any).code, message: (addonsErr as any).message },
-          },
-        });
-        return { success: false, error: 'Could not validate add-ons. Please try again.' };
-      }
-
-      const selected = (activeAddons || []).filter((a) => selectedAddonIds.includes(a.id));
-      if (selected.length !== selectedAddonIds.length) {
-        return { success: false, error: 'One or more selected add-ons are no longer available.' };
-      }
-
-      addonsTotalCents = selected.reduce((sum, a) => sum + Number(a.price_cents ?? 0), 0);
-    }
+    const addonsTotalCents = validatedAddons.reduce((sum, a) => sum + a.price_cents, 0);
 
     // 4) Calculate total server-side (base price + add-ons)
     const totalCents = basePriceCents + addonsTotalCents;
@@ -387,22 +421,15 @@ export async function createBookingWithPayment(
       });
     }
 
-    // 8) Snapshot selected add-ons (best-effort)
-    if (selectedAddonIds.length > 0) {
-      const { data: addonsData } = await supabase
-        .from('service_addons')
-        .select('id, title, price_cents')
-        .in('id', selectedAddonIds);
-
-      if (addonsData && addonsData.length > 0) {
-        const snapshots = addonsData.map((addon) => ({
-          booking_id: booking.id,
-          addon_id: addon.id,
-          title_snapshot: addon.title,
-          price_snapshot_cents: addon.price_cents,
-        }));
-        await supabase.from('booking_addons').insert(snapshots);
-      }
+    // 8) Snapshot selected add-ons (best-effort; uses same validated list as pricing/notes)
+    if (validatedAddons.length > 0) {
+      const snapshots = validatedAddons.map((addon) => ({
+        booking_id: booking.id,
+        addon_id: addon.id,
+        title_snapshot: addon.title,
+        price_snapshot_cents: addon.price_cents,
+      }));
+      await supabase.from('booking_addons').insert(snapshots);
     }
 
     return {

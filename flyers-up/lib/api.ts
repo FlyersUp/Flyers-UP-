@@ -150,6 +150,12 @@ export interface BookingDetails {
   bookingTimezone?: string | null;
   /** Pending reschedule request (booking row still holds the last agreed slot). */
   pendingReschedule?: PendingRescheduleInfo | null;
+  /** Snapshotted add-ons at booking time (same rows as booking_addons). */
+  bookingAddonSnapshots?: Array<{
+    addonId: string;
+    titleSnapshot: string;
+    priceSnapshotCents: number;
+  }>;
 }
 
 // Status history entry for tracking booking lifecycle
@@ -1081,6 +1087,12 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       .limit(1)
       .maybeSingle();
 
+    const { data: addonRows } = await supabase
+      .from('booking_addons')
+      .select('addon_id, title_snapshot, price_snapshot_cents')
+      .eq('booking_id', bookingId)
+      .order('created_at', { ascending: true });
+
     const d = data as Record<string, unknown>;
     const customerDisplayName = (() => {
       const full = typeof customerProfile?.full_name === 'string' ? customerProfile.full_name.trim() : '';
@@ -1130,6 +1142,11 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       amountSubtotalCents: (d.amount_subtotal as number | null | undefined) ?? null,
       bookingTimezone: (d.booking_timezone as string | null | undefined) ?? null,
       pendingReschedule: mapRescheduleRowToPending(pendRow as Record<string, unknown> | null),
+      bookingAddonSnapshots: (addonRows ?? []).map((row: Record<string, unknown>) => ({
+        addonId: String(row.addon_id ?? ''),
+        titleSnapshot: String(row.title_snapshot ?? ''),
+        priceSnapshotCents: Number(row.price_snapshot_cents ?? 0),
+      })),
     };
   } catch {
     return null;

@@ -181,7 +181,10 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
 
               <div className="border-t border-border pt-4">
                 <Label className="mb-2 block">JOB NOTES &amp; SCOPE</Label>
-                <ProBookingJobNotes notes={booking.notes} />
+                <ProBookingJobNotes
+                  notes={booking.notes}
+                  bookingAddonSnapshots={booking.bookingAddonSnapshots}
+                />
               </div>
 
               <div className="rounded-lg p-4 border border-border bg-surface2 border-l-[3px] border-l-accent space-y-2">

@@ -99,6 +99,24 @@ describe('service-packages snapshot', () => {
     assert.ok(n.includes('Customer notes:'));
     assert.ok(n.includes('eco products'));
   });
+
+  it('formatPackageScopeNotes includes selected add-ons before customer notes', () => {
+    const s = buildSelectedPackageSnapshot({
+      title: 'Walk',
+      short_description: null,
+      base_price_cents: 2200,
+      estimated_duration_minutes: 60,
+      deliverables: ['Dog'],
+    });
+    const n = formatPackageScopeNotes(s, 'Gate code 123', [
+      { title: 'Extra pet', price_cents: 500 },
+    ]);
+    assert.ok(n.includes('Add-ons:'));
+    assert.ok(n.includes('Extra pet'));
+    assert.ok(n.includes('+$5.00'));
+    assert.ok(n.indexOf("What's included") < n.indexOf('Add-ons:'));
+    assert.ok(n.indexOf('Add-ons:') < n.indexOf('Customer notes:'));
+  });
 });
 
 describe('service-packages reorder', () => {

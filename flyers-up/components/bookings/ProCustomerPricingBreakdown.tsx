@@ -69,6 +69,17 @@ export function ProCustomerPricingBreakdown({
           <span className="text-muted shrink-0">Subtotal (your rate)</span>
           <span className="text-text tabular-nums text-right">{lineMoney(r.serviceSubtotalCents)}</span>
         </div>
+        {r.addonLineItems && r.addonLineItems.length > 0 && (
+          <div className="pl-2 space-y-1 border-l-2 border-border/70">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted">Add-ons (in subtotal)</p>
+            {r.addonLineItems.map((line, idx) => (
+              <div key={`${line.title}-${idx}`} className="flex justify-between gap-3 text-xs">
+                <span className="text-muted shrink-0">{line.title}</span>
+                <span className="text-text tabular-nums text-right">{fmt(line.priceCents)}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex justify-between gap-3">
           <span className="text-muted shrink-0">Service fee</span>
           <span className="text-text tabular-nums text-right">{lineMoney(r.serviceFeeCents)}</span>

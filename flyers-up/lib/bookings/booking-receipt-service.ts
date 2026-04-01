@@ -374,6 +374,17 @@ export async function getBookingReceipt(
     }
   }
 
+  const { data: baRows } = await admin
+    .from('booking_addons')
+    .select('title_snapshot, price_snapshot_cents')
+    .eq('booking_id', bookingId)
+    .order('created_at', { ascending: true });
+  const addonLineItems =
+    (baRows ?? []).map((r: Record<string, unknown>) => ({
+      title: String(r.title_snapshot ?? '').trim() || 'Add-on',
+      priceCents: Math.max(0, Math.round(Number(r.price_snapshot_cents ?? 0))),
+    })) ?? [];
+
   const depFromRow = typeof b.amount_deposit === 'number' ? b.amount_deposit : null;
   const remFromRow = typeof b.amount_remaining === 'number' ? b.amount_remaining : null;
   const depFromDbAlt =
@@ -424,6 +435,7 @@ export async function getBookingReceipt(
     currency: (b.currency as string) ?? null,
     ledgerDepositPaidPaymentIntentId: ledger.latestDepositPaidPaymentIntentId,
     ledgerRemainingPaidPaymentIntentId: ledger.latestRemainingPaidPaymentIntentId,
+    addonLineItems,
   };
 
   return buildUnifiedBookingReceipt(input);

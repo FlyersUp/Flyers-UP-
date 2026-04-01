@@ -61,6 +61,8 @@ export interface UnifiedBookingReceipt {
   dynamicPricingReasons: string[];
   /** Non-customer-facing diagnostics (support / logs). */
   warnings: string[];
+  /** Snapshotted add-ons at booking time (each price is included in serviceSubtotalCents). */
+  addonLineItems: Array<{ title: string; priceCents: number }>;
 }
 
 function safeInt(n: unknown): number {
@@ -117,6 +119,7 @@ export interface UnifiedReceiptBookingInput {
   currency?: string | null;
   /** Latest successful deposit PI from booking_events.DEPOSIT_PAID (preferred truth for PI alignment). */
   ledgerDepositPaidPaymentIntentId?: string | null;
+  addonLineItems?: Array<{ title: string; priceCents: number }>;
   /** Latest successful remaining PI from booking_events.REMAINING_PAID. */
   ledgerRemainingPaidPaymentIntentId?: string | null;
   dynamicPricingReasons?: string[] | null;
@@ -416,5 +419,6 @@ export function buildUnifiedBookingReceipt(
     isSplitPayment,
     dynamicPricingReasons,
     warnings,
+    addonLineItems: input.addonLineItems ?? [],
   };
 }

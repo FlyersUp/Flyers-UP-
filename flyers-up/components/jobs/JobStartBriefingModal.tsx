@@ -8,6 +8,7 @@ type JobStartBriefingModalProps = {
   onConfirmStart: () => void | Promise<void>;
   address: string;
   notes: string | null | undefined;
+  bookingAddonSnapshots?: Array<{ titleSnapshot: string; priceSnapshotCents: number }>;
   loading?: boolean;
 };
 
@@ -20,6 +21,7 @@ export function JobStartBriefingModal({
   onConfirmStart,
   address,
   notes,
+  bookingAddonSnapshots,
   loading = false,
 }: JobStartBriefingModalProps) {
   if (!open) return null;
@@ -45,7 +47,7 @@ export function JobStartBriefingModal({
             <p className="text-sm font-medium text-text">{address?.trim() || '—'}</p>
           </div>
 
-          <ProBookingJobNotes notes={notes} />
+          <ProBookingJobNotes notes={notes} bookingAddonSnapshots={bookingAddonSnapshots} />
 
           <div className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
             <button

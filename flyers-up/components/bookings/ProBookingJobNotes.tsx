@@ -2,6 +2,20 @@
 
 import type { ReactNode } from 'react';
 import { parseProBookingNotes } from '@/lib/bookings/pro-job-notes';
+import { formatAddonScopeSection } from '@/lib/service-packages/snapshot';
+
+function mergeScopeWithBookingAddons(
+  scopeText: string,
+  addons?: Array<{ titleSnapshot: string; priceSnapshotCents: number }>
+): string {
+  if (!addons?.length) return scopeText;
+  if (scopeText.includes('Add-ons:')) return scopeText;
+  const block = formatAddonScopeSection(
+    addons.map((a) => ({ title: a.titleSnapshot, price_cents: a.priceSnapshotCents }))
+  );
+  if (!block) return scopeText;
+  return scopeText.trim() ? `${scopeText.trim()}\n\n${block}` : block;
+}
 
 function ScopeBlock({ text }: { text: string }) {
   const lines = text.split('\n');
@@ -61,6 +75,12 @@ function ScopeBlock({ text }: { text: string }) {
           {trimmed}
         </p>
       );
+    } else if (/^add-ons:?$/i.test(trimmed)) {
+      elements.push(
+        <p key={`a-${i}`} className="text-sm font-medium text-text mt-2">
+          {trimmed}
+        </p>
+      );
     } else {
       elements.push(
         <p key={`p-${i}`} className="text-sm text-text/90">
@@ -81,22 +101,29 @@ function ScopeBlock({ text }: { text: string }) {
  */
 export function ProBookingJobNotes({
   notes,
+  bookingAddonSnapshots,
   className = '',
 }: {
   notes: string | null | undefined;
+  /** Fallback for older bookings: notes lacked add-on lines but booking_addons rows exist. */
+  bookingAddonSnapshots?: Array<{
+    titleSnapshot: string;
+    priceSnapshotCents: number;
+  }>;
   className?: string;
 }) {
   const { scopeText, customerNotes } = parseProBookingNotes(notes);
-  if (!scopeText && !customerNotes) {
+  const scopeDisplay = mergeScopeWithBookingAddons(scopeText, bookingAddonSnapshots);
+  if (!scopeDisplay && !customerNotes) {
     return <p className={`text-sm text-muted ${className}`.trim()}>No notes for this job.</p>;
   }
 
   return (
     <div className={`space-y-4 ${className}`.trim()}>
-      {scopeText ? (
+      {scopeDisplay ? (
         <div className="rounded-xl border border-border bg-surface px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Scope &amp; package</p>
-          <ScopeBlock text={scopeText} />
+          <ScopeBlock text={scopeDisplay} />
         </div>
       ) : null}
       {customerNotes ? (
