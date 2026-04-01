@@ -1,6 +1,8 @@
 /**
  * Canonical Stripe PaymentIntent metadata for Flyers Up split payments (deposit + remaining).
- * Keeps snake_case + legacy camelCase keys so webhooks and older PIs stay compatible.
+ * Stripe allows at most 50 metadata keys per object; we use snake_case only for ids
+ * (booking_id, customer_id, pro_id). Webhooks and parsers still accept legacy camelCase
+ * on older PaymentIntents via `meta.booking_id ?? meta.bookingId`, etc.
  */
 
 export type StripeBookingPaymentPhase = 'deposit' | 'remaining';
@@ -92,11 +94,8 @@ export function buildBookingPaymentIntentStripeFields(input: {
 
   const metadata: Record<string, string> = {
     booking_id: input.bookingId,
-    bookingId: input.bookingId,
     customer_id: input.customerId,
-    customerId: input.customerId,
     pro_id: input.proId,
-    proId: input.proId,
     booking_reference: ref,
     payment_phase: input.paymentPhase,
     service_title: title,
@@ -136,11 +135,8 @@ export function buildLegacyFullPaymentIntentStripeFields(input: {
     input.serviceTitle.trim().slice(0, META_TITLE_MAX) || 'Service';
   const metadata: Record<string, string> = {
     booking_id: input.bookingId,
-    bookingId: input.bookingId,
     customer_id: input.customerId,
-    customerId: input.customerId,
     pro_id: input.proId,
-    proId: input.proId,
     booking_reference: ref,
     payment_phase: 'full',
     service_title: title,

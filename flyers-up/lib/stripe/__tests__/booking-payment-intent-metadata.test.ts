@@ -1,6 +1,87 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { mergeDynamicPricingReasonsCsv, parseDynamicPricingReasonsCsv } from '../booking-payment-intent-metadata';
+import {
+  buildBookingPaymentIntentStripeFields,
+  buildLegacyFullPaymentIntentStripeFields,
+  mergeDynamicPricingReasonsCsv,
+  parseDynamicPricingReasonsCsv,
+  type BookingPaymentIntentPricingMetadata,
+} from '../booking-payment-intent-metadata';
+
+/** Every optional pricing field set (worst case for Stripe metadata key count). */
+const fullPricing: BookingPaymentIntentPricingMetadata = {
+  fee_profile: 'standard',
+  subtotal_tier: 'tier_a',
+  service_subtotal_cents: 1,
+  service_fee_cents: 2,
+  convenience_fee_cents: 3,
+  protection_fee_cents: 4,
+  demand_fee_cents: 5,
+  promo_discount_cents: 6,
+  fee_total_cents: 7,
+  platform_fee_total_cents: 8,
+  customer_total_cents: 9,
+  deposit_base_cents: 10,
+  deposit_platform_fee_cents: 11,
+  deposit_charge_cents: 12,
+  final_base_cents: 13,
+  final_platform_fee_cents: 14,
+  final_charge_cents: 15,
+  deposit_service_fee_cents: 16,
+  final_service_fee_cents: 17,
+  deposit_convenience_fee_cents: 18,
+  final_convenience_fee_cents: 19,
+  deposit_protection_fee_cents: 20,
+  final_protection_fee_cents: 21,
+  deposit_demand_fee_cents: 22,
+  final_demand_fee_cents: 23,
+  deposit_fee_total_cents: 24,
+  final_fee_total_cents: 25,
+  deposit_promo_discount_cents: 26,
+  final_promo_discount_cents: 27,
+  dynamic_pricing_reasons: 'a,b',
+  urgency: 'normal',
+  area_demand_score: 1,
+  supply_tightness_score: 2,
+  conversion_risk_score: 3,
+  trust_risk_score: 4,
+  is_first_booking: '0',
+  is_repeat_customer: '1',
+  booking_fee_profile_stamped: 'standard',
+  booking_pricing_occupation_slug: 'cleaning',
+  booking_pricing_category_slug: 'residential',
+};
+
+describe('Stripe metadata key limit (max 50)', () => {
+  it('deposit + full pricing stays at or under 50 keys', () => {
+    const { metadata } = buildBookingPaymentIntentStripeFields({
+      bookingId: '00000000-0000-4000-8000-000000000001',
+      customerId: '00000000-0000-4000-8000-000000000002',
+      proId: '00000000-0000-4000-8000-000000000003',
+      paymentPhase: 'deposit',
+      serviceTitle: 'Test',
+      pricing: fullPricing,
+    });
+    assert.ok(
+      Object.keys(metadata).length <= 50,
+      `expected <= 50 metadata keys, got ${Object.keys(metadata).length}`
+    );
+  });
+
+  it('legacy full + full pricing stays at or under 50 keys', () => {
+    const { metadata } = buildLegacyFullPaymentIntentStripeFields({
+      bookingId: '00000000-0000-4000-8000-000000000001',
+      customerId: '00000000-0000-4000-8000-000000000002',
+      proId: '00000000-0000-4000-8000-000000000003',
+      serviceTitle: 'Test',
+      pricing: fullPricing,
+    });
+    assert.ok(
+      Object.keys(metadata).length <= 50,
+      `expected <= 50 metadata keys, got ${Object.keys(metadata).length}`
+    );
+  });
+});
 
 describe('dynamic pricing reasons metadata', () => {
   it('parses CSV reasons', () => {
