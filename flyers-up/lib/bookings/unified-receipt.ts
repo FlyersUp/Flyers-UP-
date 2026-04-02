@@ -20,6 +20,13 @@ export type PhasePaymentStatus =
   | 'failed'
   | 'processing';
 
+/** Canonical money triple: matches {@link UnifiedBookingReceipt} totalBookingCents / totalPaidCents / remainingDueCents. */
+export type UnifiedBookingPaymentAmounts = {
+  totalAmountCents: number;
+  paidAmountCents: number;
+  remainingAmountCents: number;
+};
+
 export interface UnifiedBookingReceipt {
   bookingId: string;
   bookingReference: string;
@@ -420,5 +427,23 @@ export function buildUnifiedBookingReceipt(
     dynamicPricingReasons,
     warnings,
     addonLineItems: input.addonLineItems ?? [],
+  };
+}
+
+/** Same payment math as the full receipt builder (ledger-aligned deposit/remaining paid flags). */
+export function computeUnifiedBookingPaymentAmounts(
+  input: UnifiedReceiptBookingInput
+): UnifiedBookingPaymentAmounts {
+  const r = buildUnifiedBookingReceipt(input);
+  return getUnifiedBookingPaymentAmountsFromReceipt(r);
+}
+
+export function getUnifiedBookingPaymentAmountsFromReceipt(
+  receipt: UnifiedBookingReceipt
+): UnifiedBookingPaymentAmounts {
+  return {
+    totalAmountCents: receipt.totalBookingCents,
+    paidAmountCents: receipt.totalPaidCents,
+    remainingAmountCents: receipt.remainingDueCents,
   };
 }

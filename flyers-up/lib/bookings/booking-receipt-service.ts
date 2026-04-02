@@ -4,6 +4,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   buildUnifiedBookingReceipt,
+  computeUnifiedBookingPaymentAmounts,
+  type UnifiedBookingPaymentAmounts,
   type UnifiedBookingReceipt,
   type UnifiedReceiptBookingInput,
 } from '@/lib/bookings/unified-receipt';
@@ -100,10 +102,14 @@ async function loadPricingFromPaymentIntentMetadata(
   }
 }
 
-export async function getBookingReceipt(
+/**
+ * Loads DB + Stripe metadata + ledger + quote overlay into the input for
+ * {@link buildUnifiedBookingReceipt} / {@link computeUnifiedBookingPaymentAmounts}.
+ */
+export async function loadUnifiedReceiptBookingInput(
   admin: AdminClient,
   bookingId: string
-): Promise<UnifiedBookingReceipt | null> {
+): Promise<UnifiedReceiptBookingInput | null> {
   const { data: row, error } = await admin
     .from('bookings')
     .select(
@@ -438,7 +444,25 @@ export async function getBookingReceipt(
     addonLineItems,
   };
 
-  return buildUnifiedBookingReceipt(input);
+  return input;
+}
+
+export async function getBookingReceipt(
+  admin: AdminClient,
+  bookingId: string
+): Promise<UnifiedBookingReceipt | null> {
+  const input = await loadUnifiedReceiptBookingInput(admin, bookingId);
+  return input ? buildUnifiedBookingReceipt(input) : null;
+}
+
+/** Server-side canonical total / paid / remaining (same math as receipt JSON). */
+export async function getUnifiedBookingPaymentAmountsForBooking(
+  admin: AdminClient,
+  bookingId: string
+): Promise<UnifiedBookingPaymentAmounts | null> {
+  const input = await loadUnifiedReceiptBookingInput(admin, bookingId);
+  if (!input) return null;
+  return computeUnifiedBookingPaymentAmounts(input);
 }
 
 export function buildUnifiedReceiptFromPayments(

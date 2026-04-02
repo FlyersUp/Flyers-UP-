@@ -9,6 +9,12 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { mapRescheduleRowToPending } from '@/lib/bookings/pending-reschedule';
+import {
+  computeCustomerRemainingDueCents,
+  resolveTotalBookingCentsFromRow,
+  type BookingMoneySnapshot,
+} from '@/lib/bookings/remaining-balance-cents';
+import { getUnifiedBookingPaymentAmountsForBooking } from '@/lib/bookings/booking-receipt-service';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -202,6 +208,29 @@ export async function GET(
       cancelled_at?: string | null;
     };
 
+    const remainingMoney: BookingMoneySnapshot = {
+      total_amount_cents: b.total_amount_cents,
+      amount_total: b.amount_total,
+      amount_deposit: b.amount_deposit,
+      amount_remaining: b.amount_remaining,
+      price: booking.price as number | null | undefined,
+      payment_status: b.payment_status,
+      final_payment_status: b.final_payment_status,
+      paid_deposit_at: b.paid_deposit_at,
+      paid_remaining_at: b.paid_remaining_at,
+      fully_paid_at: b.fully_paid_at,
+      status: String(booking.status ?? ''),
+    };
+    const fallbackTotal = resolveTotalBookingCentsFromRow(remainingMoney);
+    const fallbackRemaining = computeCustomerRemainingDueCents(remainingMoney);
+    const unifiedAmounts = await getUnifiedBookingPaymentAmountsForBooking(admin, id);
+    const paymentAmounts =
+      unifiedAmounts ?? {
+        totalAmountCents: fallbackTotal,
+        paidAmountCents: Math.max(0, fallbackTotal - fallbackRemaining),
+        remainingAmountCents: fallbackRemaining,
+      };
+
     return NextResponse.json(
       {
         booking: {
@@ -227,8 +256,12 @@ export async function GET(
           platformFeeCents: b.platform_fee_cents ?? null,
           refundedTotalCents: b.refunded_total_cents ?? null,
           amountDeposit: b.amount_deposit ?? null,
-          amountRemaining: b.amount_remaining ?? null,
-          amountTotal: b.total_amount_cents ?? b.amount_total ?? null,
+          amountRemaining: paymentAmounts.remainingAmountCents,
+          amountTotal:
+            paymentAmounts.totalAmountCents > 0
+              ? paymentAmounts.totalAmountCents
+              : (b.total_amount_cents ?? b.amount_total ?? null),
+          paidAmountCents: paymentAmounts.paidAmountCents,
           amountSubtotalCents: (booking as { amount_subtotal?: number | null }).amount_subtotal ?? null,
           pendingReschedule: mapRescheduleRowToPending(pendRow as Record<string, unknown> | null),
           price: booking.price,

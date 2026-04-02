@@ -21,6 +21,11 @@ import {
 } from '@/lib/bookings/booking-request-scope';
 import type { PendingRescheduleInfo } from '@/lib/bookings/pending-reschedule';
 import { mapRescheduleRowToPending } from '@/lib/bookings/pending-reschedule';
+import {
+  computeCustomerRemainingDueCents,
+  resolveTotalBookingCentsFromRow,
+  type BookingMoneySnapshot,
+} from '@/lib/bookings/remaining-balance-cents';
 import { perfLog, perfLoggingEnabled, perfNoteGetCurrentUser } from '@/lib/perfBoot';
 import type { UserRole, BookingStatus } from '@/types/database';
 
@@ -1109,6 +1114,22 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       return 'Customer';
     })();
 
+    const remainingMoney: BookingMoneySnapshot = {
+      total_amount_cents: d.total_amount_cents as number | null | undefined,
+      amount_total: d.amount_total as number | null | undefined,
+      amount_deposit: d.amount_deposit as number | null | undefined,
+      amount_remaining: d.amount_remaining as number | null | undefined,
+      price: d.price as number | null | undefined,
+      payment_status: d.payment_status as string | null | undefined,
+      final_payment_status: d.final_payment_status as string | null | undefined,
+      paid_deposit_at: d.paid_deposit_at as string | null | undefined,
+      paid_remaining_at: d.paid_remaining_at as string | null | undefined,
+      fully_paid_at: d.fully_paid_at as string | null | undefined,
+      status: data.status as string | null | undefined,
+    };
+    const amountRemainingComputed = computeCustomerRemainingDueCents(remainingMoney);
+    const amountTotalComputed = resolveTotalBookingCentsFromRow(remainingMoney);
+
     return {
       id: data.id,
       customerId: data.customer_id,
@@ -1144,8 +1165,11 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       platformFeeCents: d.platform_fee_cents as number | null | undefined,
       refundedTotalCents: d.refunded_total_cents as number | null | undefined,
       amountDeposit: d.amount_deposit as number | null | undefined,
-      amountRemaining: d.amount_remaining as number | null | undefined,
-      amountTotal: (d.total_amount_cents ?? d.amount_total) as number | null | undefined,
+      amountRemaining: amountRemainingComputed,
+      amountTotal:
+        (amountTotalComputed > 0
+          ? amountTotalComputed
+          : (d.total_amount_cents ?? d.amount_total)) as number | null | undefined,
       amountSubtotalCents: (d.amount_subtotal as number | null | undefined) ?? null,
       bookingTimezone: (d.booking_timezone as string | null | undefined) ?? null,
       pendingReschedule: mapRescheduleRowToPending(pendRow as Record<string, unknown> | null),

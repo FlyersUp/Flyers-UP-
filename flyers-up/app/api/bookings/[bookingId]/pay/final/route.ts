@@ -24,6 +24,7 @@ import {
   resolveUrgencyFromBooking,
 } from '@/lib/bookings/dynamic-pricing-features';
 import { buildBookingPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
+import { getUnifiedBookingPaymentAmountsForBooking } from '@/lib/bookings/booking-receipt-service';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -57,7 +58,7 @@ export async function POST(
   // Same as deposit: pros who are the customer on a booking must be able to pay remaining balance.
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug')
+    .select('id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, paid_deposit_at, paid_remaining_at, fully_paid_at')
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();
@@ -138,17 +139,12 @@ export async function POST(
     );
   }
 
-  let amountTotal = Number(booking.amount_total ?? booking.total_amount_cents ?? 0);
-  const rawPrice = Number((booking as { price?: number }).price ?? 0);
-  // price is typically in dollars; if < 1000 treat as dollars (convert to cents)
-  const priceCents = rawPrice > 0 && rawPrice < 10000
-    ? Math.round(rawPrice * 100)
-    : Math.round(rawPrice);
-  let amountRemaining = Number(
-    booking.amount_remaining ??
-    booking.remaining_amount_cents ??
-    (amountTotal > 0 ? Math.max(0, amountTotal - amountDeposit) : Math.max(0, priceCents - amountDeposit))
-  );
+  const paymentAmounts = await getUnifiedBookingPaymentAmountsForBooking(admin, id);
+  if (!paymentAmounts) {
+    return NextResponse.json({ error: 'Failed to load payment totals' }, { status: 500 });
+  }
+  let amountTotal = paymentAmounts.totalAmountCents;
+  let amountRemaining = paymentAmounts.remainingAmountCents;
   let pricing:
     | ReturnType<typeof computeBookingPricing>
     | null = null;
@@ -334,6 +330,11 @@ export async function POST(
           clientSecret: pi.client_secret,
           paymentIntentId: pi.id,
           amountRemaining,
+          paymentAmounts: {
+            totalAmountCents: amountTotal,
+            paidAmountCents: Math.max(0, amountTotal - amountRemaining),
+            remainingAmountCents: amountRemaining,
+          },
         });
       }
     } catch {
@@ -435,5 +436,10 @@ export async function POST(
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,
     amountRemaining,
+    paymentAmounts: {
+      totalAmountCents: amountTotal,
+      paidAmountCents: Math.max(0, amountTotal - amountRemaining),
+      remainingAmountCents: amountRemaining,
+    },
   });
 }

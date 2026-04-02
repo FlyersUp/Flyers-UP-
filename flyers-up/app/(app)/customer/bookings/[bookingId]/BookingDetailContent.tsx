@@ -46,6 +46,8 @@ export interface BookingDetailData {
   refundedTotalCents?: number | null;
   amountDeposit?: number | null;
   amountRemaining?: number | null;
+  /** Confirmed successful payments only; same as receipt `totalPaidCents` when from server API. */
+  paidAmountCents?: number | null;
   amountTotal?: number | null;
   /** Pro service subtotal in cents when stored on the booking */
   amountSubtotalCents?: number | null;

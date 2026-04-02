@@ -171,15 +171,23 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
             setLoading(false);
             return;
           }
-          const b = bookingJson.booking;
+          const b = bookingJson.booking as {
+            amountRemaining?: number | null;
+            amountTotal?: number | null;
+            paidAmountCents?: number | null;
+            serviceName?: string;
+            proName?: string;
+            serviceDate?: string;
+            serviceTime?: string;
+          };
           const data: QuoteData = {
             bookingId,
             quote: {
               amountSubtotal: 0,
               amountPlatformFee: 0,
               amountTravelFee: 0,
-              amountTotal: 0,
-              amountRemaining: b.amountRemaining != null ? b.amountRemaining : 0,
+              amountTotal: typeof b.amountTotal === 'number' && b.amountTotal > 0 ? b.amountTotal : 0,
+              amountRemaining: typeof b.amountRemaining === 'number' ? b.amountRemaining : 0,
               currency: 'usd',
             },
             serviceName: b.serviceName ?? 'Service',
@@ -203,15 +211,33 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
             return;
           }
           setClientSecret(payJson.clientSecret ?? null);
-          if (payJson.amountRemaining != null) {
+          const pa = payJson.paymentAmounts as
+            | { totalAmountCents?: number; remainingAmountCents?: number }
+            | undefined;
+          if (pa && typeof pa.remainingAmountCents === 'number') {
             setQuoteData((prev) =>
               prev
                 ? {
                     ...prev,
                     quote: {
                       ...prev.quote,
-                      amountTotal: payJson.amountRemaining,
+                      amountTotal:
+                        typeof pa.totalAmountCents === 'number' && pa.totalAmountCents > 0
+                          ? pa.totalAmountCents
+                          : prev.quote.amountTotal,
                       amountDeposit: 0,
+                      amountRemaining: pa.remainingAmountCents,
+                    },
+                  }
+                : prev
+            );
+          } else if (payJson.amountRemaining != null) {
+            setQuoteData((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    quote: {
+                      ...prev.quote,
                       amountRemaining: payJson.amountRemaining,
                     },
                   }

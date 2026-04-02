@@ -7,6 +7,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { getBookingReceipt } from '@/lib/bookings/booking-receipt-service';
+import { getUnifiedBookingPaymentAmountsFromReceipt } from '@/lib/bookings/unified-receipt';
 import { renderBookingReceiptPrintHtml } from '@/lib/bookings/receipt-print-html';
 
 export const runtime = 'nodejs';
@@ -82,8 +83,10 @@ export async function GET(
     });
   }
 
+  const paymentAmounts = getUnifiedBookingPaymentAmountsFromReceipt(receipt);
+
   return NextResponse.json(
-    { receipt },
+    { receipt, paymentAmounts },
     { status: 200, headers: { 'Cache-Control': 'no-store' } }
   );
 }
