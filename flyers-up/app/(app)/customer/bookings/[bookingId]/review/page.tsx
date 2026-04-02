@@ -31,6 +31,7 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { submitReviewAction } from '@/app/actions/reviews';
 import { supabase } from '@/lib/supabaseClient';
 import { isCustomerBookingEligibleForReview } from '@/lib/bookings/customer-review-eligibility';
+import { bottomChrome } from '@/lib/layout/bottomChrome';
 
 type PageState = 'loading' | 'form' | 'submitting' | 'success' | 'already_reviewed' | 'error';
 
@@ -160,7 +161,11 @@ export default function LeaveReviewPage({
   return (
     <AppLayout mode="customer" data-role="customer">
       <div className="min-h-screen bg-[hsl(var(--bg))]">
-        <div className="max-w-lg mx-auto px-4 md:px-6 py-6 pb-32">
+        <div
+          className={`max-w-lg mx-auto px-4 md:px-6 py-6 ${
+            state === 'form' || state === 'submitting' ? bottomChrome.pbStickyBarOnly : ''
+          }`}
+        >
           {/* Header */}
           <header className="flex items-center justify-between mb-6">
             <button
@@ -459,7 +464,9 @@ export default function LeaveReviewPage({
 
         {/* Fixed submit button */}
         {(state === 'form' || state === 'submitting') && (
-          <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-black/5 dark:border-white/10 bg-white/95 dark:bg-[#171A20]/95 backdrop-blur-sm p-4 pb-[env(safe-area-inset-bottom)]">
+          <div
+            className={`fixed left-0 right-0 z-40 border-t border-black/5 dark:border-white/10 bg-white/95 dark:bg-[#171A20]/95 backdrop-blur-sm px-4 pt-3 pb-3 ${bottomChrome.fixedAboveNav}`}
+          >
             <div className="max-w-lg mx-auto">
               <button
                 type="button"
