@@ -31,9 +31,18 @@ const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
   : null;
 
+/** Mirrors server unified payment triple (customer booking API / pay/final). */
+type CheckoutPaymentAmounts = {
+  totalAmountCents: number;
+  paidAmountCents: number;
+  remainingAmountCents: number;
+};
+
 type QuoteData = {
   bookingId: string;
   quote: QuoteBreakdown;
+  /** Canonical pay totals when present; prefer for CTA remaining. */
+  paymentAmounts?: CheckoutPaymentAmounts | null;
   serviceName: string;
   proName: string;
   serviceDate: string;
@@ -43,6 +52,36 @@ type QuoteData = {
   proPhotoUrl?: string | null;
   paymentDueAt?: string | null;
 };
+
+/** Single resolved cents for sticky CTA — must not treat deposit 0 as “use deposit” (?? leaves 0). */
+function resolveCheckoutPayCents(
+  quote: QuoteBreakdown,
+  paymentAmounts?: CheckoutPaymentAmounts | null
+): number {
+  if (paymentAmounts) {
+    const t = paymentAmounts.totalAmountCents;
+    const p = paymentAmounts.paidAmountCents;
+    const r = paymentAmounts.remainingAmountCents;
+    if (Number.isFinite(r) && r > 0) return Math.round(r);
+    if (Number.isFinite(t) && t > 0 && Number.isFinite(p) && p < t) {
+      return Math.max(0, Math.round(t - p));
+    }
+    if (Number.isFinite(r) && r >= 0) return Math.round(r);
+  }
+  const deposit = quote.amountDeposit;
+  const hasDepositDue = deposit != null && deposit > 0;
+  if (hasDepositDue) return deposit;
+  const rem = quote.amountRemaining;
+  if (rem != null && rem > 0) return rem;
+  const total = quote.amountTotal ?? 0;
+  return total;
+}
+
+function isFinalCheckoutPhase(quote: QuoteBreakdown): boolean {
+  const deposit = quote.amountDeposit;
+  const hasDepositDue = deposit != null && deposit > 0;
+  return !hasDepositDue && (quote.amountRemaining ?? 0) > 0;
+}
 
 function CheckoutForm({
   bookingId,
@@ -101,8 +140,8 @@ function CheckoutForm({
     void doSubmit();
   };
 
-  const amountCents = quoteData.quote.amountDeposit ?? quoteData.quote.amountRemaining ?? quoteData.quote.amountTotal;
-  const isFinal = (quoteData.quote.amountDeposit ?? 0) <= 0 && (quoteData.quote.amountRemaining ?? 0) > 0;
+  const amountCents = resolveCheckoutPayCents(quoteData.quote, quoteData.paymentAmounts);
+  const isFinal = isFinalCheckoutPhase(quoteData.quote);
 
   return (
     <>
@@ -180,14 +219,35 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
             serviceDate?: string;
             serviceTime?: string;
           };
+          const total =
+            typeof b.amountTotal === 'number' && Number.isFinite(b.amountTotal) ? Math.round(b.amountTotal) : 0;
+          const paid =
+            typeof b.paidAmountCents === 'number' && Number.isFinite(b.paidAmountCents)
+              ? Math.round(b.paidAmountCents)
+              : 0;
+          const remaining =
+            typeof b.amountRemaining === 'number' && Number.isFinite(b.amountRemaining)
+              ? Math.round(b.amountRemaining)
+              : 0;
+          const paymentAmounts: CheckoutPaymentAmounts | null =
+            total > 0 ? { totalAmountCents: total, paidAmountCents: paid, remainingAmountCents: remaining } : null;
+
+          if (process.env.NODE_ENV === 'development' && total > 0 && paid < total && remaining === 0) {
+            console.warn(
+              '[checkout] Inconsistent payment snapshot from booking GET (total > paid but remaining is 0)',
+              { bookingId, total, paid, remaining }
+            );
+          }
+
           const data: QuoteData = {
             bookingId,
+            paymentAmounts,
             quote: {
               amountSubtotal: 0,
               amountPlatformFee: 0,
               amountTravelFee: 0,
-              amountTotal: typeof b.amountTotal === 'number' && b.amountTotal > 0 ? b.amountTotal : 0,
-              amountRemaining: typeof b.amountRemaining === 'number' ? b.amountRemaining : 0,
+              amountTotal: total,
+              amountRemaining: remaining,
               currency: 'usd',
             },
             serviceName: b.serviceName ?? 'Service',
@@ -211,38 +271,98 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
             return;
           }
           setClientSecret(payJson.clientSecret ?? null);
-          const pa = payJson.paymentAmounts as
-            | { totalAmountCents?: number; remainingAmountCents?: number }
-            | undefined;
-          if (pa && typeof pa.remainingAmountCents === 'number') {
-            setQuoteData((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    quote: {
-                      ...prev.quote,
-                      amountTotal:
-                        typeof pa.totalAmountCents === 'number' && pa.totalAmountCents > 0
-                          ? pa.totalAmountCents
-                          : prev.quote.amountTotal,
-                      amountDeposit: 0,
-                      amountRemaining: pa.remainingAmountCents,
-                    },
-                  }
-                : prev
-            );
+          const pa = payJson.paymentAmounts as Partial<CheckoutPaymentAmounts> | undefined;
+          if (
+            pa &&
+            typeof pa.remainingAmountCents === 'number' &&
+            Number.isFinite(pa.remainingAmountCents)
+          ) {
+            const nextTotal =
+              typeof pa.totalAmountCents === 'number' && pa.totalAmountCents > 0
+                ? Math.round(pa.totalAmountCents)
+                : undefined;
+            const nextPaid =
+              typeof pa.paidAmountCents === 'number' && Number.isFinite(pa.paidAmountCents)
+                ? Math.round(pa.paidAmountCents)
+                : undefined;
+            const nextRemaining = Math.round(pa.remainingAmountCents);
+            setQuoteData((prev) => {
+              if (!prev) return prev;
+              const total = nextTotal ?? prev.paymentAmounts?.totalAmountCents ?? prev.quote.amountTotal;
+              const paid = nextPaid ?? prev.paymentAmounts?.paidAmountCents ?? 0;
+              if (process.env.NODE_ENV === 'development' && total > 0 && paid < total && nextRemaining === 0) {
+                console.warn(
+                  '[checkout] Inconsistent payment snapshot after pay/final (total > paid but remaining is 0)',
+                  { bookingId, total, paid, remaining: nextRemaining }
+                );
+              }
+              return {
+                ...prev,
+                paymentAmounts: {
+                  totalAmountCents: total,
+                  paidAmountCents: paid,
+                  remainingAmountCents: nextRemaining,
+                },
+                quote: {
+                  ...prev.quote,
+                  amountTotal: nextTotal ?? prev.quote.amountTotal,
+                  // Omit deposit for final phase so we never use `0 ?? remaining` bug on CTA
+                  amountDeposit: undefined,
+                  amountRemaining: nextRemaining,
+                },
+              };
+            });
           } else if (payJson.amountRemaining != null) {
-            setQuoteData((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    quote: {
-                      ...prev.quote,
-                      amountRemaining: payJson.amountRemaining,
-                    },
-                  }
-                : prev
-            );
+            const arRaw = Math.round(Number(payJson.amountRemaining));
+            setQuoteData((prev) => {
+              if (!prev) return prev;
+              // Legacy pay/final without paymentAmounts: never clobber booking GET remaining with 0
+              const prevRem =
+                prev.paymentAmounts?.remainingAmountCents ?? prev.quote.amountRemaining ?? null;
+              const prevTotal =
+                prev.paymentAmounts?.totalAmountCents ?? prev.quote.amountTotal ?? 0;
+              const prevPaid = prev.paymentAmounts?.paidAmountCents ?? 0;
+              const ar =
+                arRaw === 0 &&
+                typeof prevRem === 'number' &&
+                prevRem > 0 &&
+                prevTotal > 0 &&
+                prevPaid < prevTotal
+                  ? prevRem
+                  : arRaw;
+              if (ar !== arRaw) {
+                return {
+                  ...prev,
+                  paymentAmounts:
+                    prev.paymentAmounts ??
+                    (prevTotal > 0
+                      ? {
+                          totalAmountCents: prevTotal,
+                          paidAmountCents: Math.max(0, prevTotal - ar),
+                          remainingAmountCents: ar,
+                        }
+                      : undefined),
+                  quote: {
+                    ...prev.quote,
+                    amountDeposit: undefined,
+                    amountRemaining: ar,
+                  },
+                };
+              }
+              return {
+                ...prev,
+                paymentAmounts: {
+                  totalAmountCents: prevTotal,
+                  paidAmountCents: Math.max(0, prevTotal - ar),
+                  remainingAmountCents: ar,
+                },
+                quote: {
+                  ...prev.quote,
+                  amountDeposit: undefined,
+                  amountRemaining: ar,
+                },
+              };
+            });
           }
         } else {
           // Pre-check: ensure we can access the booking before deposit API

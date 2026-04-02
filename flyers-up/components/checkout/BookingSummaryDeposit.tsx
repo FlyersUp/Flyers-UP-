@@ -178,6 +178,13 @@ function PriceDetailsBlock({
               <PriceRow label="Due after job" value={formatCents(quote.amountRemaining ?? 0)} />
             </>
           )}
+          {!hasDeposit && (quote.amountRemaining ?? 0) > 0 && (
+            <PriceRow
+              label="Remaining balance (pay now)"
+              value={formatCents(quote.amountRemaining ?? 0)}
+              emphasize
+            />
+          )}
           {(quote.dynamicPricingReasons?.length ?? 0) > 0 && (
             <div className="mt-2 rounded-lg bg-black/[0.03] dark:bg-white/[0.04] px-2 py-2">
               <p className="text-[11px] font-medium text-[#717171] dark:text-white/60 mb-1">
