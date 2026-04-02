@@ -149,6 +149,7 @@ export interface BookingDetails {
   paidRemainingAt?: string | null;
   payoutStatus?: string | null;
   refundStatus?: string | null;
+  /** Maps to DB customer_fees_retained_cents (full customer-facing fee bucket, not legacy 15% only). */
   platformFeeCents?: number | null;
   refundedTotalCents?: number | null;
   amountDeposit?: number | null;
@@ -1162,7 +1163,7 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       paidRemainingAt: d.paid_remaining_at as string | null | undefined,
       payoutStatus: d.payout_status as string | null | undefined,
       refundStatus: d.refund_status as string | null | undefined,
-      platformFeeCents: d.platform_fee_cents as number | null | undefined,
+      platformFeeCents: d.customer_fees_retained_cents as number | null | undefined,
       refundedTotalCents: d.refunded_total_cents as number | null | undefined,
       amountDeposit: d.amount_deposit as number | null | undefined,
       amountRemaining: amountRemainingComputed,
@@ -1860,7 +1861,7 @@ const VALID_TRANSITIONS: Record<string, JobStatusAction[]> = {
  * 1. Validates that the pro owns the booking
  * 2. Validates the status transition is allowed
  * 3. Updates the booking status
- * 4. Creates earnings record on completion (uses real pricing: total - platform_fee - refunded)
+ * 4. Creates earnings record on completion (uses total - customer_fees_retained - refunded when totals exist)
  * 
  * @param params - The update parameters
  * @returns Result object with success status and optional error/booking
@@ -2021,7 +2022,7 @@ export async function updateBookingStatus(
 
 /**
  * Create an earnings record for a completed booking.
- * Uses total_amount_cents - platform_fee_cents - refunded when totals exist;
+ * Uses total_amount_cents - customer_fees_retained_cents - refunded when totals exist;
  * else amount_subtotal - refunded; else list price (no legacy 15% haircut).
  */
 async function createEarningsForBooking(
@@ -2043,13 +2044,13 @@ async function createEarningsForBooking(
 
   const { data: booking } = await supabase
     .from('bookings')
-    .select('price, total_amount_cents, platform_fee_cents, refunded_total_cents, amount_subtotal')
+    .select('price, total_amount_cents, customer_fees_retained_cents, refunded_total_cents, amount_subtotal')
     .eq('id', bookingId)
     .single();
 
   let amountDollars: number;
   const totalCents = Number(booking?.total_amount_cents ?? 0);
-  const platformFeeCents = Number(booking?.platform_fee_cents ?? 0);
+  const platformFeeCents = Number(booking?.customer_fees_retained_cents ?? 0);
   const refundedCents = Number(booking?.refunded_total_cents ?? 0);
   const subtotalCents = Number(booking?.amount_subtotal ?? 0);
 

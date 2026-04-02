@@ -63,7 +63,7 @@ export async function GET(
       'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at, accepted_at, on_the_way_at, started_at, completed_at, cancelled_at, status_history';
     // Extended columns (migrations 031+) - may not exist if migrations not applied
     const EXTENDED_COLUMNS =
-      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_subtotal, amount_deposit, amount_remaining, amount_total, booking_timezone, en_route_at, arrived_at, job_request_id, scope_confirmed_at, job_details_snapshot, photos_snapshot, no_show_eligible_at, scheduled_start_at, grace_period_minutes, customer_confirmed, confirmed_by_customer_at';
+      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, customer_fees_retained_cents, refunded_total_cents, total_amount_cents, amount_subtotal, amount_deposit, amount_remaining, amount_total, booking_timezone, en_route_at, arrived_at, job_request_id, scope_confirmed_at, job_details_snapshot, photos_snapshot, no_show_eligible_at, scheduled_start_at, grace_period_minutes, customer_confirmed, confirmed_by_customer_at';
 
     let proIdForQuery: string | null = null;
     if (role === 'pro') {
@@ -202,7 +202,7 @@ export async function GET(
       paid_remaining_at?: string | null;
       payout_status?: string | null;
       refund_status?: string | null;
-      platform_fee_cents?: number | null;
+      customer_fees_retained_cents?: number | null;
       refunded_total_cents?: number | null;
       total_amount_cents?: number | null;
       amount_deposit?: number | null;
@@ -261,7 +261,7 @@ export async function GET(
           paidRemainingAt: b.paid_remaining_at ?? null,
           payoutStatus: b.payout_status ?? null,
           refundStatus: b.refund_status ?? null,
-          platformFeeCents: b.platform_fee_cents ?? null,
+          platformFeeCents: b.customer_fees_retained_cents ?? null,
           refundedTotalCents: b.refunded_total_cents ?? null,
           amountDeposit: b.amount_deposit ?? null,
           amountRemaining: paymentAmounts.remainingAmountCents,

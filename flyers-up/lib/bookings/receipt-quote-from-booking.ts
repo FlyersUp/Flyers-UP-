@@ -114,7 +114,8 @@ export async function computeReceiptQuoteOverlay(
 export function dbRowPricingOverlay(bookingRow: Record<string, unknown>): Partial<UnifiedReceiptBookingInput> {
   const sub = safeInt(bookingRow.amount_subtotal);
   const total = safeInt(bookingRow.total_amount_cents) || safeInt(bookingRow.amount_total);
-  const fee = safeInt(bookingRow.platform_fee_cents) || safeInt(bookingRow.amount_platform_fee);
+  const fee =
+    safeInt(bookingRow.customer_fees_retained_cents) || safeInt(bookingRow.amount_platform_fee);
   const out: Partial<UnifiedReceiptBookingInput> = {};
   if (sub > 0) out.serviceSubtotalCents = sub;
   if (fee > 0) {

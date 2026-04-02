@@ -1,9 +1,9 @@
 /**
  * POST /api/bookings/[bookingId]/pay
- * Creates or retrieves PaymentIntent for booking checkout.
+ * Legacy single-charge checkout (split deposit/final is preferred).
  * Returns { clientSecret, paymentIntentId, quote } for Stripe Elements confirmPayment.
- * Uses destination charges: platform fee + transfer to Pro Connect account.
- * Webhook payment_intent.succeeded updates payment_status=PAID, paid_at.
+ * Funds are charged to the platform account (no transfer_data); pro is paid via release-payouts.
+ * Persists customer total, service subtotal, and customer_fees_retained_cents like pay/deposit.
  */
 
 import { NextResponse } from 'next/server';
@@ -25,6 +25,7 @@ import {
   resolveUrgencyFromBooking,
 } from '@/lib/bookings/dynamic-pricing-features';
 import { buildLegacyFullPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
+import { computeMoneyBreakdown } from '@/lib/bookings/money';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -221,6 +222,8 @@ export async function POST(
     return NextResponse.json({ error: 'Booking total is not set' }, { status: 400 });
   }
 
+  const breakdown = computeMoneyBreakdown(quote.amountTotal, quote.depositPercent);
+
   const customerResult = await getOrCreateStripeCustomer(user.id, user.email ?? null);
   if ('error' in customerResult) {
     return NextResponse.json({ error: customerResult.error }, { status: 500 });
@@ -333,6 +336,15 @@ export async function POST(
     .update({
       payment_intent_id: paymentIntent.id,
       payment_status: newPaymentStatus,
+      stripe_destination_account_id: connectedAccountId,
+      amount_subtotal: quote.amountSubtotal,
+      amount_travel_fee: quote.amountTravelFee,
+      amount_platform_fee: pricing.feeTotalCents,
+      amount_total: pricing.customerTotalCents,
+      total_amount_cents: pricing.customerTotalCents,
+      customer_fees_retained_cents: pricing.feeTotalCents,
+      platform_fee_bps: breakdown.platform_fee_bps,
+      currency: quote.currency,
     })
     .eq('id', id);
 

@@ -503,7 +503,7 @@ export async function POST(
       amount_total: pricing.customerTotalCents,
       total_amount_cents: pricing.customerTotalCents,
       platform_fee_bps: breakdown.platform_fee_bps,
-      platform_fee_cents: pricing.feeTotalCents,
+      customer_fees_retained_cents: pricing.feeTotalCents,
       deposit_amount_cents: pricing.depositChargeCents,
       remaining_amount_cents: pricing.finalChargeCents,
       amount_deposit: amountDeposit,

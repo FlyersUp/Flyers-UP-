@@ -1,7 +1,7 @@
 /**
  * Cron: release-payouts
  * Transfers net amount to pro for completed bookings.
- * net_to_pro = max(0, total_amount_cents - platform_fee_cents - refunded_total_cents)
+ * net_to_pro = resolveProPayoutTransferCents (customer total − retained fees − refunds; cap to amount_subtotal if fees under-recorded)
  *
  * HARD GUARDS - payout NEVER allowed before:
  * - arrived_at IS NOT NULL (pro checked in)
@@ -20,7 +20,7 @@ import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { createTransfer } from '@/lib/stripe/server';
-import { computeNetToPro } from '@/lib/bookings/money';
+import { resolveProPayoutTransferCents } from '@/lib/bookings/booking-payout-economics';
 import { evaluatePayoutRiskForPro } from '@/lib/payoutRisk';
 import { isPayoutEligible } from '@/lib/bookings/state-machine';
 import { resolveMilestonePayoutGate } from '@/lib/bookings/multi-day-payout';
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   const { data: candidates, error } = await admin
     .from('bookings')
     .select(
-      'id, pro_id, status, total_amount_cents, amount_total, platform_fee_cents, refunded_total_cents, currency, paid_deposit_at, paid_remaining_at, stripe_destination_account_id, customer_confirmed, auto_confirm_at, arrived_at, started_at, completed_at, dispute_open, cancellation_reason, refund_status, suspicious_completion, is_multi_day, service_pros(stripe_account_id, user_id)'
+      'id, pro_id, status, total_amount_cents, amount_total, amount_subtotal, customer_fees_retained_cents, amount_platform_fee, refunded_total_cents, currency, paid_deposit_at, paid_remaining_at, stripe_destination_account_id, customer_confirmed, auto_confirm_at, arrived_at, started_at, completed_at, dispute_open, cancellation_reason, refund_status, suspicious_completion, is_multi_day, service_pros(stripe_account_id, user_id)'
     )
     .in('status', ['completed', 'customer_confirmed', 'auto_confirmed'])
     .eq('payout_released', false)
@@ -121,9 +121,19 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    const platformFeeCents = Number(b.platform_fee_cents ?? 0);
-    const refundedCents = Number(b.refunded_total_cents ?? 0);
-    const netToPro = computeNetToPro(totalCents, platformFeeCents, refundedCents);
+    const subtotalCents = Number((b as { amount_subtotal?: number | null }).amount_subtotal ?? 0) || 0;
+    const { payoutCents: netToPro, warnings: payoutWarnings } = resolveProPayoutTransferCents({
+      total_amount_cents: b.total_amount_cents,
+      amount_total: b.amount_total,
+      customer_fees_retained_cents: (b as { customer_fees_retained_cents?: number | null })
+        .customer_fees_retained_cents,
+      amount_platform_fee: (b as { amount_platform_fee?: number | null }).amount_platform_fee,
+      refunded_total_cents: b.refunded_total_cents,
+      amount_subtotal: subtotalCents > 0 ? subtotalCents : null,
+    });
+    for (const w of payoutWarnings) {
+      console.warn('[cron/release-payouts]', w, { bookingId: b.id, totalCents, subtotalCents });
+    }
     if (netToPro <= 0) continue;
 
     const currency = (b.currency ?? 'usd').toLowerCase();

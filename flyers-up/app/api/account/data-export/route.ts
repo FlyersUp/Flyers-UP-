@@ -12,7 +12,7 @@ export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
 const BOOKING_FULL =
-  'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at, duration_hours, payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_subtotal, amount_deposit, amount_remaining, amount_total, booking_timezone';
+  'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at, duration_hours, payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, customer_fees_retained_cents, refunded_total_cents, total_amount_cents, amount_subtotal, amount_deposit, amount_remaining, amount_total, booking_timezone';
 
 const BOOKING_MIN =
   'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at, duration_hours';
@@ -46,7 +46,7 @@ function toPaymentHistoryRow(b: BookingRow, perspective: 'customer' | 'pro') {
     ...(perspective === 'pro'
       ? {
           payoutStatus: b.payout_status ?? null,
-          platformFeeCents: b.platform_fee_cents ?? null,
+          customerFeesRetainedCents: b.customer_fees_retained_cents ?? null,
         }
       : {}),
   };

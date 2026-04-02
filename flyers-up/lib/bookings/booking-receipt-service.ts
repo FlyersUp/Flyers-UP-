@@ -142,7 +142,7 @@ export async function loadUnifiedReceiptBookingInput(
         'amount_subtotal',
         'amount_travel_fee',
         'amount_platform_fee',
-        'platform_fee_cents',
+        'customer_fees_retained_cents',
         'amount_total',
         'deposit_amount_cents',
         'remaining_amount_cents',

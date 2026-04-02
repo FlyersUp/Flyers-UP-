@@ -9,6 +9,7 @@ export const PLATFORM_FEE_BPS = 1500; // 15%
 export interface MoneyBreakdown {
   total_amount_cents: number;
   platform_fee_bps: number;
+  /** Take-rate slice from quote total (bps); not the same as DB `customer_fees_retained_cents`. */
   platform_fee_cents: number;
   deposit_amount_cents: number;
   remaining_amount_cents: number;
@@ -16,8 +17,9 @@ export interface MoneyBreakdown {
 }
 
 /**
- * Compute money breakdown once at pricing time.
- * - platform_fee_cents = round(total * platform_fee_bps / 10000)
+ * Compute money breakdown once at pricing time (legacy quote split helper).
+ * - platform_fee_cents = round(total * platform_fee_bps / 10000) — diagnostic only; deposit flow stores
+ *   full customer fees in `customer_fees_retained_cents` from {@link computeBookingPricing}.
  * - deposit_amount_cents = round(total * deposit_percent / 100)
  * - remaining_amount_cents = total - deposit_amount_cents
  */
@@ -45,15 +47,18 @@ export function computeMoneyBreakdown(
 }
 
 /**
- * Net amount to transfer to pro: max(0, total - platform_fee - refunded).
+ * Net amount to transfer to pro: max(0, customer_total - customer_fees_retained - refunded).
+ *
+ * `total_amount_cents` = customer total charged (deposit + final).
+ * `customerFeesRetainedCents` = DB `customer_fees_retained_cents`: full customer-facing fee bucket.
  */
 export function computeNetToPro(
   total_amount_cents: number,
-  platform_fee_cents: number,
+  customerFeesRetainedCents: number,
   refunded_total_cents: number
 ): number {
   return Math.max(
     0,
-    total_amount_cents - platform_fee_cents - refunded_total_cents
+    total_amount_cents - customerFeesRetainedCents - refunded_total_cents
   );
 }
