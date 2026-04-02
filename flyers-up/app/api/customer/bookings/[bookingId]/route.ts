@@ -63,7 +63,7 @@ export async function GET(
       'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at, accepted_at, on_the_way_at, started_at, completed_at, cancelled_at, status_history';
     // Extended columns (migrations 031+) - may not exist if migrations not applied
     const EXTENDED_COLUMNS =
-      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_subtotal, amount_deposit, amount_remaining, amount_total, booking_timezone, en_route_at, arrived_at, job_request_id, scope_confirmed_at, job_details_snapshot, photos_snapshot, no_show_eligible_at, scheduled_start_at, grace_period_minutes';
+      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_subtotal, amount_deposit, amount_remaining, amount_total, booking_timezone, en_route_at, arrived_at, job_request_id, scope_confirmed_at, job_details_snapshot, photos_snapshot, no_show_eligible_at, scheduled_start_at, grace_period_minutes, customer_confirmed, confirmed_by_customer_at';
 
     let proIdForQuery: string | null = null;
     if (role === 'pro') {
@@ -144,6 +144,12 @@ export async function GET(
       .eq('booking_id', id)
       .maybeSingle();
 
+    const { data: customerReviewRow } = await admin
+      .from('booking_reviews')
+      .select('id')
+      .eq('booking_id', id)
+      .maybeSingle();
+
     const { data: pendRow } = await admin
       .from('reschedule_requests')
       .select(
@@ -206,6 +212,8 @@ export async function GET(
       on_the_way_at?: string | null;
       arrived_at?: string | null;
       cancelled_at?: string | null;
+      customer_confirmed?: boolean | null;
+      confirmed_by_customer_at?: string | null;
     };
 
     const remainingMoney: BookingMoneySnapshot = {
@@ -300,6 +308,9 @@ export async function GET(
                 completedAt: completion.completed_at,
               }
             : null,
+          hasCustomerReview: Boolean(customerReviewRow),
+          customerConfirmed: b.customer_confirmed === true,
+          confirmedByCustomerAt: b.confirmed_by_customer_at ?? null,
         },
       },
       { status: 200, headers: { 'Cache-Control': 'no-store' } }

@@ -30,6 +30,7 @@ import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { submitReviewAction } from '@/app/actions/reviews';
 import { supabase } from '@/lib/supabaseClient';
+import { isCustomerBookingEligibleForReview } from '@/lib/bookings/customer-review-eligibility';
 
 type PageState = 'loading' | 'form' | 'submitting' | 'success' | 'already_reviewed' | 'error';
 
@@ -63,8 +64,6 @@ const NEGATIVE_TAGS = [
   'Unprofessional',
 ];
 
-const REVIEWABLE_STATUSES = ['completed', 'awaiting_payment', 'paid', 'completed_pending_payment', 'fully_paid'];
-
 export default function LeaveReviewPage({
   params,
 }: {
@@ -97,7 +96,7 @@ export default function LeaveReviewPage({
       const b = json.booking as BookingData & { completion?: unknown };
       setBooking(b);
 
-      if (!REVIEWABLE_STATUSES.includes(b.status)) {
+      if (!isCustomerBookingEligibleForReview(b.status)) {
         setState('error');
         setErrorMessage('This booking is not ready for review yet.');
         return;

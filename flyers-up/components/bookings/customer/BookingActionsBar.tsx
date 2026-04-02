@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { mapDbStatusToTimeline } from '@/components/jobs/jobStatus';
+import { isCustomerBookingEligibleForReview } from '@/lib/bookings/customer-review-eligibility';
 
 const NO_RESCHEDULE_STATUSES = ['pro_en_route', 'on_the_way', 'arrived', 'in_progress', 'completed', 'paid', 'cancelled', 'declined'];
 const NO_CANCEL_STATUSES = ['cancelled', 'declined', 'completed', 'awaiting_customer_confirmation', 'paid', 'fully_paid'];
@@ -9,6 +10,8 @@ const NO_CANCEL_STATUSES = ['cancelled', 'declined', 'completed', 'awaiting_cust
 export interface BookingActionsBarProps {
   bookingId: string;
   status: string;
+  /** When true, customer already has a row in booking_reviews — link to review page shows summary. */
+  hasCustomerReview?: boolean;
   primaryAction?: React.ReactNode;
   proId?: string | null;
   serviceName?: string | null;
@@ -21,6 +24,7 @@ export interface BookingActionsBarProps {
 export function BookingActionsBar({
   bookingId,
   status,
+  hasCustomerReview = false,
   primaryAction,
   proId,
   serviceName,
@@ -31,6 +35,8 @@ export function BookingActionsBar({
 }: BookingActionsBarProps) {
   const timelineStatus = mapDbStatusToTimeline(status);
   const isCompleted = timelineStatus === 'COMPLETED' || timelineStatus === 'PAID';
+  const reviewHref = `/customer/bookings/${bookingId}/review`;
+  const showReviewAction = isCustomerBookingEligibleForReview(status);
   const canReschedule = !NO_RESCHEDULE_STATUSES.includes(status);
   const canCancel = !NO_CANCEL_STATUSES.includes(status);
 
@@ -84,12 +90,12 @@ export function BookingActionsBar({
           Rebook Same Pro
         </Link>
       )}
-      {isCompleted && (
+      {showReviewAction && (
         <Link
-          href={`/jobs/${bookingId}`}
+          href={reviewHref}
           className="h-11 flex items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all"
         >
-          Leave a review
+          {hasCustomerReview ? 'View your review' : 'Leave a review'}
         </Link>
       )}
       {primaryAction && (

@@ -41,7 +41,7 @@ async function getCustomerBooking(bookingId: string) {
   let bookingQuery = admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_subtotal, amount_deposit, amount_remaining, amount_total, service_date, service_time, booking_timezone, address, notes, status, price, created_at, accepted_at, en_route_at, on_the_way_at, arrived_at, started_at, completed_at, cancelled_at, status_history, job_request_id, scope_confirmed_at, no_show_eligible_at, scheduled_start_at, grace_period_minutes'
+      'id, customer_id, pro_id, payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, platform_fee_cents, refunded_total_cents, total_amount_cents, amount_subtotal, amount_deposit, amount_remaining, amount_total, service_date, service_time, booking_timezone, address, notes, status, price, created_at, accepted_at, en_route_at, on_the_way_at, arrived_at, started_at, completed_at, cancelled_at, status_history, job_request_id, scope_confirmed_at, no_show_eligible_at, scheduled_start_at, grace_period_minutes, customer_confirmed, confirmed_by_customer_at'
     )
     .eq('id', id);
 
@@ -88,6 +88,12 @@ async function getCustomerBooking(bookingId: string) {
     .eq('booking_id', id)
     .maybeSingle();
 
+  const { data: customerReviewRow } = await admin
+    .from('booking_reviews')
+    .select('id')
+    .eq('booking_id', id)
+    .maybeSingle();
+
   const b = booking as {
     payment_status?: string;
     paid_at?: string | null;
@@ -109,6 +115,8 @@ async function getCustomerBooking(bookingId: string) {
     en_route_at?: string | null;
     on_the_way_at?: string | null;
     cancelled_at?: string | null;
+    customer_confirmed?: boolean | null;
+    confirmed_by_customer_at?: string | null;
   };
 
   const remainingMoney: BookingMoneySnapshot = {
@@ -229,6 +237,9 @@ async function getCustomerBooking(bookingId: string) {
     scheduledStartAt: (booking as { scheduled_start_at?: string | null }).scheduled_start_at ?? null,
     gracePeriodMinutes: (booking as { grace_period_minutes?: number | null }).grace_period_minutes ?? 60,
     pendingReschedule: mapRescheduleRowToPending(pendRow as Record<string, unknown> | null),
+    hasCustomerReview: Boolean(customerReviewRow),
+    customerConfirmed: b.customer_confirmed === true,
+    confirmedByCustomerAt: b.confirmed_by_customer_at ?? null,
   };
 }
 

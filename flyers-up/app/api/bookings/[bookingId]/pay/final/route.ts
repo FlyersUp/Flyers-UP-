@@ -31,7 +31,12 @@ export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
 
 // Remaining payment only after pro has completed (with evidence). Prevents paying before job done.
-const ELIGIBLE_STATUSES = ['completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment'];
+const ELIGIBLE_STATUSES = [
+  'completed_pending_payment',
+  'awaiting_payment',
+  'awaiting_remaining_payment',
+  'awaiting_customer_confirmation',
+];
 
 export async function POST(
   _req: Request,

@@ -41,13 +41,14 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
-
-const ELIGIBLE_STATUSES = ['completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment'];
+import { isCustomerMoneyFullySettled } from '@/lib/bookings/customer-payment-settled';
+import { shouldShowCustomerPayRemainingCta } from '@/lib/bookings/customer-booking-actions';
 
 type PageState =
   | 'loading'
   | 'completed'
   | 'payment_success'
+  | 'needs_completion_confirm'
   | 'error'
   | 'not_eligible';
 
@@ -58,6 +59,7 @@ interface BookingData {
   finalPaymentStatus?: string | null;
   paidDepositAt?: string | null;
   paidRemainingAt?: string | null;
+  fullyPaidAt?: string | null;
   amountDeposit?: number | null;
   amountRemaining?: number | null;
   amountTotal?: number | null;
@@ -79,6 +81,7 @@ interface BookingData {
   } | null;
   photos_snapshot?: Array<{ category?: string; url: string }> | null;
   job_details_snapshot?: Record<string, unknown> | null;
+  customerConfirmed?: boolean;
 }
 
 function formatCents(cents: number): string {
@@ -126,6 +129,7 @@ export default function JobCompletePage({
   const [state, setState] = useState<PageState>('loading');
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [confirmingCompletion, setConfirmingCompletion] = useState(false);
 
   const fetchBooking = useCallback(async () => {
     setState('loading');
@@ -141,18 +145,46 @@ export default function JobCompletePage({
       const b = json.booking as BookingData;
       setBooking(b);
 
-      const isFullyPaid = b.finalPaymentStatus === 'PAID' || b.status === 'fully_paid' || b.status === 'paid';
+      const remainingDueCents = Math.max(0, Math.round(Number(b.amountRemaining ?? 0)));
+      const moneySettled = isCustomerMoneyFullySettled({
+        finalPaymentStatus: b.finalPaymentStatus,
+        paidRemainingAt: b.paidRemainingAt,
+        fullyPaidAt: b.fullyPaidAt,
+        amountRemaining: b.amountRemaining,
+      });
+      const customerConfirmed = b.customerConfirmed === true;
+
+      const needsCompletionConfirm =
+        b.status === 'awaiting_customer_confirmation' &&
+        !customerConfirmed &&
+        moneySettled &&
+        remainingDueCents === 0;
+
+      if (needsCompletionConfirm) {
+        setState('needs_completion_confirm');
+        return;
+      }
+
+      const isFullyPaid =
+        b.status === 'fully_paid' ||
+        b.status === 'paid' ||
+        moneySettled;
       if (isFullyPaid) {
         setState('payment_success');
         return;
       }
 
-      const isEligible =
-        ELIGIBLE_STATUSES.includes(b.status) &&
-        (b.paymentStatus === 'PAID' || (b.amountDeposit ?? 0) === 0) &&
-        !b.paidRemainingAt;
+      const canPayRemaining =
+        shouldShowCustomerPayRemainingCta({
+          status: b.status,
+          remainingDueCents,
+          finalPaymentStatus: b.finalPaymentStatus,
+          paidRemainingAt: b.paidRemainingAt,
+          fullyPaidAt: b.fullyPaidAt,
+          amountRemaining: b.amountRemaining,
+        }) && (b.paymentStatus === 'PAID' || (b.amountDeposit ?? 0) === 0);
 
-      if (!isEligible) {
+      if (!canPayRemaining) {
         setState('not_eligible');
         return;
       }
@@ -235,6 +267,45 @@ export default function JobCompletePage({
             </section>
           )}
 
+          {/* Paid in full but customer must confirm completion (no payment CTA) */}
+          {state === 'needs_completion_confirm' && booking && (
+            <>
+              <CompletionHeader />
+              <BookingRecapCard booking={booking} />
+              <CompletionEvidenceSection booking={booking} />
+              <PaymentSummaryCard booking={booking} />
+              <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface/95 backdrop-blur-sm p-4 pb-[env(safe-area-inset-bottom)] sm:relative sm:mt-8 sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0">
+                <div className="max-w-lg mx-auto space-y-3 sm:space-y-4">
+                  <p className="text-xs text-muted text-center -mt-2">
+                    Payment is complete. Confirm the job is finished to release payout to your pro.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={confirmingCompletion}
+                    onClick={async () => {
+                      setConfirmingCompletion(true);
+                      try {
+                        const res = await fetch(`/api/bookings/${bookingId}/confirm`, { method: 'POST' });
+                        if (res.ok) router.push(`/customer/bookings/${bookingId}`);
+                      } finally {
+                        setConfirmingCompletion(false);
+                      }
+                    }}
+                    className="flex h-12 w-full items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.68)] bg-[#B2FBA5] text-sm font-semibold text-black transition-colors hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-[var(--ring-orange)] focus:ring-offset-2 disabled:opacity-60"
+                  >
+                    {confirmingCompletion ? 'Confirming…' : 'Confirm job completion'}
+                  </button>
+                  <Link
+                    href={`/customer/bookings/${bookingId}`}
+                    className="block text-center text-xs font-medium text-text3 hover:text-text"
+                  >
+                    Back to booking
+                  </Link>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* PAYMENT SUCCESS */}
           {state === 'payment_success' && booking && (
             <>
@@ -302,15 +373,28 @@ export default function JobCompletePage({
               {/* 6. Actions - sticky on mobile */}
               <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface/95 backdrop-blur-sm p-4 pb-[env(safe-area-inset-bottom)] sm:relative sm:mt-8 sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0">
                 <div className="max-w-lg mx-auto space-y-3 sm:space-y-4">
-                  <p className="text-xs text-muted text-center -mt-2">
-                    Your payment is protected until you confirm
-                  </p>
-                  <Link
-                    href={checkoutHref}
-                    className="flex h-12 w-full items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.68)] bg-accentOrange text-sm font-semibold text-[hsl(var(--accent-contrast))] transition-colors hover:bg-[hsl(var(--accent-pro)/0.92)] focus:outline-none focus:ring-2 focus:ring-[var(--ring-orange)] focus:ring-offset-2"
-                  >
-                    Release remaining payment
-                  </Link>
+                  {!isCustomerMoneyFullySettled({
+                    finalPaymentStatus: booking.finalPaymentStatus,
+                    paidRemainingAt: booking.paidRemainingAt,
+                    fullyPaidAt: booking.fullyPaidAt,
+                    amountRemaining: booking.amountRemaining,
+                  }) ? (
+                    <>
+                      <p className="text-xs text-muted text-center -mt-2">
+                        Pay the remaining balance — you&apos;ll confirm job completion after payment is settled.
+                      </p>
+                      <Link
+                        href={checkoutHref}
+                        className="flex h-12 w-full items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.68)] bg-accentOrange text-sm font-semibold text-[hsl(var(--accent-contrast))] transition-colors hover:bg-[hsl(var(--accent-pro)/0.92)] focus:outline-none focus:ring-2 focus:ring-[var(--ring-orange)] focus:ring-offset-2"
+                      >
+                        Release remaining payment
+                      </Link>
+                    </>
+                  ) : (
+                    <p className="text-xs text-center text-muted py-2" role="status">
+                      Payment complete — no balance due.
+                    </p>
+                  )}
                   <div className="flex gap-3 sm:flex-wrap">
                     <Link
                       href={conversationHref}

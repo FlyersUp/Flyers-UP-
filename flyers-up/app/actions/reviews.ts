@@ -8,6 +8,7 @@
 
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { requireCustomerUser } from '@/app/actions/_auth';
+import { isCustomerBookingEligibleForReview } from '@/lib/bookings/customer-review-eligibility';
 
 export interface SubmitReviewResult {
   success: boolean;
@@ -49,7 +50,7 @@ export async function submitReviewAction(
       return { success: false, error: 'Booking not found.' };
     }
 
-    if (booking.status !== 'completed' && booking.status !== 'awaiting_payment' && booking.status !== 'paid' && booking.status !== 'completed_pending_payment') {
+    if (!isCustomerBookingEligibleForReview(String(booking.status ?? ''))) {
       return { success: false, error: 'You can only review completed bookings.' };
     }
 

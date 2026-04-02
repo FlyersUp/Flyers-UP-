@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, type ReactNode } from 'react';
 import { useHydrated } from '@/hooks/useHydrated';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -27,6 +27,11 @@ import { JobCompletedFlyer } from '@/components/marketplace/JobCompletedFlyer';
 import { bottomChrome } from '@/lib/layout/bottomChrome';
 import { ProPendingReschedulePanel } from '@/components/bookings/ProPendingReschedulePanel';
 import { calendarWallTimesWithPending, pendingRescheduleLine } from '@/lib/bookings/pending-reschedule';
+import { isCustomerMoneyFullySettled } from '@/lib/bookings/customer-payment-settled';
+import {
+  shouldShowCustomerConfirmCompletionCta,
+  shouldShowCustomerPayRemainingCta,
+} from '@/lib/bookings/customer-booking-actions';
 
 export interface BookingDetailData {
   id: string;
@@ -84,6 +89,10 @@ export interface BookingDetailData {
   scheduledStartAt?: string | null;
   gracePeriodMinutes?: number;
   pendingReschedule?: import('@/lib/bookings/pending-reschedule').PendingRescheduleInfo | null;
+  /** True when a booking_reviews row exists for this booking (customer). */
+  hasCustomerReview?: boolean;
+  customerConfirmed?: boolean;
+  confirmedByCustomerAt?: string | null;
 }
 
 function toTrackBookingData(b: BookingDetailData): TrackBookingData {
@@ -122,60 +131,10 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     bookingTimezone: b.bookingTimezone ?? null,
     address: b.address,
     pendingReschedule: b.pendingReschedule ?? null,
+    hasCustomerReview: b.hasCustomerReview ?? false,
+    customerConfirmed: b.customerConfirmed,
+    confirmedByCustomerAt: b.confirmedByCustomerAt ?? null,
   };
-}
-
-function getPrimaryAction(
-  booking: BookingDetailData & TrackBookingData,
-  bookingId: string,
-  /** When false (SSR + first paint), skip Date.now() so server and client markup match. */
-  checkPaymentDeadline: boolean
-) {
-  const needsScopeLock =
-    (booking as { job_request_id?: string | null }).job_request_id &&
-    !(booking as { scope_confirmed_at?: string | null }).scope_confirmed_at;
-  const needsDeposit =
-    !needsScopeLock &&
-    ['payment_required', 'accepted', 'accepted_pending_payment', 'awaiting_deposit_payment'].includes(booking.status) &&
-    !booking.paidAt &&
-    booking.paymentDueAt &&
-    (!checkPaymentDeadline || new Date(booking.paymentDueAt).getTime() > Date.now());
-  const needsRemaining =
-    ['completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment'].includes(booking.status) &&
-    !booking.paidRemainingAt &&
-    !booking.fullyPaidAt;
-
-  if (needsScopeLock) {
-    return (
-      <Link
-        href={`/customer/bookings/${bookingId}/scope-lock`}
-        className="flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-black bg-[#B2FBA5] hover:brightness-95 transition-all"
-      >
-        Confirm Scope (required before deposit)
-      </Link>
-    );
-  }
-  if (needsDeposit) {
-    return (
-      <Link
-        href={`/customer/bookings/${bookingId}/deposit`}
-        className="flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all"
-      >
-        Pay deposit {booking.amountDeposit != null ? `$${(booking.amountDeposit / 100).toFixed(2)}` : ''}
-      </Link>
-    );
-  }
-  if (needsRemaining) {
-    return (
-      <Link
-        href={`/customer/bookings/${bookingId}/complete`}
-        className="flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all"
-      >
-        Pay remaining {booking.amountRemaining != null ? `$${(booking.amountRemaining / 100).toFixed(2)}` : ''}
-      </Link>
-    );
-  }
-  return null;
 }
 
 function getLastUpdatedTimestamp(booking: TrackBookingData): string | null {
@@ -212,6 +171,7 @@ export function BookingDetailContent({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [confirmingCompletion, setConfirmingCompletion] = useState(false);
   const hydrated = useHydrated();
 
   const fetchBooking = useCallback(async (): Promise<TrackBookingData | null> => {
@@ -241,8 +201,127 @@ export function BookingDetailContent({
         });
         const fullBooking = { ...initialBooking, ...booking } as BookingDetailData & TrackBookingData;
         const hasAddressOrNotes = !!(fullBooking.address || fullBooking.notes);
-        const primaryAction = getPrimaryAction(fullBooking, bookingId, hydrated);
-        const showConfirmSlot = booking.status === 'awaiting_customer_confirmation';
+        const checkPaymentDeadline = hydrated;
+        const needsScopeLock =
+          (fullBooking as { job_request_id?: string | null }).job_request_id &&
+          !(fullBooking as { scope_confirmed_at?: string | null }).scope_confirmed_at;
+        const needsDeposit =
+          !needsScopeLock &&
+          ['payment_required', 'accepted', 'accepted_pending_payment', 'awaiting_deposit_payment'].includes(
+            booking.status
+          ) &&
+          !booking.paidAt &&
+          booking.paymentDueAt &&
+          (!checkPaymentDeadline || new Date(booking.paymentDueAt).getTime() > Date.now());
+
+        const remainingDueCents = Math.max(0, Math.round(Number(booking.amountRemaining ?? 0)));
+        const moneySettled = isCustomerMoneyFullySettled({
+          finalPaymentStatus: booking.finalPaymentStatus,
+          paidRemainingAt: booking.paidRemainingAt,
+          fullyPaidAt: booking.fullyPaidAt,
+          amountRemaining: booking.amountRemaining,
+        });
+        const customerConfirmed = fullBooking.customerConfirmed === true;
+        const showPayRemaining = shouldShowCustomerPayRemainingCta({
+          status: booking.status,
+          remainingDueCents,
+          finalPaymentStatus: booking.finalPaymentStatus,
+          paidRemainingAt: booking.paidRemainingAt,
+          fullyPaidAt: booking.fullyPaidAt,
+          amountRemaining: booking.amountRemaining,
+        });
+        const showConfirmCompletion = shouldShowCustomerConfirmCompletionCta({
+          status: booking.status,
+          remainingDueCents,
+          moneyFullySettled: moneySettled,
+          customerConfirmed,
+        });
+
+        const checkoutFinalHref = `/bookings/${bookingId}/checkout?phase=final`;
+
+        const confirmCompletionButtonClass =
+          'w-full flex h-11 items-center justify-center rounded-full text-sm font-semibold text-black bg-[#B2FBA5] hover:brightness-95 disabled:opacity-60';
+
+        const payRemainingLinkClass =
+          'flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all';
+
+        let primaryAction: ReactNode = null;
+        if (needsScopeLock) {
+          primaryAction = (
+            <Link
+              href={`/customer/bookings/${bookingId}/scope-lock`}
+              className="flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-black bg-[#B2FBA5] hover:brightness-95 transition-all"
+            >
+              Confirm Scope (required before deposit)
+            </Link>
+          );
+        } else if (needsDeposit) {
+          primaryAction = (
+            <Link
+              href={`/customer/bookings/${bookingId}/deposit`}
+              className="flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 transition-all"
+            >
+              Pay deposit {booking.amountDeposit != null ? `$${(booking.amountDeposit / 100).toFixed(2)}` : ''}
+            </Link>
+          );
+        } else if (showPayRemaining) {
+          primaryAction = (
+            <Link href={checkoutFinalHref} className={payRemainingLinkClass}>
+              {remainingDueCents > 0
+                ? `Release remaining payment${booking.amountRemaining != null ? ` ($${(booking.amountRemaining / 100).toFixed(2)})` : ''}`
+                : 'Release remaining payment'}
+            </Link>
+          );
+        } else if (showConfirmCompletion) {
+          primaryAction = (
+            <button
+              type="button"
+              disabled={confirmingCompletion}
+              onClick={async () => {
+                setConfirmingCompletion(true);
+                try {
+                  const res = await fetch(`/api/bookings/${bookingId}/confirm`, { method: 'POST' });
+                  if (res.ok) router.refresh();
+                } finally {
+                  setConfirmingCompletion(false);
+                }
+              }}
+              className={confirmCompletionButtonClass}
+            >
+              {confirmingCompletion ? 'Confirming…' : 'Confirm job completion'}
+            </button>
+          );
+        }
+
+        const paymentSummaryPrimary =
+          showPayRemaining ? (
+            <div>
+              <p className="text-xs text-muted mb-2">Pay the remaining balance — funds stay protected until you confirm the job.</p>
+              <Link href={checkoutFinalHref} className={payRemainingLinkClass}>
+                Release remaining payment
+              </Link>
+            </div>
+          ) : showConfirmCompletion ? (
+            <div>
+              <p className="text-xs text-muted mb-2">Confirm the job is complete to release payout to your pro.</p>
+              <button
+                type="button"
+                disabled={confirmingCompletion}
+                onClick={async () => {
+                  setConfirmingCompletion(true);
+                  try {
+                    const res = await fetch(`/api/bookings/${bookingId}/confirm`, { method: 'POST' });
+                    if (res.ok) router.refresh();
+                  } finally {
+                    setConfirmingCompletion(false);
+                  }
+                }}
+                className={confirmCompletionButtonClass}
+              >
+                {confirmingCompletion ? 'Confirming…' : 'Confirm job completion'}
+              </button>
+            </div>
+          ) : undefined;
 
         return (
           <div className={primaryAction ? bottomChrome.pbStickyBarOnly : ''} data-role="customer">
@@ -384,23 +463,7 @@ export function BookingDetailContent({
                 address={fullBooking.address}
                 serviceDate={booking.serviceDate}
                 serviceTime={booking.serviceTime}
-                primaryAction={
-                  showConfirmSlot ? (
-                    <div>
-                      <p className="text-xs text-muted mb-2">Your payment is protected until you confirm</p>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const res = await fetch(`/api/bookings/${bookingId}/confirm`, { method: 'POST' });
-                          if (res.ok) router.refresh();
-                        }}
-                        className="w-full flex h-11 items-center justify-center rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95"
-                      >
-                        Release remaining payment
-                      </button>
-                    </div>
-                  ) : undefined
-                }
+                primaryAction={paymentSummaryPrimary}
               />
             </section>
 
@@ -415,6 +478,7 @@ export function BookingDetailContent({
               <BookingActionsBar
                 bookingId={bookingId}
                 status={booking.status}
+                hasCustomerReview={fullBooking.hasCustomerReview ?? false}
                 primaryAction={primaryAction}
                 proId={fullBooking.proId}
                 serviceName={fullBooking.serviceName}

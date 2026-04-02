@@ -41,6 +41,10 @@ export interface TrackBookingData {
   bookingTimezone?: string | null;
   address?: string;
   pendingReschedule?: PendingRescheduleInfo | null;
+  hasCustomerReview?: boolean;
+  /** Explicit customer completion confirmation (bookings.customer_confirmed). */
+  customerConfirmed?: boolean;
+  confirmedByCustomerAt?: string | null;
 }
 
 interface TrackBookingRealtimeProps {
