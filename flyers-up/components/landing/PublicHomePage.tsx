@@ -6,7 +6,7 @@
  */
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Logo from '@/components/Logo';
 import { HeaderBrand } from '@/components/HeaderBrand';
 import { OccupationGrid } from '@/components/occupations/OccupationGrid';
@@ -22,7 +22,11 @@ type Occupation = { id: string; name: string; slug: string; icon: string | null;
 
 export default function PublicHomePage() {
   const [featuredOccupations, setFeaturedOccupations] = useState<Occupation[]>([]);
+  const [allOccupations, setAllOccupations] = useState<Occupation[]>([]);
+  const [allOccupationsLoading, setAllOccupationsLoading] = useState(false);
+  const [showAllOccupations, setShowAllOccupations] = useState(false);
   const [proClosedBanner, setProClosedBanner] = useState(false);
+  const browseOccupationsSectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     try {
@@ -41,6 +45,37 @@ export default function PublicHomePage() {
       .then((data) => setFeaturedOccupations(data.occupations ?? []))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!showAllOccupations || allOccupations.length > 0) return;
+    let cancelled = false;
+    setAllOccupationsLoading(true);
+    fetch('/api/occupations', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setAllOccupations(data.occupations ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setAllOccupations([]);
+      })
+      .finally(() => {
+        if (!cancelled) setAllOccupationsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showAllOccupations, allOccupations.length]);
+
+  useEffect(() => {
+    if (!showAllOccupations || allOccupationsLoading) return;
+    const id = window.requestAnimationFrame(() => {
+      browseOccupationsSectionRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [showAllOccupations, allOccupationsLoading]);
   return (
     <div className="min-h-screen bg-[#FAF6F0]" style={{ '--accent-customer': '111 91% 82%' } as React.CSSProperties}>
       {proClosedBanner ? (
@@ -178,20 +213,53 @@ export default function PublicHomePage() {
         </div>
       </section>
 
-      {/* Browse Occupations */}
-      <section className="py-16 px-4 bg-[#F3EDE4]/90">
+      {/* Browse Occupations — featured collapsed; full list expands inline (no navigation) */}
+      <section
+        ref={browseOccupationsSectionRef}
+        id="browse-occupations"
+        className="scroll-mt-20 py-16 px-4 bg-[#F3EDE4]/90"
+        aria-label="Browse occupations"
+      >
         <div className="max-w-6xl mx-auto">
           <h2 className="text-2xl font-semibold text-zinc-900 mb-6 text-center">
             Browse Occupations
           </h2>
-          <OccupationGrid occupations={featuredOccupations} variant="featured" />
+          <div
+            id="landing-occupations-panel"
+            role="region"
+            aria-live="polite"
+            aria-label={showAllOccupations ? 'All occupations' : 'Featured occupations'}
+          >
+            {!showAllOccupations ? (
+              <OccupationGrid occupations={featuredOccupations} variant="featured" />
+            ) : allOccupationsLoading && allOccupations.length === 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div
+                    key={i}
+                    className="min-w-0 rounded-2xl border border-black/5 bg-white/80 p-4 h-36 animate-pulse"
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-300">
+                <h3 className="text-sm font-semibold text-zinc-600 uppercase tracking-wide mb-3 text-center">
+                  All occupations
+                </h3>
+                <OccupationGrid occupations={allOccupations} variant="all" />
+              </div>
+            )}
+          </div>
           <div className="mt-8 text-center">
-            <Link
-              href="/occupations"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white border border-black/5 text-zinc-900 font-medium shadow-[0_10px_25px_rgba(0,0,0,0.06)] hover:shadow-[0_14px_30px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 transition-all"
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white border border-black/5 text-zinc-900 font-medium shadow-[0_10px_25px_rgba(0,0,0,0.06)] hover:shadow-[0_14px_30px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-customer))] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F3EDE4]"
+              aria-expanded={showAllOccupations}
+              aria-controls="landing-occupations-panel"
+              onClick={() => setShowAllOccupations((v) => !v)}
             >
-              More Occupations →
-            </Link>
+              {showAllOccupations ? 'Show Less' : 'More Occupations →'}
+            </button>
           </div>
         </div>
       </section>
