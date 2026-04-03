@@ -1,23 +1,29 @@
-import { RequestIcon, MatchIcon, ScheduleIcon } from '@/components/Icons';
+import { RequestIcon, MatchIcon, MessageIcon, ScheduleIcon } from '@/components/Icons';
 import { MarketingSection } from '@/components/marketing/ui/Section';
 
 const steps = [
   {
     n: 1,
-    title: 'Request',
-    description: 'Describe what you need and when—so pros can respond with clarity.',
+    title: 'Request your service',
+    description: 'Tell us what you need and when you need it.',
     Icon: RequestIcon,
   },
   {
     n: 2,
-    title: 'Match',
-    description: 'Compare verified local pros who fit your job and budget.',
+    title: 'Compare qualified pros',
+    description: 'View pricing, profiles, and availability.',
     Icon: MatchIcon,
   },
   {
     n: 3,
-    title: 'Schedule',
-    description: 'Confirm details in writing and lock in a time that works.',
+    title: 'Book with clarity',
+    description: "Know exactly what's included before the job starts.",
+    Icon: MessageIcon,
+  },
+  {
+    n: 4,
+    title: 'Get it done right',
+    description: 'Track progress and pay securely through the app.',
     Icon: ScheduleIcon,
   },
 ] as const;
@@ -26,17 +32,15 @@ export function MarketingHowItWorks() {
   return (
     <MarketingSection id="how-it-works" className="bg-market-linen">
       <div className="text-center">
-        <p className="text-sm font-bold uppercase tracking-wide text-market-slate">
-          How it works
-        </p>
+        <p className="text-sm font-bold uppercase tracking-wide text-market-slate">How it works</p>
         <h2 className="mt-2 text-3xl font-bold tracking-tight text-market-slate sm:text-4xl">
-          Three calm steps
+          How Flyers Up works
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-lg text-market-charcoal">
-          Built for neighbors—not anonymous gig churn.
+          A straightforward path from request to completion.
         </p>
       </div>
-      <div className="mt-12 grid gap-6 md:grid-cols-3 md:gap-8">
+      <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 md:gap-8">
         {steps.map(({ n, title, description, Icon }) => (
           <div
             key={title}

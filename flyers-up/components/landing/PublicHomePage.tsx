@@ -9,7 +9,10 @@ import { MarketingNavbar } from '@/components/marketing/MarketingNavbar';
 import { MarketingHero } from '@/components/marketing/MarketingHero';
 import { MarketingCategoryCard } from '@/components/marketing/MarketingCategoryCard';
 import { MarketingHowItWorks } from '@/components/marketing/MarketingHowItWorks';
-import { MarketingTrustSection } from '@/components/marketing/MarketingTrustSection';
+import { MarketingProblemSolution } from '@/components/marketing/MarketingProblemSolution';
+import { MarketingValueStack } from '@/components/marketing/MarketingValueStack';
+import { MarketingTestimonials } from '@/components/marketing/MarketingTestimonials';
+import { MarketingRiskReversal } from '@/components/marketing/MarketingRiskReversal';
 import { MarketingProCta } from '@/components/marketing/MarketingProCta';
 import { MarketingFooter } from '@/components/marketing/MarketingFooter';
 import { MarketingButton } from '@/components/marketing/ui/Button';
@@ -115,7 +118,7 @@ export default function PublicHomePage() {
             Popular services
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-lg text-market-charcoal">
-            Start with a category—every listing is built for clear expectations upfront.
+            Browse categories, compare pros, and book when it feels right.
           </p>
         </div>
         <div
@@ -167,16 +170,19 @@ export default function PublicHomePage() {
       </MarketingSection>
 
       <MarketingHowItWorks />
-      <MarketingTrustSection />
+      <MarketingProblemSolution />
+      <MarketingValueStack />
+      <MarketingTestimonials />
+      <MarketingRiskReversal />
       <MarketingProCta />
 
       <MarketingSection className="bg-market-linen pb-20 pt-4">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-2xl font-bold text-market-slate sm:text-3xl">
-            Ready when you are
+            Find the right pro for your job today
           </h2>
           <p className="mt-3 text-lg text-market-charcoal">
-            Request a service in minutes—stay in control from first message to done.
+            Request a service, compare options, and hire with confidence.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <MarketingButton
@@ -185,9 +191,6 @@ export default function PublicHomePage() {
               className="min-w-[220px] px-8 py-4 text-base font-bold shadow-[0_6px_24px_rgba(255,179,71,0.5)]"
             >
               Request a Service (Free)
-            </MarketingButton>
-            <MarketingButton href="/trust-verification" variant="outline" className="min-w-[220px] px-8 py-4 text-base">
-              How we verify pros
             </MarketingButton>
           </div>
         </div>

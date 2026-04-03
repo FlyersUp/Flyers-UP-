@@ -1,16 +1,18 @@
 import { HeroIllustration } from '@/components/marketing/HeroIllustration';
 import { MarketingButton } from '@/components/marketing/ui/Button';
 
+const TRUST_BAR_ITEMS = ['Verified Pros', 'Upfront Pricing', 'Clear Expectations', 'Secure Payments'] as const;
+
 export function MarketingHero() {
   return (
     <section className="relative overflow-hidden bg-market-linen px-4 pb-16 pt-10 md:pb-20 md:pt-14">
       <div className="relative mx-auto max-w-6xl">
         <div className="mx-auto max-w-3xl text-center">
           <h1 className="text-4xl font-bold leading-tight tracking-tight text-market-slate sm:text-5xl lg:text-[3.25rem] lg:leading-[1.12]">
-            Hire trusted local pros with clearer expectations.
+            Hire reliable local pros without the usual stress.
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-lg text-market-charcoal sm:text-xl">
-            Verified pros. Transparent pricing. Reliable service.
+            Verified pros, clear pricing, and a simple step-by-step process—from request to completion.
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
             <MarketingButton
@@ -27,6 +29,25 @@ export function MarketingHero() {
             >
               Browse Services
             </MarketingButton>
+          </div>
+          <p className="mx-auto mt-5 max-w-xl text-center text-sm text-market-charcoal">
+            No commitment. Compare options. Hire only when you&apos;re ready.
+          </p>
+          <div
+            className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm font-semibold text-market-slate"
+            role="list"
+            aria-label="Trust highlights"
+          >
+            {TRUST_BAR_ITEMS.map((label, i) => (
+              <span key={label} className="flex items-center gap-x-3" role="listitem">
+                {i > 0 ? (
+                  <span className="text-market-slate" aria-hidden>
+                    ·
+                  </span>
+                ) : null}
+                <span>{label}</span>
+              </span>
+            ))}
           </div>
         </div>
         <div className="mt-12 overflow-hidden rounded-2xl border border-market-line/80 bg-white shadow-[0_8px_32px_rgba(74,105,189,0.08),0_2px_8px_rgba(45,52,54,0.06)]">
