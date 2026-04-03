@@ -5,6 +5,7 @@
 
 import type { NotificationType } from './types';
 import { NOTIFICATION_TYPES } from './types';
+import { bookingDetailPathForRole } from '@/lib/bookings/booking-routes';
 
 export function getTargetPathForNotification(
   type: NotificationType,
@@ -25,7 +26,7 @@ export function getTargetPathForNotification(
   if (type === 'nearby_pro_alert' && entityType === 'pro' && entityId) {
     return `${prefix}/pros/${entityId}?nearby=1`;
   }
-  if (bookingId) return `${prefix}/bookings/${bookingId}`;
+  if (bookingId) return bookingDetailPathForRole(bp === 'pro' ? 'pro' : 'customer', bookingId);
   if (conversationId) return bp === 'pro' ? `/pro/chat/conversation/${conversationId}` : `${prefix}/chat/conversation/${conversationId}`;
   if (reviewId) return `${prefix}/reviews/${reviewId}`;
 

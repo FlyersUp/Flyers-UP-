@@ -15,6 +15,7 @@ import { BookingSummaryDeposit, type QuoteBreakdown } from '@/components/checkou
 import { DepositPayBar } from '@/components/checkout/DepositPayBar';
 import { BookingLoadErrorPage } from '@/components/checkout/BookingLoadErrorPage';
 import { QuickRulesSheet } from '@/components/booking/QuickRulesSheet';
+import { bookingConfirmedPath } from '@/lib/bookings/booking-routes';
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
   : null;
@@ -299,7 +300,7 @@ function DepositContent({ bookingId }: { bookingId: string }) {
                 bookingId={bookingId}
                 quoteData={quoteData}
                 onSuccess={() => {
-                  window.location.href = `/bookings/${bookingId}/confirmed`;
+                  window.location.href = bookingConfirmedPath(bookingId);
                 }}
                 onPaymentError={setPaymentError}
               />

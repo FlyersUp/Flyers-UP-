@@ -73,18 +73,19 @@ function CustomerBookingsHistoryContent() {
       setLoading(true);
       const todayISO = todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE);
       try {
+        const reqInit = { cache: 'no-store' as const, credentials: 'include' as const };
         const [upcomingRes, completedRes, cancelledRes] = await Promise.all([
           fetch(
             `/api/customer/bookings?from=${todayISO}&limit=50&statuses=${encodeURIComponent(UPCOMING_STATUSES)}`,
-            { cache: 'no-store' }
+            reqInit
           ),
           fetch(
             `/api/customer/bookings?limit=50&statuses=${encodeURIComponent(COMPLETED_STATUSES)}`,
-            { cache: 'no-store' }
+            reqInit
           ),
           fetch(
             `/api/customer/bookings?limit=50&statuses=${encodeURIComponent(CANCELLED_STATUSES)}`,
-            { cache: 'no-store' }
+            reqInit
           ),
         ]);
 

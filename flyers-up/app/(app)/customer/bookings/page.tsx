@@ -58,6 +58,8 @@ function CustomerBookingsContent() {
   const [cancelled, setCancelled] = useState<BookingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<BookingsTab>('active');
+  const [loadError, setLoadError] = useState<'auth' | 'network' | 'server' | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -70,27 +72,38 @@ function CustomerBookingsContent() {
     let mounted = true;
     (async () => {
       setLoading(true);
+      setLoadError(null);
       try {
+        const reqInit = { cache: 'no-store' as const, credentials: 'include' as const };
         const [activeRes, completedRes, cancelledRes] = await Promise.all([
           // Do not filter by service_date: "Active" is workflow state (e.g. deposit paid on a past-dated booking still counts).
-          fetch(`/api/customer/bookings?limit=50&statuses=${encodeURIComponent(ACTIVE_STATUSES)}`, {
-            cache: 'no-store',
-          }),
+          fetch(`/api/customer/bookings?limit=50&statuses=${encodeURIComponent(ACTIVE_STATUSES)}`, reqInit),
           fetch(
             `/api/customer/bookings?limit=50&statuses=${encodeURIComponent(COMPLETED_STATUSES)}`,
-            { cache: 'no-store' }
+            reqInit
           ),
           fetch(
             `/api/customer/bookings?limit=50&statuses=${encodeURIComponent(CANCELLED_STATUSES)}`,
-            { cache: 'no-store' }
+            reqInit
           ),
         ]);
+
+        if (!mounted) return;
+
+        if (!activeRes.ok || !completedRes.ok || !cancelledRes.ok) {
+          const failed = [activeRes, completedRes, cancelledRes].find((r) => !r.ok)!;
+          setLoadError(failed.status === 401 ? 'auth' : 'server');
+          setActive([]);
+          setCompleted([]);
+          setCancelled([]);
+          setLoading(false);
+          return;
+        }
 
         const activeJson = (await activeRes.json()) as { ok?: boolean; bookings?: BookingRow[] };
         const completedJson = (await completedRes.json()) as { ok?: boolean; bookings?: BookingRow[] };
         const cancelledJson = (await cancelledRes.json()) as { ok?: boolean; bookings?: BookingRow[] };
 
-        if (!mounted) return;
         const act = activeJson.ok && activeJson.bookings ? [...activeJson.bookings].sort(sortByRecent) : [];
         const comp = completedJson.ok && completedJson.bookings ? [...completedJson.bookings].sort(sortByRecent) : [];
         const canc = cancelledJson.ok && cancelledJson.bookings ? [...cancelledJson.bookings].sort(sortByRecent) : [];
@@ -99,6 +112,7 @@ function CustomerBookingsContent() {
         setCancelled(canc);
       } catch {
         if (!mounted) return;
+        setLoadError('network');
         setActive([]);
         setCompleted([]);
         setCancelled([]);
@@ -107,7 +121,7 @@ function CustomerBookingsContent() {
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [reloadKey]);
 
   const rows =
     activeTab === 'active' ? active : activeTab === 'completed' ? completed : cancelled;
@@ -125,6 +139,42 @@ function CustomerBookingsContent() {
       >
         {loading ? (
           <p className="text-sm text-black/60">Loading…</p>
+        ) : loadError ? (
+          <DashboardCard>
+            <div className="p-4 space-y-3">
+              <p className="font-semibold text-[#111]">
+                {loadError === 'auth'
+                  ? 'Sign in required'
+                  : loadError === 'network'
+                    ? 'Connection problem'
+                    : 'Could not load bookings'}
+              </p>
+              <p className="text-sm text-black/60">
+                {loadError === 'auth'
+                  ? 'Your session may have expired. Sign in again to see your bookings.'
+                  : loadError === 'network'
+                    ? 'Check your network and try again.'
+                    : 'Something went wrong on our side. You can retry or open a booking from a notification link.'}
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setReloadKey((k) => k + 1)}
+                  className="inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold bg-[#111] text-white hover:opacity-90"
+                >
+                  Try again
+                </button>
+                {loadError === 'auth' ? (
+                  <Link
+                    href={`/auth?next=${encodeURIComponent('/customer/bookings')}`}
+                    className="inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold border border-black/15 hover:bg-black/[0.04]"
+                  >
+                    Sign in
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          </DashboardCard>
         ) : rows.length === 0 ? (
           <DashboardCard>
             <div className="p-4">

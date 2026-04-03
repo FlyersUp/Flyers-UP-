@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, type ReactNode } from 'react';
-import { useHydrated } from '@/hooks/useHydrated';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { TrackBookingRealtime, type TrackBookingData } from '@/components/bookings/TrackBookingRealtime';
@@ -30,6 +29,7 @@ import { calendarWallTimesWithPending, pendingRescheduleLine } from '@/lib/booki
 import { isCustomerMoneyFullySettled } from '@/lib/bookings/customer-payment-settled';
 import {
   shouldShowCustomerConfirmCompletionCta,
+  shouldShowCustomerDepositPayCta,
   shouldShowCustomerPayRemainingCta,
 } from '@/lib/bookings/customer-booking-actions';
 
@@ -172,11 +172,13 @@ export function BookingDetailContent({
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [confirmingCompletion, setConfirmingCompletion] = useState(false);
-  const hydrated = useHydrated();
 
   const fetchBooking = useCallback(async (): Promise<TrackBookingData | null> => {
     try {
-      const res = await fetch(`/api/customer/bookings/${bookingId}`, { cache: 'no-store' });
+      const res = await fetch(`/api/customer/bookings/${bookingId}`, {
+        cache: 'no-store',
+        credentials: 'include',
+      });
       const json = await res.json();
       if (!res.ok) return null;
       return json.booking as TrackBookingData;
@@ -201,18 +203,17 @@ export function BookingDetailContent({
         });
         const fullBooking = { ...initialBooking, ...booking } as BookingDetailData & TrackBookingData;
         const hasAddressOrNotes = !!(fullBooking.address || fullBooking.notes);
-        const checkPaymentDeadline = hydrated;
         const needsScopeLock =
           (fullBooking as { job_request_id?: string | null }).job_request_id &&
           !(fullBooking as { scope_confirmed_at?: string | null }).scope_confirmed_at;
         const needsDeposit =
           !needsScopeLock &&
-          ['payment_required', 'accepted', 'accepted_pending_payment', 'awaiting_deposit_payment'].includes(
-            booking.status
-          ) &&
-          !booking.paidAt &&
-          booking.paymentDueAt &&
-          (!checkPaymentDeadline || new Date(booking.paymentDueAt).getTime() > Date.now());
+          shouldShowCustomerDepositPayCta({
+            status: booking.status,
+            paidDepositAt: booking.paidDepositAt,
+            paidAt: booking.paidAt,
+            paymentStatus: booking.paymentStatus,
+          });
 
         const remainingDueCents = Math.max(0, Math.round(Number(booking.amountRemaining ?? 0)));
         const moneySettled = isCustomerMoneyFullySettled({
@@ -280,7 +281,10 @@ export function BookingDetailContent({
               onClick={async () => {
                 setConfirmingCompletion(true);
                 try {
-                  const res = await fetch(`/api/bookings/${bookingId}/confirm`, { method: 'POST' });
+                  const res = await fetch(`/api/bookings/${bookingId}/confirm`, {
+                    method: 'POST',
+                    credentials: 'include',
+                  });
                   if (res.ok) router.refresh();
                 } finally {
                   setConfirmingCompletion(false);
@@ -310,7 +314,10 @@ export function BookingDetailContent({
                 onClick={async () => {
                   setConfirmingCompletion(true);
                   try {
-                    const res = await fetch(`/api/bookings/${bookingId}/confirm`, { method: 'POST' });
+                    const res = await fetch(`/api/bookings/${bookingId}/confirm`, {
+                    method: 'POST',
+                    credentials: 'include',
+                  });
                     if (res.ok) router.refresh();
                   } finally {
                     setConfirmingCompletion(false);

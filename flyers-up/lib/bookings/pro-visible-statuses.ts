@@ -68,3 +68,17 @@ export function isTodayAtGlanceStatus(s: string): boolean {
 export function canProStart(s: string): boolean {
   return CAN_START_STATUSES.includes(s as (typeof CAN_START_STATUSES)[number]);
 }
+
+/**
+ * Pro Bookings page "Active" tab — all workflow statuses a pro must see (incoming + open jobs).
+ * Includes deposit-related states so accepted / awaiting-deposit / deposit-paid jobs never disappear
+ * from the list (regression fix: previous list omitted awaiting_deposit_payment and deposit_paid).
+ */
+const PRO_BOOKINGS_ACTIVE_TAB_STATUS_SET = new Set<string>([
+  'pending',
+  ...INCOMING_STATUSES,
+  ...OPEN_JOBS_STATUSES,
+]);
+
+export const PRO_BOOKINGS_ACTIVE_TAB_STATUSES: readonly string[] =
+  Array.from(PRO_BOOKINGS_ACTIVE_TAB_STATUS_SET);

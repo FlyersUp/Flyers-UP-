@@ -33,7 +33,10 @@ export default function ScopeLockPage() {
 
     const load = async () => {
       try {
-        const res = await fetch(`/api/customer/bookings/${bookingId}`, { cache: 'no-store' });
+        const res = await fetch(`/api/customer/bookings/${bookingId}`, {
+          cache: 'no-store',
+          credentials: 'include',
+        });
         const json = await res.json();
         if (!res.ok) {
           setError(json.error ?? 'Booking not found');
@@ -77,7 +80,10 @@ export default function ScopeLockPage() {
 
   const handleConfirmScope = async () => {
     if (!bookingId) return;
-    const res = await fetch(`/api/bookings/${bookingId}/scope-lock`, { method: 'POST' });
+    const res = await fetch(`/api/bookings/${bookingId}/scope-lock`, {
+      method: 'POST',
+      credentials: 'include',
+    });
     const json = await res.json();
     if (res.ok) {
       router.push(`/customer/bookings/${bookingId}/deposit`);

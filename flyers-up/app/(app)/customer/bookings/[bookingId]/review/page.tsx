@@ -87,7 +87,10 @@ export default function LeaveReviewPage({
     setState('loading');
     setErrorMessage(null);
     try {
-      const res = await fetch(`/api/customer/bookings/${bookingId}`, { cache: 'no-store' });
+      const res = await fetch(`/api/customer/bookings/${bookingId}`, {
+        cache: 'no-store',
+        credentials: 'include',
+      });
       const json = await res.json();
       if (!res.ok) {
         setState('error');

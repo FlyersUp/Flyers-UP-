@@ -437,6 +437,12 @@ export async function POST(
     })
     .eq('id', id);
 
+  console.info('[booking] final_intent_created', {
+    bookingId: id,
+    amountRemaining,
+    paymentIntentStatus: piStatus,
+  });
+
   return NextResponse.json({
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,

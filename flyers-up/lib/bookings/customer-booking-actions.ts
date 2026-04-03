@@ -46,3 +46,32 @@ export function shouldShowCustomerConfirmCompletionCta(input: CustomerConfirmCom
   if (!Number.isFinite(due) || due !== 0) return false;
   return true;
 }
+
+/** Aligns with POST /api/bookings/[id]/pay/deposit eligible + pre-work recovery statuses. */
+export const CUSTOMER_DEPOSIT_PAY_STATUSES: readonly string[] = [
+  'payment_required',
+  'accepted',
+  'accepted_pending_payment',
+  'awaiting_deposit_payment',
+];
+
+const CUSTOMER_DEPOSIT_RECOVERY_STATUSES: readonly string[] = ['pro_en_route', 'on_the_way', 'arrived'];
+
+export type CustomerDepositPayCtaInput = {
+  status: string;
+  paidDepositAt?: string | null;
+  /** Legacy: some rows set this when deposit captured */
+  paidAt?: string | null;
+  paymentStatus?: string;
+};
+
+/** True when customer should see Pay deposit (server still allows deposit intent). */
+export function shouldShowCustomerDepositPayCta(input: CustomerDepositPayCtaInput): boolean {
+  const st = input.status;
+  const depositPaid =
+    !!(input.paidDepositAt || input.paidAt) || String(input.paymentStatus ?? '').toUpperCase() === 'PAID';
+  if (depositPaid) return false;
+  if (CUSTOMER_DEPOSIT_PAY_STATUSES.includes(st)) return true;
+  if (CUSTOMER_DEPOSIT_RECOVERY_STATUSES.includes(st)) return true;
+  return false;
+}

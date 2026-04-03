@@ -12,6 +12,7 @@ import {
   canProStart,
   INCOMING_STATUSES,
   TODAY_AT_GLANCE_STATUSES,
+  PRO_BOOKINGS_ACTIVE_TAB_STATUSES,
 } from '../pro-visible-statuses';
 
 describe('pro-visible-statuses', () => {
@@ -65,6 +66,15 @@ describe('pro-visible-statuses', () => {
       assert.ok(!isIncomingStatus('cancelled'));
       assert.ok(!isOpenJobStatus('cancelled'));
       assert.ok(!isTodayAtGlanceStatus('cancelled'));
+    });
+  });
+
+  describe('PRO_BOOKINGS_ACTIVE_TAB_STATUSES (pro /pro/bookings active tab)', () => {
+    it('includes deposit workflow statuses omitted by older hard-coded lists', () => {
+      assert.ok(PRO_BOOKINGS_ACTIVE_TAB_STATUSES.includes('awaiting_deposit_payment'));
+      assert.ok(PRO_BOOKINGS_ACTIVE_TAB_STATUSES.includes('deposit_paid'));
+      assert.ok(PRO_BOOKINGS_ACTIVE_TAB_STATUSES.includes('accepted_pending_payment'));
+      assert.ok(PRO_BOOKINGS_ACTIVE_TAB_STATUSES.includes('arrived'));
     });
   });
 });

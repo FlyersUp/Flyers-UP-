@@ -125,7 +125,10 @@ const PRO_SECTIONS: MenuSection[] = [
     items: [
       { labelKey: 'sidebar.pro.earningsOverview', href: '/pro/earnings' },
       { labelKey: 'sidebar.pro.payouts', href: '/pro/settings/payments-payouts' },
-      { labelKey: 'sidebar.pro.taxDocuments', href: '/settings/payments', disabled: true },
+      {
+        labelKey: 'sidebar.pro.taxDocuments',
+        href: '/pro/settings/payments-payouts',
+      },
       { labelKey: 'sidebar.pro.paymentSettings', href: '/pro/settings/payments-payouts' },
     ],
   },

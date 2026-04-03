@@ -135,7 +135,10 @@ export default function JobCompletePage({
     setState('loading');
     setErrorMessage(null);
     try {
-      const res = await fetch(`/api/customer/bookings/${bookingId}`, { cache: 'no-store' });
+      const res = await fetch(`/api/customer/bookings/${bookingId}`, {
+        cache: 'no-store',
+        credentials: 'include',
+      });
       const json = await res.json();
       if (!res.ok) {
         setState('error');
@@ -285,7 +288,10 @@ export default function JobCompletePage({
                     onClick={async () => {
                       setConfirmingCompletion(true);
                       try {
-                        const res = await fetch(`/api/bookings/${bookingId}/confirm`, { method: 'POST' });
+                        const res = await fetch(`/api/bookings/${bookingId}/confirm`, {
+                          method: 'POST',
+                          credentials: 'include',
+                        });
                         if (res.ok) router.push(`/customer/bookings/${bookingId}`);
                       } finally {
                         setConfirmingCompletion(false);

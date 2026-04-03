@@ -58,9 +58,12 @@ function TodayHeader({ dateISO, alertCount }: { dateISO: string; alertCount: num
           <StatusPill tone={status.tone}>
             {status.label}
           </StatusPill>
-          <Button variant="ghost" showArrow={false} className="px-3 py-2 rounded-lg text-sm" disabled>
+          <Link
+            href="/pro/settings"
+            className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border border-border bg-surface text-text hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-bg focus-visible:ring-[hsl(var(--accent-customer)/0.35)] transition-all duration-[var(--transition-base)] active:scale-[0.985]"
+          >
             Settings
-          </Button>
+          </Link>
         </div>
       </div>
     </div>

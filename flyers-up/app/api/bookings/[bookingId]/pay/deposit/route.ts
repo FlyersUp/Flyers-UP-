@@ -513,6 +513,12 @@ export async function POST(
     })
     .eq('id', id);
 
+  console.info('[booking] deposit_intent_created', {
+    bookingId: id,
+    paymentIntentStatus: piStatus,
+    amountDeposit,
+  });
+
   return NextResponse.json({
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,

@@ -100,6 +100,7 @@ export function CustomerBookingPageClient({
             primaryLabel="View all bookings"
             secondaryHref="/customer/categories"
             secondaryLabel="Find a pro"
+            onRetry={() => window.location.reload()}
             compact={false}
           />
         </div>

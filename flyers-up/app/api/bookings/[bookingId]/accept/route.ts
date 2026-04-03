@@ -131,6 +131,12 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 });
   }
 
+  console.info('[booking] pro_accepted', {
+    bookingId: id,
+    customerId: booking.customer_id,
+    nextStatus: (updated as { status?: string }).status ?? 'awaiting_deposit_payment',
+  });
+
   void createNotificationEvent({
     userId: booking.customer_id,
     type: NOTIFICATION_TYPES.BOOKING_ACCEPTED,

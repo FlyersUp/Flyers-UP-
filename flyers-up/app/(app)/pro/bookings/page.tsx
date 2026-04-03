@@ -9,8 +9,9 @@ import { DashboardCard } from '@/components/dashboard/DashboardCard';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { PRO_BOOKINGS_ACTIVE_TAB_STATUSES } from '@/lib/bookings/pro-visible-statuses';
 
-const ACTIVE_STATUSES = 'requested,pending,accepted,pro_en_route,on_the_way,in_progress,completed_pending_payment,awaiting_payment';
+const ACTIVE_STATUSES = PRO_BOOKINGS_ACTIVE_TAB_STATUSES.join(',');
 const COMPLETED_STATUSES = 'completed,paid';
 const CANCELLED_STATUSES = 'cancelled,declined';
 
@@ -53,12 +54,15 @@ function ProBookingsContent() {
         const [activeRes, completedRes, cancelledRes] = await Promise.all([
           fetch(`/api/pro/bookings?statuses=${encodeURIComponent(ACTIVE_STATUSES)}&limit=50`, {
             cache: 'no-store',
+            credentials: 'include',
           }),
           fetch(`/api/pro/bookings?statuses=${encodeURIComponent(COMPLETED_STATUSES)}&limit=50`, {
             cache: 'no-store',
+            credentials: 'include',
           }),
           fetch(`/api/pro/bookings?statuses=${encodeURIComponent(CANCELLED_STATUSES)}&limit=50`, {
             cache: 'no-store',
+            credentials: 'include',
           }),
         ]);
 

@@ -26,6 +26,7 @@ import { BookingSummaryDeposit, type QuoteBreakdown } from '@/components/checkou
 import { DepositPayBar } from '@/components/checkout/DepositPayBar';
 import { BookingLoadErrorPage } from '@/components/checkout/BookingLoadErrorPage';
 import { QuickRulesSheet } from '@/components/booking/QuickRulesSheet';
+import { bookingConfirmedPath } from '@/lib/bookings/booking-routes';
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -98,6 +99,7 @@ function CheckoutForm({
   const elements = useElements();
   const [loading, setLoading] = useState(false);
   const [quickRulesOpen, setQuickRulesOpen] = useState(false);
+  const isFinal = isFinalCheckoutPhase(quoteData.quote);
 
   const doSubmit = async () => {
     if (!stripe || !elements) return;
@@ -106,7 +108,7 @@ function CheckoutForm({
     onPaymentError('');
 
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.flyersup.app';
-    const returnUrl = `${origin}/bookings/${bookingId}/confirmed`;
+    const returnUrl = `${origin}${bookingConfirmedPath(bookingId, { phase: isFinal ? 'final' : undefined })}`;
 
     const { error: confirmError } = await stripe.confirmPayment({
       elements,
@@ -141,7 +143,6 @@ function CheckoutForm({
   };
 
   const amountCents = resolveCheckoutPayCents(quoteData.quote, quoteData.paymentAmounts);
-  const isFinal = isFinalCheckoutPhase(quoteData.quote);
 
   return (
     <>
@@ -521,7 +522,9 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
                   bookingId={bookingId}
                   quoteData={quoteData}
                   onSuccess={() => {
-                    window.location.href = `/bookings/${bookingId}/confirmed`;
+                    window.location.href = bookingConfirmedPath(bookingId, {
+                      phase: isFinalPayment ? 'final' : undefined,
+                    });
                   }}
                   onPaymentError={setPaymentError}
                 />

@@ -119,7 +119,10 @@ export default function AuthorizePage({
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/bookings/${bookingId}/authorize`, { cache: 'no-store' });
+        const res = await fetch(`/api/bookings/${bookingId}/authorize`, {
+          cache: 'no-store',
+          credentials: 'include',
+        });
         const json = await res.json();
 
         if (!mounted) return;
@@ -137,7 +140,10 @@ export default function AuthorizePage({
           setClientSecret(json.clientSecret ?? null);
         }
 
-        const detailsRes = await fetch(`/api/customer/bookings/${bookingId}`, { cache: 'no-store' });
+        const detailsRes = await fetch(`/api/customer/bookings/${bookingId}`, {
+          cache: 'no-store',
+          credentials: 'include',
+        });
         const detailsJson = await detailsRes.json();
         const b = detailsJson?.booking;
         if (b) {

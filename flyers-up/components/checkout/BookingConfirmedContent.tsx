@@ -62,13 +62,21 @@ export interface BookingConfirmedContentProps {
   data: BookingConfirmedData;
   /** Payment still processing (webhook delay) */
   isProcessing?: boolean;
+  /** `final` = remaining-balance checkout; copy matches pay flow */
+  paymentPhase?: 'deposit' | 'final';
   className?: string;
 }
 
-const WHAT_HAPPENS_NEXT = [
+const WHAT_HAPPENS_NEXT_DEPOSIT = [
   'Pro reviews and confirms your booking',
   'Pro arrives at the scheduled time',
   'You pay the remaining balance after the job is complete',
+];
+
+const WHAT_HAPPENS_NEXT_FINAL = [
+  'Your booking updates within a minute or two while we confirm the payment.',
+  'Return to the booking anytime for status, messages, and receipts.',
+  'If anything looks off, contact support from Help in settings.',
 ];
 
 const TRUST_ITEMS = [
@@ -97,12 +105,15 @@ export function BookingConfirmedContent({
   bookingId,
   data,
   isProcessing = false,
+  paymentPhase = 'deposit',
   className,
 }: BookingConfirmedContentProps) {
   const depositCents = data.amountDeposit ?? 0;
   const remainingCents = data.amountRemaining ?? 0;
   const totalCents = data.amountTotal ?? depositCents + remainingCents;
   const statusLabel = getStatusLabel(data.status);
+  const isFinal = paymentPhase === 'final';
+  const nextSteps = isFinal ? WHAT_HAPPENS_NEXT_FINAL : WHAT_HAPPENS_NEXT_DEPOSIT;
 
   return (
     <div className={cn('space-y-5', className)} data-role="customer">
@@ -111,7 +122,7 @@ export function BookingConfirmedContent({
         className="flex flex-col items-center py-6 animate-fade-in"
         role="status"
         aria-live="polite"
-        aria-label="Booking confirmed"
+        aria-label={isFinal ? 'Payment received' : 'Booking confirmed'}
       >
         <div
           className={cn(
@@ -128,12 +139,22 @@ export function BookingConfirmedContent({
           />
         </div>
         <h1 className="mt-4 text-xl font-semibold text-[#111111] dark:text-[#F5F7FA] tracking-tight">
-          {isProcessing ? 'Processing your booking…' : 'Booking confirmed'}
+          {isProcessing
+            ? isFinal
+              ? 'Processing your payment…'
+              : 'Processing your booking…'
+            : isFinal
+              ? 'Remaining balance paid'
+              : 'Booking confirmed'}
         </h1>
         <p className="mt-2 max-w-sm text-center text-sm text-[#6A6A6A] dark:text-[#A1A8B3]">
           {isProcessing
-            ? 'Your payment was successful. We’re finalizing the details — this page will update shortly.'
-            : 'Your deposit is paid. Your pro will be in touch if needed.'}
+            ? isFinal
+              ? 'Your payment went through. We’re syncing your booking — this page updates when the server catches up (usually under a minute).'
+              : 'Your payment was successful. We’re finalizing the details — this page will update shortly.'
+            : isFinal
+              ? 'Thank you. Your booking should now show as fully paid or nearly complete — open it below for the live status.'
+              : 'Your deposit is paid. Your pro will be in touch if needed.'}
         </p>
       </section>
 
@@ -187,19 +208,31 @@ export function BookingConfirmedContent({
           Payment
         </h2>
         <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-[#058954] font-medium">Deposit paid</span>
-            <span className="font-semibold text-[#058954]">
-              {depositCents > 0 ? formatCents(depositCents) : '—'}
-            </span>
-          </div>
-          {remainingCents > 0 && (
+          {isFinal ? (
+            <div className="flex justify-between">
+              <span className="text-[#058954] font-medium">Remaining balance</span>
+              <span className="font-semibold text-[#058954]">
+                {remainingCents > 0 ? formatCents(remainingCents) : 'Paid'}
+              </span>
+            </div>
+          ) : null}
+          {!isFinal || depositCents > 0 ? (
+            <div className="flex justify-between">
+              <span className={isFinal ? 'text-[#6A6A6A] dark:text-[#A1A8B3]' : 'text-[#058954] font-medium'}>
+                Deposit paid
+              </span>
+              <span className={isFinal ? 'text-[#111111] dark:text-[#F5F7FA]' : 'font-semibold text-[#058954]'}>
+                {depositCents > 0 ? formatCents(depositCents) : '—'}
+              </span>
+            </div>
+          ) : null}
+          {!isFinal && remainingCents > 0 && (
             <div className="flex justify-between">
               <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Remaining (due after service)</span>
               <span className="text-[#111111] dark:text-[#F5F7FA]">{formatCents(remainingCents)}</span>
             </div>
           )}
-          {depositCents === 0 && remainingCents === 0 && totalCents > 0 && (
+          {!isFinal && depositCents === 0 && remainingCents === 0 && totalCents > 0 && (
             <div className="flex justify-between">
               <span className="text-[#058954] font-medium">Paid</span>
               <span className="font-semibold text-[#058954]">{formatCents(totalCents)}</span>
@@ -217,7 +250,7 @@ export function BookingConfirmedContent({
           What happens next
         </h2>
         <ol className="space-y-3">
-          {WHAT_HAPPENS_NEXT.map((step, i) => (
+          {nextSteps.map((step, i) => (
             <li key={i} className="flex items-start gap-3">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#058954]/10 dark:bg-[#058954]/20 text-xs font-semibold text-[#058954]">
                 {i + 1}

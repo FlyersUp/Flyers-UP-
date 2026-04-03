@@ -36,6 +36,7 @@ export default function ProBookingDetailPage({
   const [signedIn, setSignedIn] = useState(false);
   const [progressRevision, setProgressRevision] = useState(0);
   const [scheduleRevision, setScheduleRevision] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -65,7 +66,7 @@ export default function ProBookingDetailPage({
     };
     void load();
     return () => { mounted = false; };
-  }, [bookingId]);
+  }, [bookingId, reloadKey]);
 
   if (loading && !initialBooking) {
     return (
@@ -101,13 +102,26 @@ export default function ProBookingDetailPage({
             className="rounded-2xl border border-[var(--hairline)] p-6"
             style={{ backgroundColor: '#F5F5F5' }}
           >
-            <p className="text-sm text-muted">Booking not found.</p>
-            <Link
-              href="/pro/bookings"
-              className="mt-4 inline-block text-sm font-medium text-text hover:underline"
-            >
-              ← Back to bookings
-            </Link>
+            <p className="text-sm font-medium text-text">We couldn&apos;t load this booking</p>
+            <p className="mt-2 text-sm text-muted">
+              It may not exist, you may not have access, or data may still be updating after a payment. Try
+              again in a moment.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => setReloadKey((k) => k + 1)}
+                className="inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold bg-text text-[hsl(var(--bg))] hover:opacity-90"
+              >
+                Try again
+              </button>
+              <Link
+                href="/pro/bookings"
+                className="inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-medium text-text border border-border hover:bg-hover"
+              >
+                ← Back to bookings
+              </Link>
+            </div>
           </div>
         </div>
       </AppLayout>
