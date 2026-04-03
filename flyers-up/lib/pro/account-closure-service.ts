@@ -4,7 +4,9 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { isProfileAccountClosed, type ProfileAccountStatus } from '@/lib/pro/account-status';
+import { applyAccountDeactivation } from '@/lib/account/apply-lifecycle';
+import { canDeactivateAccount } from '@/lib/account/can-deactivate-account';
+import type { ProfileAccountStatus } from '@/lib/pro/account-status';
 
 /** Machine-readable blocker codes for API clients */
 export type ProClosureBlockCode = 'active_booking' | 'payout_review_pending' | 'open_dispute';
@@ -20,7 +22,7 @@ export type ProClosureEvaluation = {
 };
 
 export type ProClosureApplyResult =
-  | { ok: true; status: 'closed' | 'already_closed' }
+  | { ok: true; status: 'deactivated' | 'already_deactivated' | 'already_deleted' }
   | { ok: false; error: string; evaluation?: ProClosureEvaluation };
 
 /**
@@ -185,6 +187,35 @@ const USER_FRIENDLY_BLOCKED =
 /**
  * Apply closure updates. Caller must verify evaluation first (or rely on this to re-check).
  */
+function deactivationCheckToEvaluation(check: Awaited<ReturnType<typeof canDeactivateAccount>>): ProClosureEvaluation {
+  const blocked_by: ProClosureBlockItem[] = [];
+  for (const code of check.reasons) {
+    if (code === 'ACTIVE_BOOKING' || code === 'IN_PROGRESS_BOOKING') {
+      blocked_by.push({
+        code: 'active_booking',
+        message: check.message ?? USER_FRIENDLY_BLOCKED,
+      });
+      break;
+    }
+    if (code === 'PENDING_PAYOUT') {
+      blocked_by.push({
+        code: 'payout_review_pending',
+        message: check.message ?? USER_FRIENDLY_BLOCKED,
+      });
+    }
+    if (code === 'OPEN_DISPUTE' || code === 'OPEN_CLAIM' || code === 'OPEN_STRIPE_DISPUTE') {
+      blocked_by.push({
+        code: 'open_dispute',
+        message: check.message ?? USER_FRIENDLY_BLOCKED,
+      });
+    }
+  }
+  if (blocked_by.length === 0 && !check.allowed) {
+    blocked_by.push({ code: 'active_booking', message: check.message ?? USER_FRIENDLY_BLOCKED });
+  }
+  return { blocked: true, blocked_by };
+}
+
 export async function applyProAccountClosure(
   admin: SupabaseClient,
   userId: string,
@@ -196,67 +227,33 @@ export async function applyProAccountClosure(
   }
 
   const status = (ctx.profile as { account_status?: string } | null)?.account_status;
-  if (isProfileAccountClosed(status)) {
-    return { ok: true, status: 'already_closed' };
+  if (status === 'deleted') {
+    return { ok: true, status: 'already_deleted' };
+  }
+  if (status === 'deactivated') {
+    return { ok: true, status: 'already_deactivated' };
   }
 
   if (!options?.skipBlockerCheck) {
-    const evaluation = evaluateProClosureFromBookingsAndReviews(
-      ctx.bookings,
-      ctx.pendingPayoutReviewBookingIds,
-      ctx.openDisputeBookingIds
-    );
-    if (evaluation.blocked) {
+    const check = await canDeactivateAccount(admin, userId);
+    if (!check.allowed) {
       return {
         ok: false,
-        error: USER_FRIENDLY_BLOCKED,
-        evaluation,
+        error: check.message ?? USER_FRIENDLY_BLOCKED,
+        evaluation: deactivationCheckToEvaluation(check),
       };
     }
   }
 
-  const now = new Date().toISOString();
   const reason =
     options?.closureReason && options.closureReason.trim().length > 0 ? options.closureReason.trim() : null;
 
-  const { data: closureMeta } = await admin
-    .from('profiles')
-    .select('closure_requested_at')
-    .eq('id', userId)
-    .maybeSingle();
-  const closureRequestedAt =
-    (closureMeta as { closure_requested_at?: string | null } | null)?.closure_requested_at?.trim() || now;
-
-  const { error: pErr } = await admin
-    .from('profiles')
-    .update({
-      account_status: 'closed',
-      closed_at: now,
-      closure_requested_at: closureRequestedAt,
-      closure_reason: reason,
-      updated_at: now,
-    })
-    .eq('id', userId);
-
-  if (pErr) {
-    console.error('[pro/closure] profiles update failed', pErr);
-    return { ok: false, error: 'Could not update your account. Please try again or contact support.' };
+  const deactivated = await applyAccountDeactivation(admin, userId, { deletionReason: reason });
+  if (!deactivated.ok) {
+    return { ok: false, error: deactivated.error };
   }
 
-  const { error: spErr } = await admin
-    .from('service_pros')
-    .update({
-      available: false,
-      closed_at: now,
-    })
-    .eq('user_id', userId);
-
-  if (spErr) {
-    console.error('[pro/closure] service_pros update failed', spErr);
-    return { ok: false, error: 'Could not finalize closure. Please contact support@flyersup.app.' };
-  }
-
-  return { ok: true, status: 'closed' };
+  return { ok: true, status: 'deactivated' };
 }
 
 export { USER_FRIENDLY_BLOCKED };

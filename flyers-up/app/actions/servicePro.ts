@@ -32,7 +32,7 @@ export async function updateMyServiceProAction(
         }
       })() ?? (await createServerSupabaseClient());
     const { data: acct } = await gateWriter.from('profiles').select('account_status').eq('id', userId).maybeSingle();
-    if ((acct as { account_status?: string | null } | null)?.account_status === 'closed') {
+    if ((acct as { account_status?: string | null } | null)?.account_status !== 'active') {
       return {
         success: false,
         error: 'Your pro account is closed. Contact support@flyersup.app if you need help.',

@@ -28,8 +28,8 @@ export async function checkProBookingEligibility(proId: string): Promise<ProElig
     return { canAccept: false, reason: 'This pro account is closed.' };
   }
   const { data: prof } = await admin.from('profiles').select('account_status').eq('id', uid).maybeSingle();
-  if ((prof as { account_status?: string | null } | null)?.account_status === 'closed') {
-    return { canAccept: false, reason: 'This pro account is closed.' };
+  if ((prof as { account_status?: string | null } | null)?.account_status !== 'active') {
+    return { canAccept: false, reason: 'This pro account is not active.' };
   }
 
   const { data: rel } = await admin

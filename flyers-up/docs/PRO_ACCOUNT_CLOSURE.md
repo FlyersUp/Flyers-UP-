@@ -20,7 +20,7 @@ Soft-close for service pros: no hard deletes of auth, Stripe, bookings, or tax/p
 | Pro profile updates | `app/actions/servicePro.ts` |
 | Public pro profile | `lib/profileData.ts` |
 | Routing | `lib/authRouting.ts`, `app/page.tsx`, `app/(app)/pro/page.tsx`, `proxy.ts` |
-| Closed landing | `app/(app)/pro/account-closed/page.tsx`, `SignOutButton.tsx` |
+| Deactivated landing | `app/(app)/account/deactivated/` (legacy `/pro/account-closed` redirects here) |
 | UI | `app/(app)/settings/privacy-security/page.tsx`, `components/landing/PublicHomePage.tsx` (one-time closed banner) |
 | Types | `types/database.ts` (`ProfileAccountStatusDb`, profile + `service_pros.closed_at`) |
 | Tests | `lib/pro/__tests__/account-closure.test.ts` |

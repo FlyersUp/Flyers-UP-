@@ -11,6 +11,7 @@ export type AuthRoutingProfile = {
   zip_code: string | null;
   onboarding_step: string | null;
   account_status?: string | null;
+  scheduled_deletion_at?: string | null;
 };
 
 function isSafeNext(next: string | null): string | null {
@@ -22,8 +23,11 @@ function isSafeNext(next: string | null): string | null {
 
 /** Same rules as client `routeAfterAuth` in onboarding.ts */
 export function routeAfterAuthFromProfile(profile: AuthRoutingProfile, next?: string | null): string {
-  if (profile.role === 'pro' && profile.account_status === 'closed') {
-    return '/pro/account-closed';
+  if (profile.account_status === 'deleted') {
+    return '/account/deleted';
+  }
+  if (profile.account_status === 'deactivated') {
+    return '/account/deactivated';
   }
 
   const safeNext = isSafeNext(next ?? null);

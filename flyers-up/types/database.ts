@@ -19,8 +19,8 @@ export type Json =
 // Role type matching the database CHECK constraint
 export type UserRole = 'customer' | 'pro' | 'admin';
 
-/** profiles.account_status (migration 103) */
-export type ProfileAccountStatusDb = 'active' | 'closure_requested' | 'closed';
+/** profiles.account_status (migration 106) */
+export type ProfileAccountStatusDb = 'active' | 'deactivated' | 'deleted';
 
 // Booking status matching the database CHECK constraint (migrations 042, 047)
 export type BookingStatus =
@@ -71,6 +71,10 @@ export interface Database {
           closed_at: string | null;
           closure_requested_at: string | null;
           closure_reason: string | null;
+          deactivated_at: string | null;
+          scheduled_deletion_at: string | null;
+          deletion_reason: string | null;
+          deleted_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -89,6 +93,10 @@ export interface Database {
           closed_at?: string | null;
           closure_requested_at?: string | null;
           closure_reason?: string | null;
+          deactivated_at?: string | null;
+          scheduled_deletion_at?: string | null;
+          deletion_reason?: string | null;
+          deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -107,6 +115,10 @@ export interface Database {
           closed_at?: string | null;
           closure_requested_at?: string | null;
           closure_reason?: string | null;
+          deactivated_at?: string | null;
+          scheduled_deletion_at?: string | null;
+          deletion_reason?: string | null;
+          deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -170,6 +182,7 @@ export interface Database {
           service_descriptions?: string | null;
           before_after_photos?: Json | null;
           closed_at: string | null;
+          available_before_deactivation?: boolean | null;
           created_at: string;
         };
         Insert: {
@@ -195,6 +208,7 @@ export interface Database {
           service_descriptions?: string | null;
           before_after_photos?: Json | null;
           closed_at?: string | null;
+          available_before_deactivation?: boolean | null;
           created_at?: string;
         };
         Update: {
@@ -220,6 +234,7 @@ export interface Database {
           service_descriptions?: string | null;
           before_after_photos?: Json | null;
           closed_at?: string | null;
+          available_before_deactivation?: boolean | null;
           created_at?: string;
         };
       };

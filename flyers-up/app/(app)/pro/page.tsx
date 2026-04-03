@@ -43,8 +43,12 @@ export default async function ProDashboardPage() {
     redirect('/onboarding/role?next=%2Fpro');
   }
 
-  if ((profile as { account_status?: string | null }).account_status === 'closed') {
-    redirect('/pro/account-closed');
+  const acctSt = (profile as { account_status?: string | null }).account_status;
+  if (acctSt === 'deleted') {
+    redirect('/account/deleted');
+  }
+  if (acctSt === 'deactivated') {
+    redirect('/account/deactivated');
   }
 
   const firstNameMissing = !profile.first_name || profile.first_name.trim().length === 0;

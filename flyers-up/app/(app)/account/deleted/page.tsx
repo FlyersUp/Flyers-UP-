@@ -1,26 +1,28 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { AccountDeletedClient } from './AccountDeletedClient';
 
-/**
- * Legacy URL: pro soft-close now uses /account/deactivated (all roles).
- */
 export const dynamic = 'force-dynamic';
 
-export default async function ProAccountClosedRedirectPage() {
+export default async function AccountDeletedPage() {
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect('/auth?next=%2Faccount%2Fdeactivated');
+    redirect('/');
   }
 
   const { data: profile } = await supabase.from('profiles').select('account_status').eq('id', user.id).maybeSingle();
-  const st = profile?.account_status;
 
-  if (st === 'deleted') {
-    redirect('/account/deleted');
+  if (profile?.account_status !== 'deleted') {
+    redirect('/');
   }
-  redirect('/account/deactivated');
+
+  return (
+    <div className="min-h-dvh bg-bg">
+      <AccountDeletedClient />
+    </div>
+  );
 }

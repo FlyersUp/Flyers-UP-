@@ -60,9 +60,12 @@ export async function createBookingWithPayment(
       return { success: false, error: 'Unauthorized. Customer access required.' };
     }
 
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+    const { data: profile } = await supabase.from('profiles').select('role, account_status').eq('id', user.id).maybeSingle();
     if (!profile || profile.role !== 'customer') {
       return { success: false, error: 'Unauthorized. Customer access required.' };
+    }
+    if ((profile as { account_status?: string }).account_status !== 'active') {
+      return { success: false, error: 'Your account is deactivated. Reactivate to book services.' };
     }
 
     // 2) Validate pro exists + get pricing context.

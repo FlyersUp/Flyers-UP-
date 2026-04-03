@@ -1,5 +1,5 @@
 /**
- * Exclude pros whose profiles are soft-closed (defense in depth vs service_pros.available only).
+ * Exclude pros whose profiles are not active (deactivated/deleted — defense in depth vs service_pros.available).
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -12,7 +12,7 @@ export async function getClosedProfileUserIds(admin: SupabaseClient, userIds: st
 
   return new Set(
     (data ?? [])
-      .filter((p: { account_status?: string | null }) => p.account_status === 'closed')
+      .filter((p: { account_status?: string | null }) => p.account_status !== 'active')
       .map((p: { id: string }) => p.id)
   );
 }

@@ -53,7 +53,7 @@ export async function POST(req: Request) {
             success: false,
             status: 'blocked',
             blocked_by: result.evaluation.blocked_by,
-            message: USER_FRIENDLY_BLOCKED,
+            message: result.error || USER_FRIENDLY_BLOCKED,
           },
           { status: 409 }
         );
@@ -69,9 +69,9 @@ export async function POST(req: Request) {
       status: result.status,
       blocked_by: [],
       message:
-        result.status === 'already_closed'
-          ? 'Your account was already closed.'
-          : 'Your account has been closed.',
+        result.status === 'already_deactivated' || result.status === 'already_deleted'
+          ? 'Your account was already deactivated.'
+          : 'Your account has been deactivated. You can reactivate within 30 days before permanent deletion.',
     });
   } catch (e) {
     console.error('[api/pro/account/close]', e);

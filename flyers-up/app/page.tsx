@@ -26,7 +26,7 @@ export default async function RootPage() {
 
   const { data: profileRow } = await supabase
     .from('profiles')
-    .select('role, first_name, last_name, zip_code, onboarding_step, account_status')
+    .select('role, first_name, last_name, zip_code, onboarding_step, account_status, scheduled_deletion_at')
     .eq('id', user.id)
     .maybeSingle();
 

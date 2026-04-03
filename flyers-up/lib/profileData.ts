@@ -197,7 +197,7 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
   const userId = String((pro as any).user_id);
 
   const { data: profStatus } = await admin.from('profiles').select('account_status').eq('id', userId).maybeSingle();
-  if ((profStatus as { account_status?: string | null } | null)?.account_status === 'closed') return null;
+  if ((profStatus as { account_status?: string | null } | null)?.account_status !== 'active') return null;
   if ((pro as { closed_at?: string | null }).closed_at) return null;
   const proRowId = String((pro as any).id);
   const occupationId = (pro as { occupation_id?: string | null }).occupation_id ?? null;
