@@ -23,18 +23,35 @@ export type ProClosureApplyResult =
   | { ok: true; status: 'closed' | 'already_closed' }
   | { ok: false; error: string; evaluation?: ProClosureEvaluation };
 
-/** Booking statuses that do not block closure (completed / cancelled / expired, etc.) */
+/**
+ * Booking statuses that do not block closure — must stay aligned with
+ * `bookings_status_check` (see supabase migrations). Anything omitted here is
+ * treated as an active job and blocks self-serve closure.
+ */
 export const CLOSURE_TERMINAL_BOOKING_STATUSES = new Set<string>([
+  // Completed / paid-out pipeline
   'completed',
   'review_pending',
+  'customer_confirmed',
+  'auto_confirmed',
   'paid',
+  'payout_eligible',
+  'payout_released',
+  // Never paid / declined / expired
   'expired_unpaid',
   'declined',
+  // Cancellations (all spellings / variants)
   'cancelled',
   'cancelled_expired',
   'cancelled_by_customer',
   'cancelled_by_pro',
   'cancelled_admin',
+  'canceled_no_show_pro',
+  'canceled_no_show_customer',
+  // Refunds / disputes at booking row (open disputes also gated via booking_disputes)
+  'refund_pending',
+  'refunded',
+  'disputed',
 ]);
 
 export function isBookingStatusTerminalForClosure(status: string): boolean {

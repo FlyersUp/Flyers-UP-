@@ -18,6 +18,14 @@ describe('account closure', () => {
     it('treats completed as terminal', () => {
       assert.strictEqual(isBookingStatusTerminalForClosure('completed'), true);
     });
+    it('treats customer_confirmed and payout_released as terminal', () => {
+      assert.strictEqual(isBookingStatusTerminalForClosure('customer_confirmed'), true);
+      assert.strictEqual(isBookingStatusTerminalForClosure('payout_released'), true);
+    });
+    it('treats canceled_no_show variants as terminal', () => {
+      assert.strictEqual(isBookingStatusTerminalForClosure('canceled_no_show_pro'), true);
+      assert.strictEqual(isBookingStatusTerminalForClosure('canceled_no_show_customer'), true);
+    });
   });
 
   describe('evaluateProClosureFromBookingsAndReviews', () => {
@@ -38,6 +46,15 @@ describe('account closure', () => {
 
     it('does not block on terminal booking only', () => {
       const bookings: ProClosureBookingRow[] = [{ id: 'b1', status: 'completed' }];
+      const r = evaluateProClosureFromBookingsAndReviews(bookings, new Set(), new Set());
+      assert.strictEqual(r.blocked, false);
+    });
+
+    it('does not block when history only has post-completion statuses', () => {
+      const bookings: ProClosureBookingRow[] = [
+        { id: 'b1', status: 'customer_confirmed' },
+        { id: 'b2', status: 'payout_eligible' },
+      ];
       const r = evaluateProClosureFromBookingsAndReviews(bookings, new Set(), new Set());
       assert.strictEqual(r.blocked, false);
     });

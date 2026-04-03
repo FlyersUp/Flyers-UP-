@@ -24,16 +24,23 @@ export async function POST(req: Request) {
       );
     }
 
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-    if (profile?.role !== 'pro') {
+    const body = (await req.json().catch(() => ({}))) as { reason?: string };
+    const admin = createAdminSupabaseClient();
+
+    // Match Privacy & Security UI: pro closure is for users with a service_pros row,
+    // not only profiles.role === 'pro' (role can lag or mismatch for some accounts).
+    const { data: proRow } = await admin.from('service_pros').select('id').eq('user_id', user.id).maybeSingle();
+    if (!proRow) {
       return NextResponse.json(
-        { success: false, status: 'forbidden', blocked_by: [], message: 'Only service pro accounts can use this action.' },
+        {
+          success: false,
+          status: 'forbidden',
+          blocked_by: [],
+          message: 'Only service pro accounts can use this action.',
+        },
         { status: 403 }
       );
     }
-
-    const body = (await req.json().catch(() => ({}))) as { reason?: string };
-    const admin = createAdminSupabaseClient();
 
     const result = await applyProAccountClosure(admin, user.id, {
       closureReason: typeof body.reason === 'string' ? body.reason : null,

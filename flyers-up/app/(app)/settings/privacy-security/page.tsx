@@ -149,8 +149,10 @@ export default function PrivacySecurityPage() {
       const data = (await res.json().catch(() => ({}))) as ProCloseApiResponse;
 
       if (res.status === 409 && !data.success) {
+        const firstDetail = data.blocked_by?.[0]?.message;
         setError(
-          data.message ||
+          firstDetail ||
+            data.message ||
             'You can’t close your account yet because you still have active jobs or payout issues to resolve.'
         );
         setShowCloseAccountModal(false);
