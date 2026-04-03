@@ -71,7 +71,7 @@ export function OccupationCard({
         className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[rgba(156,167,100,0.08)] blur-xl"
         aria-hidden
       />
-      <div className="relative flex items-start gap-3">
+      <div className="relative flex min-w-0 items-start gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(156,167,100,0.18)]">
           <IconComponent
             className="h-6 w-6 text-[#111111] dark:text-[#F5F7FA]"
@@ -79,34 +79,42 @@ export function OccupationCard({
           />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-text text-[15px] leading-tight line-clamp-2">{name}</span>
-            {badge && <BadgePill label={badge} variant={badgeVariant} />}
+          <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
+            <span className="min-w-0 max-w-full font-semibold text-text text-[15px] leading-tight line-clamp-2 break-words">
+              {name}
+            </span>
+            {badge ? (
+              <span className="shrink-0 self-center">
+                <BadgePill label={badge} variant={badgeVariant} />
+              </span>
+            ) : null}
           </div>
           {rating != null && jobsCount != null && (
-            <div className="mt-1.5 flex items-center gap-1 text-amber-600 dark:text-amber-500">
-              <Star className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
+            <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-amber-600 dark:text-amber-500">
+              <Star className="h-3.5 w-3.5 shrink-0 fill-current" strokeWidth={0} />
               <span className="text-xs font-medium">{rating.toFixed(1)}</span>
-              <span className="text-[11px] text-muted">({jobsCount} jobs)</span>
+              <span className="min-w-0 truncate text-[11px] text-muted">({jobsCount} jobs)</span>
             </div>
           )}
-          <div className="mt-2 space-y-1">
+          <div className="mt-2 min-w-0 space-y-1">
             {availabilityMins != null && (
-              <div className="flex items-center gap-1.5 text-xs text-text2">
-                <Zap className="h-3.5 w-3.5 text-emerald-600" strokeWidth={2} />
-                <span>Available in {availabilityMins} min</span>
+              <div className="flex min-w-0 items-start gap-1.5 text-xs text-text2">
+                <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" strokeWidth={2} />
+                <span className="min-w-0 break-words">Available in {availabilityMins} min</span>
               </div>
             )}
             {(fromPriceNum != null || fromPrice) && (
-              <div className="flex items-center gap-1.5 text-xs text-text2">
-                <DollarSign className="h-3.5 w-3.5 text-text2" strokeWidth={2} />
-                <span>{typeof displayPrice === 'number' ? `From $${displayPrice}` : displayPrice}</span>
+              <div className="flex min-w-0 items-start gap-1.5 text-xs text-text2">
+                <DollarSign className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text2" strokeWidth={2} />
+                <span className="min-w-0 break-words">
+                  {typeof displayPrice === 'number' ? `From $${displayPrice}` : displayPrice}
+                </span>
               </div>
             )}
             {(displayPros || prosCount != null) && (
-              <div className="flex items-center gap-1.5 text-xs text-text2">
-                <Users className="h-3.5 w-3.5 text-text2" strokeWidth={2} />
-                <span>{displayPros ?? `${prosCount} pros nearby`}</span>
+              <div className="flex min-w-0 items-start gap-1.5 text-xs text-text2">
+                <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text2" strokeWidth={2} />
+                <span className="min-w-0 break-words">{displayPros ?? `${prosCount} pros nearby`}</span>
               </div>
             )}
           </div>

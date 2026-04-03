@@ -31,7 +31,7 @@ export function OccupationGrid({
       className={
         variant === 'topPicks'
           ? 'flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide'
-          : 'grid grid-cols-2 gap-4'
+          : 'grid grid-cols-1 gap-4 sm:grid-cols-2'
       }
     >
       {items.map((occ, i) => {
