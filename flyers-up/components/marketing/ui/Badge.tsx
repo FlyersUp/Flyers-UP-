@@ -6,7 +6,7 @@ export function MarketingVerifiedBadge({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full bg-market-orange px-2.5 py-1 text-xs font-semibold text-white shadow-sm',
+        'inline-flex items-center gap-1 rounded-full bg-market-orange px-2.5 py-1 text-xs font-bold text-white shadow-[0_2px_8px_rgba(255,179,71,0.45)]',
         className
       )}
     >

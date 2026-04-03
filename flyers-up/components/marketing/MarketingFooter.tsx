@@ -3,23 +3,23 @@ import { Shield } from 'lucide-react';
 
 export function MarketingFooter() {
   return (
-    <footer className="border-t border-market-line bg-market-cloud py-14 text-market-charcoal/70">
+    <footer className="border-t border-market-line bg-white py-14 text-market-charcoal">
       <div className="mx-auto max-w-6xl px-4">
         <div className="mb-10 grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="inline-flex items-center gap-2 text-market-slate">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-market-slate/10">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-market-slate/12">
                 <Shield className="h-5 w-5 text-market-orange" strokeWidth={2} aria-hidden />
               </span>
               <span className="text-base font-bold tracking-tight">Flyers Up</span>
             </Link>
-            <p className="mt-3 max-w-xs text-sm leading-relaxed">
+            <p className="mt-3 max-w-xs text-sm leading-relaxed text-market-charcoal">
               Trusted local infrastructure for hiring pros—with warmth and clarity.
             </p>
           </div>
           <div>
-            <h4 className="mb-3 text-sm font-semibold text-market-charcoal">For customers</h4>
-            <ul className="space-y-2 text-sm">
+            <h4 className="mb-3 text-sm font-bold text-market-slate">For customers</h4>
+            <ul className="space-y-2 text-sm text-market-charcoal">
               <li>
                 <Link href="#how-it-works" className="hover:text-market-slate">
                   How it works
@@ -38,8 +38,8 @@ export function MarketingFooter() {
             </ul>
           </div>
           <div>
-            <h4 className="mb-3 text-sm font-semibold text-market-charcoal">For pros</h4>
-            <ul className="space-y-2 text-sm">
+            <h4 className="mb-3 text-sm font-bold text-market-slate">For pros</h4>
+            <ul className="space-y-2 text-sm text-market-charcoal">
               <li>
                 <Link href="/signup?role=pro" className="hover:text-market-slate">
                   Join as a pro
@@ -58,8 +58,8 @@ export function MarketingFooter() {
             </ul>
           </div>
           <div>
-            <h4 className="mb-3 text-sm font-semibold text-market-charcoal">Company</h4>
-            <ul className="space-y-2 text-sm">
+            <h4 className="mb-3 text-sm font-bold text-market-slate">Company</h4>
+            <ul className="space-y-2 text-sm text-market-charcoal">
               <li>
                 <Link href="/community-guidelines" className="hover:text-market-slate">
                   Community
@@ -79,8 +79,10 @@ export function MarketingFooter() {
           </div>
         </div>
         <div className="flex flex-col items-center justify-between gap-4 border-t border-market-line pt-8 sm:flex-row">
-          <p className="text-sm">© {new Date().getFullYear()} Flyers Up. All rights reserved.</p>
-          <div className="flex flex-wrap justify-center gap-6 text-sm">
+          <p className="text-sm text-market-charcoal">
+            © {new Date().getFullYear()} Flyers Up. All rights reserved.
+          </p>
+          <div className="flex flex-wrap justify-center gap-6 text-sm text-market-charcoal">
             <Link href="/privacy" className="hover:text-market-slate">
               Privacy
             </Link>

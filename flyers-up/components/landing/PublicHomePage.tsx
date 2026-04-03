@@ -108,13 +108,13 @@ export default function PublicHomePage() {
         ref={browseOccupationsSectionRef}
         id="browse-occupations"
         aria-label="Browse services by occupation"
-        className="scroll-mt-20 bg-market-cloud/50"
+        className="scroll-mt-20 bg-market-linen"
       >
         <div className="text-center">
           <h2 className="text-3xl font-bold tracking-tight text-market-slate sm:text-4xl">
             Popular services
           </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-market-charcoal/75">
+          <p className="mx-auto mt-3 max-w-2xl text-lg text-market-charcoal">
             Start with a category—every listing is built for clear expectations upfront.
           </p>
         </div>
@@ -136,13 +136,13 @@ export default function PublicHomePage() {
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div
                   key={i}
-                  className="h-40 rounded-2xl border border-market-line bg-market-cloud animate-pulse"
+                  className="h-40 rounded-2xl border border-market-line/90 bg-white animate-pulse"
                 />
               ))}
             </div>
           ) : (
             <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-300">
-              <h3 className="mb-4 text-center text-sm font-semibold uppercase tracking-wide text-market-charcoal/60">
+              <h3 className="mb-4 text-center text-sm font-bold uppercase tracking-wide text-market-slate">
                 All occupations
               </h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -156,7 +156,7 @@ export default function PublicHomePage() {
         <div className="mt-10 text-center">
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-2xl border-2 border-market-line bg-market-cloud px-6 py-3.5 text-sm font-semibold text-market-slate shadow-[0_8px_24px_rgba(45,52,54,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:border-market-slate/20 hover:shadow-[0_12px_28px_rgba(45,52,54,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-market-slate focus-visible:ring-offset-2 focus-visible:ring-offset-market-linen"
+            className="inline-flex items-center gap-2 rounded-2xl border-2 border-market-slate/30 bg-white px-6 py-3.5 text-sm font-semibold text-market-slate shadow-[0_4px_16px_rgba(45,52,54,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-market-slate/50 hover:bg-market-cloud/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-market-slate focus-visible:ring-offset-2 focus-visible:ring-offset-market-linen"
             aria-expanded={showAllOccupations}
             aria-controls="landing-occupations-panel"
             onClick={() => setShowAllOccupations((v) => !v)}
@@ -175,11 +175,15 @@ export default function PublicHomePage() {
           <h2 className="text-2xl font-bold text-market-slate sm:text-3xl">
             Ready when you are
           </h2>
-          <p className="mt-3 text-lg text-market-charcoal/75">
+          <p className="mt-3 text-lg text-market-charcoal">
             Request a service in minutes—stay in control from first message to done.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <MarketingButton href="/signup?role=customer" variant="primary" className="min-w-[220px] px-8 py-4 text-base">
+            <MarketingButton
+              href="/signup?role=customer"
+              variant="primary"
+              className="min-w-[220px] px-8 py-4 text-base font-bold shadow-[0_6px_24px_rgba(255,179,71,0.5)]"
+            >
               Request a Service (Free)
             </MarketingButton>
             <MarketingButton href="/trust-verification" variant="outline" className="min-w-[220px] px-8 py-4 text-base">

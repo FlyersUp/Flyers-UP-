@@ -24,14 +24,14 @@ export function MarketingNavbar() {
             Sign In
           </MarketingButton>
         </div>
-        <nav className="col-span-2 row-start-2 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-white/10 pt-3 text-sm font-medium text-white/90 md:col-span-1 md:col-start-2 md:row-start-1 md:border-0 md:pt-0">
-          <Link href="#for-customers" className="transition-colors hover:text-white">
+        <nav className="col-span-2 row-start-2 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-white/10 pt-3 text-sm font-semibold text-white md:col-span-1 md:col-start-2 md:row-start-1 md:border-0 md:pt-0">
+          <Link href="#for-customers" className="transition-colors hover:text-white/95">
             For Customers
           </Link>
-          <Link href="#for-pros" className="transition-colors hover:text-white">
+          <Link href="#for-pros" className="transition-colors hover:text-white/95">
             For Pros
           </Link>
-          <Link href="/trust-verification" className="transition-colors hover:text-white">
+          <Link href="/trust-verification" className="transition-colors hover:text-white/95">
             Safety
           </Link>
         </nav>

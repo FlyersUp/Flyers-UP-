@@ -1,4 +1,19 @@
 @import "tailwindcss";
+/* Tailwind v4: load JS theme (HSL tokens, trust/action, etc.) — required or extend.* utilities won’t exist */
+@config "../tailwind.config.ts";
+
+/* Marketing landing palette — explicit theme keys so bg-market-* / text-market-* always generate */
+@theme {
+  --color-market-slate: #4a69bd;
+  --color-market-orange: #ffb347;
+  --color-market-orange-hover: #f5a03c;
+  --color-market-linen: #f9f7f2;
+  --color-market-sage: #9caf88;
+  --color-market-charcoal: #2d3436;
+  --color-market-cloud: #f1f2f6;
+  --color-market-teal: #55e6c1;
+  --color-market-line: #e0e0e0;
+}
 
 /* Tailwind v4: use .dark class instead of prefers-color-scheme so app theme toggle works */
 /* Exclude .public-light subtree so landing/signin/signup stay light regardless of dark mode */

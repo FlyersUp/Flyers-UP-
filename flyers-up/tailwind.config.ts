@@ -59,18 +59,7 @@ const config: Config = {
         /* Accent density: soft tint and border from --role-accent (used in focus mode) */
         roleTint: 'var(--role-tint)',
         roleBorder: 'var(--role-border)',
-        /* Public marketing landing — strict palette (do not use for app shell dark mode) */
-        market: {
-          slate: '#4A69BD',
-          orange: '#FFB347',
-          'orange-hover': '#F5A03C',
-          linen: '#F9F7F2',
-          sage: '#9CAF88',
-          charcoal: '#2D3436',
-          cloud: '#F1F2F6',
-          teal: '#55E6C1',
-          line: '#E0E0E0',
-        },
+        /* market-* colors: defined in app/globals.css @theme (Tailwind v4 + PostCSS) */
       },
       boxShadow: {
         sm: 'var(--shadow-1)',
