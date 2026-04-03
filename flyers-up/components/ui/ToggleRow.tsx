@@ -27,7 +27,7 @@ export function ToggleRow({
           {description && <span className="mt-0.5 block text-sm text-text3">{description}</span>}
         </label>
       </div>
-      <div className="flex h-10 shrink-0 items-center">
+      <div className="flex min-h-11 shrink-0 items-center">
         <Switch
           id={id}
           checked={checked}

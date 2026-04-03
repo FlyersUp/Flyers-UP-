@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { getNotificationSettings, updateNotificationSettings } from '@/lib/api';
 import type { NotificationSettings } from '@/lib/api';
 import { TrustRow } from '@/components/ui/TrustRow';
+import { Switch } from '@/components/ui/Switch';
 
 export default function NotificationSettingsPage() {
   const [loading, setLoading] = useState(false);
@@ -113,15 +114,11 @@ export default function NotificationSettingsPage() {
               <h3 className="font-medium text-text">New Booking Notifications</h3>
               <p className="text-sm text-muted">Get notified when you receive a new booking request</p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.new_booking}
-                onChange={() => handleToggle('new_booking')}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-surface2 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
-            </label>
+            <Switch
+              checked={settings.new_booking}
+              onCheckedChange={() => handleToggle('new_booking')}
+              aria-label="New booking notifications"
+            />
           </div>
 
           <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-surface">
@@ -129,15 +126,11 @@ export default function NotificationSettingsPage() {
               <h3 className="font-medium text-text">Job Status Updates</h3>
               <p className="text-sm text-muted">Receive updates when booking status changes</p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.job_status_updates}
-                onChange={() => handleToggle('job_status_updates')}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-surface2 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
-            </label>
+            <Switch
+              checked={settings.job_status_updates}
+              onCheckedChange={() => handleToggle('job_status_updates')}
+              aria-label="Job status update notifications"
+            />
           </div>
 
           <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-surface">
@@ -145,15 +138,11 @@ export default function NotificationSettingsPage() {
               <h3 className="font-medium text-text">Messages</h3>
               <p className="text-sm text-muted">Get notified when you receive new messages</p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.messages}
-                onChange={() => handleToggle('messages')}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-surface2 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
-            </label>
+            <Switch
+              checked={settings.messages}
+              onCheckedChange={() => handleToggle('messages')}
+              aria-label="Message notifications"
+            />
           </div>
 
           <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-surface">
@@ -161,15 +150,11 @@ export default function NotificationSettingsPage() {
               <h3 className="font-medium text-text">Marketing Emails</h3>
               <p className="text-sm text-muted">Receive promotional emails and updates</p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.marketing_emails}
-                onChange={() => handleToggle('marketing_emails')}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-surface2 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
-            </label>
+            <Switch
+              checked={settings.marketing_emails}
+              onCheckedChange={() => handleToggle('marketing_emails')}
+              aria-label="Marketing email notifications"
+            />
           </div>
         </div>
 

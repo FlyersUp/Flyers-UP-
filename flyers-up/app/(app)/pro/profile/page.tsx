@@ -24,6 +24,7 @@ import {
 } from '@/lib/utils/businessHours';
 import { warnLegacyServicesNotInOccupationServices } from '@/lib/proProfileCanonical';
 import { DARK_MODE_END_USER_ENABLED } from '@/lib/themeFeatureFlags';
+import { Switch } from '@/components/ui/Switch';
 
 interface ProProfileData {
   displayName: string;
@@ -323,22 +324,11 @@ export default function ProProfilePage() {
               <span className="text-sm font-medium text-text" id="preview-customer-label">
                 Preview as customer
               </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={previewAsCustomer}
+              <Switch
+                checked={previewAsCustomer}
+                onCheckedChange={setPreviewAsCustomer}
                 aria-labelledby="preview-customer-label"
-                onClick={() => setPreviewAsCustomer((v) => !v)}
-                className={`relative inline-flex h-7 w-12 shrink-0 rounded-full border border-border transition-colors ${
-                  previewAsCustomer ? 'bg-accent' : 'bg-surface2'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                    previewAsCustomer ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
+              />
             </div>
           )}
         </div>
