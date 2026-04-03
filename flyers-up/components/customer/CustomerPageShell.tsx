@@ -38,17 +38,17 @@ export function CustomerPageShell({ title, children, userName: userNameProp, sub
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col w-full max-w-full overflow-x-clip bg-bg">
-        <div className="sticky top-0 z-20 safe-area-top bg-bg/95 backdrop-blur-sm border-b border-border">
+        <div className="sticky top-0 z-20 safe-area-top border-b border-trust/20 bg-trust/95 backdrop-blur-md">
         <div className="max-w-4xl w-full min-w-0 mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
-            className="h-10 w-10 rounded-xl bg-surface2 border border-border text-text hover:bg-surface2/80"
+            className="h-10 w-10 rounded-xl border border-white/20 bg-white/10 text-white hover:bg-white/15"
             aria-label="Open menu"
           >
             ☰
           </button>
-          <h1 className="text-lg sm:text-xl font-semibold text-text truncate min-w-0 flex-1 text-center px-1">
+          <h1 className="text-lg sm:text-xl font-semibold text-white truncate min-w-0 flex-1 text-center px-1">
             {title}
           </h1>
           <div className="w-10" />

@@ -30,7 +30,7 @@ function NavAlertDot({ show }: { show: boolean }) {
   if (!show) return null;
   return (
     <span
-      className="absolute -top-0.5 -right-1 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-surface bg-accentOrange"
+      className="absolute -top-0.5 -right-1 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-surface bg-action"
       aria-label="New"
     />
   );
@@ -73,7 +73,7 @@ function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel, mode }
   const base =
     'flex items-center justify-center h-11 sm:h-14 rounded-full border backdrop-blur-md overflow-hidden ' +
     'active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus:outline-none ' +
-    'focus-visible:ring-[var(--ring-green)] focus-visible:ring-offset-bg ' +
+    'focus-visible:ring-trust/45 focus-visible:ring-offset-bg ' +
     'shadow-[var(--shadow-2)] ' +
     'transition-colors duration-[220ms] ease-out';
 
@@ -81,8 +81,8 @@ function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel, mode }
   const inactiveBorder = 'border-border';
   const inactiveIcon = 'text-text3';
 
-  const activeBg = mode === 'pro' ? 'bg-[hsl(var(--accent-pro)/0.22)]' : 'bg-[hsl(var(--accent-customer)/0.22)]';
-  const activeBorder = mode === 'pro' ? 'border-[hsl(var(--accent-pro)/0.58)]' : 'border-[hsl(var(--accent-customer)/0.58)]';
+  const activeBg = 'bg-[hsl(var(--trust)/0.2)]';
+  const activeBorder = 'border-[hsl(var(--trust)/0.45)]';
   const activeIcon = 'text-text';
 
   return (

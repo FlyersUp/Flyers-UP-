@@ -11,27 +11,39 @@
 
 :root {
   /* ============================================
-     CORE NEUTRALS (Flyers Up premium base)
-     Tailwind uses HSL triplets (no hsl() wrapper) for alpha support
+     FLYERS UP — unified marketplace system (light)
+     Trust: Slate Blue · Action: Pastel Orange · Ground: Warm Linen
+     Tailwind: hsl(var(--token) / <alpha-value>)
      ============================================ */
-  /* Cool neutrals – minimal warmth */
-  --bg: 0 0% 97%;
-  --surface: 50 8% 95%;   /* cool lifted surface */
-  --surface-2: 50 6% 91%;
-  --muted: 50 6% 84%;
-  --hover: 50 6% 88%;
+  --trust: 222 44% 52%;
+  --trust-hover: 222 44% 46%;
+  --trust-foreground: 0 0% 100%;
+  --action: 33 100% 64%;
+  --action-hover: 32 88% 56%;
+  --action-foreground: 0 0% 100%;
+  --sage: 98 20% 61%;
 
-  /* Text */
-  --text: 50 10% 14%;
-  --text-2: 50 8% 26%;
-  --text-3: 50 6% 38%;
+  /* Page + surfaces */
+  --bg: 48 33% 97%; /* Warm Linen #F9F7F2 */
+  --surface: 0 0% 100%;
+  --surface-2: 228 22% 95%; /* Cloud Grey #F1F2F6 */
+  --muted: 228 22% 93%;
+  --hover: 228 18% 92%;
 
-  /* Borders – cool gray */
-  --border: 50 6% 84%;
-  --border-2: 50 5% 76%;
-  --ring: rgba(170, 160, 109, 0.45);
-  --ring-green: rgba(170, 160, 109, 0.48);
-  --ring-orange: rgba(229, 156, 92, 0.45);
+  /* Text — Deep Charcoal scale + muted #667085 */
+  --text: 210 9% 19%;
+  --text-2: 210 7% 28%;
+  --text-3: 220 9% 46%;
+
+  /* Borders */
+  --border: 220 17% 91%;
+  --border-2: 217 17% 88%;
+  --ring: 222 44% 52%;
+  --ring-trust: 222 44% 52%;
+  --ring-action: 33 100% 64%;
+  /* Legacy aliases → trust-focused focus */
+  --ring-green: 222 44% 52%;
+  --ring-orange: 33 100% 64%;
 
   /* Shadows – neutral gray */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
@@ -62,13 +74,13 @@
   --shadow-card-hover: 0 1px 0 rgba(0, 0, 0, 0.06), 0 8px 18px rgba(0, 0, 0, 0.07);
   --card-border: 1px solid rgba(0, 0, 0, 0.08);
 
-  /* Role accents (hex for color-mix) */
-  --customer-accent: #AAA06D;
-  --pro-accent: #E59C5C;
-  --surface-hex: #F6F5F3;
-  --customer-border: color-mix(in srgb, var(--customer-accent) 65%, #000 35%);
-  --pro-border: color-mix(in srgb, var(--pro-accent) 65%, #000 35%);
-  --customer-tint: color-mix(in srgb, var(--customer-accent) 12%, var(--surface-hex) 88%);
+  /* Role accents (hex for color-mix) — trust slate + action orange */
+  --customer-accent: #4a69bd;
+  --pro-accent: #ffb347;
+  --surface-hex: #f9f7f2;
+  --customer-border: color-mix(in srgb, var(--customer-accent) 55%, #2d3436 45%);
+  --pro-border: color-mix(in srgb, var(--pro-accent) 55%, #2d3436 45%);
+  --customer-tint: color-mix(in srgb, var(--customer-accent) 10%, var(--surface-hex) 90%);
   --pro-tint: color-mix(in srgb, var(--pro-accent) 12%, var(--surface-hex) 88%);
 
   /* App semantic tokens */
@@ -76,40 +88,47 @@
   --card: hsl(var(--surface));
   --card-2: hsl(var(--surface-2));
   /* Neutral card */
-  --card-neutral: 50 6% 98%;
+  --card-neutral: 0 0% 100%;
   --popover: hsl(var(--surface));
   --muted-bg: hsl(var(--muted));
   --foreground: hsl(var(--text));
   --muted-foreground: hsl(var(--text-3));
-  --input: hsl(var(--surface));
+  --input: 0 0% 100%;
   --input-border: hsl(var(--border));
-  --focus-ring: var(--ring);
-  --btn: #111111;
-  --btn-foreground: #FFFFFF;
+  --focus-ring: hsl(var(--ring) / 0.45);
+  --btn: #2d3436;
+  --btn-foreground: #ffffff;
   --outline: var(--border);
+
+  /* Semantic triplets (hsl(var(--name) / alpha)) — primary = trust, CTA = --accent-pro */
+  --primary: var(--trust);
+  --primary-foreground: var(--trust-foreground);
+  --secondary: 228 22% 95%;
+  --secondary-foreground: 210 9% 19%;
+  --success-fg: 168 61% 12%;
 
   /* Role routing (set by data-role on layout) */
   --role-accent: var(--customer-accent);
   --role-border: var(--customer-border);
   --role-tint: var(--customer-tint);
-  --role-accent-hsl: 51 26% 55%;
-  --accent: 51 26% 55%;
-  --accent-contrast: 54 16% 14%;
-  --accent-customer: 51 26% 55%;
-  --accent-pro: 30 72% 63%;
-  --text-muted: 48 9% 40%;
-  --success: 84 28% 63%;
-  --warning: 30 68% 64%;
-  --info: 45 36% 66%;
-  --danger: 9 48% 57%;
-  --selected-green: 51 26% 55% / 0.18;
-  --selected-orange: 30 72% 63% / 0.18;
+  --role-accent-hsl: 222 44% 52%;
+  --accent: 222 44% 52%;
+  --accent-contrast: 210 9% 19%;
+  --accent-customer: 222 44% 52%;
+  --accent-pro: 33 100% 64%;
+  --text-muted: 220 9% 46%;
+  --success: 166 75% 62%;
+  --warning: 33 95% 72%;
+  --info: 222 35% 92%;
+  --danger: 9 55% 54%;
+  --selected-green: 222 44% 52% / 0.16;
+  --selected-orange: 33 100% 64% / 0.18;
 
   /* Nav + surfaces */
-  --nav-bg: rgba(248, 247, 244, 0.94);
-  --nav-solid: var(--nav-bg);
-  --surface-solid: #FFFFFF;
-  --surface-border: rgba(0,0,0,0.06);
+  --nav-bg: hsl(222 44% 52% / 0.96);
+  --nav-solid: #4a69bd;
+  --surface-solid: #ffffff;
+  --surface-border: hsl(220 17% 91%);
 
   /* Weighting tokens */
   --page-pad-x: 16px;
@@ -137,22 +156,22 @@
   --fu-content-pad-sticky-only: calc(var(--fu-sticky-action-bar-chrome) + 0.75rem);
 }
 
-/* Swap role tokens by data-role (AppLayout) */
+/* Swap role tokens by data-role — trust slate + pro warmth tints */
 [data-role="customer"] {
   --role-accent: var(--customer-accent);
   --role-border: var(--customer-border);
   --role-tint: var(--customer-tint);
-  --role-accent-hsl: 51 26% 55%;
-  --accent: 51 26% 55%;
-  --accent-customer: 51 26% 55%;
+  --role-accent-hsl: 222 44% 52%;
+  --accent: 222 44% 52%;
+  --accent-customer: 222 44% 52%;
 }
 [data-role="pro"] {
   --role-accent: var(--pro-accent);
   --role-border: var(--pro-border);
   --role-tint: var(--pro-tint);
-  --role-accent-hsl: 30 72% 63%;
-  --accent: 30 72% 63%;
-  --accent-pro: 30 72% 63%;
+  --role-accent-hsl: 222 44% 52%;
+  --accent: 222 44% 52%;
+  --accent-pro: 33 100% 64%;
 }
 
 /* AccentDensity: default vs focus */
@@ -173,30 +192,36 @@
 
 /* .theme-customer / .theme-pro on root (ThemeContext) – fallback when data-role not on layout */
 .theme-customer {
-  --accent: 51 26% 55%;
-  --accent-contrast: 54 16% 14%;
-  --ring: var(--accent);
-  --role-accent-hsl: var(--accent);
-  --switch-accent: 51 26% 55%;
+  --accent: 222 44% 52%;
+  --accent-contrast: 210 9% 19%;
+  --ring: 222 44% 52%;
+  --role-accent-hsl: 222 44% 52%;
+  --switch-accent: 222 44% 52%;
   --page-pad-y: 24px;
   --stack-gap: 18px;
   --card-pad: 20px;
-  --surface-border: rgba(0,0,0,0.06);
+  --surface-border: hsl(220 17% 91%);
 }
 .theme-pro {
-  --accent: 30 72% 63%;
-  --accent-contrast: 54 16% 14%;
-  --ring: var(--accent);
-  --role-accent-hsl: var(--accent);
-  --switch-accent: 30 72% 63%;
+  --accent: 222 44% 52%;
+  --accent-contrast: 210 9% 19%;
+  --ring: 222 44% 52%;
+  --role-accent-hsl: 222 44% 52%;
+  --switch-accent: 33 100% 64%;
   --page-pad-y: 20px;
   --stack-gap: 14px;
   --card-pad: 18px;
-  --surface-border: rgba(0,0,0,0.08);
+  --surface-border: hsl(220 17% 91%);
 }
 
 /* Dark mode: soft neutral SaaS (#0F1115 app, #171A20 cards) */
 .dark {
+  --trust: 222 38% 58%;
+  --trust-hover: 222 38% 52%;
+  --trust-foreground: 0 0% 100%;
+  --action: 33 90% 62%;
+  --action-hover: 33 85% 55%;
+  --action-foreground: 210 9% 12%;
   /* Warm dark neutrals */
   --bg: 40 20% 10%;
   --surface: 37 18% 14%;
@@ -212,9 +237,11 @@
   /* Borders */
   --border: 34 16% 28%;
   --border-2: 34 14% 36%;
-  --ring: rgba(170, 160, 109, 0.4);
-  --ring-green: rgba(170, 160, 109, 0.45);
-  --ring-orange: rgba(229, 156, 92, 0.42);
+  --ring: 222 40% 58%;
+  --ring-trust: 222 40% 58%;
+  --ring-action: 33 90% 62%;
+  --ring-green: 222 40% 58%;
+  --ring-orange: 33 90% 62%;
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
@@ -226,12 +253,12 @@
 
   --surface-hex: #2c271f;
 
-  --success: 84 28% 60%;
-  --warning: 30 68% 62%;
-  --info: 45 30% 58%;
-  --danger: 9 50% 60%;
-  --customer-accent: #AAA06D;
-  --pro-accent: #E59C5C;
+  --success: 166 70% 58%;
+  --warning: 33 85% 62%;
+  --info: 222 30% 45%;
+  --danger: 9 50% 58%;
+  --customer-accent: #6b8fd4;
+  --pro-accent: #ffb347;
 
   /* Role accents: dark-safe borders/tints */
   --customer-border: color-mix(in srgb, var(--customer-accent) 50%, var(--surface-hex) 50%);
@@ -270,28 +297,28 @@
   --panel-pad-y: 20px;
   --badge-bg: rgba(243, 234, 212, 0.08);
   --badge-border: rgba(243, 234, 212, 0.14);
-  --accent-customer: 51 26% 55%;
-  --accent-pro: 30 72% 63%;
+  --accent-customer: 222 40% 58%;
+  --accent-pro: 33 90% 62%;
   --role-tint: hsl(var(--role-accent-hsl) / 0.12);
   --role-border: hsl(var(--role-accent-hsl) / 0.35);
-  --selected-green: 51 26% 55% / 0.2;
-  --selected-orange: 30 72% 63% / 0.2;
+  --selected-green: 222 40% 58% / 0.2;
+  --selected-orange: 33 90% 62% / 0.2;
 }
 
 /* Role-based accents (dark) */
 .dark.theme-customer {
-  --accent: 51 26% 55%;
+  --accent: 222 40% 58%;
   --role-accent-hsl: var(--accent);
-  --switch-accent: 51 26% 55%;
+  --switch-accent: 222 40% 58%;
   --page-pad-y: 24px;
   --stack-gap: 18px;
   --card-pad: 20px;
   --surface-border: rgba(255,255,255,0.06);
 }
 .dark.theme-pro {
-  --accent: 30 72% 63%;
+  --accent: 222 40% 58%;
   --role-accent-hsl: var(--accent);
-  --switch-accent: 30 72% 63%;
+  --switch-accent: 33 90% 62%;
   --page-pad-y: 20px;
   --stack-gap: 14px;
   --card-pad: 18px;
@@ -303,35 +330,39 @@
    Overrides .dark so landing, signin, signup, auth, privacy stay branded.
    ============================================ */
 .public-light {
-  /* Core surfaces – cool neutrals (no orange) */
-  --bg: 0 0% 97%;
-  --surface: 50 8% 95%;
-  --surface-2: 50 6% 91%;
-  --muted: 50 6% 84%;
-  /* Text */
-  --text: 50 10% 14%;
-  --text-2: 50 8% 26%;
-  --text-3: 50 6% 38%;
-  /* Borders */
-  --border: 50 6% 84%;
-  --border-2: 50 5% 76%;
-  --ring: rgba(170, 160, 109, 0.45);
-  /* Shadows */
+  --trust: 222 44% 52%;
+  --trust-hover: 222 44% 46%;
+  --trust-foreground: 0 0% 100%;
+  --action: 33 100% 64%;
+  --action-hover: 32 88% 56%;
+  --action-foreground: 0 0% 100%;
+  --bg: 48 33% 97%;
+  --surface: 0 0% 100%;
+  --surface-2: 228 22% 95%;
+  --muted: 228 22% 93%;
+  --text: 210 9% 19%;
+  --text-2: 210 7% 28%;
+  --text-3: 220 9% 46%;
+  --border: 220 17% 91%;
+  --border-2: 217 17% 88%;
+  --ring: 222 44% 52%;
+  --ring-trust: 222 44% 52%;
+  --ring-action: 33 100% 64%;
+  --ring-green: 222 44% 52%;
+  --ring-orange: 33 100% 64%;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 10px 24px rgba(0, 0, 0, 0.07);
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.07);
   --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.05), 0 4px 14px rgba(0, 0, 0, 0.06);
   --shadow-card-hover: 0 1px 0 rgba(0, 0, 0, 0.06), 0 8px 18px rgba(0, 0, 0, 0.07);
-  /* Hex for color-mix */
-  --surface-hex: #F6F5F3;
-  --customer-accent: #AAA06D;
-  --pro-accent: #fbbb62;
-  --customer-border: color-mix(in srgb, var(--customer-accent) 65%, #000 35%);
-  --pro-border: color-mix(in srgb, var(--pro-accent) 65%, #000 35%);
-  --customer-tint: color-mix(in srgb, var(--customer-accent) 12%, var(--surface-hex) 88%);
+  --surface-hex: #f9f7f2;
+  --customer-accent: #4a69bd;
+  --pro-accent: #ffb347;
+  --customer-border: color-mix(in srgb, var(--customer-accent) 55%, #2d3436 45%);
+  --pro-border: color-mix(in srgb, var(--pro-accent) 55%, #2d3436 45%);
+  --customer-tint: color-mix(in srgb, var(--customer-accent) 10%, var(--surface-hex) 90%);
   --pro-tint: color-mix(in srgb, var(--pro-accent) 12%, var(--surface-hex) 88%);
-  /* Semantic */
   --background: hsl(var(--bg));
   --card: hsl(var(--surface));
   --card-2: hsl(var(--surface-2));
@@ -339,39 +370,40 @@
   --muted-bg: hsl(var(--muted));
   --foreground: hsl(var(--text));
   --muted-foreground: hsl(var(--text-3));
-  --input: hsl(var(--surface));
+  --input: 0 0% 100%;
   --input-border: hsl(var(--border));
-  --focus-ring: var(--ring);
-  --btn: #111111;
-  --btn-foreground: #FFFFFF;
+  --focus-ring: hsl(var(--ring) / 0.45);
+  --btn: #2d3436;
+  --btn-foreground: #ffffff;
   --outline: var(--border);
-  /* Role accents */
+  --primary: var(--trust);
+  --primary-foreground: var(--trust-foreground);
+  --secondary: 228 22% 95%;
+  --secondary-foreground: 210 9% 19%;
+  --success-fg: 168 61% 12%;
   --role-accent: var(--customer-accent);
   --role-border: var(--customer-border);
   --role-tint: var(--customer-tint);
-  --role-accent-hsl: 51 26% 55%;
-  --accent: 51 26% 55%;
-  --accent-contrast: 54 16% 14%;
-  --accent-customer: 51 26% 55%;
-  --accent-pro: 39 95% 68%;
-  --text-muted: 48 9% 40%;
-  --ring: var(--role-accent);
-  --success: 84 28% 63%;
-  --warning: 30 68% 64%;
-  --info: 45 36% 66%;
-  --danger: 9 48% 57%;
-  /* Nav + surfaces */
-  --nav-bg: rgba(248, 247, 244, 0.94);
-  --nav-solid: var(--nav-bg);
-  --surface-solid: #FFFFFF;
-  --surface-border: rgba(0, 0, 0, 0.08);
+  --role-accent-hsl: 222 44% 52%;
+  --accent: 222 44% 52%;
+  --accent-contrast: 210 9% 19%;
+  --accent-customer: 222 44% 52%;
+  --accent-pro: 33 100% 64%;
+  --text-muted: 220 9% 46%;
+  --success: 166 75% 62%;
+  --warning: 33 95% 72%;
+  --info: 222 35% 92%;
+  --danger: 9 55% 54%;
+  --nav-bg: hsl(222 44% 52% / 0.96);
+  --nav-solid: #4a69bd;
+  --surface-solid: #ffffff;
+  --surface-border: hsl(220 17% 91%);
   --hairline: rgba(0, 0, 0, 0.08);
   --card-border: 1px solid rgba(0, 0, 0, 0.08);
-  --badge-bg: rgba(0, 0, 0, 0.04);
+  --badge-bg: rgba(74, 105, 189, 0.06);
   --badge-border: rgba(0, 0, 0, 0.08);
-  /* Force light background and text on the container */
-  background: #F6F5F3;
-  color: #252520;
+  background: hsl(var(--bg));
+  color: hsl(var(--text));
 }
 
 /* Typography - Montserrat (Primary) + Oswald (Labels) */

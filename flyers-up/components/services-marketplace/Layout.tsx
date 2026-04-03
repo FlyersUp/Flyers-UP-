@@ -14,14 +14,14 @@ import {
   User,
 } from 'lucide-react';
 
-/** Premium warm marketplace palette (use with restraint) */
+/** Flyers Up marketplace reference palette (prefer Tailwind `trust`, `action`, `bg`) */
 export const marketplace = {
-  cta: '#E48C35',
-  accent: '#F5B74E',
-  base: '#EBCEAE',
-  mutedSurface: '#E0AF70',
-  trust: '#AAA06D',
-  slate: '#5D695D',
+  cta: '#FFB347',
+  accent: '#FFB347',
+  base: '#F9F7F2',
+  mutedSurface: '#F1F2F6',
+  trust: '#4A69BD',
+  slate: '#4A69BD',
 } as const;
 
 export type LayoutMode = 'landing' | 'dashboard';
@@ -53,29 +53,25 @@ export function Layout({
   dashboardActiveId = 'overview',
   className = '',
 }: LayoutProps) {
-  const slate = marketplace.slate;
-  const cta = marketplace.cta;
-
   if (mode === 'landing') {
     return (
       <div
-        className={`min-h-dvh flex flex-col bg-[#EBCEAE] text-[#5D695D] antialiased ${className}`}
+        className={`min-h-dvh flex flex-col bg-bg text-text antialiased ${className}`}
         style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}
       >
-        <header className="sticky top-0 z-50 border-b border-[#5D695D]/12 bg-[#EBCEAE]/90 backdrop-blur-md">
+        <header className="sticky top-0 z-50 border-b border-trust/15 bg-trust/95 backdrop-blur-md">
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
             <Link
               href="#"
-              className="flex items-center gap-2 rounded-xl px-2 py-1 text-[#5D695D] transition-colors hover:bg-[#5D695D]/5"
+              className="flex items-center gap-2 rounded-xl px-2 py-1 text-white transition-colors hover:bg-white/10"
               aria-label="Flyers Up home"
             >
               <span
-                className="flex h-9 w-9 items-center justify-center rounded-xl shadow-sm"
-                style={{ backgroundColor: slate, color: '#F8F4EE' }}
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 text-white shadow-sm"
               >
                 <Sparkles className="h-5 w-5" strokeWidth={2} />
               </span>
-              <span className="text-lg font-semibold tracking-tight">Flyers Up</span>
+              <span className="text-lg font-semibold tracking-tight text-white">Flyers Up</span>
             </Link>
 
             <nav className="hidden items-center gap-1 md:flex" aria-label="Flyers Up primary">
@@ -83,7 +79,7 @@ export function Layout({
                 <Link
                   key={label}
                   href="#"
-                  className="rounded-xl px-3 py-2 text-sm font-medium text-[#5D695D]/85 transition-colors hover:bg-[#5D695D]/8 hover:text-[#5D695D]"
+                  className="rounded-xl px-3 py-2 text-sm font-medium text-white/90 transition-colors hover:bg-white/10 hover:text-white"
                 >
                   {label}
                 </Link>
@@ -93,14 +89,13 @@ export function Layout({
             <div className="flex items-center gap-2 sm:gap-3">
               <button
                 type="button"
-                className="hidden rounded-xl border border-[#5D695D]/15 bg-[#F8F4EE]/40 px-3 py-2 text-sm font-medium text-[#5D695D] shadow-sm transition hover:border-[#5D695D]/25 hover:bg-[#F8F4EE]/70 sm:inline-flex"
+                className="hidden rounded-xl border border-white/25 bg-white/10 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-white/15 sm:inline-flex"
               >
                 Sign in
               </button>
               <button
                 type="button"
-                className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:brightness-105 active:scale-[0.98]"
-                style={{ backgroundColor: cta, boxShadow: '0 4px 14px rgba(228, 140, 53, 0.35)' }}
+                className="rounded-xl bg-action px-4 py-2.5 text-sm font-semibold text-actionFg shadow-md transition hover:bg-[hsl(var(--action-hover))] active:scale-[0.98]"
               >
                 Get started
               </button>
@@ -110,12 +105,12 @@ export function Layout({
 
         <main className="flex-1">{children}</main>
 
-        <footer className="border-t border-[#5D695D]/12 bg-[#5D695D] text-[#F0EBE3]">
+        <footer className="border-t border-trust/20 bg-trust text-white/90">
           <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
             <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
               <div>
                 <p className="text-lg font-semibold tracking-tight text-white">Flyers Up</p>
-                <p className="mt-2 max-w-sm text-sm text-[#F0EBE3]/75">
+                <p className="mt-2 max-w-sm text-sm text-white/75">
                   Flyers Up connects you with trusted local help for your home and life—vetted pros, clear pricing, peace
                   of mind.
                 </p>
@@ -123,7 +118,7 @@ export function Layout({
               <div className="flex flex-wrap gap-8 text-sm">
                 <div className="space-y-2">
                   <p className="font-semibold text-white/95">Company</p>
-                  <ul className="space-y-1.5 text-[#F0EBE3]/70">
+                  <ul className="space-y-1.5 text-white/70">
                     <li>
                       <Link href="#" className="rounded-lg hover:text-white">
                         About
@@ -138,7 +133,7 @@ export function Layout({
                 </div>
                 <div className="space-y-2">
                   <p className="font-semibold text-white/95">Support</p>
-                  <ul className="space-y-1.5 text-[#F0EBE3]/70">
+                  <ul className="space-y-1.5 text-white/70">
                     <li>
                       <Link href="#" className="rounded-lg hover:text-white">
                         Help center
@@ -153,7 +148,7 @@ export function Layout({
                 </div>
               </div>
             </div>
-            <p className="mt-10 border-t border-white/10 pt-8 text-center text-xs text-[#F0EBE3]/55">
+            <p className="mt-10 border-t border-white/10 pt-8 text-center text-xs text-white/55">
               © {new Date().getFullYear()} Flyers Up. All rights reserved.
             </p>
           </div>
@@ -165,13 +160,10 @@ export function Layout({
   /* Dashboard */
   return (
     <div
-      className={`min-h-dvh flex bg-[#EBCEAE] text-[#5D695D] antialiased ${className}`}
+      className={`min-h-dvh flex bg-bg text-text antialiased ${className}`}
       style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}
     >
-      <aside
-        className="hidden w-64 shrink-0 flex-col border-r border-white/10 shadow-xl md:flex"
-        style={{ backgroundColor: slate }}
-      >
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-white/10 bg-trust shadow-xl md:flex">
         <div className="flex h-16 items-center gap-2 border-b border-white/10 px-5">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-[#F8F4EE]">
             <Sparkles className="h-4 w-4" strokeWidth={2} />
@@ -193,7 +185,7 @@ export function Layout({
                     : 'text-[#E8E4DC]/85 hover:bg-white/8 hover:text-white',
                 ].join(' ')}
               >
-                <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-[#F5B74E]' : 'text-[#C9C4B8]'}`} strokeWidth={2} />
+                <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-action' : 'text-white/60'}`} strokeWidth={2} />
                 {label}
               </Link>
             );
@@ -213,10 +205,7 @@ export function Layout({
 
       {/* Mobile top bar */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header
-          className="flex h-14 items-center justify-between border-b border-[#5D695D]/10 px-4 md:hidden"
-          style={{ backgroundColor: slate }}
-        >
+        <header className="flex h-14 items-center justify-between border-b border-white/10 bg-trust px-4 md:hidden">
           <span className="text-base font-semibold text-white">Flyers Up</span>
           <button
             type="button"

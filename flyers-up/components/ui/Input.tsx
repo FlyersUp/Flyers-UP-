@@ -13,7 +13,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 export function Input({ label, error, className = '', ...props }: InputProps) {
   const fieldClasses = error
     ? 'border-danger focus:ring-2 focus:ring-danger/20 focus:border-danger'
-    : 'border-border bg-surface focus:ring-2 focus:ring-[var(--ring-green)] focus:border-borderStrong';
+    : 'border-border bg-surface focus:ring-2 focus:ring-trust/30 focus:border-borderStrong';
 
   return (
     <div className="w-full">

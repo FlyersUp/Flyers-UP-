@@ -12,6 +12,8 @@ interface LogoProps {
   className?: string;
   /** header = horizontal "FLYERS UP" with accent on UP; default = stacked legacy */
   variant?: 'default' | 'header';
+  /** Light wordmark for slate / trust headers */
+  onTrustBackground?: boolean;
 }
 
 const sizeConfig = {
@@ -31,6 +33,7 @@ export default function Logo({
   linkToHome = true,
   className = '',
   variant = 'default',
+  onTrustBackground = false,
 }: LogoProps) {
   if (variant === 'header') {
     const { textClass } = headerSizeConfig[size];
@@ -40,7 +43,7 @@ export default function Logo({
           'inline-flex items-baseline select-none whitespace-nowrap',
           'uppercase font-extrabold tracking-[0.5px]',
           textClass,
-          'text-[#1A1A1A]',
+          onTrustBackground ? 'text-white' : 'text-text',
           'transition-opacity duration-150 ease-out hover:opacity-100 opacity-[0.97]',
           className,
         ].join(' ')}
@@ -50,7 +53,12 @@ export default function Logo({
         }}
         aria-label="Flyers Up"
       >
-        FLYERS<span className="border-b-2 border-[#bee3ba]">UP</span>
+        FLYERS
+        <span
+          className={onTrustBackground ? 'border-b-2 border-action' : 'border-b-2 border-sage'}
+        >
+          UP
+        </span>
       </span>
     );
     if (linkToHome) {
@@ -77,15 +85,15 @@ export default function Logo({
       <span
         className={[
           'uppercase font-bold leading-[0.88] tracking-tight text-center select-none',
-          'text-[#1A1A1A]',
-          textClass,
-        ].join(' ')}
+        'text-text',
+        textClass,
+      ].join(' ')}
         style={{
           fontFamily:
             'var(--font-oswald), var(--font-montserrat), system-ui, -apple-system, Segoe UI, sans-serif',
         }}
       >
-        FLYERS<span className="border-b-2 border-[#bee3ba]">UP</span>
+        FLYERS<span className="border-b-2 border-sage">UP</span>
       </span>
     </div>
   );

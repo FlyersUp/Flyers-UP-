@@ -26,6 +26,21 @@ const config: Config = {
         text2: 'hsl(var(--text-2) / <alpha-value>)',
         text3: 'hsl(var(--text-3) / <alpha-value>)',
         muted: 'hsl(var(--text-muted) / <alpha-value>)',
+        mutedFg: 'hsl(var(--text-3) / <alpha-value>)',
+        /** Trust anchor (Slate Blue) — nav, structure, links */
+        trust: 'hsl(var(--trust) / <alpha-value>)',
+        trustFg: 'hsl(var(--trust-foreground) / <alpha-value>)',
+        /** Primary CTA channel (Pastel Orange) */
+        action: 'hsl(var(--action) / <alpha-value>)',
+        actionFg: 'hsl(var(--action-foreground) / <alpha-value>)',
+        /** Semantic aliases */
+        primary: 'hsl(var(--primary) / <alpha-value>)',
+        primaryFg: 'hsl(var(--primary-foreground) / <alpha-value>)',
+        secondaryFg: 'hsl(var(--secondary-foreground) / <alpha-value>)',
+        dsSecondary: 'hsl(var(--secondary) / <alpha-value>)',
+        successFg: 'hsl(var(--success-fg) / <alpha-value>)',
+        sage: 'hsl(var(--sage) / <alpha-value>)',
+        inputBg: 'hsl(var(--input) / <alpha-value>)',
         accent: 'hsl(var(--accent) / <alpha-value>)',
         accentContrast: 'hsl(var(--accent-contrast) / <alpha-value>)',
         accentGreen: 'hsl(var(--accent-customer) / <alpha-value>)',
@@ -44,6 +59,18 @@ const config: Config = {
         /* Accent density: soft tint and border from --role-accent (used in focus mode) */
         roleTint: 'var(--role-tint)',
         roleBorder: 'var(--role-border)',
+        /* Public marketing landing — strict palette (do not use for app shell dark mode) */
+        market: {
+          slate: '#4A69BD',
+          orange: '#FFB347',
+          'orange-hover': '#F5A03C',
+          linen: '#F9F7F2',
+          sage: '#9CAF88',
+          charcoal: '#2D3436',
+          cloud: '#F1F2F6',
+          teal: '#55E6C1',
+          line: '#E0E0E0',
+        },
       },
       boxShadow: {
         sm: 'var(--shadow-1)',

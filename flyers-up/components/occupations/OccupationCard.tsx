@@ -65,16 +65,16 @@ export function OccupationCard({
   return (
     <Link
       href={`/occupations/${slug}`}
-      className="group relative block overflow-hidden rounded-2xl border border-border bg-[hsl(var(--card-neutral))] p-4 shadow-[var(--shadow-card)] transition-all duration-200 hover:scale-[1.02] hover:border-[hsl(var(--accent-customer)/0.5)] hover:shadow-[0_4px_20px_rgba(156,167,100,0.15)] active:scale-[0.99]"
+      className="group relative block overflow-hidden rounded-2xl border border-border bg-[hsl(var(--card-neutral))] p-4 shadow-[var(--shadow-card)] transition-all duration-200 hover:scale-[1.02] hover:border-trust/40 hover:shadow-[0_4px_20px_hsl(var(--trust)/0.12)] active:scale-[0.99]"
     >
       <div
-        className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[rgba(156,167,100,0.08)] blur-xl"
+        className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-trust/[0.07] blur-xl"
         aria-hidden
       />
       <div className="relative flex min-w-0 items-start gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(156,167,100,0.18)]">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-trust/12">
           <IconComponent
-            className="h-6 w-6 text-[#111111] dark:text-[#F5F7FA]"
+            className="h-6 w-6 text-trust dark:text-trust/90"
             strokeWidth={1.75}
           />
         </div>
