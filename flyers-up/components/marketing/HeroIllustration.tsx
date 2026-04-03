@@ -1,7 +1,19 @@
 /**
  * Soft sage brownstones + trees — decorative hero art (no inline styles).
+ * `onSlate`: sky/backdrop tuned for the slate-blue hero band.
  */
-export function HeroIllustration({ className }: { className?: string }) {
+export function HeroIllustration({
+  className,
+  variant = 'default',
+}: {
+  className?: string;
+  variant?: 'default' | 'onSlate';
+}) {
+  const sky =
+    variant === 'onSlate'
+      ? 'fill-white/[0.14]'
+      : 'fill-market-linen';
+
   return (
     <svg
       className={className}
@@ -10,7 +22,7 @@ export function HeroIllustration({ className }: { className?: string }) {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
-      <rect width="800" height="280" className="fill-market-linen" />
+      <rect width="800" height="280" className={sky} />
       {/* Ground */}
       <path
         d="M0 220 Q200 200 400 210 T800 205 L800 280 L0 280 Z"

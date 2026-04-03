@@ -16,8 +16,8 @@ export function MarketingTrustSection() {
           <ul className="mt-6 space-y-4">
             {customerPoints.map((label) => (
               <li key={label} className="flex items-start gap-3 text-market-charcoal">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-market-teal/25 text-market-charcoal">
-                  <Check className="h-4 w-4 text-market-teal" strokeWidth={2.5} aria-hidden />
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-market-sage/25 text-market-charcoal">
+                  <Check className="h-4 w-4 text-market-sage" strokeWidth={2.5} aria-hidden />
                 </span>
                 <span className="pt-0.5 font-medium">{label}</span>
               </li>
@@ -32,8 +32,8 @@ export function MarketingTrustSection() {
           <ul className="mt-6 space-y-4">
             {proPoints.map((label) => (
               <li key={label} className="flex items-start gap-3 text-market-charcoal">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-market-teal/25 text-market-charcoal">
-                  <Check className="h-4 w-4 text-market-teal" strokeWidth={2.5} aria-hidden />
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-market-sage/25 text-market-charcoal">
+                  <Check className="h-4 w-4 text-market-sage" strokeWidth={2.5} aria-hidden />
                 </span>
                 <span className="pt-0.5 font-medium">{label}</span>
               </li>

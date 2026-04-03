@@ -16,7 +16,11 @@ export function MarketingNavbar() {
           <span className="text-lg font-bold tracking-tight md:text-xl">FLYERS UP</span>
         </Link>
         <div className="col-start-2 row-start-1 justify-self-end md:col-start-3 md:row-start-1">
-          <MarketingButton href="/signin" variant="primary" className="!px-4 !py-2.5 text-sm">
+          <MarketingButton
+            href="/signin"
+            variant="primary"
+            className="!px-4 !py-2.5 text-sm !ring-offset-market-slate"
+          >
             Sign In
           </MarketingButton>
         </div>
