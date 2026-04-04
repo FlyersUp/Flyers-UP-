@@ -23,6 +23,7 @@ type MarginBookingRow = {
   amount_platform_fee: number | null;
   stripe_estimated_fee_cents: number | null;
   stripe_actual_fee_cents: number | null;
+  stripe_net_cents: number | null;
   platform_gross_margin_cents: number | null;
   contribution_margin_cents: number | null;
   effective_take_rate: number | null;
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
   const { data: bookingsRaw, error } = await admin
     .from('bookings')
     .select(
-      'id, created_at, status, payment_status, final_payment_status, subtotal_cents, fee_total_cents, customer_total_cents, amount_platform_fee, stripe_estimated_fee_cents, stripe_actual_fee_cents, platform_gross_margin_cents, contribution_margin_cents, effective_take_rate, pricing_version, pricing_band, refunded_total_cents'
+      'id, created_at, status, payment_status, final_payment_status, subtotal_cents, fee_total_cents, customer_total_cents, amount_platform_fee, stripe_estimated_fee_cents, stripe_actual_fee_cents, stripe_net_cents, platform_gross_margin_cents, contribution_margin_cents, effective_take_rate, pricing_version, pricing_band, refunded_total_cents'
     )
     .order('created_at', { ascending: false })
     .limit(limit);

@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
-import { getCurrentUser, getMyServicePro } from '@/lib/api';
+import { getCurrentUser, getMyServicePro, getProOccupationSlug } from '@/lib/api';
 import { getProProfile, updateProProfile } from '@/lib/proProfile';
 import { updateMyServiceProAction } from '@/app/actions/servicePro';
 import { ProAccessNotice } from '@/components/ui/ProAccessNotice';
@@ -13,7 +13,10 @@ import { PricingModelSelector, type PricingModel } from '@/components/pricing/Pr
 import {
   RatesForm,
   type RatesFormValues,
+  type RatesPricingHints,
 } from '@/components/pricing/RatesForm';
+import { getMinimumBookingCents } from '@/lib/pricing/minimums';
+import { getSuggestedPriceCents, isFarBelowSuggestedPriceCents } from '@/lib/pricing/suggestions';
 import {
   TravelRulesForm,
   type TravelRulesFormValues,
@@ -33,6 +36,15 @@ function safeNum(s: string): number | null {
   if (v === '') return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+function formatUsdFromCents(cents: number): string {
+  return (cents / 100).toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
 }
 
 export default function ProPricingAvailabilitySettingsPage() {
@@ -66,6 +78,7 @@ export default function ProPricingAvailabilitySettingsPage() {
   const [depositPercent, setDepositPercent] = useState(50);
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [occupationSlug, setOccupationSlug] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -87,10 +100,12 @@ export default function ProPricingAvailabilitySettingsPage() {
       setAccess('pro');
       setUserId(user.id);
 
-      const [prof, proData] = await Promise.all([
+      const [prof, proData, occSlug] = await Promise.all([
         getProProfile(user.id),
         getMyServicePro(user.id),
+        getProOccupationSlug(user.id),
       ]);
+      setOccupationSlug(occSlug);
 
       const model = (prof?.pricing_model as PricingModel | undefined) ?? (prof?.hourly_rate && prof.hourly_rate > 0 ? 'hourly' : 'flat');
       setPricingModel(model);
@@ -230,6 +245,57 @@ export default function ProPricingAvailabilitySettingsPage() {
 
   const canEdit = !loading && Boolean(userId);
 
+  const estimatedDurationMinutes = useMemo(() => {
+    const mh = safeNum(rates.minHours);
+    if (pricingModel === 'hourly' || pricingModel === 'hybrid') {
+      if (mh != null && mh > 0) return Math.max(1, Math.round(mh * 60));
+    }
+    return 60;
+  }, [rates.minHours, pricingModel]);
+
+  const occForPricing = occupationSlug?.trim() || 'cleaner';
+
+  const flatPricingHints: RatesPricingHints | undefined = useMemo(() => {
+    if (!(pricingModel === 'flat' || pricingModel === 'hybrid')) return undefined;
+    const suggestedCents = getSuggestedPriceCents({
+      occupationSlug: occForPricing,
+      estimatedDurationMinutes,
+    });
+    const minCents = getMinimumBookingCents(occupationSlug ?? undefined);
+    const listedCents = Math.round((safeNum(rates.startingPrice) ?? 0) * 100);
+    const suggestedLine = `Suggested: ${formatUsdFromCents(suggestedCents)} based on job type and duration (${estimatedDurationMinutes} min typical).`;
+    const belowMinimumWarning =
+      listedCents > 0 && listedCents < minCents
+        ? `Flyers Up applies a ${formatUsdFromCents(minCents)} minimum for this service when customers book.`
+        : undefined;
+    const farBelowNudge =
+      listedCents > 0 && isFarBelowSuggestedPriceCents({ listedPriceCents: listedCents, suggestedPriceCents: suggestedCents })
+        ? 'This price may reduce your chances of acceptance or earnings.'
+        : undefined;
+    return { suggestedLine, belowMinimumWarning, farBelowNudge };
+  }, [pricingModel, occForPricing, occupationSlug, estimatedDurationMinutes, rates.startingPrice]);
+
+  const hourlyPricingHints: RatesPricingHints | undefined = useMemo(() => {
+    if (!(pricingModel === 'hourly' || pricingModel === 'hybrid')) return undefined;
+    const suggestedCents = getSuggestedPriceCents({
+      occupationSlug: occForPricing,
+      estimatedDurationMinutes,
+    });
+    const minCents = getMinimumBookingCents(occupationSlug ?? undefined);
+    const hr = safeNum(rates.hourlyRate);
+    const listedJobCents = Math.round((hr ?? 0) * 100 * (estimatedDurationMinutes / 60));
+    const suggestedLine = `Suggested total for ~${estimatedDurationMinutes} min: ${formatUsdFromCents(suggestedCents)} (based on job type and duration).`;
+    const belowMinimumWarning =
+      listedJobCents > 0 && listedJobCents < minCents
+        ? `At this rate, a ${estimatedDurationMinutes}-minute job is under the ${formatUsdFromCents(minCents)} platform minimum for your service.`
+        : undefined;
+    const farBelowNudge =
+      listedJobCents > 0 && isFarBelowSuggestedPriceCents({ listedPriceCents: listedJobCents, suggestedPriceCents: suggestedCents })
+        ? 'This price may reduce your chances of acceptance or earnings.'
+        : undefined;
+    return { suggestedLine, belowMinimumWarning, farBelowNudge };
+  }, [pricingModel, occForPricing, occupationSlug, estimatedDurationMinutes, rates.hourlyRate]);
+
   return (
     <AppLayout mode="pro">
       <div className="min-h-screen bg-[#F5F5F5]">
@@ -265,6 +331,8 @@ export default function ProPricingAvailabilitySettingsPage() {
                   onChange={setRates}
                   disabled={!canEdit}
                   errors={fieldErrors}
+                  flatPricingHints={flatPricingHints}
+                  hourlyPricingHints={hourlyPricingHints}
                 />
               </section>
 

@@ -67,6 +67,8 @@ export interface BookingSummaryDepositProps {
   scopeSummary?: string | null;
   addons?: { title: string; priceCents: number }[];
   quote: QuoteBreakdown;
+  /** Shown when server raised subtotal to platform minimum (no percentages). */
+  minimumBookingNotice?: string | null;
   paymentDueAt?: string | null;
   children: ReactNode;
   className?: string;
@@ -226,6 +228,7 @@ export function BookingSummaryDeposit({
   scopeSummary,
   addons,
   quote,
+  minimumBookingNotice,
   paymentDueAt,
   children,
   className,
@@ -258,6 +261,15 @@ export function BookingSummaryDeposit({
           <CountdownTimer paymentDueAt={paymentDueAt} />
         </div>
       )}
+
+      {minimumBookingNotice?.trim() ? (
+        <div
+          className="rounded-xl border border-amber-200/90 dark:border-amber-500/35 bg-amber-50 dark:bg-amber-500/10 px-4 py-3"
+          role="status"
+        >
+          <p className="text-sm text-amber-950 dark:text-amber-100/95">{minimumBookingNotice.trim()}</p>
+        </div>
+      ) : null}
 
       {/* Scope summary (optional) */}
       {scopeSummary && scopeSummary.trim() && (

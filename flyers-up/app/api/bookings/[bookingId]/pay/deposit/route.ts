@@ -30,6 +30,7 @@ import {
 } from '@/lib/operations/availabilityValidation';
 import { loadRecurringHoldRangesForProAroundServiceDate } from '@/lib/recurring/recurring-holds';
 import { buildBookingPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
+import { minimumBookingNoticeFromBookingRow } from '@/lib/pricing/config';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -124,7 +125,7 @@ export async function POST(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, paid_deposit_at, service_date, service_time, address, job_request_id, scope_confirmed_at, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents'
+      'id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, paid_deposit_at, service_date, service_time, address, job_request_id, scope_confirmed_at, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents'
     )
     .eq('id', id)
     .eq('customer_id', user.id)
@@ -137,6 +138,10 @@ export async function POST(
   if (!booking) {
     return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
   }
+
+  const minimumBookingNotice = minimumBookingNoticeFromBookingRow(
+    booking as { original_subtotal_cents?: number | null; subtotal_cents?: number | null }
+  );
 
   // Scope Lock: deposit cannot be charged until scope is confirmed for job-request bookings
   const jobRequestId = (booking as { job_request_id?: string | null }).job_request_id;
@@ -393,6 +398,7 @@ export async function POST(
         return NextResponse.json({
           clientSecret: pi.client_secret,
           paymentIntentId: pi.id,
+          minimumBookingNotice,
           quote: quoteResult,
         });
       }
@@ -508,11 +514,13 @@ export async function POST(
   return NextResponse.json({
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,
+    minimumBookingNotice,
     quote: {
       ...quoteResult,
       proPhotoUrl,
       address: booking.address ?? undefined,
       durationHours: (booking as { duration_hours?: number | null }).duration_hours ?? undefined,
+      minimumBookingNotice,
     },
   });
   } catch (err) {

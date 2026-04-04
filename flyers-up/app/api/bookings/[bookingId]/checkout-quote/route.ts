@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { computeQuote } from '@/lib/bookingQuote';
+import { minimumBookingNoticeFromBookingRow } from '@/lib/pricing/config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,7 +30,7 @@ export async function GET(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, status, price, payment_due_at, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents'
+      'id, customer_id, pro_id, status, price, payment_due_at, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents'
     )
     .eq('id', id)
     .eq('customer_id', user.id)
@@ -136,13 +137,19 @@ export async function GET(
     }
   );
 
+  const minNotice = minimumBookingNoticeFromBookingRow(
+    booking as { original_subtotal_cents?: number | null; subtotal_cents?: number | null }
+  );
+
   return NextResponse.json({
+    minimumBookingNotice: minNotice,
     quote: {
       ...quoteResult,
       proPhotoUrl,
       address: booking.address ?? undefined,
       durationHours: (booking as { duration_hours?: number | null }).duration_hours ?? undefined,
       paymentDueAt: (booking as { payment_due_at?: string | null }).payment_due_at ?? undefined,
+      minimumBookingNotice: minNotice,
     },
   });
 }

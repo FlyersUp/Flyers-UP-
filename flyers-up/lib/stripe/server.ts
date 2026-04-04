@@ -53,16 +53,13 @@ export async function refundPaymentIntent(
 }
 
 /**
- * Create transfer to connected account.
- * TODO: Platform fee logic - currently transfers full amount.
- */
-/**
- * Stripe processing fee (cents) from the charge BalanceTransaction for a PaymentIntent.
+ * Stripe fee + net (cents) from the charge BalanceTransaction for a PaymentIntent.
+ * `net` is Stripe's settled net on that balance transaction (after fees).
  * Returns null if the charge or balance transaction is not available yet.
  */
-export async function retrieveStripeProcessingFeeCentsForPaymentIntent(
+export async function retrieveStripeBalancePartsForPaymentIntent(
   paymentIntentId: string
-): Promise<number | null> {
+): Promise<{ feeCents: number; netCents: number } | null> {
   try {
     const s = getStripe();
     const pi = await s.paymentIntents.retrieve(paymentIntentId, {
@@ -71,32 +68,44 @@ export async function retrieveStripeProcessingFeeCentsForPaymentIntent(
     const lc = pi.latest_charge;
     if (!lc) return null;
 
-    async function feeFromBalanceTransaction(
+    async function partsFromBalanceTransaction(
       bt: string | Stripe.BalanceTransaction | null
-    ): Promise<number | null> {
+    ): Promise<{ feeCents: number; netCents: number } | null> {
       if (bt == null) return null;
-      if (typeof bt === 'string') {
-        const btObj = await s.balanceTransactions.retrieve(bt);
-        return typeof btObj.fee === 'number' ? btObj.fee : null;
-      }
-      return typeof bt.fee === 'number' ? bt.fee : null;
+      const obj =
+        typeof bt === 'string' ? await s.balanceTransactions.retrieve(bt) : bt;
+      if (typeof obj.fee !== 'number' || typeof obj.net !== 'number') return null;
+      return { feeCents: obj.fee, netCents: obj.net };
     }
 
     if (typeof lc === 'string') {
       const charge = await s.charges.retrieve(lc, { expand: ['balance_transaction'] });
-      return feeFromBalanceTransaction(charge.balance_transaction);
+      return partsFromBalanceTransaction(charge.balance_transaction);
     }
 
-    return feeFromBalanceTransaction(lc.balance_transaction);
+    return partsFromBalanceTransaction(lc.balance_transaction);
   } catch (err) {
     console.warn(
-      '[stripe] retrieveStripeProcessingFeeCentsForPaymentIntent failed',
+      '[stripe] retrieveStripeBalancePartsForPaymentIntent failed',
       paymentIntentId,
       err
     );
     return null;
   }
 }
+
+/** @deprecated Prefer retrieveStripeBalancePartsForPaymentIntent for fee + net. */
+export async function retrieveStripeProcessingFeeCentsForPaymentIntent(
+  paymentIntentId: string
+): Promise<number | null> {
+  const p = await retrieveStripeBalancePartsForPaymentIntent(paymentIntentId);
+  return p?.feeCents ?? null;
+}
+
+/**
+ * Create transfer to connected account.
+ * TODO: Platform fee logic - currently transfers full amount.
+ */
 
 export async function createTransfer(params: {
   amount: number; // cents

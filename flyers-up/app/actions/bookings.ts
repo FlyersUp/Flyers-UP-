@@ -23,7 +23,9 @@ import {
   validateActiveAddonsForProCategory,
 } from '@/lib/bookings/booking-request-scope';
 import { isServiceProBookableByCustomers } from '@/lib/pro/pro-bookability';
-import { computeMarketplaceFees } from '@/lib/pricing/fees';
+import { applyMinimumBookingSubtotal } from '@/lib/pricing/config';
+import { computeMarketplaceFees, resolveMarketplacePricingVersionForBooking } from '@/lib/pricing/fees';
+import { getSuggestedPriceCents } from '@/lib/pricing/suggestions';
 
 type BookingStatus = 'requested' | 'accepted' | 'declined' | 'completed' | 'cancelled';
 
@@ -51,7 +53,7 @@ export async function createBookingWithPayment(
   subcategoryId?: string | null,
   previousBookingId?: string | null,
   selectedPackageId?: string | null
-): Promise<{ success: boolean; bookingId?: string; error?: string }> {
+): Promise<{ success: boolean; bookingId?: string; error?: string; minimumSubtotalApplied?: boolean }> {
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -206,17 +208,37 @@ export async function createBookingWithPayment(
 
     const addonsTotalCents = validatedAddons.reduce((sum, a) => sum + a.price_cents, 0);
 
-    // 4) Calculate total server-side (base price + add-ons) — pro subtotal in cents
-    const totalCents = basePriceCents + addonsTotalCents;
-    const totalDollars = totalCents / 100;
-    const marketplaceFees = computeMarketplaceFees(totalCents);
-
     const initialStatusHistory = [{ status: 'requested', at: new Date().toISOString() }];
     const requestedAt = new Date().toISOString();
     const urgency = resolveUrgency({
       requestedAt,
       scheduledStartAt: `${date}T${time}:00`,
     });
+
+    // 4) Calculate total server-side (base price + add-ons) — pro subtotal in cents
+    const rawSubtotalCents = basePriceCents + addonsTotalCents;
+    const minApply = applyMinimumBookingSubtotal({
+      rawSubtotalCents,
+      occupationSlug: occupationSlug ?? null,
+    });
+    if (!minApply.ok) {
+      return { success: false, error: minApply.error };
+    }
+
+    const occForIntel = occupationSlug?.trim() || 'cleaner';
+    const suggestedPriceCents = getSuggestedPriceCents({
+      occupationSlug: occForIntel,
+      estimatedDurationMinutes: durationMinutes,
+      urgency,
+    });
+    const wasBelowMinimum = minApply.adjusted;
+    const wasBelowSuggestion = rawSubtotalCents < suggestedPriceCents;
+
+    const marketplaceFees = computeMarketplaceFees(
+      minApply.enforcedSubtotalCents,
+      resolveMarketplacePricingVersionForBooking({ customerId: user.id })
+    );
+    const totalDollars = marketplaceFees.subtotalCents / 100;
 
     // 4b) Geocode address for arrival verification (best-effort)
     let addressLat: number | null = null;
@@ -310,6 +332,7 @@ export async function createBookingWithPayment(
         fee_profile: feeProfile,
         pricing_occupation_slug: occupationSlug ?? null,
         pricing_category_slug: categorySlug ?? null,
+        original_subtotal_cents: minApply.originalSubtotalCents,
         subtotal_cents: marketplaceFees.subtotalCents,
         service_fee_cents: marketplaceFees.serviceFeeCents,
         convenience_fee_cents: marketplaceFees.convenienceFeeCents,
@@ -327,6 +350,9 @@ export async function createBookingWithPayment(
         duration_hours: durationMinutes / 60,
         selected_package_id: selectedPackageIdOut,
         selected_package_snapshot: selectedPackageSnapshotOut,
+        suggested_price_cents: suggestedPriceCents,
+        was_below_suggestion: wasBelowSuggestion,
+        was_below_minimum: wasBelowMinimum,
       })
       .select('id')
       .single();
@@ -395,6 +421,7 @@ export async function createBookingWithPayment(
     return {
       success: true,
       bookingId: booking.id,
+      minimumSubtotalApplied: minApply.adjusted,
     };
   } catch (err) {
     console.error('Error creating booking with payment:', err);

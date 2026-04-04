@@ -5,6 +5,15 @@
 
 export const DEFAULT_MARKETPLACE_PRICING_VERSION = 'v1_2026_04';
 
+/** Known engine versions (immutable snapshot on booking). */
+export const MARKETPLACE_PRICING_VERSIONS = [
+  'v1_2026_04',
+  'v2_low_ticket_push',
+  'v3_higher_protection',
+] as const;
+
+export type MarketplacePricingVersionId = (typeof MARKETPLACE_PRICING_VERSIONS)[number];
+
 export type MarketplacePricingBand = 'low' | 'mid' | 'high';
 
 export type MarketplaceFeeBreakdown = {
@@ -22,14 +31,50 @@ export type MarketplaceFeeBreakdown = {
   pricingBand: MarketplacePricingBand;
 };
 
-const CENTS = {
-  LOW_CONVENIENCE: 249,
-  LOW_PROTECTION: 79,
-  LOW_SERVICE_MIN: 150,
-  MID_CONVENIENCE: 199,
-  MID_PROTECTION_MIN: 99,
-  FEE_FLOOR_UNDER_75: 499,
-} as const;
+type CentProfile = Readonly<{
+  lowServiceRate: number;
+  lowServiceMinCents: number;
+  lowConvenienceCents: number;
+  lowProtectionCents: number;
+  midServiceRate: number;
+  midConvenienceCents: number;
+  midProtectionRate: number;
+  midProtectionMinCents: number;
+  highServiceRate: number;
+  highProtectionRate: number;
+  feeFloorUnder75Cents: number;
+}>;
+
+const PROFILE_V1: CentProfile = {
+  lowServiceRate: 0.12,
+  lowServiceMinCents: 150,
+  lowConvenienceCents: 249,
+  lowProtectionCents: 79,
+  midServiceRate: 0.12,
+  midConvenienceCents: 199,
+  midProtectionRate: 0.025,
+  midProtectionMinCents: 99,
+  highServiceRate: 0.135,
+  highProtectionRate: 0.03,
+  feeFloorUnder75Cents: 499,
+};
+
+/** v2: lower friction on small jobs (conversion push). */
+const PROFILE_V2: CentProfile = {
+  ...PROFILE_V1,
+  lowServiceMinCents: 120,
+  lowConvenienceCents: 199,
+  feeFloorUnder75Cents: 449,
+};
+
+/** v3: higher protection / guarantee take. */
+const PROFILE_V3: CentProfile = {
+  ...PROFILE_V1,
+  lowProtectionCents: 129,
+  midProtectionRate: 0.03,
+  midProtectionMinCents: 149,
+  highProtectionRate: 0.035,
+};
 
 function bandForSubtotal(subtotalCents: number): MarketplacePricingBand {
   if (subtotalCents < 2500) return 'low';
@@ -41,19 +86,22 @@ function stripeFeeEstimateCents(customerTotalCents: number): number {
   return Math.round(customerTotalCents * 0.029 + 30);
 }
 
-/**
- * Ensure customer-facing fees at least cover estimated Stripe processing on the charge.
- * Bumps convenience fee (deterministic) until fee_total >= stripe estimate + 1 cent margin.
- */
 function enforceFeeCoversStripe(
   subtotalCents: number,
   serviceFeeCents: number,
   convenienceFeeCents: number,
   protectionFeeCents: number
-): { serviceFeeCents: number; convenienceFeeCents: number; protectionFeeCents: number; feeTotalCents: number; customerTotalCents: number; stripeEstimatedFeeCents: number } {
+): {
+  serviceFeeCents: number;
+  convenienceFeeCents: number;
+  protectionFeeCents: number;
+  feeTotalCents: number;
+  customerTotalCents: number;
+  stripeEstimatedFeeCents: number;
+} {
   let conv = convenienceFeeCents;
-  let serv = serviceFeeCents;
-  let prot = protectionFeeCents;
+  const serv = serviceFeeCents;
+  const prot = protectionFeeCents;
   const maxIterations = 12;
   for (let i = 0; i < maxIterations; i++) {
     const feeTotal = serv + conv + prot;
@@ -75,7 +123,10 @@ function enforceFeeCoversStripe(
   };
 }
 
-function computeV1_2026_04(subtotalCents: number): Omit<MarketplaceFeeBreakdown, 'pricingVersion'> {
+function computeWithProfile(
+  subtotalCents: number,
+  profile: CentProfile
+): Omit<MarketplaceFeeBreakdown, 'pricingVersion'> {
   const s = Math.max(0, Math.round(subtotalCents));
   if (s <= 0) {
     const stripeEstimatedFeeCents = stripeFeeEstimateCents(0);
@@ -99,24 +150,26 @@ function computeV1_2026_04(subtotalCents: number): Omit<MarketplaceFeeBreakdown,
   let protectionFeeCents = 0;
 
   if (band === 'low') {
-    serviceFeeCents = Math.max(Math.round(s * 0.12), CENTS.LOW_SERVICE_MIN);
-    convenienceFeeCents = CENTS.LOW_CONVENIENCE;
-    protectionFeeCents = CENTS.LOW_PROTECTION;
+    serviceFeeCents = Math.max(Math.round(s * profile.lowServiceRate), profile.lowServiceMinCents);
+    convenienceFeeCents = profile.lowConvenienceCents;
+    protectionFeeCents = profile.lowProtectionCents;
   } else if (band === 'mid') {
-    serviceFeeCents = Math.round(s * 0.12);
-    convenienceFeeCents = CENTS.MID_CONVENIENCE;
-    protectionFeeCents = Math.max(Math.round(s * 0.025), CENTS.MID_PROTECTION_MIN);
+    serviceFeeCents = Math.round(s * profile.midServiceRate);
+    convenienceFeeCents = profile.midConvenienceCents;
+    protectionFeeCents = Math.max(
+      Math.round(s * profile.midProtectionRate),
+      profile.midProtectionMinCents
+    );
   } else {
-    serviceFeeCents = Math.round(s * 0.135);
+    serviceFeeCents = Math.round(s * profile.highServiceRate);
     convenienceFeeCents = 0;
-    protectionFeeCents = Math.round(s * 0.03);
+    protectionFeeCents = Math.round(s * profile.highProtectionRate);
   }
 
   let feeTotalCents = serviceFeeCents + convenienceFeeCents + protectionFeeCents;
 
-  // Minimum $4.99 total fees for subtotals under $75
-  if (s < 7500 && feeTotalCents < CENTS.FEE_FLOOR_UNDER_75) {
-    const add = CENTS.FEE_FLOOR_UNDER_75 - feeTotalCents;
+  if (s < 7500 && feeTotalCents < profile.feeFloorUnder75Cents) {
+    const add = profile.feeFloorUnder75Cents - feeTotalCents;
     convenienceFeeCents += add;
     feeTotalCents = serviceFeeCents + convenienceFeeCents + protectionFeeCents;
   }
@@ -146,9 +199,22 @@ function computeV1_2026_04(subtotalCents: number): Omit<MarketplaceFeeBreakdown,
   };
 }
 
+function isKnownVersion(v: string): v is MarketplacePricingVersionId {
+  return (MARKETPLACE_PRICING_VERSIONS as readonly string[]).includes(v);
+}
+
+/** Stable 32-bit hash for deterministic A/B assignment. */
+export function hashStringForPricingAb(value: string): number {
+  let h = 0;
+  for (let i = 0; i < value.length; i++) {
+    h = (Math.imul(31, h) + value.charCodeAt(i)) | 0;
+  }
+  return h;
+}
+
 /**
- * Resolve pricing version from env for A/B or staged rollouts.
- * `MARKETPLACE_PRICING_VERSION=v1_2026_04` (default)
+ * Base version when no experiment overrides (default `v1_2026_04`).
+ * Set `MARKETPLACE_PRICING_VERSION=v1_2026_04` explicitly in env if needed.
  */
 export function resolveMarketplacePricingVersion(): string {
   const v = (process.env.MARKETPLACE_PRICING_VERSION ?? DEFAULT_MARKETPLACE_PRICING_VERSION).trim();
@@ -156,19 +222,66 @@ export function resolveMarketplacePricingVersion(): string {
 }
 
 /**
+ * Fee experiment / A/B flag (server env only).
+ *
+ * - `off`, `control`, empty: use `MARKETPLACE_PRICING_VERSION` (or default v1).
+ * - `v1_2026_04` | `v2_low_ticket_push` | `v3_higher_protection`: force that engine for all new bookings.
+ * - `deterministic_ab`: pick an arm from `MARKETPLACE_PRICING_AB_ARMS` using `hashStringForPricingAb(customerId)`.
+ */
+export function resolveMarketplacePricingVersionForBooking(context?: {
+  customerId?: string | null;
+}): string {
+  const raw = (process.env.MARKETPLACE_PRICING_EXPERIMENT ?? 'off').trim().toLowerCase();
+  if (raw === '' || raw === 'off' || raw === 'control') {
+    return resolveMarketplacePricingVersion();
+  }
+
+  if (raw === 'deterministic_ab') {
+    const armsRaw = (
+      process.env.MARKETPLACE_PRICING_AB_ARMS ??
+      'v1_2026_04,v2_low_ticket_push,v3_higher_protection'
+    )
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const arms = armsRaw.filter((a): a is MarketplacePricingVersionId => isKnownVersion(a));
+    const cid = context?.customerId?.trim();
+    if (!cid || arms.length === 0) {
+      return resolveMarketplacePricingVersion();
+    }
+    const idx = Math.abs(hashStringForPricingAb(cid)) % arms.length;
+    return arms[idx] ?? DEFAULT_MARKETPLACE_PRICING_VERSION;
+  }
+
+  if (isKnownVersion(raw)) {
+    return raw;
+  }
+
+  console.warn('[pricing] Unknown MARKETPLACE_PRICING_EXPERIMENT, falling back to MARKETPLACE_PRICING_VERSION', raw);
+  return resolveMarketplacePricingVersion();
+}
+
+/**
  * Deterministic, versioned marketplace fees on pro subtotal (cents), before demand/promo adjustments.
  */
 export function computeMarketplaceFees(
   subtotalCents: number,
-  pricingVersion: string = resolveMarketplacePricingVersion()
+  pricingVersion: string = resolveMarketplacePricingVersionForBooking()
 ): MarketplaceFeeBreakdown {
   const v = pricingVersion.trim() || DEFAULT_MARKETPLACE_PRICING_VERSION;
+
   if (v === 'v1_2026_04' || v === DEFAULT_MARKETPLACE_PRICING_VERSION) {
-    return { ...computeV1_2026_04(subtotalCents), pricingVersion: 'v1_2026_04' };
+    return { ...computeWithProfile(subtotalCents, PROFILE_V1), pricingVersion: 'v1_2026_04' };
   }
-  // Unknown version: fail safe to default engine (explicit version tag)
-  console.warn('[pricing] Unknown MARKETPLACE_PRICING_VERSION, using v1_2026_04', v);
-  return { ...computeV1_2026_04(subtotalCents), pricingVersion: 'v1_2026_04' };
+  if (v === 'v2_low_ticket_push') {
+    return { ...computeWithProfile(subtotalCents, PROFILE_V2), pricingVersion: 'v2_low_ticket_push' };
+  }
+  if (v === 'v3_higher_protection') {
+    return { ...computeWithProfile(subtotalCents, PROFILE_V3), pricingVersion: 'v3_higher_protection' };
+  }
+
+  console.warn('[pricing] Unknown pricing version, using v1_2026_04', v);
+  return { ...computeWithProfile(subtotalCents, PROFILE_V1), pricingVersion: 'v1_2026_04' };
 }
 
 /**
@@ -177,17 +290,17 @@ export function computeMarketplaceFees(
 export function computeContributionMarginCents(input: {
   feeTotalCents: number;
   stripeFeeCents: number;
-  refundsCents: number;
-  promoCreditsCents: number;
-  supportReserveCents: number;
-  riskReserveCents: number;
+  refundsCents?: number;
+  promoCreditsCents?: number;
+  supportReserveCents?: number;
+  riskReserveCents?: number;
 }): number {
   return (
     Math.round(input.feeTotalCents) -
     Math.round(input.stripeFeeCents) -
-    Math.round(input.refundsCents) -
-    Math.round(input.promoCreditsCents) -
-    Math.round(input.supportReserveCents) -
-    Math.round(input.riskReserveCents)
+    Math.round(input.refundsCents ?? 0) -
+    Math.round(input.promoCreditsCents ?? 0) -
+    Math.round(input.supportReserveCents ?? 0) -
+    Math.round(input.riskReserveCents ?? 0)
   );
 }

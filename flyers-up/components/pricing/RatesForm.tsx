@@ -12,16 +12,43 @@ export interface RatesFormValues {
   overtimeRate: string;
 }
 
+/** Non-blocking hints from the pricing suggestion engine (flat vs hourly sections). */
+export interface RatesPricingHints {
+  suggestedLine: string;
+  belowMinimumWarning?: string;
+  farBelowNudge?: string;
+}
+
 interface RatesFormProps {
   model: PricingModel;
   values: RatesFormValues;
   onChange: (values: RatesFormValues) => void;
   disabled?: boolean;
   errors?: Partial<Record<keyof RatesFormValues, string>>;
+  flatPricingHints?: RatesPricingHints;
+  hourlyPricingHints?: RatesPricingHints;
+}
+
+function PricingHintBlock(hints: RatesPricingHints) {
+  return (
+    <div className="space-y-2 pt-1">
+      <p className="text-sm text-black/65">{hints.suggestedLine}</p>
+      {hints.belowMinimumWarning ? (
+        <p className="text-sm text-amber-900/90 rounded-lg border border-amber-200/80 bg-amber-50 px-3 py-2">
+          {hints.belowMinimumWarning}
+        </p>
+      ) : null}
+      {hints.farBelowNudge ? (
+        <p className="text-sm text-amber-950/90 rounded-lg border border-amber-200/60 bg-amber-50/80 px-3 py-2">
+          {hints.farBelowNudge}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export function RatesForm(props: RatesFormProps) {
-  const { model, values, onChange, disabled, errors = {} } = props;
+  const { model, values, onChange, disabled, errors = {}, flatPricingHints, hourlyPricingHints } = props;
 
   const update = (key: keyof RatesFormValues, v: string) => {
     onChange({ ...values, [key]: v });
@@ -62,6 +89,7 @@ export function RatesForm(props: RatesFormProps) {
             disabled={disabled}
             error={errors.whatIncluded}
           />
+          {flatPricingHints ? <PricingHintBlock {...flatPricingHints} /> : null}
         </div>
       )}
 
@@ -95,6 +123,7 @@ export function RatesForm(props: RatesFormProps) {
             disabled={disabled}
             error={errors.overtimeRate}
           />
+          {hourlyPricingHints ? <PricingHintBlock {...hourlyPricingHints} /> : null}
         </div>
       )}
     </div>

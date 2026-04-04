@@ -52,6 +52,7 @@ type QuoteData = {
   durationHours?: number;
   proPhotoUrl?: string | null;
   paymentDueAt?: string | null;
+  minimumBookingNotice?: string | null;
 };
 
 /** Single resolved cents for sticky CTA — must not treat deposit 0 as “use deposit” (?? leaves 0). */
@@ -272,6 +273,11 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
             return;
           }
           setClientSecret(payJson.clientSecret ?? null);
+          if (typeof payJson.minimumBookingNotice === 'string' && payJson.minimumBookingNotice.trim()) {
+            setQuoteData((prev) =>
+              prev ? { ...prev, minimumBookingNotice: payJson.minimumBookingNotice } : prev
+            );
+          }
           const pa = payJson.paymentAmounts as Partial<CheckoutPaymentAmounts> | undefined;
           if (
             pa &&
@@ -401,6 +407,12 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
           }
 
           const q = payJson.quote;
+          const minNoticeDep =
+            (typeof payJson.minimumBookingNotice === 'string' && payJson.minimumBookingNotice) ||
+            (q && typeof (q as { minimumBookingNotice?: string }).minimumBookingNotice === 'string'
+              ? (q as { minimumBookingNotice: string }).minimumBookingNotice
+              : null) ||
+            null;
           if (q) {
             setQuoteData({
               bookingId,
@@ -413,6 +425,7 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
               durationHours: q.durationHours,
               proPhotoUrl: q.proPhotoUrl ?? null,
               paymentDueAt: q.paymentDueAt ?? null,
+              minimumBookingNotice: minNoticeDep,
             });
           }
           setClientSecret(payJson.clientSecret ?? null);
@@ -491,6 +504,7 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
               address={quoteData.address}
               durationHours={quoteData.durationHours}
               quote={quoteData.quote}
+              minimumBookingNotice={quoteData.minimumBookingNotice}
               paymentDueAt={quoteData.paymentDueAt}
             >
               {paymentError && (

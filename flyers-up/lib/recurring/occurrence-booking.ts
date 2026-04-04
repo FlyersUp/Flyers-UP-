@@ -3,6 +3,9 @@ import { DateTime } from 'luxon';
 import { getOccupationFeeProfile } from '@/lib/bookings/fee-rules';
 import { resolveUrgency } from '@/lib/bookings/urgency';
 import { findScheduleConflict } from '@/lib/recurring/conflicts';
+import { applyMinimumBookingSubtotal } from '@/lib/pricing/config';
+import { computeMarketplaceFees, resolveMarketplacePricingVersionForBooking } from '@/lib/pricing/fees';
+import { getSuggestedPriceCents } from '@/lib/pricing/suggestions';
 
 const GENERATABLE_OCCURRENCE_STATUSES = new Set(['scheduled', 'pending_confirmation', 'confirmed']);
 
@@ -153,13 +156,35 @@ export async function generateBookingFromOccurrence(
       ? (lastAddr as { address: string }).address.trim()
       : 'Address on file — please confirm with customer before visit';
 
-  const basePriceCents = Math.round(Number((proRow as { starting_price?: number }).starting_price ?? 0) * 100);
-  const totalDollars = basePriceCents / 100;
   const requestedAt = now.toISOString();
   const urgency = resolveUrgency({
     requestedAt,
     scheduledStartAt: startUtc,
   });
+
+  const basePriceCents = Math.round(Number((proRow as { starting_price?: number }).starting_price ?? 0) * 100);
+  const minApply = applyMinimumBookingSubtotal({
+    rawSubtotalCents: basePriceCents,
+    occupationSlug: occupationSlug ?? null,
+  });
+  if (!minApply.ok) {
+    return { ok: false, code: 'below_minimum', message: minApply.error };
+  }
+
+  const occForIntel = occupationSlug?.trim() || 'cleaner';
+  const suggestedPriceCents = getSuggestedPriceCents({
+    occupationSlug: occForIntel,
+    estimatedDurationMinutes: durationMinutes,
+    urgency,
+  });
+  const wasBelowMinimum = minApply.adjusted;
+  const wasBelowSuggestion = basePriceCents < suggestedPriceCents;
+
+  const marketplaceFees = computeMarketplaceFees(
+    minApply.enforcedSubtotalCents,
+    resolveMarketplacePricingVersionForBooking({ customerId: customerUserId })
+  );
+  const totalDollars = marketplaceFees.subtotalCents / 100;
 
   const insertRow = {
     customer_id: customerUserId,
@@ -180,9 +205,24 @@ export async function generateBookingFromOccurrence(
     fee_profile: feeProfile,
     pricing_occupation_slug: occupationSlug ?? null,
     pricing_category_slug: categorySlug ?? null,
+    original_subtotal_cents: minApply.originalSubtotalCents,
+    subtotal_cents: marketplaceFees.subtotalCents,
+    service_fee_cents: marketplaceFees.serviceFeeCents,
+    convenience_fee_cents: marketplaceFees.convenienceFeeCents,
+    protection_fee_cents: marketplaceFees.protectionFeeCents,
+    fee_total_cents: marketplaceFees.feeTotalCents,
+    customer_total_cents: marketplaceFees.customerTotalCents,
+    stripe_estimated_fee_cents: marketplaceFees.stripeEstimatedFeeCents,
+    platform_gross_margin_cents: marketplaceFees.platformGrossMarginCents,
+    effective_take_rate: Number(marketplaceFees.effectiveTakeRate.toFixed(4)),
+    pricing_version: marketplaceFees.pricingVersion,
+    pricing_band: marketplaceFees.pricingBand,
     is_recurring: true,
     recurring_series_id: String(series.id),
     recurring_occurrence_id: occurrenceId,
+    suggested_price_cents: suggestedPriceCents,
+    was_below_suggestion: wasBelowSuggestion,
+    was_below_minimum: wasBelowMinimum,
   };
 
   const { data: inserted, error: insErr } = await admin.from('bookings').insert(insertRow).select('id').maybeSingle();

@@ -24,6 +24,7 @@ import {
   resolveUrgencyFromBooking,
 } from '@/lib/bookings/dynamic-pricing-features';
 import { buildBookingPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
+import { minimumBookingNoticeFromBookingRow } from '@/lib/pricing/config';
 import { getUnifiedBookingPaymentAmountsForBooking } from '@/lib/bookings/booking-receipt-service';
 
 export const runtime = 'nodejs';
@@ -64,7 +65,7 @@ export async function POST(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, paid_deposit_at, paid_remaining_at, fully_paid_at, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents'
+      'id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, paid_deposit_at, paid_remaining_at, fully_paid_at, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents'
     )
     .eq('id', id)
     .eq('customer_id', user.id)
@@ -454,10 +455,15 @@ export async function POST(
     paymentIntentStatus: piStatus,
   });
 
+  const minNotice = minimumBookingNoticeFromBookingRow(
+    booking as { original_subtotal_cents?: number | null; subtotal_cents?: number | null }
+  );
+
   return NextResponse.json({
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,
     amountRemaining,
+    minimumBookingNotice: minNotice,
     paymentAmounts: {
       totalAmountCents: amountTotal,
       paidAmountCents: Math.max(0, amountTotal - amountRemaining),

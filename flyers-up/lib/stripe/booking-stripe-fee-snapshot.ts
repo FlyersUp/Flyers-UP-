@@ -5,7 +5,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { computeContributionMarginCents } from '@/lib/pricing/fees';
 import { parseBookingPaymentIntentMetadata } from '@/lib/stripe/booking-payment-intent-metadata';
-import { retrieveStripeProcessingFeeCentsForPaymentIntent } from '@/lib/stripe/server';
+import { retrieveStripeBalancePartsForPaymentIntent } from '@/lib/stripe/server';
 
 export type RecordBookingStripeFeeSnapshotParams = {
   bookingId: string;
@@ -30,6 +30,25 @@ async function sumStripeFeesForBooking(
   return (rows ?? []).reduce((acc, r) => acc + Math.max(0, Number(r.stripe_fee_cents) || 0), 0);
 }
 
+async function sumStripeNetForBooking(
+  admin: SupabaseClient,
+  bookingId: string
+): Promise<number> {
+  const { data: rows, error } = await admin
+    .from('booking_payment_intent_stripe_fees')
+    .select('stripe_net_cents')
+    .eq('booking_id', bookingId);
+  if (error) {
+    console.warn('[bookingStripeFee] sumStripeNetForBooking failed', { bookingId, error });
+    return 0;
+  }
+  return (rows ?? []).reduce((acc, r) => {
+    const n = r.stripe_net_cents;
+    if (n == null || !Number.isFinite(Number(n))) return acc;
+    return acc + Math.round(Number(n));
+  }, 0);
+}
+
 /**
  * Record BalanceTransaction fee for this PI (if not already), refresh bookings.stripe_actual_fee_cents,
  * and optionally set contribution_margin_cents after the last customer charge.
@@ -40,16 +59,17 @@ export async function recordBookingStripeFeeSnapshot(
 ): Promise<void> {
   const { bookingId, paymentIntentId, finalizeContributionMargin, metadata } = params;
 
-  const feeCents = await retrieveStripeProcessingFeeCentsForPaymentIntent(paymentIntentId);
-  if (feeCents == null || !Number.isFinite(feeCents)) {
-    console.warn('[bookingStripeFee] no Stripe fee yet for PI', { bookingId, paymentIntentId });
+  const parts = await retrieveStripeBalancePartsForPaymentIntent(paymentIntentId);
+  if (parts == null || !Number.isFinite(parts.feeCents)) {
+    console.warn('[bookingStripeFee] no Stripe balance transaction yet for PI', { bookingId, paymentIntentId });
     return;
   }
 
   const { error: insErr } = await admin.from('booking_payment_intent_stripe_fees').insert({
     payment_intent_id: paymentIntentId,
     booking_id: bookingId,
-    stripe_fee_cents: Math.round(feeCents),
+    stripe_fee_cents: Math.round(parts.feeCents),
+    stripe_net_cents: Math.round(parts.netCents),
   });
 
   if (insErr) {
@@ -66,9 +86,11 @@ export async function recordBookingStripeFeeSnapshot(
   }
 
   const stripeTotal = await sumStripeFeesForBooking(admin, bookingId);
+  const stripeNetTotal = await sumStripeNetForBooking(admin, bookingId);
 
   const bookingPatch: Record<string, unknown> = {
     stripe_actual_fee_cents: stripeTotal,
+    stripe_net_cents: stripeNetTotal,
   };
 
   if (finalizeContributionMargin) {
@@ -100,8 +122,6 @@ export async function recordBookingStripeFeeSnapshot(
         stripeFeeCents: stripeTotal,
         refundsCents,
         promoCreditsCents,
-        supportReserveCents: 0,
-        riskReserveCents: 0,
       });
     }
   }

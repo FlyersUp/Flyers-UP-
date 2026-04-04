@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { computeContributionMarginCents, computeMarketplaceFees } from '@/lib/pricing/fees';
+import {
+  computeContributionMarginCents,
+  computeMarketplaceFees,
+  hashStringForPricingAb,
+  resolveMarketplacePricingVersionForBooking,
+} from '@/lib/pricing/fees';
 
 describe('computeMarketplaceFees', () => {
   it('LOW tier: $20 job uses 12% vs $1.50 max and fixed convenience/protection', () => {
@@ -31,6 +36,21 @@ describe('computeMarketplaceFees', () => {
     assert.equal(r.convenienceFeeCents, 0);
     assert.equal(r.protectionFeeCents, 300);
   });
+
+  it('v2_low_ticket_push lowers low-tier friction vs v1 at same subtotal', () => {
+    const v1 = computeMarketplaceFees(1000, 'v1_2026_04');
+    const v2 = computeMarketplaceFees(1000, 'v2_low_ticket_push');
+    assert.equal(v1.pricingVersion, 'v1_2026_04');
+    assert.equal(v2.pricingVersion, 'v2_low_ticket_push');
+    assert.ok(v2.customerTotalCents <= v1.customerTotalCents);
+  });
+
+  it('v3_higher_protection raises protection vs v1 at $50', () => {
+    const v1 = computeMarketplaceFees(5000, 'v1_2026_04');
+    const v3 = computeMarketplaceFees(5000, 'v3_higher_protection');
+    assert.ok(v3.protectionFeeCents >= v1.protectionFeeCents);
+    assert.equal(v3.pricingVersion, 'v3_higher_protection');
+  });
 });
 
 describe('computeContributionMarginCents', () => {
@@ -44,5 +64,30 @@ describe('computeContributionMarginCents', () => {
       riskReserveCents: 15,
     });
     assert.equal(m, 600);
+  });
+
+  it('treats omitted optional buckets as zero', () => {
+    assert.equal(
+      computeContributionMarginCents({ feeTotalCents: 500, stripeFeeCents: 100 }),
+      400
+    );
+  });
+});
+
+describe('resolveMarketplacePricingVersionForBooking', () => {
+  it('hashStringForPricingAb is stable for deterministic A/B', () => {
+    assert.equal(hashStringForPricingAb('user-uuid-1'), hashStringForPricingAb('user-uuid-1'));
+    assert.notEqual(hashStringForPricingAb('user-a'), hashStringForPricingAb('user-b'));
+  });
+
+  it('returns a known arm when MARKETPLACE_PRICING_EXPERIMENT is set (smoke)', () => {
+    const prev = process.env.MARKETPLACE_PRICING_EXPERIMENT;
+    process.env.MARKETPLACE_PRICING_EXPERIMENT = 'v2_low_ticket_push';
+    try {
+      assert.equal(resolveMarketplacePricingVersionForBooking({ customerId: 'x' }), 'v2_low_ticket_push');
+    } finally {
+      if (prev === undefined) delete process.env.MARKETPLACE_PRICING_EXPERIMENT;
+      else process.env.MARKETPLACE_PRICING_EXPERIMENT = prev;
+    }
   });
 });

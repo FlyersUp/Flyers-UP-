@@ -31,6 +31,7 @@ type QuoteData = {
   durationHours?: number;
   proPhotoUrl?: string | null;
   paymentDueAt?: string | null;
+  minimumBookingNotice?: string | null;
 };
 
 function DepositPaymentForm({
@@ -178,6 +179,12 @@ function DepositContent({ bookingId }: { bookingId: string }) {
         }
 
         const q = intentJson.quote;
+        const minNotice =
+          (typeof intentJson.minimumBookingNotice === 'string' && intentJson.minimumBookingNotice) ||
+          (q && typeof (q as { minimumBookingNotice?: string }).minimumBookingNotice === 'string'
+            ? (q as { minimumBookingNotice: string }).minimumBookingNotice
+            : null) ||
+          null;
         if (q) {
           setQuoteData({
             bookingId,
@@ -190,6 +197,7 @@ function DepositContent({ bookingId }: { bookingId: string }) {
             durationHours: q.durationHours,
             proPhotoUrl: q.proPhotoUrl ?? null,
             paymentDueAt: q.paymentDueAt ?? null,
+            minimumBookingNotice: minNotice,
           });
         }
         setClientSecret(intentJson.clientSecret ?? null);
@@ -269,6 +277,7 @@ function DepositContent({ bookingId }: { bookingId: string }) {
             address={quoteData.address}
             durationHours={quoteData.durationHours}
             quote={quoteData.quote}
+            minimumBookingNotice={quoteData.minimumBookingNotice}
             paymentDueAt={quoteData.paymentDueAt}
           >
             {paymentError && (

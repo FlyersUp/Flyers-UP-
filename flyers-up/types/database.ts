@@ -259,17 +259,22 @@ export interface Database {
           payment_status?: string | null;
           final_payment_status?: string | null;
           subtotal_cents?: number | null;
+          original_subtotal_cents?: number | null;
           fee_total_cents?: number | null;
           customer_total_cents?: number | null;
           amount_platform_fee?: number | null;
           stripe_estimated_fee_cents?: number | null;
           stripe_actual_fee_cents?: number | null;
+          stripe_net_cents?: number | null;
           platform_gross_margin_cents?: number | null;
           contribution_margin_cents?: number | null;
           effective_take_rate?: number | null;
           pricing_version?: string | null;
           pricing_band?: string | null;
           refunded_total_cents?: number | null;
+          suggested_price_cents?: number | null;
+          was_below_suggestion?: boolean | null;
+          was_below_minimum?: boolean | null;
         };
         Insert: {
           id?: string;
@@ -290,17 +295,22 @@ export interface Database {
           payment_status?: string | null;
           final_payment_status?: string | null;
           subtotal_cents?: number | null;
+          original_subtotal_cents?: number | null;
           fee_total_cents?: number | null;
           customer_total_cents?: number | null;
           amount_platform_fee?: number | null;
           stripe_estimated_fee_cents?: number | null;
           stripe_actual_fee_cents?: number | null;
+          stripe_net_cents?: number | null;
           platform_gross_margin_cents?: number | null;
           contribution_margin_cents?: number | null;
           effective_take_rate?: number | null;
           pricing_version?: string | null;
           pricing_band?: string | null;
           refunded_total_cents?: number | null;
+          suggested_price_cents?: number | null;
+          was_below_suggestion?: boolean;
+          was_below_minimum?: boolean;
         };
         Update: {
           id?: string;
@@ -321,17 +331,22 @@ export interface Database {
           payment_status?: string | null;
           final_payment_status?: string | null;
           subtotal_cents?: number | null;
+          original_subtotal_cents?: number | null;
           fee_total_cents?: number | null;
           customer_total_cents?: number | null;
           amount_platform_fee?: number | null;
           stripe_estimated_fee_cents?: number | null;
           stripe_actual_fee_cents?: number | null;
+          stripe_net_cents?: number | null;
           platform_gross_margin_cents?: number | null;
           contribution_margin_cents?: number | null;
           effective_take_rate?: number | null;
           pricing_version?: string | null;
           pricing_band?: string | null;
           refunded_total_cents?: number | null;
+          suggested_price_cents?: number | null;
+          was_below_suggestion?: boolean;
+          was_below_minimum?: boolean;
         };
       };
       booking_payment_intent_stripe_fees: {
@@ -339,18 +354,21 @@ export interface Database {
           payment_intent_id: string;
           booking_id: string;
           stripe_fee_cents: number;
+          stripe_net_cents?: number | null;
           created_at: string;
         };
         Insert: {
           payment_intent_id: string;
           booking_id: string;
           stripe_fee_cents: number;
+          stripe_net_cents?: number | null;
           created_at?: string;
         };
         Update: {
           payment_intent_id?: string;
           booking_id?: string;
           stripe_fee_cents?: number;
+          stripe_net_cents?: number | null;
           created_at?: string;
         };
       };
