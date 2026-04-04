@@ -1,19 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Logo from '@/components/Logo';
+import { AuthSocialButton } from '@/components/auth/AuthSocialButton';
+import { EmailOtpForm } from '@/components/auth/EmailOtpForm';
+import { PhoneOtpForm } from '@/components/auth/PhoneOtpForm';
 import { signIn, signUp } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 
 type UserRole = 'customer' | 'pro';
+type AuthMethod = 'phone' | 'email' | 'google';
 
 const TERMS_VERSION = '2026-01-27';
 
 /**
- * Now rendered from a static page - reads params from useSearchParams.
- * On mount, checks for an existing session and redirects if already signed in.
+ * Main sign-in / sign-up page. Reads `role`, `mode`, `next`, `message` from the URL (useSearchParams).
+ * Redirects if already signed in (client-side).
  */
 export function SignInClient() {
   const router = useRouter();
@@ -27,18 +31,33 @@ export function SignInClient() {
   const role: UserRole = roleRaw === 'pro' ? 'pro' : 'customer';
   const [isSignUp, setIsSignUp] = useState(modeRaw === 'signup');
 
+  const [authMethod, setAuthMethod] = useState<AuthMethod>('phone');
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [oauthSending, setOauthSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState(false);
+
+  /** Pass to OTP forms only in “Create account” mode so new users get the right role in metadata. */
+  const createAccountRole = isSignUp ? role : undefined;
+
+  const redirectTo = useMemo(() => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const base = `${origin}/auth/callback`;
+    if (nextParam && nextParam.startsWith('/')) {
+      return `${base}?next=${encodeURIComponent(nextParam)}`;
+    }
+    return base;
+  }, [nextParam]);
 
   useEffect(() => {
     setError(null);
     setPendingConfirm(false);
   }, [isSignUp]);
 
-  // Client-side redirect if already signed in (replaces server auth check).
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
@@ -70,7 +89,39 @@ export function SignInClient() {
     return () => { cancelled = true; };
   }, [router, nextParam]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const selectAuthMethod = useCallback((m: AuthMethod) => {
+    setAuthMethod(m);
+    setError(null);
+  }, []);
+
+  const formatCatch = useCallback((err: unknown): string => {
+    if (err instanceof Error) {
+      const msg = err.message || 'Unknown error';
+      if (msg.toLowerCase().includes('failed to fetch')) {
+        return 'Network error. Try a different network.';
+      }
+      return msg;
+    }
+    return 'Something went wrong. Please try again.';
+  }, []);
+
+  const handleGoogle = useCallback(async () => {
+    setError(null);
+    setOauthSending(true);
+    try {
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo },
+      });
+      if (oauthError) setError(oauthError.message);
+    } catch (err) {
+      setError(formatCatch(err));
+    } finally {
+      setOauthSending(false);
+    }
+  }, [redirectTo, formatCatch]);
+
+  const handleSubmitPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
@@ -102,7 +153,6 @@ export function SignInClient() {
           // ignore
         }
 
-        // Best-effort legal acceptance logging (ignores failures).
         try {
           const { data: { session } } = await supabase.auth.getSession();
           await fetch('/api/legal/acceptance', {
@@ -141,6 +191,10 @@ export function SignInClient() {
     }
   };
 
+  const tabBusy = oauthSending;
+  const nextQuery =
+    `${isSignUp ? '&mode=signup' : ''}${nextParam ? `&next=${encodeURIComponent(nextParam)}` : ''}`;
+
   return (
     <div className="min-h-dvh min-h-[100svh] w-full max-w-full overflow-x-clip bg-gradient-to-b from-bg via-surface to-bg text-text flex flex-col">
       <header className="safe-area-top px-4 py-3 sm:py-4">
@@ -158,7 +212,7 @@ export function SignInClient() {
 
       <main className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-md">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <div
               className={`inline-block px-4 py-2 rounded-full text-sm font-medium mb-4 ${
                 role === 'customer' ? 'bg-success/15 text-text border border-border' : 'bg-warning/15 text-text border border-border'
@@ -174,14 +228,12 @@ export function SignInClient() {
                   : 'Get set up to receive requests, respond, and manage your schedule.'
                 : 'Sign in to continue where you left off.'}
             </p>
-            <p className="text-xs text-muted/70 mt-2">
-              Prefer not to use a password? You can sign in with an email code or Google.
-            </p>
+            <p className="text-sm font-medium text-text mt-3">Choose the fastest way to continue</p>
           </div>
 
-          <div className="flex mb-6 bg-surface2 border border-border rounded-xl p-1">
+          <div className="flex mb-5 bg-surface2 border border-border rounded-xl p-1">
             <Link
-              href={`/signin?role=customer${isSignUp ? '&mode=signup' : ''}${nextParam ? `&next=${encodeURIComponent(nextParam)}` : ''}`}
+              href={`/signin?role=customer${nextQuery}`}
               className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all text-center ${
                 role === 'customer' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
               }`}
@@ -189,7 +241,7 @@ export function SignInClient() {
               Customer
             </Link>
             <Link
-              href={`/signin?role=pro${isSignUp ? '&mode=signup' : ''}${nextParam ? `&next=${encodeURIComponent(nextParam)}` : ''}`}
+              href={`/signin?role=pro${nextQuery}`}
               className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all text-center ${
                 role === 'pro' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
               }`}
@@ -229,13 +281,17 @@ export function SignInClient() {
             <div className="mb-4 bg-danger/10 text-text px-4 py-3 rounded-lg text-sm border border-red-100">
               {error}
               {error.toLowerCase().includes('incorrect email or password') && (
-                <div className="mt-2">
-                  <Link
-                    href={nextParam ? `/auth?next=${encodeURIComponent(nextParam)}` : '/auth'}
-                    className="underline underline-offset-4 hover:opacity-80"
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPasswordForm(false);
+                      selectAuthMethod('email');
+                    }}
+                    className="text-left underline underline-offset-4 hover:opacity-80 font-medium"
                   >
-                    Try &quot;Continue with Email&quot; (code) instead →
-                  </Link>
+                    Try email code instead (Email tab) →
+                  </button>
                 </div>
               )}
               {error.toLowerCase().includes('timed out') && (
@@ -264,75 +320,145 @@ export function SignInClient() {
             <div className="mb-4 bg-surface2 text-text px-4 py-3 rounded-lg text-sm border border-border">
               Check your email to confirm your account, then come back and sign in.
               <div className="mt-1 text-xs text-muted/70">
-                We sent you a 6-digit code or confirmation link. You can also sign in with the email code flow.
-              </div>
-              <div className="mt-2">
-                <Link href="/auth" className="underline underline-offset-4 hover:opacity-80 font-medium">
-                  Sign in with 6-digit email code →
-                </Link>
+                Or use the Email tab above to sign in with a 6-digit code.
               </div>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-muted mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                className="w-full px-4 py-3 border border-border rounded-lg bg-surface text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-muted mb-1">
-                Password
-              </label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                minLength={6}
-                className="w-full px-4 py-3 border border-border rounded-lg bg-surface text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
-              />
-              <div className="mt-1.5 text-right">
-                <Link
-                  href={nextParam ? `/auth/forgot-password?next=${encodeURIComponent(nextParam)}` : '/auth/forgot-password'}
-                  className="text-sm text-muted hover:text-accent transition-colors"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3 rounded-lg font-medium transition-opacity bg-accent text-accentContrast hover:opacity-95 disabled:opacity-50"
-            >
-              {isLoading ? 'Working…' : isSignUp ? 'Create account' : 'Sign in'}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <div className="text-xs text-muted/70">Having trouble? Use email code or Google sign-in.</div>
-            <div className="mt-2">
-              <Link
-                href={nextParam ? `/auth?next=${encodeURIComponent(nextParam)}` : '/auth'}
-                className="text-sm font-medium text-text underline underline-offset-4 decoration-border hover:decoration-text"
+          <div
+            className="flex bg-surface2 border border-border rounded-xl p-1 gap-1 mb-5"
+            role="tablist"
+            aria-label="Sign-in method"
+          >
+            {(
+              [
+                { id: 'phone' as const, label: 'Phone' },
+                { id: 'email' as const, label: 'Email' },
+                { id: 'google' as const, label: 'Google' },
+              ] as const
+            ).map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={authMethod === id}
+                disabled={tabBusy}
+                onClick={() => selectAuthMethod(id)}
+                className={`flex-1 min-h-[44px] px-2 py-2.5 text-xs sm:text-sm font-medium rounded-lg transition-all text-center disabled:opacity-50 disabled:cursor-not-allowed ${
+                  authMethod === id ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
+                }`}
               >
-                Continue with email code or Google →
-              </Link>
-            </div>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Keep all panels mounted so switching tabs preserves phone/email OTP progress. */}
+          <div
+            className={authMethod === 'phone' ? 'block' : 'hidden'}
+            role="tabpanel"
+            aria-hidden={authMethod !== 'phone'}
+          >
+            <PhoneOtpForm nextPath={nextParam} createAccountRole={createAccountRole} />
+          </div>
+          <div
+            className={authMethod === 'email' ? 'block' : 'hidden'}
+            role="tabpanel"
+            aria-hidden={authMethod !== 'email'}
+          >
+            <EmailOtpForm nextPath={nextParam} createAccountRole={createAccountRole} />
+          </div>
+          <div
+            className={authMethod === 'google' ? 'block space-y-4' : 'hidden'}
+            role="tabpanel"
+            aria-hidden={authMethod !== 'google'}
+          >
+            <p className="text-sm text-muted">
+              Continue with your Google account. You&apos;ll finish on Google, then return here.
+            </p>
+            <AuthSocialButton
+              provider="google"
+              label="Continue with Google"
+              onClick={() => void handleGoogle()}
+              disabled={oauthSending}
+            />
+          </div>
+
+          <div className="mt-6 text-center border-t border-border pt-5">
+            {!showPasswordForm ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPasswordForm(true);
+                  setError(null);
+                }}
+                className="text-sm text-muted hover:text-text underline underline-offset-4"
+              >
+                Prefer password? Sign in with password
+              </button>
+            ) : (
+              <div className="space-y-4 text-left">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-text">Email & password</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPasswordForm(false);
+                      setError(null);
+                    }}
+                    className="text-xs text-muted hover:text-text underline underline-offset-4 shrink-0"
+                  >
+                    Hide
+                  </button>
+                </div>
+                <form onSubmit={handleSubmitPassword} className="space-y-4">
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-muted mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      required
+                      className="w-full min-h-[48px] px-4 py-3 border border-border rounded-xl bg-surface text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-muted mb-1">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      id="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      minLength={6}
+                      className="w-full min-h-[48px] px-4 py-3 border border-border rounded-xl bg-surface text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
+                    />
+                    <div className="mt-1.5 text-right">
+                      <Link
+                        href={nextParam ? `/auth/forgot-password?next=${encodeURIComponent(nextParam)}` : '/auth/forgot-password'}
+                        className="text-sm text-muted hover:text-accent transition-colors"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full min-h-[48px] py-3 rounded-xl font-medium transition-opacity bg-surface2 text-text border border-border hover:bg-surface disabled:opacity-50"
+                  >
+                    {isLoading ? 'Working…' : isSignUp ? 'Create account' : 'Sign in with password'}
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       </main>

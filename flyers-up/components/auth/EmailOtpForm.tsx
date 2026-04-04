@@ -12,7 +12,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { OTPInput } from '@/components/auth/OTPInput';
-import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
+import { getOrCreateProfile, routeAfterAuth, upsertProfile } from '@/lib/onboarding';
 import { supabase } from '@/lib/supabaseClient';
 
 const TERMS_VERSION = '2026-01-27';
@@ -43,9 +43,18 @@ function isValidEmail(raw: string): boolean {
 
 export type EmailOtpFormProps = {
   nextPath?: string | null;
+  /** When set (e.g. “Create account” on /signin), stored in metadata and applied to profile after verify. */
+  createAccountRole?: 'customer' | 'pro';
 };
 
-export function EmailOtpForm({ nextPath }: EmailOtpFormProps) {
+function otpOptions(createAccountRole?: 'customer' | 'pro') {
+  return {
+    shouldCreateUser: true as const,
+    ...(createAccountRole ? { data: { role: createAccountRole } } : {}),
+  };
+}
+
+export function EmailOtpForm({ nextPath, createAccountRole }: EmailOtpFormProps) {
   const router = useRouter();
   const safeNext = nextPath && nextPath.startsWith('/') ? nextPath : null;
 
@@ -79,7 +88,7 @@ export function EmailOtpForm({ nextPath }: EmailOtpFormProps) {
     try {
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
-        options: { shouldCreateUser: true },
+        options: otpOptions(createAccountRole),
       });
 
       if (otpError) {
@@ -105,7 +114,7 @@ export function EmailOtpForm({ nextPath }: EmailOtpFormProps) {
     try {
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
-        options: { shouldCreateUser: true },
+        options: otpOptions(createAccountRole),
       });
       if (otpError) {
         setError(friendlyOtpError(otpError.message));
@@ -158,10 +167,22 @@ export function EmailOtpForm({ nextPath }: EmailOtpFormProps) {
         return;
       }
 
-      const profile = await getOrCreateProfile(data.user.id, data.user.email ?? trimmedEmail);
+      let profile = await getOrCreateProfile(data.user.id, data.user.email ?? trimmedEmail);
       if (!profile) {
         setError('Could not load your profile. Please try again.');
         return;
+      }
+
+      if (createAccountRole) {
+        const profileRole =
+          (data.user.user_metadata?.role as 'customer' | 'pro' | undefined) ?? createAccountRole;
+        await upsertProfile({
+          id: data.user.id,
+          role: profileRole,
+          onboarding_step: profileRole === 'pro' ? 'pro_profile' : 'customer_profile',
+        });
+        const refreshed = await getOrCreateProfile(data.user.id, data.user.email ?? trimmedEmail);
+        if (refreshed) profile = refreshed;
       }
 
       try {

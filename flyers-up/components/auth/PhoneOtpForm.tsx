@@ -15,7 +15,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { OTPInput } from '@/components/auth/OTPInput';
 import { isValidPhone, toE164 } from '@/lib/auth/phone';
-import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
+import { getOrCreateProfile, routeAfterAuth, upsertProfile } from '@/lib/onboarding';
 import { supabase } from '@/lib/supabaseClient';
 
 const TERMS_VERSION = '2026-01-27';
@@ -44,9 +44,21 @@ function friendlyOtpError(message: string): string {
 export type PhoneOtpFormProps = {
   /** Internal path from `?next=` — only same-origin paths starting with `/` are honored by routing. */
   nextPath?: string | null;
+  /**
+   * When set (e.g. “Create account” on /signin), sent as Supabase user metadata and applied to
+   * the profile after verify — same idea as the email signup flow.
+   */
+  createAccountRole?: 'customer' | 'pro';
 };
 
-export function PhoneOtpForm({ nextPath }: PhoneOtpFormProps) {
+function otpOptions(createAccountRole?: 'customer' | 'pro') {
+  return {
+    shouldCreateUser: true as const,
+    ...(createAccountRole ? { data: { role: createAccountRole } } : {}),
+  };
+}
+
+export function PhoneOtpForm({ nextPath, createAccountRole }: PhoneOtpFormProps) {
   const router = useRouter();
   const safeNext = nextPath && nextPath.startsWith('/') ? nextPath : null;
 
@@ -89,10 +101,7 @@ export function PhoneOtpForm({ nextPath }: PhoneOtpFormProps) {
     try {
       const { error: otpError } = await supabase.auth.signInWithOtp({
         phone: formatted,
-        options: {
-          // Allow new accounts from this screen (same idea as email OTP signup elsewhere).
-          shouldCreateUser: true,
-        },
+        options: otpOptions(createAccountRole),
       });
 
       if (otpError) {
@@ -119,7 +128,7 @@ export function PhoneOtpForm({ nextPath }: PhoneOtpFormProps) {
     try {
       const { error: otpError } = await supabase.auth.signInWithOtp({
         phone: e164Phone,
-        options: { shouldCreateUser: true },
+        options: otpOptions(createAccountRole),
       });
       if (otpError) {
         setError(friendlyOtpError(otpError.message));
@@ -172,10 +181,22 @@ export function PhoneOtpForm({ nextPath }: PhoneOtpFormProps) {
         return;
       }
 
-      const profile = await getOrCreateProfile(data.user.id, data.user.email ?? null);
+      let profile = await getOrCreateProfile(data.user.id, data.user.email ?? null);
       if (!profile) {
         setError('Could not load your profile. Please try again.');
         return;
+      }
+
+      if (createAccountRole) {
+        const profileRole =
+          (data.user.user_metadata?.role as 'customer' | 'pro' | undefined) ?? createAccountRole;
+        await upsertProfile({
+          id: data.user.id,
+          role: profileRole,
+          onboarding_step: profileRole === 'pro' ? 'pro_profile' : 'customer_profile',
+        });
+        const refreshed = await getOrCreateProfile(data.user.id, data.user.email ?? null);
+        if (refreshed) profile = refreshed;
       }
 
       try {
