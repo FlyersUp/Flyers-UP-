@@ -31,7 +31,10 @@ export function SignInClient() {
   const role: UserRole = roleRaw === 'pro' ? 'pro' : 'customer';
   const [isSignUp, setIsSignUp] = useState(modeRaw === 'signup');
 
-  const [authMethod, setAuthMethod] = useState<AuthMethod>('phone');
+  // Phone OTP is sign-in only for now (not offered on Create account).
+  const [authMethod, setAuthMethod] = useState<AuthMethod>(() =>
+    searchParams.get('mode') === 'signup' ? 'email' : 'phone'
+  );
   const [showPasswordForm, setShowPasswordForm] = useState(false);
 
   const [email, setEmail] = useState('');
@@ -57,6 +60,13 @@ export function SignInClient() {
     setError(null);
     setPendingConfirm(false);
   }, [isSignUp]);
+
+  // Create account: no phone tab — move off Phone if user toggles modes.
+  useEffect(() => {
+    if (isSignUp && authMethod === 'phone') {
+      setAuthMethod('email');
+    }
+  }, [isSignUp, authMethod]);
 
   useEffect(() => {
     let cancelled = false;
@@ -262,7 +272,10 @@ export function SignInClient() {
             </button>
             <button
               type="button"
-              onClick={() => setIsSignUp(true)}
+              onClick={() => {
+                setIsSignUp(true);
+                setAuthMethod((m) => (m === 'phone' ? 'email' : m));
+              }}
               className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
                 isSignUp ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
               }`}
@@ -328,14 +341,19 @@ export function SignInClient() {
           <div
             className="flex bg-surface2 border border-border rounded-xl p-1 gap-1 mb-5"
             role="tablist"
-            aria-label="Sign-in method"
+            aria-label={isSignUp ? 'Sign-up method' : 'Sign-in method'}
           >
             {(
-              [
-                { id: 'phone' as const, label: 'Phone' },
-                { id: 'email' as const, label: 'Email' },
-                { id: 'google' as const, label: 'Google' },
-              ] as const
+              isSignUp
+                ? ([
+                    { id: 'email' as const, label: 'Email' },
+                    { id: 'google' as const, label: 'Google' },
+                  ] as const)
+                : ([
+                    { id: 'phone' as const, label: 'Phone' },
+                    { id: 'email' as const, label: 'Email' },
+                    { id: 'google' as const, label: 'Google' },
+                  ] as const)
             ).map(({ id, label }) => (
               <button
                 key={id}
@@ -353,14 +371,16 @@ export function SignInClient() {
             ))}
           </div>
 
-          {/* Keep all panels mounted so switching tabs preserves phone/email OTP progress. */}
-          <div
-            className={authMethod === 'phone' ? 'block' : 'hidden'}
-            role="tabpanel"
-            aria-hidden={authMethod !== 'phone'}
-          >
-            <PhoneOtpForm nextPath={nextParam} createAccountRole={createAccountRole} />
-          </div>
+          {/* Phone OTP: sign-in only. Keep email panels mounted so tab switches preserve state. */}
+          {!isSignUp && (
+            <div
+              className={authMethod === 'phone' ? 'block' : 'hidden'}
+              role="tabpanel"
+              aria-hidden={authMethod !== 'phone'}
+            >
+              <PhoneOtpForm nextPath={nextParam} />
+            </div>
+          )}
           <div
             className={authMethod === 'email' ? 'block' : 'hidden'}
             role="tabpanel"
