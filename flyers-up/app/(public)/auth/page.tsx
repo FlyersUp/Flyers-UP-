@@ -6,9 +6,13 @@ import { useSearchParams } from 'next/navigation';
 import Logo from '@/components/Logo';
 import AuthLoadingFallback from '@/components/AuthLoadingFallback';
 import { AuthSocialButton } from '@/components/auth/AuthSocialButton';
+import { EmailOtpForm } from '@/components/auth/EmailOtpForm';
+import { PhoneOtpForm } from '@/components/auth/PhoneOtpForm';
 import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 import { useRouter } from 'next/navigation';
+
+type AuthMethod = 'phone' | 'email' | 'google';
 
 function AuthInner() {
   const router = useRouter();
@@ -20,6 +24,7 @@ function AuthInner() {
   const [status, setStatus] = useState<'idle' | 'sending' | 'error'>('idle');
   const [error, setError] = useState<string | null>(errorParam ? decodeURIComponent(errorParam) : null);
   const [adminDenied, setAdminDenied] = useState<{ email: string; role: string | null } | null>(null);
+  const [authMethod, setAuthMethod] = useState<AuthMethod>('phone');
 
   const redirectTo = useMemo(() => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -106,8 +111,10 @@ function AuthInner() {
                   Find local help without the guesswork.
                 </h1>
                 <p className="text-muted mt-2">
-                  Sign in to browse pros, send a request, and message on-platform. You can add details later.
+                  Sign in to browse pros, send a request, and message on-platform. Add profile details anytime after
+                  you&apos;re in.
                 </p>
+                <p className="text-sm font-medium text-text mt-3">Choose the fastest way to continue</p>
 
                 {adminDenied && (
                   <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 px-4 py-4 text-sm text-text">
@@ -138,18 +145,64 @@ function AuthInner() {
                   </div>
                 )}
 
-                <div className="mt-6 space-y-3">
-                  <AuthSocialButton
-                    provider="google"
-                    label="Continue with Google"
-                    onClick={handleGoogle}
-                    disabled={status === 'sending'}
-                  />
+                <div className="mt-5 space-y-5">
+                  <div
+                    className="flex bg-surface2 border border-border rounded-xl p-1 gap-1"
+                    role="tablist"
+                    aria-label="Sign-in method"
+                  >
+                    {(
+                      [
+                        { id: 'phone' as const, label: 'Phone' },
+                        { id: 'email' as const, label: 'Email' },
+                        { id: 'google' as const, label: 'Google' },
+                      ] as const
+                    ).map(({ id, label }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        aria-selected={authMethod === id}
+                        disabled={status === 'sending'}
+                        onClick={() => {
+                          setAuthMethod(id);
+                          setError(null);
+                        }}
+                        className={`flex-1 min-h-[44px] px-2 py-2.5 text-xs sm:text-sm font-medium rounded-lg transition-all text-center disabled:opacity-50 disabled:cursor-not-allowed ${
+                          authMethod === id ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
 
-                  <div className="pt-2 text-sm text-muted">
-                    Pro account?{' '}
-                    <Link href={nextParam ? `/signin?next=${encodeURIComponent(nextParam)}` : '/signin'} className="text-text hover:opacity-80 font-medium">
-                      Sign in with email & password
+                  <div role="tabpanel">
+                    {authMethod === 'phone' && <PhoneOtpForm nextPath={nextParam} />}
+                    {authMethod === 'email' && <EmailOtpForm nextPath={nextParam} />}
+                    {authMethod === 'google' && (
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted">
+                          Continue with your Google account. You&apos;ll finish signing in on Google, then come back
+                          here.
+                        </p>
+                        <AuthSocialButton
+                          provider="google"
+                          label="Continue with Google"
+                          onClick={handleGoogle}
+                          disabled={status === 'sending'}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-1 text-sm text-muted">
+                    Prefer email and password?{' '}
+                    <Link
+                      href={nextParam ? `/signin?next=${encodeURIComponent(nextParam)}` : '/signin'}
+                      className="text-text hover:opacity-80 font-medium"
+                    >
+                      Sign in with email & password →
                     </Link>
                   </div>
                 </div>

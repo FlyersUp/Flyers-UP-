@@ -62,7 +62,7 @@ function CallbackInner() {
         } = await supabase.auth.getSession();
         if (!session) {
           setError(
-            'We couldn’t establish a session. Use the 6-digit email code flow at /auth instead.'
+            'We couldn’t establish a session. Go back to /auth and sign in with your phone code or Google.'
           );
           return;
         }
