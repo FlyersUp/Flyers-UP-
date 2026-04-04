@@ -6,12 +6,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Logo from '@/components/Logo';
 import { AuthSocialButton } from '@/components/auth/AuthSocialButton';
 import { EmailOtpForm } from '@/components/auth/EmailOtpForm';
-import { PhoneOtpForm } from '@/components/auth/PhoneOtpForm';
 import { signIn, signUp } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 
 type UserRole = 'customer' | 'pro';
-type AuthMethod = 'phone' | 'email' | 'google';
+type AuthMethod = 'email' | 'google';
 
 const TERMS_VERSION = '2026-01-27';
 
@@ -31,10 +30,7 @@ export function SignInClient() {
   const role: UserRole = roleRaw === 'pro' ? 'pro' : 'customer';
   const [isSignUp, setIsSignUp] = useState(modeRaw === 'signup');
 
-  // Phone OTP is sign-in only for now (not offered on Create account).
-  const [authMethod, setAuthMethod] = useState<AuthMethod>(() =>
-    searchParams.get('mode') === 'signup' ? 'email' : 'phone'
-  );
+  const [authMethod, setAuthMethod] = useState<AuthMethod>('email');
   const [showPasswordForm, setShowPasswordForm] = useState(false);
 
   const [email, setEmail] = useState('');
@@ -60,13 +56,6 @@ export function SignInClient() {
     setError(null);
     setPendingConfirm(false);
   }, [isSignUp]);
-
-  // Create account: no phone tab — move off Phone if user toggles modes.
-  useEffect(() => {
-    if (isSignUp && authMethod === 'phone') {
-      setAuthMethod('email');
-    }
-  }, [isSignUp, authMethod]);
 
   useEffect(() => {
     let cancelled = false;
@@ -272,10 +261,7 @@ export function SignInClient() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setIsSignUp(true);
-                setAuthMethod((m) => (m === 'phone' ? 'email' : m));
-              }}
+              onClick={() => setIsSignUp(true)}
               className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
                 isSignUp ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
               }`}
@@ -344,16 +330,10 @@ export function SignInClient() {
             aria-label={isSignUp ? 'Sign-up method' : 'Sign-in method'}
           >
             {(
-              isSignUp
-                ? ([
-                    { id: 'email' as const, label: 'Email' },
-                    { id: 'google' as const, label: 'Google' },
-                  ] as const)
-                : ([
-                    { id: 'phone' as const, label: 'Phone' },
-                    { id: 'email' as const, label: 'Email' },
-                    { id: 'google' as const, label: 'Google' },
-                  ] as const)
+              [
+                { id: 'email' as const, label: 'Email' },
+                { id: 'google' as const, label: 'Google' },
+              ] as const
             ).map(({ id, label }) => (
               <button
                 key={id}
@@ -371,16 +351,7 @@ export function SignInClient() {
             ))}
           </div>
 
-          {/* Phone OTP: sign-in only. Keep email panels mounted so tab switches preserve state. */}
-          {!isSignUp && (
-            <div
-              className={authMethod === 'phone' ? 'block' : 'hidden'}
-              role="tabpanel"
-              aria-hidden={authMethod !== 'phone'}
-            >
-              <PhoneOtpForm nextPath={nextParam} />
-            </div>
-          )}
+          {/* Keep email panel mounted so switching Email ↔ Google preserves OTP progress. */}
           <div
             className={authMethod === 'email' ? 'block' : 'hidden'}
             role="tabpanel"
