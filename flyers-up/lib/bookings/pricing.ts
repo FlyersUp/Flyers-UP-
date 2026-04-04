@@ -36,19 +36,38 @@ export type MultiFeeBookingPricing = {
 export function computeBookingPricing(params: {
   serviceSubtotalCents: number;
   depositPercent: number;
-  serviceFeePercent: number;
-  convenienceFeeCents: number;
-  protectionFeeCents: number;
+  /** Ignored when `frozenCoreFeesCents` is set (marketplace snapshot path). */
+  serviceFeePercent?: number;
+  convenienceFeeCents?: number;
+  protectionFeeCents?: number;
+  /** Immutable marketplace line items from booking row (cents). */
+  frozenCoreFeesCents?: {
+    serviceFeeCents: number;
+    convenienceFeeCents: number;
+    protectionFeeCents: number;
+  };
   demandFeeCents?: number;
   promoDiscountCents?: number;
 }): MultiFeeBookingPricing {
   const serviceSubtotalCents = Math.round(params.serviceSubtotalCents);
   const depositPercent = params.depositPercent;
-  const serviceFeePercent = params.serviceFeePercent;
-  const convenienceFeeCents = Math.round(params.convenienceFeeCents);
-  const protectionFeeCents = Math.round(params.protectionFeeCents);
   const demandFeeCents = Math.round(params.demandFeeCents ?? 0);
   const promoDiscountCents = Math.round(params.promoDiscountCents ?? 0);
+  const useFrozen = Boolean(params.frozenCoreFeesCents);
+
+  let serviceFeeCents: number;
+  let convenienceFeeCents: number;
+  let protectionFeeCents: number;
+  if (useFrozen && params.frozenCoreFeesCents) {
+    serviceFeeCents = Math.round(params.frozenCoreFeesCents.serviceFeeCents);
+    convenienceFeeCents = Math.round(params.frozenCoreFeesCents.convenienceFeeCents);
+    protectionFeeCents = Math.round(params.frozenCoreFeesCents.protectionFeeCents);
+  } else {
+    const serviceFeePercent = params.serviceFeePercent ?? 0;
+    convenienceFeeCents = Math.round(params.convenienceFeeCents ?? 0);
+    protectionFeeCents = Math.round(params.protectionFeeCents ?? 0);
+    serviceFeeCents = Math.round(serviceSubtotalCents * serviceFeePercent);
+  }
 
   if (serviceSubtotalCents < 0) {
     throw new Error('serviceSubtotalCents must be >= 0');
@@ -62,8 +81,6 @@ export function computeBookingPricing(params: {
   if (promoDiscountCents < 0) {
     throw new Error('promoDiscountCents must be >= 0');
   }
-
-  const serviceFeeCents = Math.round(serviceSubtotalCents * serviceFeePercent);
   const feeTotalCents =
     serviceFeeCents + convenienceFeeCents + protectionFeeCents + demandFeeCents;
   const safePromoDiscountCents = Math.min(promoDiscountCents, serviceSubtotalCents + feeTotalCents);

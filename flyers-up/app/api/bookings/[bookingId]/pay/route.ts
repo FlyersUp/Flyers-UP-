@@ -13,9 +13,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { getOrCreateStripeCustomer } from '@/lib/stripeCustomer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { computeQuote } from '@/lib/bookingQuote';
-import { computeBookingPricing } from '@/lib/bookings/pricing';
 import { getFeeRuleForBooking } from '@/lib/bookings/fee-rules';
-import { resolveDynamicPricing } from '@/lib/bookings/dynamic-pricing';
 import {
   resolveAreaDemandScoreFromBooking,
   resolveConversionRiskScore,
@@ -70,7 +68,9 @@ export async function POST(
 
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, price, payment_intent_id, payment_status, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug')
+    .select(
+      'id, customer_id, pro_id, status, price, payment_intent_id, payment_status, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents'
+    )
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();
@@ -143,6 +143,12 @@ export async function POST(
 
   const proName = (proRow.display_name ?? 'Pro').trim();
 
+  const bLeg = booking as {
+    pricing_version?: string | null;
+    service_fee_cents?: number | null;
+    convenience_fee_cents?: number | null;
+    protection_fee_cents?: number | null;
+  };
   const quoteResult = computeQuote(
     {
       id: booking.id,
@@ -155,13 +161,17 @@ export async function POST(
       status: booking.status,
       urgency: (booking as { urgency?: string | null }).urgency ?? null,
       created_at: (booking as { created_at?: string | null }).created_at ?? null,
+      pricing_version: bLeg.pricing_version ?? null,
+      service_fee_cents: bLeg.service_fee_cents ?? null,
+      convenience_fee_cents: bLeg.convenience_fee_cents ?? null,
+      protection_fee_cents: bLeg.protection_fee_cents ?? null,
     },
     proPricing,
     serviceName,
     proName
   );
 
-  const { quote } = quoteResult;
+  const { quote, pricing } = quoteResult;
   const { count: completedPaidCount } = await admin
     .from('bookings')
     .select('id', { count: 'exact', head: true })
@@ -192,31 +202,6 @@ export async function POST(
     isFirstBooking: historyFlags.isFirstBooking,
   });
   const trustRiskScore = resolveTrustRiskScore({ occupationProfile: feeRule.profile });
-  const dynamicPricing = resolveDynamicPricing({
-    baseServiceFeePercent: feeRule.serviceFeePercent,
-    baseConvenienceFeeCents: feeRule.convenienceFeeCents,
-    baseProtectionFeeCents: feeRule.protectionFeeCents,
-    input: {
-      occupationProfile: feeRule.profile,
-      serviceSubtotalCents: quote.amountSubtotal,
-      urgency,
-      areaDemandScore,
-      supplyTightnessScore,
-      conversionRiskScore,
-      trustRiskScore,
-      isFirstBooking: historyFlags.isFirstBooking,
-      isRepeatCustomer: historyFlags.isRepeatCustomer,
-    },
-  });
-  const pricing = computeBookingPricing({
-    serviceSubtotalCents: quote.amountSubtotal,
-    depositPercent: quote.depositPercent / 100,
-    serviceFeePercent: dynamicPricing.serviceFeePercent,
-    convenienceFeeCents: dynamicPricing.convenienceFeeCents,
-    protectionFeeCents: dynamicPricing.protectionFeeCents,
-    demandFeeCents: feeRule.demandFeeMode === 'supported_if_applicable' ? dynamicPricing.demandFeeCents : 0,
-    promoDiscountCents: dynamicPricing.promoDiscountCents,
-  });
   const amountCents = pricing.customerTotalCents;
   if (!Number.isFinite(amountCents) || amountCents <= 0) {
     return NextResponse.json({ error: 'Booking total is not set' }, { status: 400 });
@@ -263,6 +248,8 @@ export async function POST(
       booking_fee_profile_stamped: bPay.fee_profile ?? undefined,
       booking_pricing_occupation_slug: bPay.pricing_occupation_slug ?? undefined,
       booking_pricing_category_slug: bPay.pricing_category_slug ?? undefined,
+      pricing_version: (bLeg.pricing_version && String(bLeg.pricing_version).trim()) || undefined,
+      subtotal_cents: quote.amountSubtotal,
       service_subtotal_cents: pricing.serviceSubtotalCents,
       service_fee_cents: pricing.serviceFeeCents,
       convenience_fee_cents: pricing.convenienceFeeCents,
@@ -285,7 +272,7 @@ export async function POST(
       final_fee_total_cents: pricing.finalFeeTotalCents,
       deposit_promo_discount_cents: pricing.depositPromoDiscountCents,
       final_promo_discount_cents: pricing.finalPromoDiscountCents,
-      dynamic_pricing_reasons: dynamicPricing.reasons.join(','),
+      dynamic_pricing_reasons: (quote.dynamicPricingReasons ?? []).join(','),
       urgency,
       area_demand_score: areaDemandScore,
       supply_tightness_score: supplyTightnessScore,

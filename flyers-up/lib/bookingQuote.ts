@@ -4,7 +4,7 @@
  * Used by /api/bookings/[bookingId]/quote and /api/bookings/[bookingId]/pay.
  */
 
-import { computeBookingPricing } from '@/lib/bookings/pricing';
+import { computeBookingPricing, type MultiFeeBookingPricing } from '@/lib/bookings/pricing';
 import { getDemandFeeCents } from '@/lib/bookings/fee-config';
 import { getFeeRuleForBooking } from '@/lib/bookings/fee-rules';
 import {
@@ -44,6 +44,8 @@ export interface QuoteBreakdown {
 export interface QuoteResult {
   bookingId: string;
   quote: QuoteBreakdown;
+  /** Full multi-fee split used for Stripe metadata and deposit/final amounts (single source of truth). */
+  pricing: MultiFeeBookingPricing;
   serviceName: string;
   proName: string;
   serviceDate: string;
@@ -73,6 +75,11 @@ export interface BookingForQuote {
   pricing_category_slug?: string | null;
   urgency?: string | null;
   created_at?: string | null;
+  /** Immutable marketplace snapshot (cents) — when set, core fees come from DB, not fee rules. */
+  pricing_version?: string | null;
+  service_fee_cents?: number | null;
+  convenience_fee_cents?: number | null;
+  protection_fee_cents?: number | null;
 }
 
 export interface ProPricingForQuote {
@@ -124,7 +131,7 @@ export function computeQuote(
     completedOrPaidBookingCount?: number | null;
   }
 ): QuoteResult {
-  const quote = computeQuoteBreakdown(
+  const { quote, pricing } = computeQuoteBreakdown(
     booking,
     proPricing,
     options?.depositPercentOverride,
@@ -134,6 +141,7 @@ export function computeQuote(
   return {
     bookingId: booking.id,
     quote,
+    pricing,
     serviceName,
     proName,
     serviceDate: booking.service_date,
@@ -154,10 +162,12 @@ function computeQuoteBreakdown(
     urgency?: string | null;
     completedOrPaidBookingCount?: number | null;
   }
-): QuoteBreakdown {
+): { quote: QuoteBreakdown; pricing: MultiFeeBookingPricing } {
   const currency = 'usd';
 
-  const addDepositToBreakdown = (base: Omit<QuoteBreakdown, 'amountDeposit' | 'amountRemaining' | 'depositPercent'>): QuoteBreakdown => {
+  const addDepositToBreakdown = (
+    base: Omit<QuoteBreakdown, 'amountDeposit' | 'amountRemaining' | 'depositPercent'>
+  ): { quote: QuoteBreakdown; pricing: MultiFeeBookingPricing } => {
     const depositPercent = depositPercentOverride != null
       ? clampDepositPercent(depositPercentOverride, proPricing)
       : clampDepositPercent(proPricing?.deposit_percent_default ?? DEPOSIT_PERCENT_DEFAULT, proPricing);
@@ -193,34 +203,60 @@ function computeQuoteBreakdown(
       baseProtectionFeeCents: feeRule.protectionFeeCents,
       input: dynamicInput,
     });
-    const pricing = computeBookingPricing({
-      serviceSubtotalCents: base.amountSubtotal,
-      depositPercent: depositPercent / 100,
-      serviceFeePercent: dynamicPricing.serviceFeePercent,
-      convenienceFeeCents: dynamicPricing.convenienceFeeCents,
-      protectionFeeCents: dynamicPricing.protectionFeeCents,
-      demandFeeCents:
-        feeRule.demandFeeMode === 'supported_if_applicable'
-          ? dynamicPricing.demandFeeCents || getDemandFeeCents({})
-          : 0,
-      promoDiscountCents: dynamicPricing.promoDiscountCents,
-    });
+
+    const useMarketplaceSnapshot =
+      typeof booking.pricing_version === 'string' &&
+      booking.pricing_version.trim().length > 0 &&
+      typeof booking.service_fee_cents === 'number' &&
+      typeof booking.convenience_fee_cents === 'number' &&
+      typeof booking.protection_fee_cents === 'number';
+
+    const pricing = useMarketplaceSnapshot
+      ? computeBookingPricing({
+          serviceSubtotalCents: base.amountSubtotal,
+          depositPercent: depositPercent / 100,
+          frozenCoreFeesCents: {
+            serviceFeeCents: booking.service_fee_cents!,
+            convenienceFeeCents: booking.convenience_fee_cents!,
+            protectionFeeCents: booking.protection_fee_cents!,
+          },
+          demandFeeCents:
+            feeRule.demandFeeMode === 'supported_if_applicable'
+              ? dynamicPricing.demandFeeCents || getDemandFeeCents({})
+              : 0,
+          promoDiscountCents: dynamicPricing.promoDiscountCents,
+        })
+      : computeBookingPricing({
+          serviceSubtotalCents: base.amountSubtotal,
+          depositPercent: depositPercent / 100,
+          serviceFeePercent: dynamicPricing.serviceFeePercent,
+          convenienceFeeCents: dynamicPricing.convenienceFeeCents,
+          protectionFeeCents: dynamicPricing.protectionFeeCents,
+          demandFeeCents:
+            feeRule.demandFeeMode === 'supported_if_applicable'
+              ? dynamicPricing.demandFeeCents || getDemandFeeCents({})
+              : 0,
+          promoDiscountCents: dynamicPricing.promoDiscountCents,
+        });
     const amountDeposit = pricing.depositChargeCents;
     const amountRemaining = pricing.finalChargeCents;
     return {
-      ...base,
-      amountPlatformFee: pricing.feeTotalCents,
-      amountTotal: pricing.customerTotalCents,
-      serviceFeeCents: pricing.serviceFeeCents,
-      convenienceFeeCents: pricing.convenienceFeeCents,
-      protectionFeeCents: pricing.protectionFeeCents,
-      demandFeeCents: pricing.demandFeeCents,
-      feeTotalCents: pricing.feeTotalCents,
-      promoDiscountCents: pricing.promoDiscountCents,
-      amountDeposit,
-      amountRemaining,
-      depositPercent,
-      dynamicPricingReasons: dynamicPricing.reasons,
+      pricing,
+      quote: {
+        ...base,
+        amountPlatformFee: pricing.feeTotalCents,
+        amountTotal: pricing.customerTotalCents,
+        serviceFeeCents: pricing.serviceFeeCents,
+        convenienceFeeCents: pricing.convenienceFeeCents,
+        protectionFeeCents: pricing.protectionFeeCents,
+        demandFeeCents: pricing.demandFeeCents,
+        feeTotalCents: pricing.feeTotalCents,
+        promoDiscountCents: pricing.promoDiscountCents,
+        amountDeposit,
+        amountRemaining,
+        depositPercent,
+        dynamicPricingReasons: dynamicPricing.reasons,
+      },
     };
   };
 

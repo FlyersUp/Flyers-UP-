@@ -145,7 +145,7 @@ function PriceDetailsBlock({
       </button>
       {expanded && (
         <div className="border-t border-[#ebebeb] dark:border-white/10 px-4 pb-4 pt-3 space-y-2.5">
-          <PriceRow label="Service" value={formatCents(baseAmount)} />
+          <PriceRow label="Subtotal (your rate)" value={formatCents(baseAmount)} />
           {(quote.amountTravelFee ?? 0) > 0 && (
             <PriceRow label="Travel fee" value={formatCents(quote.amountTravelFee!)} />
           )}

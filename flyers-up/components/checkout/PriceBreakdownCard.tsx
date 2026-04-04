@@ -40,7 +40,7 @@ export function PriceBreakdownCard({ quote, showDeposit = true }: { quote: Quote
     <Card className="shadow-[var(--shadow-md)]" padding="lg">
       <h3 className="mb-3 text-sm font-semibold text-primary">Checkout summary</h3>
       <div className="space-y-2">
-        <PriceRow label="Service" value={formatCents(baseAmount)} />
+        <PriceRow label="Subtotal (your rate)" value={formatCents(baseAmount)} />
         {quote.amountTravelFee > 0 && (
           <PriceRow label="Travel fee" value={formatCents(quote.amountTravelFee)} />
         )}

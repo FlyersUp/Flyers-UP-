@@ -255,6 +255,21 @@ export interface Database {
           miles_distance?: number | null;
           selected_package_id?: string | null;
           selected_package_snapshot?: Json | null;
+          /** Money / pricing snapshot (migrations 042+, 107) */
+          payment_status?: string | null;
+          final_payment_status?: string | null;
+          subtotal_cents?: number | null;
+          fee_total_cents?: number | null;
+          customer_total_cents?: number | null;
+          amount_platform_fee?: number | null;
+          stripe_estimated_fee_cents?: number | null;
+          stripe_actual_fee_cents?: number | null;
+          platform_gross_margin_cents?: number | null;
+          contribution_margin_cents?: number | null;
+          effective_take_rate?: number | null;
+          pricing_version?: string | null;
+          pricing_band?: string | null;
+          refunded_total_cents?: number | null;
         };
         Insert: {
           id?: string;
@@ -272,6 +287,20 @@ export interface Database {
           miles_distance?: number | null;
           selected_package_id?: string | null;
           selected_package_snapshot?: Json | null;
+          payment_status?: string | null;
+          final_payment_status?: string | null;
+          subtotal_cents?: number | null;
+          fee_total_cents?: number | null;
+          customer_total_cents?: number | null;
+          amount_platform_fee?: number | null;
+          stripe_estimated_fee_cents?: number | null;
+          stripe_actual_fee_cents?: number | null;
+          platform_gross_margin_cents?: number | null;
+          contribution_margin_cents?: number | null;
+          effective_take_rate?: number | null;
+          pricing_version?: string | null;
+          pricing_band?: string | null;
+          refunded_total_cents?: number | null;
         };
         Update: {
           id?: string;
@@ -289,6 +318,40 @@ export interface Database {
           miles_distance?: number | null;
           selected_package_id?: string | null;
           selected_package_snapshot?: Json | null;
+          payment_status?: string | null;
+          final_payment_status?: string | null;
+          subtotal_cents?: number | null;
+          fee_total_cents?: number | null;
+          customer_total_cents?: number | null;
+          amount_platform_fee?: number | null;
+          stripe_estimated_fee_cents?: number | null;
+          stripe_actual_fee_cents?: number | null;
+          platform_gross_margin_cents?: number | null;
+          contribution_margin_cents?: number | null;
+          effective_take_rate?: number | null;
+          pricing_version?: string | null;
+          pricing_band?: string | null;
+          refunded_total_cents?: number | null;
+        };
+      };
+      booking_payment_intent_stripe_fees: {
+        Row: {
+          payment_intent_id: string;
+          booking_id: string;
+          stripe_fee_cents: number;
+          created_at: string;
+        };
+        Insert: {
+          payment_intent_id: string;
+          booking_id: string;
+          stripe_fee_cents: number;
+          created_at?: string;
+        };
+        Update: {
+          payment_intent_id?: string;
+          booking_id?: string;
+          stripe_fee_cents?: number;
+          created_at?: string;
         };
       };
       service_packages: {

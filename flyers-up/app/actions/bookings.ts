@@ -23,6 +23,7 @@ import {
   validateActiveAddonsForProCategory,
 } from '@/lib/bookings/booking-request-scope';
 import { isServiceProBookableByCustomers } from '@/lib/pro/pro-bookability';
+import { computeMarketplaceFees } from '@/lib/pricing/fees';
 
 type BookingStatus = 'requested' | 'accepted' | 'declined' | 'completed' | 'cancelled';
 
@@ -205,9 +206,10 @@ export async function createBookingWithPayment(
 
     const addonsTotalCents = validatedAddons.reduce((sum, a) => sum + a.price_cents, 0);
 
-    // 4) Calculate total server-side (base price + add-ons)
+    // 4) Calculate total server-side (base price + add-ons) — pro subtotal in cents
     const totalCents = basePriceCents + addonsTotalCents;
     const totalDollars = totalCents / 100;
+    const marketplaceFees = computeMarketplaceFees(totalCents);
 
     const initialStatusHistory = [{ status: 'requested', at: new Date().toISOString() }];
     const requestedAt = new Date().toISOString();
@@ -308,6 +310,17 @@ export async function createBookingWithPayment(
         fee_profile: feeProfile,
         pricing_occupation_slug: occupationSlug ?? null,
         pricing_category_slug: categorySlug ?? null,
+        subtotal_cents: marketplaceFees.subtotalCents,
+        service_fee_cents: marketplaceFees.serviceFeeCents,
+        convenience_fee_cents: marketplaceFees.convenienceFeeCents,
+        protection_fee_cents: marketplaceFees.protectionFeeCents,
+        fee_total_cents: marketplaceFees.feeTotalCents,
+        customer_total_cents: marketplaceFees.customerTotalCents,
+        stripe_estimated_fee_cents: marketplaceFees.stripeEstimatedFeeCents,
+        platform_gross_margin_cents: marketplaceFees.platformGrossMarginCents,
+        effective_take_rate: Number(marketplaceFees.effectiveTakeRate.toFixed(4)),
+        pricing_version: marketplaceFees.pricingVersion,
+        pricing_band: marketplaceFees.pricingBand,
         subcategory_id: validatedSubcategoryId,
         address_lat: addressLat,
         address_lng: addressLng,

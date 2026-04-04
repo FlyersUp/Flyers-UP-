@@ -63,7 +63,9 @@ export async function POST(
   // Same as deposit: pros who are the customer on a booking must be able to pay remaining balance.
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, paid_deposit_at, paid_remaining_at, fully_paid_at')
+    .select(
+      'id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, paid_deposit_at, paid_remaining_at, fully_paid_at, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents'
+    )
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();
@@ -168,6 +170,12 @@ export async function POST(
       .eq('user_id', proRowForQuote?.user_id ?? '')
       .maybeSingle();
     const proName = ((proRowForQuote as { display_name?: string })?.display_name ?? 'Pro').trim();
+    const bFin = booking as {
+      pricing_version?: string | null;
+      service_fee_cents?: number | null;
+      convenience_fee_cents?: number | null;
+      protection_fee_cents?: number | null;
+    };
     const quoteResult = computeQuote(
       {
         id: booking.id,
@@ -180,44 +188,17 @@ export async function POST(
         status: booking.status,
         urgency: (booking as { urgency?: string | null }).urgency ?? null,
         created_at: (booking as { created_at?: string | null }).created_at ?? null,
+        pricing_version: bFin.pricing_version ?? null,
+        service_fee_cents: bFin.service_fee_cents ?? null,
+        convenience_fee_cents: bFin.convenience_fee_cents ?? null,
+        protection_fee_cents: bFin.protection_fee_cents ?? null,
       },
       proPricing,
       serviceName,
       proName
     );
-    const feeRule = getFeeRuleForBooking({
-      serviceSubtotalCents: quoteResult.quote.amountSubtotal,
-      categoryName: serviceName,
-    });
-    const dynamicPricing = resolveDynamicPricing({
-      baseServiceFeePercent: feeRule.serviceFeePercent,
-      baseConvenienceFeeCents: feeRule.convenienceFeeCents,
-      baseProtectionFeeCents: feeRule.protectionFeeCents,
-      input: {
-        occupationProfile: feeRule.profile,
-        serviceSubtotalCents: quoteResult.quote.amountSubtotal,
-        urgency,
-        areaDemandScore,
-        supplyTightnessScore,
-        conversionRiskScore: resolveConversionRiskScore({
-          serviceSubtotalCents: quoteResult.quote.amountSubtotal,
-          isFirstBooking: historyFlags.isFirstBooking,
-        }),
-        trustRiskScore: resolveTrustRiskScore({ occupationProfile: feeRule.profile }),
-        isFirstBooking: historyFlags.isFirstBooking,
-        isRepeatCustomer: historyFlags.isRepeatCustomer,
-      },
-    });
-    lastDynamicPricingReasons = dynamicPricing.reasons;
-    pricing = computeBookingPricing({
-      serviceSubtotalCents: quoteResult.quote.amountSubtotal,
-      depositPercent: quoteResult.quote.depositPercent / 100,
-      serviceFeePercent: dynamicPricing.serviceFeePercent,
-      convenienceFeeCents: dynamicPricing.convenienceFeeCents,
-      protectionFeeCents: dynamicPricing.protectionFeeCents,
-      demandFeeCents: feeRule.demandFeeMode === 'supported_if_applicable' ? dynamicPricing.demandFeeCents : 0,
-      promoDiscountCents: dynamicPricing.promoDiscountCents,
-    });
+    lastDynamicPricingReasons = quoteResult.quote.dynamicPricingReasons ?? [];
+    pricing = quoteResult.pricing;
     amountRemaining = pricing.finalChargeCents;
     if (amountTotal <= 0) amountTotal = pricing.customerTotalCents;
   } else {
@@ -248,6 +229,18 @@ export async function POST(
 
   if (!pricing) {
     const subtotalGuessFromStored = Math.max(0, amountTotal - Number(booking.amount_platform_fee ?? 0));
+    const bFall = booking as {
+      pricing_version?: string | null;
+      service_fee_cents?: number | null;
+      convenience_fee_cents?: number | null;
+      protection_fee_cents?: number | null;
+    };
+    const useSnap =
+      typeof bFall.pricing_version === 'string' &&
+      bFall.pricing_version.trim().length > 0 &&
+      typeof bFall.service_fee_cents === 'number' &&
+      typeof bFall.convenience_fee_cents === 'number' &&
+      typeof bFall.protection_fee_cents === 'number';
     const feeRule = getFeeRuleForBooking({
       serviceSubtotalCents: subtotalGuessFromStored,
       categoryName: serviceName,
@@ -274,15 +267,28 @@ export async function POST(
       },
     });
     lastDynamicPricingReasons = dynamicPricing.reasons;
-    pricing = computeBookingPricing({
-      serviceSubtotalCents: subtotalGuessFromStored,
-      depositPercent: amountTotal > 0 ? Math.max(0, Math.min(1, amountDeposit / amountTotal)) : 0,
-      serviceFeePercent: dynamicPricing.serviceFeePercent,
-      convenienceFeeCents: dynamicPricing.convenienceFeeCents,
-      protectionFeeCents: dynamicPricing.protectionFeeCents,
-      demandFeeCents: feeRule.demandFeeMode === 'supported_if_applicable' ? dynamicPricing.demandFeeCents : 0,
-      promoDiscountCents: dynamicPricing.promoDiscountCents,
-    });
+    pricing = useSnap
+      ? computeBookingPricing({
+          serviceSubtotalCents: subtotalGuessFromStored,
+          depositPercent: amountTotal > 0 ? Math.max(0, Math.min(1, amountDeposit / amountTotal)) : 0,
+          frozenCoreFeesCents: {
+            serviceFeeCents: bFall.service_fee_cents!,
+            convenienceFeeCents: bFall.convenience_fee_cents!,
+            protectionFeeCents: bFall.protection_fee_cents!,
+          },
+          demandFeeCents:
+            feeRule.demandFeeMode === 'supported_if_applicable' ? dynamicPricing.demandFeeCents : 0,
+          promoDiscountCents: dynamicPricing.promoDiscountCents,
+        })
+      : computeBookingPricing({
+          serviceSubtotalCents: subtotalGuessFromStored,
+          depositPercent: amountTotal > 0 ? Math.max(0, Math.min(1, amountDeposit / amountTotal)) : 0,
+          serviceFeePercent: dynamicPricing.serviceFeePercent,
+          convenienceFeeCents: dynamicPricing.convenienceFeeCents,
+          protectionFeeCents: dynamicPricing.protectionFeeCents,
+          demandFeeCents: feeRule.demandFeeMode === 'supported_if_applicable' ? dynamicPricing.demandFeeCents : 0,
+          promoDiscountCents: dynamicPricing.promoDiscountCents,
+        });
     if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
       amountRemaining = pricing.finalChargeCents;
     } else {
@@ -369,6 +375,11 @@ export async function POST(
       booking_fee_profile_stamped: bFinal.fee_profile ?? undefined,
       booking_pricing_occupation_slug: bFinal.pricing_occupation_slug ?? undefined,
       booking_pricing_category_slug: bFinal.pricing_category_slug ?? undefined,
+      pricing_version:
+        ((booking as { pricing_version?: string | null }).pricing_version &&
+          String((booking as { pricing_version?: string | null }).pricing_version).trim()) ||
+        undefined,
+      subtotal_cents: pricing.serviceSubtotalCents,
       service_subtotal_cents: pricing.serviceSubtotalCents,
       service_fee_cents: pricing.serviceFeeCents,
       convenience_fee_cents: pricing.convenienceFeeCents,

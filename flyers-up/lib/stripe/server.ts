@@ -56,6 +56,48 @@ export async function refundPaymentIntent(
  * Create transfer to connected account.
  * TODO: Platform fee logic - currently transfers full amount.
  */
+/**
+ * Stripe processing fee (cents) from the charge BalanceTransaction for a PaymentIntent.
+ * Returns null if the charge or balance transaction is not available yet.
+ */
+export async function retrieveStripeProcessingFeeCentsForPaymentIntent(
+  paymentIntentId: string
+): Promise<number | null> {
+  try {
+    const s = getStripe();
+    const pi = await s.paymentIntents.retrieve(paymentIntentId, {
+      expand: ['latest_charge.balance_transaction'],
+    });
+    const lc = pi.latest_charge;
+    if (!lc) return null;
+
+    async function feeFromBalanceTransaction(
+      bt: string | Stripe.BalanceTransaction | null
+    ): Promise<number | null> {
+      if (bt == null) return null;
+      if (typeof bt === 'string') {
+        const btObj = await s.balanceTransactions.retrieve(bt);
+        return typeof btObj.fee === 'number' ? btObj.fee : null;
+      }
+      return typeof bt.fee === 'number' ? bt.fee : null;
+    }
+
+    if (typeof lc === 'string') {
+      const charge = await s.charges.retrieve(lc, { expand: ['balance_transaction'] });
+      return feeFromBalanceTransaction(charge.balance_transaction);
+    }
+
+    return feeFromBalanceTransaction(lc.balance_transaction);
+  } catch (err) {
+    console.warn(
+      '[stripe] retrieveStripeProcessingFeeCentsForPaymentIntent failed',
+      paymentIntentId,
+      err
+    );
+    return null;
+  }
+}
+
 export async function createTransfer(params: {
   amount: number; // cents
   currency: string;

@@ -50,6 +50,10 @@ export type BookingPaymentIntentPricingMetadata = {
   booking_fee_profile_stamped?: string;
   booking_pricing_occupation_slug?: string;
   booking_pricing_category_slug?: string;
+  /** Immutable marketplace engine version stamped on booking (e.g. v1_2026_04). */
+  pricing_version?: string;
+  /** Pro service subtotal in cents (matches bookings.subtotal_cents / quote line). */
+  subtotal_cents?: number;
 };
 
 const META_TITLE_MAX = 200;

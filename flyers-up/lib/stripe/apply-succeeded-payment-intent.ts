@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache';
 import { isCancelled } from '@/lib/bookings/booking-status';
 import { resolveWebhookPaymentKind } from '@/lib/stripe/webhook-payment-phase';
 import { parseBookingPaymentIntentMetadata } from '@/lib/stripe/booking-payment-intent-metadata';
+import { recordBookingStripeFeeSnapshot } from '@/lib/stripe/booking-stripe-fee-snapshot';
 import { refundPaymentIntent } from '@/lib/stripe/server';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
@@ -199,6 +200,17 @@ export async function applySucceededPaymentIntent(
       console.warn('[applySucceededPI:deposit] revalidatePath failed', revErr);
     }
 
+    try {
+      await recordBookingStripeFeeSnapshot(admin, {
+        bookingId,
+        paymentIntentId: paymentIntent.id,
+        finalizeContributionMargin: false,
+        metadata: meta,
+      });
+    } catch (feeErr) {
+      console.warn('[applySucceededPI:deposit] stripe fee snapshot failed', feeErr);
+    }
+
     return { handled: true, bookingId, paymentKind: 'deposit', lateAutoRefund: false };
   }
 
@@ -311,6 +323,17 @@ export async function applySucceededPaymentIntent(
       }
     }
 
+    try {
+      await recordBookingStripeFeeSnapshot(admin, {
+        bookingId,
+        paymentIntentId: paymentIntent.id,
+        finalizeContributionMargin: true,
+        metadata: meta,
+      });
+    } catch (feeErr) {
+      console.warn('[applySucceededPI:remaining] stripe fee snapshot failed', feeErr);
+    }
+
     return { handled: true, bookingId, paymentKind: 'remaining', lateAutoRefund: false };
   }
 
@@ -389,6 +412,17 @@ export async function applySucceededPaymentIntent(
         }
       }
     }
+  }
+
+  try {
+    await recordBookingStripeFeeSnapshot(admin, {
+      bookingId,
+      paymentIntentId: paymentIntent.id,
+      finalizeContributionMargin: true,
+      metadata: meta,
+    });
+  } catch (feeErr) {
+    console.warn('[applySucceededPI:legacy_full] stripe fee snapshot failed', feeErr);
   }
 
   return { handled: true, bookingId, paymentKind: 'legacy_full', lateAutoRefund: false };

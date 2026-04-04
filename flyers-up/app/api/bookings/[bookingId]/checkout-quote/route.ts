@@ -28,7 +28,9 @@ export async function GET(
   // Same as deposit: allow any user who is the booking's customer (including pros who booked another pro).
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, status, price, payment_due_at, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug')
+    .select(
+      'id, customer_id, pro_id, status, price, payment_due_at, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents'
+    )
     .eq('id', id)
     .eq('customer_id', user.id)
     .maybeSingle();
@@ -94,6 +96,12 @@ export async function GET(
     proPhotoUrl = (profileRow as { avatar_url: string }).avatar_url;
   }
 
+  const bQ = booking as {
+    pricing_version?: string | null;
+    service_fee_cents?: number | null;
+    convenience_fee_cents?: number | null;
+    protection_fee_cents?: number | null;
+  };
   const quoteResult = computeQuote(
     {
       id: booking.id,
@@ -108,6 +116,10 @@ export async function GET(
       miles_distance: (booking as { miles_distance?: number | null }).miles_distance,
       urgency: (booking as { urgency?: string | null }).urgency ?? null,
       created_at: (booking as { created_at?: string | null }).created_at ?? null,
+      pricing_version: bQ.pricing_version ?? null,
+      service_fee_cents: bQ.service_fee_cents ?? null,
+      convenience_fee_cents: bQ.convenience_fee_cents ?? null,
+      protection_fee_cents: bQ.protection_fee_cents ?? null,
     },
     proPricing,
     serviceName,
