@@ -149,7 +149,7 @@ export function NotificationBell({ basePath, className = '' }: NotificationBellP
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />
-          <div className="absolute right-0 top-full mt-2 z-50 w-[min(360px,calc(100vw-32px))]">
+          <div className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100dvw-2rem))] max-w-[calc(100dvw-2rem)] min-w-0">
             <NotificationsPanel
               header={
                 <div className="px-4 py-3 flex items-center justify-between gap-4">

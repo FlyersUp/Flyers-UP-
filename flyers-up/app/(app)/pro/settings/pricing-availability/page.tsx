@@ -298,8 +298,8 @@ export default function ProPricingAvailabilitySettingsPage() {
 
   return (
     <AppLayout mode="pro">
-      <div className="min-h-screen bg-[#F5F5F5]">
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <div className="min-h-screen min-w-0 max-w-full bg-[#F5F5F5]">
+        <div className="mx-auto max-w-2xl min-w-0 space-y-6 px-3 py-6 sm:px-4">
           <div>
             <Link href="/pro/settings" className="text-sm text-black/60 hover:text-black">
               ← Back to Settings
@@ -317,13 +317,13 @@ export default function ProPricingAvailabilitySettingsPage() {
           ) : (
             <div className="space-y-6">
               {/* Section A: Pricing Model */}
-              <section className="rounded-2xl border border-black/5 bg-white shadow-sm p-5">
+              <section className="min-w-0 max-w-full rounded-2xl border border-black/5 bg-white p-4 shadow-sm sm:p-5">
                 <h2 className="text-sm font-medium text-black mb-3">How you charge</h2>
                 <PricingModelSelector value={pricingModel} onChange={setPricingModel} disabled={!canEdit} />
               </section>
 
               {/* Section B: Rates */}
-              <section className="rounded-2xl border border-black/5 bg-white shadow-sm p-5">
+              <section className="min-w-0 max-w-full rounded-2xl border border-black/5 bg-white p-4 shadow-sm sm:p-5">
                 <h2 className="text-sm font-medium text-black mb-3">Rates</h2>
                 <RatesForm
                   model={pricingModel}
@@ -337,12 +337,12 @@ export default function ProPricingAvailabilitySettingsPage() {
               </section>
 
               {/* Section C: Deposit */}
-              <section className="rounded-2xl border border-black/5 bg-white shadow-sm p-5">
+              <section className="min-w-0 max-w-full rounded-2xl border border-black/5 bg-white p-4 shadow-sm sm:p-5">
                 <h2 className="text-sm font-medium text-black mb-3">Deposit</h2>
                 <p className="text-sm text-black/60 mb-3">
                   Customers pay this deposit to lock your time. Remainder is due after you mark the job complete.
                 </p>
-                <div className="flex items-center gap-4">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                   <input
                     type="range"
                     min={20}
@@ -350,14 +350,14 @@ export default function ProPricingAvailabilitySettingsPage() {
                     value={depositPercent}
                     onChange={(e) => setDepositPercent(Number(e.target.value))}
                     disabled={!canEdit}
-                    className="flex-1 h-2 rounded-full"
+                    className="h-2 w-full min-w-0 flex-1 rounded-full"
                   />
-                  <span className="text-sm font-medium text-black w-12">{depositPercent}%</span>
+                  <span className="shrink-0 text-sm font-medium text-black tabular-nums sm:w-12">{depositPercent}%</span>
                 </div>
               </section>
 
               {/* Section D: Travel & Service Area */}
-              <section className="rounded-2xl border border-black/5 bg-white shadow-sm p-5">
+              <section className="min-w-0 max-w-full rounded-2xl border border-black/5 bg-white p-4 shadow-sm sm:p-5">
                 <h2 className="text-sm font-medium text-black mb-3">Travel &amp; Service Area</h2>
                 <TravelRulesForm
                   values={travelRules}
@@ -368,7 +368,7 @@ export default function ProPricingAvailabilitySettingsPage() {
               </section>
 
               {/* Section E: Availability */}
-              <section className="rounded-2xl border border-black/5 bg-white shadow-sm p-5">
+              <section className="min-w-0 max-w-full rounded-2xl border border-black/5 bg-white p-4 shadow-sm sm:p-5">
                 <h2 className="text-sm font-medium text-black mb-3">Availability</h2>
                 <WeeklyAvailabilityEditor
                   weekly={weekly}

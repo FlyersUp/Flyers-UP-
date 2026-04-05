@@ -416,13 +416,13 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
 
   return (
     <AppLayout mode="pro">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-bg overflow-x-hidden w-full max-w-full">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip bg-bg w-full max-w-full">
         <div className="sticky top-0 z-20 safe-area-top bg-bg/95 backdrop-blur-sm border-b border-border">
-          <div className="w-full max-w-4xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between min-w-0 gap-2">
+          <div className="mx-auto flex w-full max-w-4xl min-w-0 items-center justify-between gap-2 px-3 py-3 sm:px-4 sm:py-4">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
-              className="h-10 w-10 rounded-xl bg-surface2 border border-border text-text hover:bg-surface2/80 flex items-center justify-center"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface2 text-text hover:bg-surface2/80"
               aria-label="Open menu"
             >
               ☰
@@ -430,11 +430,11 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
             <h1 className="text-lg sm:text-xl font-semibold text-text truncate min-w-0 flex-1 text-center px-1">
               {userName}
             </h1>
-            <div className="w-10" />
+            <div className="h-10 w-10 shrink-0" aria-hidden />
           </div>
         </div>
 
-        <div className="w-full max-w-4xl mx-auto px-4 py-6 space-y-8 min-w-0 pb-24">
+        <div className="mx-auto w-full max-w-4xl min-w-0 space-y-8 px-3 py-6 sm:px-4 pb-24">
           {/* 0. Share profile link */}
           {proId && (
             <section>

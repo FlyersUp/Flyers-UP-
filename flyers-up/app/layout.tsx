@@ -48,6 +48,18 @@ const themeInitScript = `
 })();
 `;
 
+/** PWA standalone: matchMedia + iOS Add to Home Screen (navigator.standalone) — before first paint */
+const standaloneInitScript = `
+(function(){
+  try {
+    var mq = window.matchMedia && window.matchMedia('(display-mode: standalone)');
+    var dm = mq && mq.matches;
+    var ios = window.navigator && window.navigator.standalone === true;
+    if (dm || ios) document.documentElement.classList.add('fu-standalone');
+  } catch(e){}
+})();
+`;
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -58,6 +70,7 @@ export default async function RootLayout({
     <html lang={locale} className="bg-bg text-text" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script dangerouslySetInnerHTML={{ __html: standaloneInitScript }} />
         <script
           dangerouslySetInnerHTML={{
             __html:

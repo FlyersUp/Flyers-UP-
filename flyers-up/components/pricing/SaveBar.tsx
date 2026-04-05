@@ -12,7 +12,7 @@ interface SaveBarProps {
 
 export function SaveBar({ onSave, saving, disabled, success, error }: SaveBarProps) {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 max-w-full flex-col gap-3">
       {error && (
         <div className="p-4 bg-danger/10 border border-danger/30 rounded-xl text-text text-sm">
           {error}
@@ -23,12 +23,13 @@ export function SaveBar({ onSave, saving, disabled, success, error }: SaveBarPro
           {success}
         </div>
       )}
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
         <Button
           type="button"
           onClick={onSave}
           disabled={disabled || saving}
           showArrow={false}
+          className="w-full min-w-0 max-w-full sm:w-auto"
         >
           {saving ? 'Saving…' : 'Save changes'}
         </Button>

@@ -48,12 +48,12 @@ export default function PageLayout({
     <div
       data-role={resolvedMode}
       data-accent={accentDensity}
-      className={`min-h-dvh min-h-[100svh] w-full max-w-full overflow-x-clip bg-bg text-text pb-fu-nav ${className}`}
+      className={`mx-auto flex min-h-dvh min-h-[100svh] min-w-0 w-full max-w-full flex-col overflow-x-clip bg-bg text-text pb-fu-nav ${className}`}
     >
       {/* Back Button Header */}
       {showBackButton && (
         <header className="safe-area-top bg-surface border-b border-border sticky top-0 z-40">
-          <div className="mobile-page-root max-w-7xl mx-auto px-[var(--page-pad-x)] py-3 min-w-0">
+          <div className="mobile-page-root mx-auto max-w-7xl min-w-0 px-3 py-3 sm:px-[var(--page-pad-x)]">
             <button
               onClick={handleBack}
               className="flex items-center gap-2 text-muted hover:text-text transition-colors text-sm font-medium"
@@ -65,7 +65,7 @@ export default function PageLayout({
       )}
 
       {/* Page Content */}
-      <main className="mobile-page-root max-w-7xl mx-auto px-[var(--page-pad-x)] py-[var(--page-pad-y)] min-w-0">
+      <main className="mobile-page-root mx-auto max-w-7xl min-w-0 px-3 py-[var(--page-pad-y)] sm:px-[var(--page-pad-x)]">
         {children}
       </main>
 

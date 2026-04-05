@@ -88,15 +88,15 @@ function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel, mode }
   return (
     <Link
       href={href}
-      className={`${base} ${isActive ? activeBg : inactiveBg} ${isActive ? activeBorder : inactiveBorder} ${
+      className={`shrink-0 snap-center ${base} ${isActive ? activeBg : inactiveBg} ${isActive ? activeBorder : inactiveBorder} ${
         isActive ? activeIcon : `${inactiveIcon} hover:text-text hover:bg-hover`
       }`}
       style={{
-        width: isActive ? 96 : 44,
-        minWidth: isActive ? 84 : 44,
-        paddingLeft: isActive ? 12 : 0,
-        paddingRight: isActive ? 12 : 0,
-        gap: isActive ? 6 : 0,
+        width: isActive ? 90 : 44,
+        minWidth: isActive ? 78 : 44,
+        paddingLeft: isActive ? 10 : 0,
+        paddingRight: isActive ? 10 : 0,
+        gap: isActive ? 5 : 0,
         transition: `min-width ${TRANSITION_MS}ms ease-out, width ${TRANSITION_MS}ms ease-out, padding ${TRANSITION_MS}ms ease-out, gap ${TRANSITION_MS}ms ease-out, background-color ${TRANSITION_MS}ms, color ${TRANSITION_MS}ms`,
       }}
       aria-label={ariaLabel}
@@ -107,7 +107,9 @@ function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel, mode }
         badge={badge}
       />
       {isActive ? (
-        <span className="whitespace-nowrap font-medium text-xs sm:text-sm">{label}</span>
+        <span className="max-w-[4.5rem] truncate font-medium text-[0.7rem] sm:max-w-none sm:text-sm sm:whitespace-nowrap">
+          {label}
+        </span>
       ) : null}
     </Link>
   );
@@ -145,7 +147,7 @@ export default function FloatingBottomNav() {
     return (
       <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center safe-area-x isolate">
         <div
-          className="pointer-events-auto flex w-full max-w-full min-w-0 items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-4 sm:max-w-md"
+          className="fu-no-scrollbar pointer-events-auto flex w-full max-w-full min-w-0 snap-x snap-mandatory items-center justify-start gap-1 overflow-x-auto overflow-y-visible px-1 sm:justify-center sm:gap-3 sm:px-4 sm:overflow-x-visible md:max-w-md"
           style={{ marginBottom: 'max(12px, env(safe-area-inset-bottom))' }}
         >
           <MorphingNavItem
@@ -190,7 +192,7 @@ export default function FloatingBottomNav() {
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center safe-area-x isolate">
       <div
-        className="pointer-events-auto flex w-full max-w-full min-w-0 items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-4 sm:max-w-md"
+        className="fu-no-scrollbar pointer-events-auto flex w-full max-w-full min-w-0 snap-x snap-mandatory items-center justify-start gap-1 overflow-x-auto overflow-y-visible px-1 sm:justify-center sm:gap-3 sm:px-4 sm:overflow-x-visible md:max-w-md"
         style={{ marginBottom: 'max(12px, env(safe-area-inset-bottom))' }}
       >
         <MorphingNavItem

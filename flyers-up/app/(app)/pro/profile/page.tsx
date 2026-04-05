@@ -312,7 +312,7 @@ export default function ProProfilePage() {
 
   return (
     <PageLayout showBackButton backButtonHref="/dashboard/pro">
-      <div className="max-w-4xl mx-auto">
+      <div className="mx-auto max-w-4xl min-w-0">
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
           <div>
@@ -420,16 +420,16 @@ export default function ProProfilePage() {
           {/* Stats Section */}
           <div className="bg-surface rounded-xl border border-border p-6">
             <h2 className="text-lg font-semibold text-text mb-4">Statistics</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
+            <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
+              <div className="min-w-0">
                 <p className="text-sm text-muted/70">Jobs Completed</p>
                 <p className="text-2xl font-bold text-text">{formData.jobsCompleted}</p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted/70">Average Rating</p>
                 <p className="text-2xl font-bold text-accent">⭐ {formData.averageRating.toFixed(1)}</p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted/70">Years Experience</p>
                 {isEditing ? (
                   <input
@@ -444,7 +444,7 @@ export default function ProProfilePage() {
                 )}
               </div>
               {DARK_MODE_END_USER_ENABLED ? (
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm text-muted/70">Dark Mode</p>
                   {isEditing ? (
                     <label className="flex items-center gap-2 mt-2">

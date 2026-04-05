@@ -72,7 +72,7 @@ export default async function ProSmartPricingDashboardPage({
   return (
     <AppLayout mode="pro">
       <div className="min-h-screen bg-bg">
-        <div className="mx-auto max-w-3xl px-4 py-6 space-y-6">
+        <div className="mx-auto max-w-3xl min-w-0 space-y-6 px-3 py-6 sm:px-4">
           <div>
             <Link href="/pro" className="text-sm text-text2 hover:text-text">
               ← Back to home
@@ -83,7 +83,7 @@ export default async function ProSmartPricingDashboardPage({
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex min-w-0 max-w-full flex-wrap gap-2">
             {rangeLinks.map(({ label, value }) => (
               <Link
                 key={value}
@@ -105,7 +105,7 @@ export default async function ProSmartPricingDashboardPage({
             <>
               <section>
                 <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-text2">Overview</h2>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
                   <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
                     <div className="text-xs text-text2">Total earnings</div>
                     <div className="mt-1 text-lg font-semibold text-text">

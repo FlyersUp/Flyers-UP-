@@ -9,6 +9,8 @@
  */
 import { usePathname } from 'next/navigation';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ViewportOverflowDebug } from '@/components/dev/ViewportOverflowDebug';
+import { StandaloneModeSync } from '@/components/StandaloneModeSync';
 
 function getModeFromPath(pathname: string | null): 'customer' | 'pro' {
   if (!pathname) return 'customer';
@@ -29,5 +31,11 @@ function getModeFromPath(pathname: string | null): 'customer' | 'pro' {
 export function ThemeProviderWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const mode = getModeFromPath(pathname);
-  return <ThemeProvider mode={mode}>{children}</ThemeProvider>;
+  return (
+    <ThemeProvider mode={mode}>
+      <ViewportOverflowDebug />
+      <StandaloneModeSync />
+      {children}
+    </ThemeProvider>
+  );
 }

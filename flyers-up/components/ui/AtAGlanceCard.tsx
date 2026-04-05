@@ -66,7 +66,7 @@ function MiniItem({
   emphasize?: boolean;
 }) {
   return (
-    <div className="min-w-[9.5rem]">
+    <div className="min-w-0 flex-1 basis-[8.5rem] sm:basis-[9.5rem]">
       <div className="text-xs text-gray-600 dark:text-gray-300">{label}</div>
       <div className={['text-base font-semibold', emphasize ? 'text-accent' : 'text-gray-900 dark:text-white'].join(' ')}>
         {value}

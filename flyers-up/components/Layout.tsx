@@ -34,10 +34,10 @@ export default function Layout({
     <div
       data-role={mode}
       data-accent={accentDensity}
-      className="min-h-dvh min-h-[100svh] w-full max-w-full overflow-x-clip bg-bg text-text pb-fu-nav"
+      className="mx-auto flex min-h-dvh min-h-[100svh] min-w-0 w-full max-w-full flex-col overflow-x-clip bg-bg text-text pb-fu-nav"
     >
       <Navbar title={title} showBackButton={showBackButton} hideRightLinks={hideNavLinks} />
-      <main className="mobile-page-root w-full max-w-6xl mx-auto px-[var(--page-pad-x)] py-[var(--page-pad-y)]">
+      <main className="mobile-page-root mx-auto w-full max-w-6xl min-w-0 px-3 py-[var(--page-pad-y)] sm:px-[var(--page-pad-x)]">
         {children}
       </main>
       <FloatingBottomNav />

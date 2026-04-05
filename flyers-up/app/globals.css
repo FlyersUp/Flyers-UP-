@@ -156,6 +156,8 @@
   --badge-border: rgba(0,0,0,0.08);
   --rail-width: 4px;
   --stripe-width: 1px;
+  /** Extra top inset in PWA standalone (set on html.fu-standalone; used with safe-area-top + fixed chrome) */
+  --fu-standalone-top-extra: 0px;
 
   /* Fixed bottom chrome — FloatingBottomNav (h-11 xs, sm:h-14 + bottom margin) + optional sticky CTAs */
   --fu-bottom-nav-inner: 3.5rem;
@@ -169,6 +171,11 @@
   );
   /* Use with AppLayout/PageLayout that already apply pb-fu-nav — only the second fixed row */
   --fu-content-pad-sticky-only: calc(var(--fu-sticky-action-bar-chrome) + 0.75rem);
+}
+
+/* Installed PWA / iOS “Add to Home Screen”: class set before paint (see root layout script) + StandaloneModeSync */
+html.fu-standalone {
+  --fu-standalone-top-extra: 0.375rem;
 }
 
 /* Swap role tokens by data-role — trust slate + pro warmth tints */
@@ -680,11 +687,11 @@ button[style*="background-color"]:hover {
 }
 
 .safe-area-top {
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: calc(env(safe-area-inset-top, 0px) + var(--fu-standalone-top-extra, 0px));
 }
 
 .safe-area-pt {
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: calc(env(safe-area-inset-top, 0px) + var(--fu-standalone-top-extra, 0px));
 }
 
 .safe-area-pb {
@@ -718,8 +725,25 @@ button[style*="background-color"]:hover {
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  overflow-x: hidden;
+  /* clip avoids a horizontal scrollbar without implying content should scroll */
+  overflow-x: clip;
 }
+
+/* Hide scrollbars for intentional horizontal micro-scroll regions (e.g. bottom nav) */
+.fu-no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.fu-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/**
+ * Mobile layout standards (Flyers Up)
+ * - Shell: min-h-dvh, w-full, max-w-full, min-w-0 on flex children
+ * - Prefer 100% / w-full over 100vw (avoids scrollbar + iOS quirks)
+ * - Safe areas: safe-area-top / safe-area-x on fixed chrome; pb-fu-nav on main column
+ */
 
 /* Landing — subtle grain (Flat 2.0, non-intrusive) */
 .landing-grain {

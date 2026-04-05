@@ -346,7 +346,7 @@ export default function ProBusinessProfileSettingsPage() {
 
   return (
     <AppLayout mode="pro">
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <div className="mx-auto max-w-4xl min-w-0 space-y-6 px-3 py-6 sm:px-4">
         <div>
           <Link href="/pro/settings" className="text-sm text-muted hover:text-text">
             ← Back to Settings

@@ -204,8 +204,8 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
               Improve listing
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Link href="/pro/settings/business" className="block">
+          <div className="grid grid-cols-1 gap-3 min-w-0 sm:grid-cols-2 sm:gap-4">
+            <Link href="/pro/settings/business" className="block min-w-0 max-w-full">
               <Card className="cursor-pointer hover:shadow-card transition-shadow">
                 <div className="text-center py-4">
                   <div className="mb-2 flex justify-center">
@@ -215,7 +215,7 @@ export default function ProDashboardClient({ userName }: { userName: string }) {
                 </div>
               </Card>
             </Link>
-            <Link href="/pro/credentials" className="block">
+            <Link href="/pro/credentials" className="block min-w-0 max-w-full">
               <Card className="cursor-pointer hover:shadow-card transition-shadow">
                 <div className="text-center py-4">
                   <div className="mb-2 flex justify-center">

@@ -17,7 +17,7 @@ export function Rail({ className = '', showLabel = false, label }: RailProps) {
   const displayLabel = label || (mode === 'customer' ? 'CUSTOMER MODE' : 'PRO MODE');
 
   return (
-    <div className={`relative w-[4px] bg-bg border-r border-border shrink-0 ${className}`}>
+    <div className={`relative w-[4px] shrink-0 overflow-hidden bg-bg border-r border-border ${className}`}>
       {/* Thin colored accent stripe */}
       <div className="absolute left-0 top-0 bottom-0 w-px bg-accent" />
       
