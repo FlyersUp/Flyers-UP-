@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { DashboardCard, DashboardSectionSkeleton } from '@/components/dashboard/DashboardCard';
 import Link from 'next/link';
 import { SideMenu } from '@/components/ui/SideMenu';
@@ -415,23 +416,27 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
   }, [proId, fetchPendingRequests]);
 
   return (
-    <AppLayout mode="pro">
+    <AppLayout mode="pro" showFloatingNotificationBell={false}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip bg-bg w-full max-w-full">
         <div className="sticky top-0 z-20 safe-area-top bg-bg/95 backdrop-blur-sm border-b border-border">
-          <div className="mx-auto flex w-full max-w-4xl min-w-0 items-center justify-between gap-2 px-3 py-3 sm:px-4 sm:py-4">
-            <button
-              type="button"
-              onClick={() => setMenuOpen(true)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface2 text-text hover:bg-surface2/80"
-              aria-label="Open menu"
-            >
-              ☰
-            </button>
-            <h1 className="text-lg sm:text-xl font-semibold text-text truncate min-w-0 flex-1 text-center px-1">
+          <header className="relative mx-auto flex h-14 w-full max-w-4xl min-w-0 items-center px-4 sm:h-[3.75rem]">
+            <div className="flex shrink-0 items-center">
+              <button
+                type="button"
+                onClick={() => setMenuOpen(true)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface2 text-text hover:bg-surface2/80"
+                aria-label="Open menu"
+              >
+                ☰
+              </button>
+            </div>
+            <h1 className="pointer-events-none absolute left-1/2 top-1/2 max-w-[calc(100%-7.5rem)] -translate-x-1/2 -translate-y-1/2 truncate text-center text-base font-semibold text-text sm:max-w-[calc(100%-9rem)] sm:text-lg">
               {userName}
             </h1>
-            <div className="h-10 w-10 shrink-0" aria-hidden />
-          </div>
+            <div className="ml-auto flex shrink-0 items-center">
+              <NotificationBell basePath="pro" />
+            </div>
+          </header>
         </div>
 
         <div className="mx-auto w-full max-w-4xl min-w-0 space-y-8 px-3 py-6 sm:px-4 pb-24">

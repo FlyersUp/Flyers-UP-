@@ -88,7 +88,7 @@ function MorphingNavItem({ href, isActive, icon, label, badge, ariaLabel, mode }
   return (
     <Link
       href={href}
-      className={`shrink-0 snap-center ${base} ${isActive ? activeBg : inactiveBg} ${isActive ? activeBorder : inactiveBorder} ${
+      className={`shrink-0 ${base} ${isActive ? activeBg : inactiveBg} ${isActive ? activeBorder : inactiveBorder} ${
         isActive ? activeIcon : `${inactiveIcon} hover:text-text hover:bg-hover`
       }`}
       style={{
@@ -147,7 +147,7 @@ export default function FloatingBottomNav() {
     return (
       <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center safe-area-x isolate">
         <div
-          className="fu-no-scrollbar pointer-events-auto flex w-full max-w-full min-w-0 snap-x snap-mandatory items-center justify-start gap-1 overflow-x-auto overflow-y-visible px-1 sm:justify-center sm:gap-3 sm:px-4 sm:overflow-x-visible md:max-w-md"
+          className="fu-no-scrollbar pointer-events-auto flex w-full max-w-full min-w-0 items-center justify-center gap-1 overflow-x-visible px-3 sm:gap-3 sm:px-4 md:max-w-md"
           style={{ marginBottom: 'max(12px, env(safe-area-inset-bottom))' }}
         >
           <MorphingNavItem
@@ -192,7 +192,7 @@ export default function FloatingBottomNav() {
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center safe-area-x isolate">
       <div
-        className="fu-no-scrollbar pointer-events-auto flex w-full max-w-full min-w-0 snap-x snap-mandatory items-center justify-start gap-1 overflow-x-auto overflow-y-visible px-1 sm:justify-center sm:gap-3 sm:px-4 sm:overflow-x-visible md:max-w-md"
+        className="fu-no-scrollbar pointer-events-auto flex w-full max-w-full min-w-0 items-center justify-center gap-1 overflow-x-visible px-3 sm:gap-3 sm:px-4 md:max-w-md"
         style={{ marginBottom: 'max(12px, env(safe-area-inset-bottom))' }}
       >
         <MorphingNavItem
