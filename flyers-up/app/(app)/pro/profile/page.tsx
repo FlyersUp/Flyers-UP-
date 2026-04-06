@@ -371,7 +371,7 @@ export default function ProProfilePage() {
               Edit Profile
             </button>
             <nav className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium" aria-label="Profile management">
-              <Link href="/onboarding/pro" className="text-accent hover:underline">
+              <Link href="/pro/profile/services" className="text-accent hover:underline">
                 Manage services
               </Link>
               <Link href="/pro/specialties" className="text-accent hover:underline">
@@ -520,7 +520,7 @@ export default function ProProfilePage() {
                     {isEditing && (
                       <p className="text-xs text-muted mt-2">
                         Locked after signup. To change which services you offer within this occupation, use{' '}
-                        <Link href="/onboarding/pro" className="text-accent hover:underline">
+                        <Link href="/pro/profile/services" className="text-accent hover:underline">
                           Manage services
                         </Link>
                         .
@@ -607,7 +607,7 @@ export default function ProProfilePage() {
                 </p>
               </div>
               <Link
-                href="/onboarding/pro"
+                href="/pro/profile/services"
                 className="inline-flex items-center justify-center min-h-11 px-4 rounded-xl text-sm font-semibold border border-black/10 dark:border-white/10 bg-[var(--surface-solid)] text-accent hover:bg-surface2 shrink-0"
               >
                 Manage services

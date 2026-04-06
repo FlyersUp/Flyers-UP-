@@ -18,6 +18,7 @@ import { updateMyServiceProAction } from '@/app/actions/servicePro';
 import { ProOnboardingProgress, type ProOnboardingStep } from '@/components/onboarding/ProOnboardingProgress';
 import { SpecialtyTagInput } from '@/components/onboarding/SpecialtyTagInput';
 import { AddOnBuilder, type AddOnDraft } from '@/components/onboarding/AddOnBuilder';
+import { OccupationServicesChecklist } from '@/components/onboarding/OccupationServicesChecklist';
 import {
   defaultBusinessHoursModel,
   parseBusinessHoursModel,
@@ -489,35 +490,13 @@ function ProInner() {
                   )}
                   {!selectedOccupation ? (
                     <p className="text-sm text-muted">Select an occupation first.</p>
-                  ) : servicesLoading ? (
-                    <p className="text-sm text-muted py-6">Loading services…</p>
-                  ) : services.length === 0 ? (
-                    <div className="rounded-xl border border-border bg-surface2/30 p-8 text-center">
-                      <p className="text-muted">No services added yet for this occupation.</p>
-                    </div>
                   ) : (
-                    <div className="space-y-2">
-                      {services.map((svc) => (
-                        <label
-                          key={svc.id}
-                          className="flex items-center gap-3 p-4 rounded-xl border border-border hover:bg-surface2 cursor-pointer transition-all has-[:checked]:border-accent has-[:checked]:bg-accent/5 has-[:checked]:ring-2 has-[:checked]:ring-accent/30"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedServiceIds.includes(svc.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) setSelectedServiceIds((prev) => [...prev, svc.id]);
-                              else setSelectedServiceIds((prev) => prev.filter((id) => id !== svc.id));
-                            }}
-                            className="rounded border-border size-5 shrink-0"
-                          />
-                          <div>
-                            <span className="text-text font-medium">{svc.name}</span>
-                            {svc.description && <span className="text-muted text-sm block mt-0.5">{svc.description}</span>}
-                          </div>
-                        </label>
-                      ))}
-                    </div>
+                    <OccupationServicesChecklist
+                      services={services}
+                      selectedIds={selectedServiceIds}
+                      onChangeSelectedIds={setSelectedServiceIds}
+                      loading={servicesLoading}
+                    />
                   )}
                   {selectedOccupation && (
                     <div>
