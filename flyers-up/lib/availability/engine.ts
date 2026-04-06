@@ -13,6 +13,7 @@ import type {
   ProAvailabilitySettingsRow,
 } from '@/lib/availability/types';
 import { WEEKDAY_KEY_BY_LUXON, luxonWeekdayToJsDay } from '@/lib/availability/types';
+import { effectiveLeadMinutesForCalendarDate } from '@/lib/availability/lead-time';
 
 export type BookingOccupancyInput = {
   id: string;
@@ -245,7 +246,12 @@ export function computeSlotsForDay(
     return [];
   }
 
-  const earliestStartUtc = now.plus({ minutes: ctx.leadTimeMinutes });
+  const leadForDay = effectiveLeadMinutesForCalendarDate(dateISO, {
+    zone,
+    leadTimeMinutes: ctx.leadTimeMinutes,
+    nowUtc: ctx.nowUtc,
+  });
+  const earliestStartUtc = now.plus({ minutes: leadForDay });
 
   for (const seg of free) {
     if (!seg.isValid) continue;

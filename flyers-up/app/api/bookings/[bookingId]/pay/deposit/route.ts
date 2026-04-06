@@ -24,12 +24,20 @@ import {
   resolveTrustRiskScore,
   resolveUrgencyFromBooking,
 } from '@/lib/bookings/dynamic-pricing-features';
+import { DEFAULT_BOOKING_TIMEZONE } from '@/lib/datetime/constants';
+import type { OverlapBookingRow } from '@/lib/operations/availabilityValidation';
 import {
+  buildExistingBookingRangesForOverlap,
   resolveSameDayEnabledFromServicePro,
   validateProAvailability,
 } from '@/lib/operations/availabilityValidation';
 import { loadRecurringHoldRangesForProAroundServiceDate } from '@/lib/recurring/recurring-holds';
 import { buildBookingPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
+import { appendLifecyclePaymentIntentMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
+import {
+  logBookingPaymentEvent,
+  syncBookingPaymentSummary,
+} from '@/lib/bookings/payment-lifecycle-service';
 import { minimumBookingNoticeFromBookingRow } from '@/lib/pricing/config';
 
 export const runtime = 'nodejs';
@@ -125,7 +133,7 @@ export async function POST(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, paid_deposit_at, service_date, service_time, address, job_request_id, scope_confirmed_at, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents'
+      'id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, paid_deposit_at, service_date, service_time, booking_timezone, address, job_request_id, scope_confirmed_at, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents'
     )
     .eq('id', id)
     .eq('customer_id', user.id)
@@ -230,18 +238,20 @@ export async function POST(
     .eq('blocked_date', booking.service_date);
   const blockedDates = blockedRows?.length ? [String(booking.service_date)] : [];
 
-  const ACTIVE_STATUSES = ['requested', 'accepted', 'payment_required', 'deposit_paid', 'pro_en_route', 'on_the_way', 'arrived', 'in_progress', 'completed_pending_payment', 'awaiting_payment', 'paid'];
   const { data: otherBookings } = await admin
     .from('bookings')
-    .select('service_date, service_time')
+    .select(
+      'id, service_date, service_time, booking_timezone, status, duration_hours, estimated_duration_minutes, scheduled_start_at, scheduled_end_at, completed_at'
+    )
     .eq('pro_id', booking.pro_id)
     .neq('id', id)
-    .in('status', ACTIVE_STATUSES)
     .eq('service_date', booking.service_date);
-  const existingRanges = (otherBookings ?? []).map((b) => {
-    const start = new Date(`${b.service_date}T${b.service_time || '09:00'}`);
-    const end = new Date(start.getTime() + 90 * 60 * 1000);
-    return { startAt: start, endAt: end };
+  const depositTz =
+    String((booking as { booking_timezone?: string | null }).booking_timezone ?? '').trim() ||
+    DEFAULT_BOOKING_TIMEZONE;
+  const existingRanges = buildExistingBookingRangesForOverlap((otherBookings ?? []) as OverlapBookingRow[], {
+    excludeBookingId: id,
+    defaultTimeZone: depositTz,
   });
 
   const extraBusyRangesUtc = await loadRecurringHoldRangesForProAroundServiceDate(
@@ -255,6 +265,7 @@ export async function POST(
     proUserId: (proRow as { user_id: string }).user_id,
     serviceDate: booking.service_date,
     serviceTime: booking.service_time || '12:00',
+    bookingTimeZone: (booking as { booking_timezone?: string | null }).booking_timezone ?? DEFAULT_BOOKING_TIMEZONE,
     addressZip: (booking as { address?: string }).address?.match(/\d{5}/)?.[0],
     proActive: Boolean((proRow as { available?: boolean }).available ?? true),
     travelRadiusMiles: (proRow as { travel_radius_miles?: number | null }).travel_radius_miles,
@@ -461,12 +472,32 @@ export async function POST(
     },
   });
 
+  Object.assign(
+    stripeFields.metadata,
+    appendLifecyclePaymentIntentMetadata(
+      {
+        booking_id: id,
+        customer_id: booking.customer_id,
+        pro_id: booking.pro_id,
+        booking_service_status: status,
+        pricing_version: (bSnap.pricing_version && String(bSnap.pricing_version).trim()) || '',
+        subtotal_cents: quote.amountSubtotal,
+        platform_fee_cents: pricing.feeTotalCents,
+        deposit_amount_cents: pricing.depositChargeCents,
+        final_amount_cents: pricing.finalChargeCents,
+        total_amount_cents: pricing.customerTotalCents,
+      },
+      'deposit'
+    )
+  );
+
   const paymentIntent = await stripe.paymentIntents.create(
     {
       amount: amountDeposit,
       currency: quote.currency,
       automatic_payment_methods: { enabled: true },
       customer: customerResult.stripeCustomerId,
+      setup_future_usage: 'off_session',
       metadata: stripeFields.metadata,
       description: stripeFields.description,
       statement_descriptor_suffix: stripeFields.statement_descriptor_suffix,
@@ -480,6 +511,11 @@ export async function POST(
     piStatus === 'succeeded' ? 'PAID'
     : piStatus === 'requires_action' ? 'REQUIRES_ACTION'
     : 'UNPAID';
+
+  const lifecycleDeposit =
+    newPaymentStatus === 'PAID' ? 'deposit_paid' : 'deposit_pending';
+  const serviceDeposit =
+    newPaymentStatus === 'PAID' ? 'deposit_paid' : 'deposit_pending';
 
   await admin
     .from('bookings')
@@ -502,8 +538,29 @@ export async function POST(
       amount_remaining: pricing.finalChargeCents,
       deposit_percent: breakdown.deposit_percent,
       currency: quote.currency,
+      platform_fee_cents: pricing.feeTotalCents,
+      final_amount_cents: pricing.finalChargeCents,
+      payment_lifecycle_status: lifecycleDeposit,
+      service_status: serviceDeposit,
+      deposit_payment_intent_id: paymentIntent.id,
     })
     .eq('id', id);
+
+  try {
+    await syncBookingPaymentSummary(admin, id);
+    await logBookingPaymentEvent(admin, {
+      bookingId: id,
+      eventType: 'deposit_intent_created',
+      phase: 'deposit',
+      status: piStatus,
+      amountCents: amountDeposit,
+      currency: quote.currency,
+      stripePaymentIntentId: paymentIntent.id,
+      metadata: { via: 'pay_deposit_route' },
+    });
+  } catch (e) {
+    console.warn('[pay/deposit] lifecycle ledger failed', e);
+  }
 
   console.info('[booking] deposit_intent_created', {
     bookingId: id,

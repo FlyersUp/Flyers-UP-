@@ -24,6 +24,11 @@ import {
   resolveUrgencyFromBooking,
 } from '@/lib/bookings/dynamic-pricing-features';
 import { buildBookingPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
+import { appendLifecyclePaymentIntentMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
+import {
+  logBookingPaymentEvent,
+  syncBookingPaymentSummary,
+} from '@/lib/bookings/payment-lifecycle-service';
 import { minimumBookingNoticeFromBookingRow } from '@/lib/pricing/config';
 import { getUnifiedBookingPaymentAmountsForBooking } from '@/lib/bookings/booking-receipt-service';
 
@@ -65,7 +70,7 @@ export async function POST(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, paid_deposit_at, paid_remaining_at, fully_paid_at, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents'
+      'id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, paid_deposit_at, paid_remaining_at, fully_paid_at, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents, stripe_payment_intent_deposit_id, payment_intent_id, deposit_payment_intent_id, customer_review_deadline_at'
     )
     .eq('id', id)
     .eq('customer_id', user.id)
@@ -419,6 +424,37 @@ export async function POST(
     },
   });
 
+  const depositPiId =
+    (booking as { deposit_payment_intent_id?: string | null }).deposit_payment_intent_id?.trim() ||
+    (booking as { stripe_payment_intent_deposit_id?: string | null }).stripe_payment_intent_deposit_id?.trim() ||
+    (booking as { payment_intent_id?: string | null }).payment_intent_id?.trim() ||
+    '';
+
+  Object.assign(
+    stripeFields.metadata,
+    appendLifecyclePaymentIntentMetadata(
+      {
+        booking_id: id,
+        customer_id: booking.customer_id,
+        pro_id: booking.pro_id,
+        booking_service_status: status,
+        pricing_version:
+          ((booking as { pricing_version?: string | null }).pricing_version &&
+            String((booking as { pricing_version?: string | null }).pricing_version).trim()) ||
+          '',
+        subtotal_cents: pricing.serviceSubtotalCents,
+        platform_fee_cents: pricing.feeTotalCents,
+        deposit_amount_cents: pricing.depositChargeCents,
+        final_amount_cents: pricing.finalChargeCents,
+        total_amount_cents: pricing.customerTotalCents,
+        linked_deposit_payment_intent_id: depositPiId,
+        review_deadline_at:
+          (booking as { customer_review_deadline_at?: string | null }).customer_review_deadline_at ?? '',
+      },
+      'final'
+    )
+  );
+
   // Platform holds remaining — NO transfer_data. Pro paid via release-payouts.
   const paymentIntent = await stripe.paymentIntents.create(
     {
@@ -446,8 +482,30 @@ export async function POST(
       stripe_payment_intent_remaining_id: paymentIntent.id,
       stripe_destination_account_id: connectedAccountId,
       final_payment_status: newFinalStatus,
+      payment_lifecycle_status:
+        newFinalStatus === 'PAID'
+          ? 'final_paid'
+          : newFinalStatus === 'REQUIRES_ACTION'
+            ? 'requires_customer_action'
+            : 'final_pending',
     })
     .eq('id', id);
+
+  try {
+    await syncBookingPaymentSummary(admin, id);
+    await logBookingPaymentEvent(admin, {
+      bookingId: id,
+      eventType: 'final_intent_created',
+      phase: 'final',
+      status: piStatus,
+      amountCents: amountRemaining,
+      currency: (booking.currency as string) || 'usd',
+      stripePaymentIntentId: paymentIntent.id,
+      metadata: { via: 'pay_final_route' },
+    });
+  } catch (e) {
+    console.warn('[pay/final] lifecycle ledger failed', e);
+  }
 
   console.info('[booking] final_intent_created', {
     bookingId: id,

@@ -82,8 +82,7 @@ export default function BookingForm({
   useEffect(() => {
     setFormData((prev) => {
       if (prev.date) return prev;
-      const md =
-        DateTime.now().setZone(DEFAULT_BOOKING_TIMEZONE).plus({ days: 1 }).toISODate() ?? '';
+      const md = DateTime.now().setZone(DEFAULT_BOOKING_TIMEZONE).toISODate() ?? '';
       return { ...prev, date: md };
     });
   }, []);

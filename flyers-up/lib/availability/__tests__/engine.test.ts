@@ -44,8 +44,10 @@ function ctx(partial: Partial<ComputeContext>): ComputeContext {
   };
 }
 
-test('bookingStatusBlocksCustomerSlots only firm statuses', () => {
+test('bookingStatusBlocksCustomerSlots: committed / paid hold the grid; soft states do not', () => {
   assert.equal(bookingStatusBlocksCustomerSlots('accepted'), true);
+  assert.equal(bookingStatusBlocksCustomerSlots('deposit_paid'), true);
+  assert.equal(bookingStatusBlocksCustomerSlots('payment_required'), true);
   assert.equal(bookingStatusBlocksCustomerSlots('pro_en_route'), true);
   assert.equal(bookingStatusBlocksCustomerSlots('on_the_way'), true);
   assert.equal(bookingStatusBlocksCustomerSlots('in_progress'), true);
@@ -79,6 +81,7 @@ test('computeSlotsForDay respects JS weekday rules (Wed = 3)', () => {
       },
     ],
     leadTimeMinutes: 0,
+    nowUtc: DateTime.fromISO('2026-03-01T15:00:00Z', { zone: 'utc' }),
   });
   const slots = computeSlotsForDay('2026-03-04', 60, c);
   assert.ok(slots.length >= 2);
@@ -107,6 +110,7 @@ test('requested booking does not block slots', () => {
       },
     ],
     leadTimeMinutes: 0,
+    nowUtc: DateTime.fromISO('2026-03-01T15:00:00Z', { zone: 'utc' }),
   });
   const slots = computeSlotsForDay('2026-03-04', 60, c);
   assert.ok(slots.some((s) => s.value === '10:00'));
@@ -127,6 +131,70 @@ test('approved recurring hold blocks overlapping slot (UTC window)', () => {
       {
         startIso: '2026-03-04T15:00:00.000Z',
         endIso: '2026-03-04T16:00:00.000Z',
+      },
+    ],
+    leadTimeMinutes: 0,
+  });
+  const slots = computeSlotsForDay('2026-03-04', 60, c);
+  assert.ok(!slots.some((s) => s.value === '10:00'));
+});
+
+test('same-day enforces 90m minimum even when pro lead_time is lower', () => {
+  const c = ctx({
+    rules: [
+      {
+        id: '1',
+        day_of_week: 3,
+        start_time: '08:00:00',
+        end_time: '18:00:00',
+        is_available: true,
+      },
+    ],
+    leadTimeMinutes: 30,
+    nowUtc: DateTime.fromISO('2026-03-04T14:30:00.000Z', { zone: 'utc' }),
+  });
+  const slots = computeSlotsForDay('2026-03-04', 60, c);
+  assert.ok(!slots.some((s) => s.value === '10:00'));
+  assert.ok(slots.some((s) => s.value === '11:00'));
+});
+
+test('future day uses pro lead time only (not 90m floor)', () => {
+  const c = ctx({
+    rules: [
+      {
+        id: '1',
+        day_of_week: 4,
+        start_time: '08:00:00',
+        end_time: '12:00:00',
+        is_available: true,
+      },
+    ],
+    leadTimeMinutes: 30,
+    nowUtc: DateTime.fromISO('2026-03-04T14:30:00.000Z', { zone: 'utc' }),
+  });
+  const slots = computeSlotsForDay('2026-03-05', 60, c);
+  assert.ok(slots.some((s) => s.value === '08:00'));
+});
+
+test('deposit_paid booking blocks overlapping slot', () => {
+  const c = ctx({
+    rules: [
+      {
+        id: '1',
+        day_of_week: 3,
+        start_time: '09:00:00',
+        end_time: '12:00:00',
+        is_available: true,
+      },
+    ],
+    bookings: [
+      {
+        id: 'b1',
+        service_date: '2026-03-04',
+        service_time: '10:00',
+        booking_timezone: 'America/New_York',
+        status: 'deposit_paid',
+        duration_hours: 1,
       },
     ],
     leadTimeMinutes: 0,

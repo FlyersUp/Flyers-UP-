@@ -25,6 +25,10 @@ import {
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { applyDisputeHold } from '@/lib/payoutRisk';
+import {
+  handleDepositPaymentFailed,
+  handleFinalPaymentFailed,
+} from '@/lib/bookings/payment-lifecycle-service';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -284,17 +288,32 @@ export async function POST(req: NextRequest) {
               payment_intent_id?: string | null;
               final_payment_intent_id?: string | null;
             });
-            console.log('Payment failed for booking:', bookingId, 'kind:', kind);
-            if (kind === 'remaining') {
+            const phase = (meta.payment_phase ?? meta.phase ?? '').toLowerCase();
+            console.log('Payment failed for booking:', bookingId, 'kind:', kind, 'phase:', phase);
+            if (kind === 'remaining' || phase === 'final' || phase === 'remaining') {
               await admin
                 .from('bookings')
                 .update({ final_payment_intent_id: paymentIntent.id, final_payment_status: 'FAILED' })
                 .eq('id', bookingId);
+              try {
+                await handleFinalPaymentFailed(admin, {
+                  paymentIntentId: paymentIntent.id,
+                  failureCode: paymentIntent.last_payment_error?.code ?? 'unknown',
+                  failureMessage: paymentIntent.last_payment_error?.message ?? paymentIntent.status,
+                });
+              } catch (lcErr) {
+                console.warn('[webhook] lifecycle final fail handler', lcErr);
+              }
             } else {
               await admin
                 .from('bookings')
                 .update({ payment_intent_id: paymentIntent.id, payment_status: 'FAILED' })
                 .eq('id', bookingId);
+              try {
+                await handleDepositPaymentFailed(admin, paymentIntent);
+              } catch (lcErr) {
+                console.warn('[webhook] lifecycle deposit fail handler', lcErr);
+              }
             }
             await admin.from('booking_events').insert({
               booking_id: bookingId,

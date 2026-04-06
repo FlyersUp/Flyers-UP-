@@ -53,6 +53,42 @@ export async function refundPaymentIntent(
 }
 
 /**
+ * Partial (or exact-amount) refund against a PaymentIntent. Amount is in cents (smallest currency unit).
+ * Prefer this for admin partial refunds; do not use full-charge refund for partial amounts.
+ */
+export async function refundPaymentIntentPartial(
+  paymentIntentId: string,
+  amountCents: number,
+  options?: {
+    metadata?: Record<string, string>;
+    /** Defaults to partial-refund-{pi}-{amount} for safe retries of the same partial */
+    idempotencyKey?: string;
+  }
+): Promise<string | null> {
+  if (!Number.isFinite(amountCents) || amountCents <= 0) {
+    console.warn('[stripe] refundPaymentIntentPartial: invalid amount', amountCents);
+    return null;
+  }
+  try {
+    const s = getStripe();
+    const idempotencyKey =
+      options?.idempotencyKey ?? `partial-refund-${paymentIntentId}-${Math.round(amountCents)}`;
+    const refund = await s.refunds.create(
+      {
+        payment_intent: paymentIntentId,
+        amount: Math.round(amountCents),
+        metadata: options?.metadata ?? {},
+      },
+      { idempotencyKey }
+    );
+    return refund.id;
+  } catch (err) {
+    console.error('[stripe] refundPaymentIntentPartial failed', paymentIntentId, amountCents, err);
+    return null;
+  }
+}
+
+/**
  * Stripe fee + net (cents) from the charge BalanceTransaction for a PaymentIntent.
  * `net` is Stripe's settled net on that balance transaction (after fees).
  * Returns null if the charge or balance transaction is not available yet.
@@ -112,16 +148,23 @@ export async function createTransfer(params: {
   currency: string;
   destinationAccountId: string;
   bookingId: string;
+  metadata?: Record<string, string>;
+  idempotencyKey?: string;
 }): Promise<string | null> {
   try {
     const s = getStripe();
-    const idempotencyKey = `payout-${params.bookingId}`;
+    const idempotencyKey = params.idempotencyKey ?? `payout-${params.bookingId}`;
+    const meta: Record<string, string> = {
+      booking_id: params.bookingId,
+      bookingId: params.bookingId,
+      ...params.metadata,
+    };
     const t = await s.transfers.create(
       {
         amount: params.amount,
         currency: params.currency,
         destination: params.destinationAccountId,
-        metadata: { bookingId: params.bookingId },
+        metadata: meta,
       },
       { idempotencyKey }
     );

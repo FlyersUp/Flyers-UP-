@@ -11,6 +11,7 @@ import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { getMinimumDurationMinutes } from '@/lib/bookings/category-rules';
 import { allMilestonesReadyForProFinalCompletion } from '@/lib/bookings/milestone-workflow';
+import { markBookingCompleted } from '@/lib/bookings/payment-lifecycle-service';
 
 const MIN_AFTER_PHOTOS = 2;
 
@@ -227,6 +228,12 @@ export async function POST(
     } catch {
       // ignore; table may not exist yet
     }
+  }
+
+  try {
+    await markBookingCompleted(admin, { bookingId: id, completedByUserId: user.id });
+  } catch (lcErr) {
+    console.warn('[complete] payment lifecycle mark completed failed', lcErr);
   }
 
   return NextResponse.json({

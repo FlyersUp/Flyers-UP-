@@ -41,17 +41,17 @@ describe('integration: payout hardening', { skip: !RUN_INTEGRATION || !HAS_SUPAB
     });
   });
 
-  describe('duplicate release-payouts: booking_payouts prevents double transfer', () => {
+  describe('payout release: booking_payouts + Stripe idempotency', () => {
     it('cron skips when stripe_transfer_id exists (logic)', () => {
       const payoutRow = { stripe_transfer_id: 'tr_123', status: 'released' };
       const shouldSkip = Boolean(payoutRow?.stripe_transfer_id);
       assert.ok(shouldSkip);
     });
 
-    it('Stripe idempotency key is fixed per booking', () => {
+    it('Stripe transfer idempotency key is fixed per booking (releasePayout)', () => {
       const bookingId = 'abc-123';
-      const idempotencyKey = `payout-${bookingId}`;
-      assert.strictEqual(idempotencyKey, 'payout-abc-123');
+      const idempotencyKey = `payout-booking-${bookingId}`;
+      assert.strictEqual(idempotencyKey, 'payout-booking-abc-123');
     });
   });
 

@@ -7,7 +7,10 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
+import { DEFAULT_BOOKING_TIMEZONE } from '@/lib/datetime/constants';
+import type { OverlapBookingRow } from '@/lib/operations/availabilityValidation';
 import {
+  buildExistingBookingRangesForOverlap,
   resolveSameDayEnabledFromServicePro,
   validateProAvailability,
 } from '@/lib/operations/availabilityValidation';
@@ -31,7 +34,7 @@ export async function GET(
   const admin = createAdminSupabaseClient();
   const { data: booking, error: bErr } = await admin
     .from('bookings')
-    .select('id, pro_id, service_date, service_time, address, address_lat, address_lng, status')
+    .select('id, pro_id, service_date, service_time, booking_timezone, address, address_lat, address_lng, status')
     .eq('id', id)
     .maybeSingle();
 
@@ -55,17 +58,18 @@ export async function GET(
 
   const { data: existing } = await admin
     .from('bookings')
-    .select('id, service_date, service_time, started_at, completed_at, status')
+    .select(
+      'id, service_date, service_time, booking_timezone, status, duration_hours, estimated_duration_minutes, scheduled_start_at, scheduled_end_at, completed_at'
+    )
     .eq('pro_id', pro.id)
     .eq('service_date', booking.service_date);
 
-  const activeBookings = (existing ?? []).filter(
-    (b) => !['cancelled', 'declined'].includes(String(b.status)) && b.id !== id
-  );
-  const existingBookingRanges = activeBookings.map((b) => {
-    const startAt = new Date(`${b.service_date}T${b.service_time || '12:00'}`);
-    const endAt = b.completed_at ? new Date(b.completed_at) : new Date(startAt.getTime() + 60 * 60 * 1000);
-    return { startAt, endAt };
+  const defaultTz =
+    String((booking as { booking_timezone?: string | null }).booking_timezone ?? '').trim() ||
+    DEFAULT_BOOKING_TIMEZONE;
+  const existingBookingRanges = buildExistingBookingRangesForOverlap((existing ?? []) as OverlapBookingRow[], {
+    excludeBookingId: id,
+    defaultTimeZone: defaultTz,
   });
 
   const extraBusyRangesUtc = await loadRecurringHoldRangesForProAroundServiceDate(
@@ -81,6 +85,7 @@ export async function GET(
     proUserId: pro.user_id,
     serviceDate: booking.service_date,
     serviceTime: (booking.service_time as string) ?? '12:00',
+    bookingTimeZone: (booking as { booking_timezone?: string | null }).booking_timezone ?? DEFAULT_BOOKING_TIMEZONE,
     addressZip,
     addressLat: (booking as { address_lat?: number }).address_lat ?? null,
     addressLng: (booking as { address_lng?: number }).address_lng ?? null,

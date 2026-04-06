@@ -13,6 +13,10 @@ import { refundPaymentIntent } from '@/lib/stripe/server';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { sendProPaymentReceipt } from '@/lib/email';
+import {
+  handleDepositPaymentSucceeded,
+  handleFinalPaymentSucceeded,
+} from '@/lib/bookings/payment-lifecycle-service';
 
 export type ApplySucceededPaymentIntentResult =
   | { handled: false }
@@ -211,6 +215,12 @@ export async function applySucceededPaymentIntent(
       console.warn('[applySucceededPI:deposit] stripe fee snapshot failed', feeErr);
     }
 
+    try {
+      await handleDepositPaymentSucceeded(admin, paymentIntent);
+    } catch (lcErr) {
+      console.warn('[applySucceededPI:deposit] lifecycle sync failed', lcErr);
+    }
+
     return { handled: true, bookingId, paymentKind: 'deposit', lateAutoRefund: false };
   }
 
@@ -332,6 +342,12 @@ export async function applySucceededPaymentIntent(
       });
     } catch (feeErr) {
       console.warn('[applySucceededPI:remaining] stripe fee snapshot failed', feeErr);
+    }
+
+    try {
+      await handleFinalPaymentSucceeded(admin, paymentIntent);
+    } catch (lcErr) {
+      console.warn('[applySucceededPI:remaining] lifecycle sync failed', lcErr);
     }
 
     return { handled: true, bookingId, paymentKind: 'remaining', lateAutoRefund: false };
