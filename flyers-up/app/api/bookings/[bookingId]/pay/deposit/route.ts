@@ -32,7 +32,10 @@ import {
   validateProAvailability,
 } from '@/lib/operations/availabilityValidation';
 import { loadRecurringHoldRangesForProAroundServiceDate } from '@/lib/recurring/recurring-holds';
-import { buildBookingPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
+import {
+  buildBookingPaymentIntentStripeFields,
+  capStripeBookingPaymentMetadata,
+} from '@/lib/stripe/booking-payment-intent-metadata';
 import { appendLifecyclePaymentIntentMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
 import {
   logBookingPaymentEvent,
@@ -490,6 +493,7 @@ export async function POST(
       'deposit'
     )
   );
+  stripeFields.metadata = capStripeBookingPaymentMetadata(stripeFields.metadata);
 
   const paymentIntent = await stripe.paymentIntents.create(
     {

@@ -23,7 +23,10 @@ import {
   resolveTrustRiskScore,
   resolveUrgencyFromBooking,
 } from '@/lib/bookings/dynamic-pricing-features';
-import { buildBookingPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
+import {
+  buildBookingPaymentIntentStripeFields,
+  capStripeBookingPaymentMetadata,
+} from '@/lib/stripe/booking-payment-intent-metadata';
 import { appendLifecyclePaymentIntentMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
 import {
   logBookingPaymentEvent,
@@ -454,6 +457,7 @@ export async function POST(
       'final'
     )
   );
+  stripeFields.metadata = capStripeBookingPaymentMetadata(stripeFields.metadata);
 
   // Platform holds remaining — NO transfer_data. Pro paid via release-payouts.
   const paymentIntent = await stripe.paymentIntents.create(

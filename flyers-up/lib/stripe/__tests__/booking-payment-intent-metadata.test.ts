@@ -3,10 +3,13 @@ import assert from 'node:assert';
 import {
   buildBookingPaymentIntentStripeFields,
   buildLegacyFullPaymentIntentStripeFields,
+  capStripeBookingPaymentMetadata,
   mergeDynamicPricingReasonsCsv,
   parseDynamicPricingReasonsCsv,
+  STRIPE_PAYMENT_INTENT_METADATA_MAX_KEYS,
   type BookingPaymentIntentPricingMetadata,
 } from '../booking-payment-intent-metadata';
+import { appendLifecyclePaymentIntentMetadata } from '../booking-payment-metadata-lifecycle';
 
 /** Every optional pricing field set (worst case for Stripe metadata key count). */
 const fullPricing: BookingPaymentIntentPricingMetadata = {
@@ -63,8 +66,8 @@ describe('Stripe metadata key limit (max 50)', () => {
       pricing: fullPricing,
     });
     assert.ok(
-      Object.keys(metadata).length <= 50,
-      `expected <= 50 metadata keys, got ${Object.keys(metadata).length}`
+      Object.keys(metadata).length <= STRIPE_PAYMENT_INTENT_METADATA_MAX_KEYS,
+      `expected <= ${STRIPE_PAYMENT_INTENT_METADATA_MAX_KEYS} metadata keys, got ${Object.keys(metadata).length}`
     );
   });
 
@@ -77,8 +80,53 @@ describe('Stripe metadata key limit (max 50)', () => {
       pricing: fullPricing,
     });
     assert.ok(
-      Object.keys(metadata).length <= 50,
-      `expected <= 50 metadata keys, got ${Object.keys(metadata).length}`
+      Object.keys(metadata).length <= STRIPE_PAYMENT_INTENT_METADATA_MAX_KEYS,
+      `expected <= ${STRIPE_PAYMENT_INTENT_METADATA_MAX_KEYS} metadata keys, got ${Object.keys(metadata).length}`
+    );
+  });
+
+  it('deposit + pricing + lifecycle merge caps to Stripe limit (production path)', () => {
+    const pricing: BookingPaymentIntentPricingMetadata = {
+      ...fullPricing,
+      pricing_version: 'v1_2026_04',
+      subtotal_cents: 5000,
+    };
+    const { metadata } = buildBookingPaymentIntentStripeFields({
+      bookingId: '00000000-0000-4000-8000-000000000001',
+      customerId: '00000000-0000-4000-8000-000000000002',
+      proId: '00000000-0000-4000-8000-000000000003',
+      paymentPhase: 'deposit',
+      serviceTitle: 'Test',
+      pricing,
+    });
+    Object.assign(
+      metadata,
+      appendLifecyclePaymentIntentMetadata(
+        {
+          booking_id: '00000000-0000-4000-8000-000000000001',
+          customer_id: '00000000-0000-4000-8000-000000000002',
+          pro_id: '00000000-0000-4000-8000-000000000003',
+          booking_service_status: 'accepted',
+          pricing_version: 'v1_2026_04',
+          subtotal_cents: 5000,
+          platform_fee_cents: 600,
+          deposit_amount_cents: 2500,
+          final_amount_cents: 3500,
+          total_amount_cents: 6000,
+        },
+        'deposit'
+      )
+    );
+    assert.ok(
+      Object.keys(metadata).length > STRIPE_PAYMENT_INTENT_METADATA_MAX_KEYS,
+      'fixture should overflow without cap (regression guard)'
+    );
+    const capped = capStripeBookingPaymentMetadata(metadata);
+    assert.ok(capped.booking_id);
+    assert.ok(capped.deposit_charge_cents || capped.deposit_amount_cents);
+    assert.ok(
+      Object.keys(capped).length <= STRIPE_PAYMENT_INTENT_METADATA_MAX_KEYS,
+      `expected <= ${STRIPE_PAYMENT_INTENT_METADATA_MAX_KEYS} after cap, got ${Object.keys(capped).length}`
     );
   });
 });

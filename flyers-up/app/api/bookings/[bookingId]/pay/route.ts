@@ -22,7 +22,10 @@ import {
   resolveTrustRiskScore,
   resolveUrgencyFromBooking,
 } from '@/lib/bookings/dynamic-pricing-features';
-import { buildLegacyFullPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
+import {
+  buildLegacyFullPaymentIntentStripeFields,
+  capStripeBookingPaymentMetadata,
+} from '@/lib/stripe/booking-payment-intent-metadata';
 import { computeMoneyBreakdown } from '@/lib/bookings/money';
 
 export const runtime = 'nodejs';
@@ -301,7 +304,7 @@ export async function POST(
     currency: quote.currency,
     automatic_payment_methods: { enabled: true },
     customer: customerResult.stripeCustomerId,
-    metadata: stripeMeta.metadata,
+    metadata: capStripeBookingPaymentMetadata(stripeMeta.metadata),
     description: stripeMeta.description,
     statement_descriptor_suffix: stripeMeta.statement_descriptor_suffix,
   };

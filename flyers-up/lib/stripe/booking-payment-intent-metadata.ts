@@ -5,6 +5,117 @@
  * on older PaymentIntents via `meta.booking_id ?? meta.bookingId`, etc.
  */
 
+/** Stripe hard limit — never exceed on PaymentIntent.metadata */
+export const STRIPE_PAYMENT_INTENT_METADATA_MAX_KEYS = 50;
+
+const PROTECTED_METADATA_KEYS = new Set([
+  'booking_id',
+  'customer_id',
+  'pro_id',
+  'booking_reference',
+  'payment_phase',
+  'phase',
+  'paymentType',
+  'service_title',
+  'pricing_version',
+  'subtotal_cents',
+  'platform_fee_cents',
+  'fee_total_cents',
+  'customer_total_cents',
+  'deposit_charge_cents',
+  'final_charge_cents',
+  'deposit_amount_cents',
+  'final_amount_cents',
+  'total_amount_cents',
+  'booking_service_status',
+  'linked_deposit_payment_intent_id',
+  'review_deadline_at',
+  'fee_profile',
+  'subtotal_tier',
+]);
+
+/**
+ * Prefer dropping these first when over limit (analytics, duplicate totals, granular fee lines).
+ * Full breakdowns remain on the booking row; metadata is for Stripe + webhook hints only.
+ */
+const DEFERRED_METADATA_KEY_ORDER: string[] = [
+  'trust_risk_score',
+  'conversion_risk_score',
+  'supply_tightness_score',
+  'area_demand_score',
+  'urgency',
+  'dynamic_pricing_reasons',
+  'is_repeat_customer',
+  'is_first_booking',
+  'booking_pricing_category_slug',
+  'booking_pricing_occupation_slug',
+  'booking_fee_profile_stamped',
+  'platform_fee_total_cents',
+  'promo_discount_cents',
+  'service_subtotal_cents',
+  'final_promo_discount_cents',
+  'deposit_promo_discount_cents',
+  'final_demand_fee_cents',
+  'deposit_demand_fee_cents',
+  'service_fee_cents',
+  'convenience_fee_cents',
+  'protection_fee_cents',
+  'demand_fee_cents',
+  'deposit_service_fee_cents',
+  'final_service_fee_cents',
+  'deposit_convenience_fee_cents',
+  'final_convenience_fee_cents',
+  'deposit_protection_fee_cents',
+  'final_protection_fee_cents',
+  'deposit_fee_total_cents',
+  'final_fee_total_cents',
+  'deposit_base_cents',
+  'final_base_cents',
+  'final_platform_fee_cents',
+  'deposit_platform_fee_cents',
+];
+
+/**
+ * Ensures metadata complies with Stripe's 50-key limit. Call immediately before
+ * `stripe.paymentIntents.create` / `update` when merging pricing + lifecycle fields.
+ */
+export function capStripeBookingPaymentMetadata(
+  metadata: Record<string, string>,
+  maxKeys: number = STRIPE_PAYMENT_INTENT_METADATA_MAX_KEYS
+): Record<string, string> {
+  const out = { ...metadata };
+  const before = Object.keys(out).length;
+  if (before <= maxKeys) return out;
+
+  for (const k of DEFERRED_METADATA_KEY_ORDER) {
+    if (Object.keys(out).length <= maxKeys) break;
+    delete out[k];
+  }
+
+  if (Object.keys(out).length > maxKeys) {
+    const keys = Object.keys(out).sort();
+    for (const k of keys) {
+      if (Object.keys(out).length <= maxKeys) break;
+      if (!PROTECTED_METADATA_KEYS.has(k)) delete out[k];
+    }
+  }
+
+  if (Object.keys(out).length > maxKeys) {
+    console.error('[stripe] PaymentIntent metadata still exceeds max keys after cap', {
+      count: Object.keys(out).length,
+      maxKeys,
+      keys: Object.keys(out),
+    });
+  } else if (before > Object.keys(out).length) {
+    console.warn('[stripe] trimmed PaymentIntent metadata to Stripe key limit', {
+      before,
+      after: Object.keys(out).length,
+    });
+  }
+
+  return out;
+}
+
 export type StripeBookingPaymentPhase = 'deposit' | 'remaining';
 export type StripeBookingLegacyPhase = 'deposit' | 'final' | 'full';
 

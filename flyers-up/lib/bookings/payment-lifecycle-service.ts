@@ -8,7 +8,10 @@ import type Stripe from 'stripe';
 import { stripe as stripeServer } from '@/lib/stripe/server';
 import { stripe as stripeLazy } from '@/lib/stripe';
 import { getOrCreateStripeCustomer } from '@/lib/stripeCustomer';
-import { buildBookingPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
+import {
+  buildBookingPaymentIntentStripeFields,
+  capStripeBookingPaymentMetadata,
+} from '@/lib/stripe/booking-payment-intent-metadata';
 import { appendLifecyclePaymentIntentMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
 import {
   createTransfer,
@@ -1306,7 +1309,7 @@ export async function createDepositPaymentIntent(input: {
     },
     'deposit'
   );
-  const metadata = { ...stripeFields.metadata, ...meta };
+  const metadata = capStripeBookingPaymentMetadata({ ...stripeFields.metadata, ...meta });
 
   const pi = await s.paymentIntents.create(
     {
