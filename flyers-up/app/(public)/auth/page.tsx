@@ -196,14 +196,17 @@ function AuthInner() {
                     )}
                   </div>
 
-                  <div className="pt-1 text-sm text-muted">
-                    Prefer email and password?{' '}
+                  <div className="pt-1 text-center text-sm text-muted">
+                    Prefer a password?{' '}
                     <Link
                       href={nextParam ? `/signin?next=${encodeURIComponent(nextParam)}` : '/signin'}
-                      className="text-text hover:opacity-80 font-medium"
+                      className="font-medium text-text hover:opacity-80"
                     >
                       Sign in with email & password →
                     </Link>
+                    <span className="mt-1 block text-xs text-muted/80">
+                      Email tab above sends a 6-digit code (no password).
+                    </span>
                   </div>
                 </div>
               </div>

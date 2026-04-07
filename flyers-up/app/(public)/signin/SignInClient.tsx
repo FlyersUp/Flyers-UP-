@@ -31,7 +31,10 @@ export function SignInClient() {
   const [isSignUp, setIsSignUp] = useState(modeRaw === 'signup');
 
   const [authMethod, setAuthMethod] = useState<AuthMethod>('email');
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  /** Email tab: password first; one-time code is the alternate. */
+  const [emailAuthMode, setEmailAuthMode] = useState<'password' | 'code'>('password');
+  /** Google tab: optional inline password form (same as before). */
+  const [googlePasswordOpen, setGooglePasswordOpen] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -91,6 +94,7 @@ export function SignInClient() {
   const selectAuthMethod = useCallback((m: AuthMethod) => {
     setAuthMethod(m);
     setError(null);
+    if (m === 'google') setGooglePasswordOpen(false);
   }, []);
 
   const formatCatch = useCallback((err: unknown): string => {
@@ -284,12 +288,12 @@ export function SignInClient() {
                   <button
                     type="button"
                     onClick={() => {
-                      setShowPasswordForm(false);
+                      setEmailAuthMode('code');
                       selectAuthMethod('email');
                     }}
-                    className="text-left underline underline-offset-4 hover:opacity-80 font-medium"
+                    className="text-left font-medium underline underline-offset-4 hover:opacity-80"
                   >
-                    Try email code instead (Email tab) →
+                    Try email code instead →
                   </button>
                 </div>
               )}
@@ -319,7 +323,7 @@ export function SignInClient() {
             <div className="mb-4 bg-surface2 text-text px-4 py-3 rounded-lg text-sm border border-border">
               Check your email to confirm your account, then come back and sign in.
               <div className="mt-1 text-xs text-muted/70">
-                Or use the Email tab above to sign in with a 6-digit code.
+                Or choose <strong>Email</strong> and use <strong>Sign in with a code</strong> below for a 6-digit code.
               </div>
             </div>
           )}
@@ -351,13 +355,69 @@ export function SignInClient() {
             ))}
           </div>
 
-          {/* Keep email panel mounted so switching Email ↔ Google preserves OTP progress. */}
+          {/* Keep OTP mounted when on code mode so switching Email ↔ Google preserves progress. */}
           <div
-            className={authMethod === 'email' ? 'block' : 'hidden'}
+            className={authMethod === 'email' && emailAuthMode === 'code' ? 'block' : 'hidden'}
             role="tabpanel"
-            aria-hidden={authMethod !== 'email'}
+            aria-hidden={authMethod !== 'email' || emailAuthMode !== 'code'}
           >
             <EmailOtpForm nextPath={nextParam} createAccountRole={createAccountRole} />
+          </div>
+          <div
+            className={authMethod === 'email' && emailAuthMode === 'password' ? 'block' : 'hidden'}
+            role="tabpanel"
+            aria-hidden={authMethod !== 'email' || emailAuthMode !== 'password'}
+          >
+            <form onSubmit={handleSubmitPassword} className="space-y-4 text-left">
+              <div>
+                <label htmlFor="email" className="mb-1 block text-sm font-medium text-muted">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  className="min-h-[48px] w-full rounded-xl border border-border bg-surface px-4 py-3 text-text outline-none transition-colors placeholder:text-muted/70 focus:border-accent focus:ring-2 focus:ring-accent/40"
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="mb-1 block text-sm font-medium text-muted">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  minLength={6}
+                  className="min-h-[48px] w-full rounded-xl border border-border bg-surface px-4 py-3 text-text outline-none transition-colors placeholder:text-muted/70 focus:border-accent focus:ring-2 focus:ring-accent/40"
+                />
+                <div className="mt-1.5 text-right">
+                  <Link
+                    href={
+                      nextParam
+                        ? `/auth/forgot-password?next=${encodeURIComponent(nextParam)}`
+                        : '/auth/forgot-password'
+                    }
+                    className="text-sm text-muted transition-colors hover:text-accent"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="min-h-[48px] w-full rounded-xl bg-accent py-3 font-medium text-accentContrast transition-opacity hover:opacity-95 disabled:opacity-50"
+              >
+                {isLoading ? 'Working…' : isSignUp ? 'Create account' : 'Sign in'}
+              </button>
+            </form>
           </div>
           <div
             className={authMethod === 'google' ? 'block space-y-4' : 'hidden'}
@@ -375,66 +435,95 @@ export function SignInClient() {
             />
           </div>
 
-          <div className="mt-6 text-center border-t border-border pt-5">
-            {!showPasswordForm ? (
+          <div className="mt-6 border-t border-border pt-5 text-center">
+            {authMethod === 'email' && emailAuthMode === 'password' ? (
               <button
                 type="button"
                 onClick={() => {
-                  setShowPasswordForm(true);
+                  setEmailAuthMode('code');
                   setError(null);
                 }}
-                className="text-sm text-muted hover:text-text underline underline-offset-4"
+                className="text-sm text-muted underline underline-offset-4 hover:text-text"
               >
-                Prefer password? Sign in with password
+                Sign in with a code instead
               </button>
-            ) : (
+            ) : null}
+            {authMethod === 'email' && emailAuthMode === 'code' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setEmailAuthMode('password');
+                  setError(null);
+                }}
+                className="text-sm text-muted underline underline-offset-4 hover:text-text"
+              >
+                Prefer password? Sign in with email & password
+              </button>
+            ) : null}
+            {authMethod === 'google' && !googlePasswordOpen ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setGooglePasswordOpen(true);
+                  setError(null);
+                }}
+                className="text-sm text-muted underline underline-offset-4 hover:text-text"
+              >
+                Sign in with email & password
+              </button>
+            ) : null}
+            {authMethod === 'google' && googlePasswordOpen ? (
               <div className="space-y-4 text-left">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium text-text">Email & password</span>
                   <button
                     type="button"
                     onClick={() => {
-                      setShowPasswordForm(false);
+                      setGooglePasswordOpen(false);
                       setError(null);
                     }}
-                    className="text-xs text-muted hover:text-text underline underline-offset-4 shrink-0"
+                    className="shrink-0 text-xs text-muted underline underline-offset-4 hover:text-text"
                   >
                     Hide
                   </button>
                 </div>
                 <form onSubmit={handleSubmitPassword} className="space-y-4">
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-muted mb-1">
+                    <label htmlFor="email-google" className="mb-1 block text-sm font-medium text-muted">
                       Email
                     </label>
                     <input
                       type="email"
-                      id="email"
+                      id="email-google"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@example.com"
                       required
-                      className="w-full min-h-[48px] px-4 py-3 border border-border rounded-xl bg-surface text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
+                      className="min-h-[48px] w-full rounded-xl border border-border bg-surface px-4 py-3 text-text outline-none transition-colors placeholder:text-muted/70 focus:border-accent focus:ring-2 focus:ring-accent/40"
                     />
                   </div>
                   <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-muted mb-1">
+                    <label htmlFor="password-google" className="mb-1 block text-sm font-medium text-muted">
                       Password
                     </label>
                     <input
                       type="password"
-                      id="password"
+                      id="password-google"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                       required
                       minLength={6}
-                      className="w-full min-h-[48px] px-4 py-3 border border-border rounded-xl bg-surface text-text placeholder:text-muted/70 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
+                      className="min-h-[48px] w-full rounded-xl border border-border bg-surface px-4 py-3 text-text outline-none transition-colors placeholder:text-muted/70 focus:border-accent focus:ring-2 focus:ring-accent/40"
                     />
                     <div className="mt-1.5 text-right">
                       <Link
-                        href={nextParam ? `/auth/forgot-password?next=${encodeURIComponent(nextParam)}` : '/auth/forgot-password'}
-                        className="text-sm text-muted hover:text-accent transition-colors"
+                        href={
+                          nextParam
+                            ? `/auth/forgot-password?next=${encodeURIComponent(nextParam)}`
+                            : '/auth/forgot-password'
+                        }
+                        className="text-sm text-muted transition-colors hover:text-accent"
                       >
                         Forgot password?
                       </Link>
@@ -443,13 +532,13 @@ export function SignInClient() {
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full min-h-[48px] py-3 rounded-xl font-medium transition-opacity bg-surface2 text-text border border-border hover:bg-surface disabled:opacity-50"
+                    className="min-h-[48px] w-full rounded-xl bg-accent py-3 font-medium text-accentContrast transition-opacity hover:opacity-95 disabled:opacity-50"
                   >
-                    {isLoading ? 'Working…' : isSignUp ? 'Create account' : 'Sign in with password'}
+                    {isLoading ? 'Working…' : isSignUp ? 'Create account' : 'Sign in'}
                   </button>
                 </form>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </main>
