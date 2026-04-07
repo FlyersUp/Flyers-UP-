@@ -6,6 +6,7 @@ import { LocaleSync } from "@/components/LocaleSync";
 import OneSignalLoader from "@/components/notifications/OneSignalLoader";
 import { getLocale } from "next-intl/server";
 import type { Metadata, Viewport } from "next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -66,6 +67,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const locale = await getLocale();
+  const gaId = process.env.NEXT_PUBLIC_GA_ID;
   return (
     <html lang={locale} className="bg-bg text-text" suppressHydrationWarning>
       <head>
@@ -93,6 +95,9 @@ export default async function RootLayout({
             {children}
           </ThemeProviderWrapper>
         </NextIntlClientProvider>
+        {gaId && process.env.NODE_ENV === "production" && (
+          <GoogleAnalytics gaId={gaId} />
+        )}
       </body>
     </html>
   );
