@@ -51,6 +51,8 @@ export type WeeklyLeaderboardRow = {
   categoryName: string;
   jobsCompletedWeek: number;
   averageRating: number;
+  /** Verified completed jobs (eligible bookings), same basis as leaderboard eligibility */
+  jobsCompletedLifetime: number;
 };
 
 export async function fetchWeeklyLeaderboard(categoryId?: string | null): Promise<WeeklyLeaderboardRow[]> {
@@ -68,5 +70,6 @@ export async function fetchWeeklyLeaderboard(categoryId?: string | null): Promis
     categoryName: String(row.category_name ?? 'Service'),
     jobsCompletedWeek: Number(row.jobs_completed_week ?? 0),
     averageRating: Number(row.average_rating ?? 0),
+    jobsCompletedLifetime: Number(row.jobs_completed_lifetime ?? row.jobs_completed_week ?? 0),
   }));
 }

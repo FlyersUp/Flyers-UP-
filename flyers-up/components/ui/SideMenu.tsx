@@ -28,6 +28,17 @@ const CUSTOMER_SECTIONS: MenuSection[] = [
     items: [{ labelKey: 'sidebar.switchRole', href: '/onboarding/role?switch=1&next=%2Fcustomer' }],
   },
   {
+    titleKey: 'sidebar.main',
+    items: [
+      { labelKey: 'sidebar.customer.home', href: '/customer' },
+      { labelKey: 'sidebar.customer.browseServices', href: '/occupations' },
+      { labelKey: 'sidebar.customer.recentJobs', href: '/flyer-wall' },
+      { labelKey: 'sidebar.customer.topProsTrust', href: '/top-pros' },
+      { labelKey: 'sidebar.customer.bookings', href: '/customer/bookings' },
+      { labelKey: 'sidebar.customer.profile', href: '/customer/settings/account-profile' },
+    ],
+  },
+  {
     titleKey: 'sidebar.account',
     items: [
       { labelKey: 'sidebar.customer.profile', href: '/customer/settings/account-profile' },
@@ -39,7 +50,6 @@ const CUSTOMER_SECTIONS: MenuSection[] = [
   {
     titleKey: 'sidebar.bookings',
     items: [
-      { labelKey: 'sidebar.customer.bookings', href: '/customer/bookings' },
       { labelKey: 'sidebar.customer.calendar', href: '/customer/calendar' },
       { labelKey: 'sidebar.customer.requests', href: '/customer/requests' },
       { labelKey: 'sidebar.customer.savedPros', href: '/customer/favorites' },
@@ -55,13 +65,7 @@ const CUSTOMER_SECTIONS: MenuSection[] = [
   },
   {
     titleKey: 'sidebar.discovery',
-    items: [
-      { labelKey: 'sidebar.customer.flyerWall', href: '/flyer-wall' },
-      { labelKey: 'sidebar.customer.leaderboard', href: '/leaderboard' },
-      { labelKey: 'sidebar.customer.browseOccupations', href: '/occupations' },
-      { labelKey: 'sidebar.customer.nearbyPros', href: '/occupations' },
-      { labelKey: 'sidebar.customer.favorites', href: '/customer/favorites' },
-    ],
+    items: [{ labelKey: 'sidebar.customer.favorites', href: '/customer/favorites' }],
   },
   {
     titleKey: 'sidebar.payments',
@@ -98,6 +102,17 @@ const PRO_SECTIONS: MenuSection[] = [
     items: [{ labelKey: 'sidebar.switchRole', href: '/onboarding/role?switch=1&next=%2Fpro' }],
   },
   {
+    titleKey: 'sidebar.main',
+    items: [
+      { labelKey: 'sidebar.pro.dashboard', href: '/pro' },
+      { labelKey: 'sidebar.pro.jobs', href: '/pro/jobs' },
+      { labelKey: 'sidebar.pro.flyWall', href: '/flyer-wall' },
+      { labelKey: 'sidebar.pro.leaderboard', href: '/leaderboard' },
+      { labelKey: 'sidebar.pro.earningsOverview', href: '/pro/earnings' },
+      { labelKey: 'sidebar.pro.profile', href: '/pro/profile' },
+    ],
+  },
+  {
     titleKey: 'sidebar.accountIdentity',
     items: [
       { labelKey: 'sidebar.pro.profile', href: '/pro/profile' },
@@ -112,7 +127,6 @@ const PRO_SECTIONS: MenuSection[] = [
     items: [
       { labelKey: 'sidebar.pro.bookings', href: '/pro/bookings' },
       { labelKey: 'sidebar.pro.bookingRules', href: '/booking-rules' },
-      { labelKey: 'sidebar.pro.jobs', href: '/pro/jobs' },
       { labelKey: 'sidebar.pro.today', href: '/pro/today' },
       { labelKey: 'sidebar.pro.availability', href: '/pro/settings/pricing-availability' },
       { labelKey: 'sidebar.pro.serviceAreas', href: '/pro/settings/business-profile' },

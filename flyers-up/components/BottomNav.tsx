@@ -42,11 +42,11 @@ function NavIconWithBadge({ icon, badge }: { icon: ReactNode; badge?: ReactNode 
 
 function getModeFromPath(pathname: string | null): 'customer' | 'pro' | null {
   if (pathname?.startsWith('/pro') || pathname?.startsWith('/dashboard/pro')) return 'pro';
+  if (pathname?.startsWith('/leaderboard')) return 'pro';
   if (
     pathname?.startsWith('/customer') ||
     pathname?.startsWith('/dashboard/customer') ||
-    pathname?.startsWith('/flyer-wall') ||
-    pathname?.startsWith('/leaderboard') ||
+    pathname?.startsWith('/top-pros') ||
     pathname?.startsWith('/requests')
   )
     return 'customer';

@@ -21,6 +21,7 @@ export default function FlyerWallPage() {
   const t = useTranslations('flyerWall');
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [role, setRole] = useState<'customer' | 'pro'>('customer');
   const [userName, setUserName] = useState('Account');
   const [menuOpen, setMenuOpen] = useState(false);
   const [items, setItems] = useState<FlyWallEntry[]>([]);
@@ -30,6 +31,9 @@ export default function FlyerWallPage() {
   const [offset, setOffset] = useState(0);
   const loadLock = useRef(false);
 
+  const isPro = role === 'pro';
+  const layoutMode = isPro ? 'pro' : 'customer';
+
   useEffect(() => {
     const guard = async () => {
       const user = await getCurrentUser();
@@ -37,10 +41,7 @@ export default function FlyerWallPage() {
         router.replace(`/auth?next=${encodeURIComponent('/flyer-wall')}`);
         return;
       }
-      if (user.role === 'pro') {
-        router.replace('/pro');
-        return;
-      }
+      setRole(user.role === 'pro' ? 'pro' : 'customer');
       setUserName(user.email?.split('@')[0] ?? 'Account');
       setReady(true);
     };
@@ -106,8 +107,11 @@ export default function FlyerWallPage() {
     );
   }
 
+  const secondaryHref = isPro ? '/leaderboard' : '/top-pros';
+  const secondaryLabel = isPro ? t('headerLeaderboard') : t('headerTopPros');
+
   return (
-    <AppLayout mode="customer">
+    <AppLayout mode={layoutMode}>
       <div className="min-h-screen bg-[#F5F5F5]">
         <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
           <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
@@ -120,14 +124,18 @@ export default function FlyerWallPage() {
               ☰
             </button>
             <div className="text-center min-w-0 flex-1">
-              <h1 className="text-xl font-semibold text-[#111] truncate">{t('title')}</h1>
-              <p className="text-xs text-black/55 truncate hidden sm:block">{t('subtitle')}</p>
+              <h1 className="text-xl font-semibold text-[#111] truncate">
+                {isPro ? t('titlePro') : t('titleCustomer')}
+              </h1>
+              <p className="text-xs text-black/55 truncate hidden sm:block">
+                {isPro ? t('subtitlePro') : t('subtitleCustomer')}
+              </p>
             </div>
             <Link
-              href="/leaderboard"
+              href={secondaryHref}
               className="text-xs font-semibold text-[#111] whitespace-nowrap px-2 py-1 rounded-lg border border-black/10 hover:bg-black/5"
             >
-              {t('leaderboardLink')}
+              {secondaryLabel}
             </Link>
           </div>
         </div>
@@ -155,17 +163,19 @@ export default function FlyerWallPage() {
                   {t('emptyCtaBrowse')}
                 </Link>
                 <Link
-                  href="/customer/requests"
+                  href={isPro ? '/pro/jobs' : '/customer/requests'}
                   className="inline-flex justify-center items-center min-h-[44px] px-5 rounded-xl border border-black/15 text-sm font-semibold text-[#111] hover:bg-black/5"
                 >
-                  {t('emptyCtaRequest')}
+                  {isPro ? t('emptyCtaPro') : t('emptyCtaRequest')}
                 </Link>
               </div>
               <p className="text-xs text-black/45 mt-6">{t('emptyTrust')}</p>
             </div>
           ) : (
             <>
-              <p className="text-sm text-black/55 mb-5 max-w-2xl">{t('intro')}</p>
+              <p className="text-sm text-black/55 mb-5 max-w-2xl">
+                {isPro ? t('introPro') : t('introCustomer')}
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 justify-items-center">
                 {items.map((entry, i) => (
                   <FlyWallJobCard
@@ -173,6 +183,8 @@ export default function FlyerWallPage() {
                     entry={entry}
                     profileHref={`/customer/pros/${entry.proId}`}
                     rotation={getRotation(i)}
+                    showProEnhancements={isPro}
+                    trendingLabel={isPro ? t('trending') : undefined}
                   />
                 ))}
               </div>
@@ -184,7 +196,7 @@ export default function FlyerWallPage() {
           )}
         </div>
       </div>
-      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} role="customer" userName={userName} />
+      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} role={role} userName={userName} />
     </AppLayout>
   );
 }

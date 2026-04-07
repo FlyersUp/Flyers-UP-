@@ -18,19 +18,30 @@ function getInitials(name: string): string {
   );
 }
 
+const TRENDING_MS = 48 * 60 * 60 * 1000;
+
 export function FlyWallJobCard({
   entry,
   profileHref,
   rotation = 0,
+  showProEnhancements = false,
+  trendingLabel,
 }: {
   entry: FlyWallEntry;
   profileHref: string;
   rotation?: number;
+  /** Pro view: extra context only (no internal analytics). */
+  showProEnhancements?: boolean;
+  trendingLabel?: string;
 }) {
   const before = entry.beforePhotoUrls.slice(0, 1)[0] ?? null;
   const after = entry.afterPhotoUrls.slice(0, 1)[0] ?? null;
   const hasProof = Boolean(before || after);
   const completedLabel = formatCompletedAgo(entry.completedAt);
+  const isTrending =
+    showProEnhancements &&
+    trendingLabel &&
+    Date.now() - new Date(entry.completedAt).getTime() < TRENDING_MS;
 
   return (
     <article
@@ -95,6 +106,13 @@ export function FlyWallJobCard({
         )}
 
         <Link href={profileHref} className="block p-4 pt-3">
+          {isTrending && (
+            <div className="mb-2">
+              <span className="inline-block text-[10px] font-semibold uppercase tracking-wide text-[#7E8952] bg-[#E4ECD9] px-2 py-0.5 rounded-full border border-[#7E8952]/25">
+                {trendingLabel}
+              </span>
+            </div>
+          )}
           <div className="flex items-start justify-between gap-2 mb-1">
             <h3 className="font-semibold text-base text-[#111] leading-tight">{entry.proDisplayName}</h3>
             {entry.showPerfectRatingBadge && (

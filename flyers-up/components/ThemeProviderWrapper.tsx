@@ -3,35 +3,48 @@
 /**
  * Root-level ThemeProvider wrapper.
  * Single source of truth for light/dark and role (customer/pro).
- * - Derives mode from pathname so theme-customer/theme-pro apply on all routes.
- * - Reads theme (light/dark) from localStorage and applies .dark class on html.
- * Must wrap the entire app in root layout.
+ * - Derives mode from pathname where unambiguous.
+ * - /flyer-wall is shared: after mount, use flyersup:lastRole (aligned with FloatingBottomNav).
  */
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ViewportOverflowDebug } from '@/components/dev/ViewportOverflowDebug';
 import { StandaloneModeSync } from '@/components/StandaloneModeSync';
 
-function getModeFromPath(pathname: string | null): 'customer' | 'pro' {
-  if (!pathname) return 'customer';
+function getStaticModeFromPath(pathname: string | null): 'customer' | 'pro' | null {
+  if (!pathname) return null;
   if (pathname.startsWith('/pro') || pathname.startsWith('/dashboard/pro')) return 'pro';
+  if (pathname.startsWith('/leaderboard')) return 'pro';
   if (
     pathname.startsWith('/customer') ||
     pathname.startsWith('/dashboard/customer') ||
-    pathname.startsWith('/flyer-wall') ||
-    pathname.startsWith('/leaderboard') ||
-    pathname.startsWith('/requests')
+    pathname.startsWith('/top-pros') ||
+    pathname.startsWith('/requests') ||
+    pathname.startsWith('/occupations')
   )
     return 'customer';
-  // Do not read localStorage here—causes hydration mismatch (server has no localStorage).
-  // For ambiguous routes (/, /onboarding, /auth), default to customer. ThemeContext
-  // still persists lastRole to localStorage when mode changes.
-  return 'customer';
+  return null;
 }
 
 export function ThemeProviderWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const mode = getModeFromPath(pathname);
+  const staticMode = getStaticModeFromPath(pathname);
+  const [flyWallRole, setFlyWallRole] = useState<'customer' | 'pro'>('customer');
+
+  useEffect(() => {
+    if (!pathname?.startsWith('/flyer-wall')) return;
+    try {
+      const r = window.localStorage.getItem('flyersup:lastRole');
+      setFlyWallRole(r === 'pro' ? 'pro' : 'customer');
+    } catch {
+      setFlyWallRole('customer');
+    }
+  }, [pathname]);
+
+  const mode: 'customer' | 'pro' =
+    staticMode ?? (pathname?.startsWith('/flyer-wall') ? flyWallRole : 'customer');
+
   return (
     <ThemeProvider mode={mode}>
       <ViewportOverflowDebug />
