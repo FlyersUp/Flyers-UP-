@@ -107,32 +107,32 @@ export default function BookingPage() {
 
   return (
     <Layout title="Flyers Up" showBackButton hideNavLinks>
-      <div className="max-w-2xl mx-auto">
+      <div className="-mx-3 max-w-2xl bg-[#F5F6F8] px-3 py-2 pb-10 sm:-mx-[var(--page-pad-x)] sm:px-[var(--page-pad-x)]">
         {/* Page header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-text mb-2">
+          <h1 className="mb-2 text-[1.625rem] font-bold leading-tight tracking-tight text-[#2d3436] dark:text-white">
             Book {pro.name}
           </h1>
-          <p className="text-muted">
+          <p className="text-[15px] text-[#6B7280] dark:text-white/60">
             Fill out the form below to request a booking.
           </p>
         </div>
 
         {/* Pro summary card */}
-        <div className="bg-surface border border-border rounded-lg p-5 mb-8">
-          <div className="flex justify-between items-start">
-            <div>
-              <h2 className="font-semibold text-text text-lg">{pro.name}</h2>
-              <p className="text-sm text-muted/70 mb-2">{pro.location}</p>
-              <p className="text-sm text-muted">{pro.bio}</p>
+        <div className="mb-8 rounded-[20px] border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-[#2d3436] dark:text-white">{pro.name}</h2>
+              <p className="mb-2 text-sm text-[#6B7280] dark:text-white/60">{pro.location}</p>
+              <p className="text-sm leading-relaxed text-[#6B7280] dark:text-white/65">{pro.bio}</p>
             </div>
-            <div className="text-right">
-              <div className="flex items-center gap-1 mb-1">
+            <div className="shrink-0 text-right">
+              <div className="mb-1 flex items-center justify-end gap-1">
                 <span className="text-warning">★</span>
-                <span className="font-medium">{pro.rating.toFixed(1)}</span>
+                <span className="font-semibold text-[#2d3436] dark:text-white">{pro.rating.toFixed(1)}</span>
               </div>
-              <p className="text-xs text-muted/70">({pro.reviewCount} reviews)</p>
-              <p className="mt-2 text-lg font-bold text-text">
+              <p className="text-xs text-[#6B7280] dark:text-white/55">({pro.reviewCount} reviews)</p>
+              <p className="mt-2 text-lg font-bold text-[#4A69BD] dark:text-[#6b8fd4]">
                 ${pro.startingPrice}/hr
               </p>
             </div>
@@ -140,8 +140,8 @@ export default function BookingPage() {
         </div>
 
         {/* Booking form */}
-        <div className="bg-surface border border-border rounded-lg p-6">
-          <h2 className="font-semibold text-text mb-4">
+        <div className="rounded-[20px] border border-[#E8EAED] bg-white p-6 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
+          <h2 className="mb-5 text-lg font-bold text-[#2d3436] dark:text-white">
             Booking Details
           </h2>
           <BookingForm

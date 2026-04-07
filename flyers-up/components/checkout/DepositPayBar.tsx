@@ -45,7 +45,7 @@ export function DepositPayBar({
 
   return (
     <div
-      className={`fixed left-0 right-0 z-40 bg-white dark:bg-[#0d0d0f] border-t border-[#ebebeb] dark:border-white/10 p-4 ${
+      className={`fixed left-0 right-0 z-40 border-t border-[#E8EAED] bg-[#F5F6F8]/95 p-4 backdrop-blur-sm dark:border-white/10 dark:bg-[#0d0d0f]/95 ${
         aboveBottomNav
           ? `${bottomChrome.fixedAboveNav} pb-3`
           : 'bottom-0 pb-[max(1rem,env(safe-area-inset-bottom,0px))]'
@@ -53,12 +53,12 @@ export function DepositPayBar({
       role="region"
       aria-label="Payment"
     >
-      <div className="max-w-lg md:max-w-xl mx-auto">
+      <div className="mx-auto max-w-lg md:max-w-xl">
         <button
           type="button"
           onClick={onSubmit}
           disabled={disabled || loading}
-          className="w-full h-14 rounded-[14px] text-base font-semibold text-white bg-[#058954] hover:bg-[#047a48] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#058954]/40 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-[#0d0d0f] active:scale-[0.99]"
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#FFB347] text-base font-bold text-[#2d3436] shadow-[0_6px_22px_rgba(255,179,71,0.45)] transition-all hover:brightness-[1.02] focus:outline-none focus:ring-2 focus:ring-[#FFB347]/50 focus:ring-offset-2 focus:ring-offset-[#F5F6F8] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-[#0d0d0f]"
         >
           {loading ? (
             <>
@@ -76,7 +76,7 @@ export function DepositPayBar({
           {backHref && (
             <Link
               href={backHref}
-              className="text-sm text-[#717171] dark:text-white/60 hover:text-[#222] dark:hover:text-white transition-colors"
+              className="text-sm text-[#6B7280] transition-colors hover:text-[#2d3436] dark:text-white/55 dark:hover:text-white"
             >
               Edit details
             </Link>
@@ -84,7 +84,7 @@ export function DepositPayBar({
           {showBookingRulesLink && (
             <Link
               href="/booking-rules"
-              className="text-sm text-[#717171] dark:text-white/60 hover:text-[#222] dark:hover:text-white transition-colors"
+              className="text-sm text-[#6B7280] transition-colors hover:text-[#2d3436] dark:text-white/55 dark:hover:text-white"
             >
               Booking Rules
             </Link>

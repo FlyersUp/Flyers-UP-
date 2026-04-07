@@ -39,17 +39,17 @@ export default function TimeSlotScroller({
     <div className={className}>
       {/* Date selector */}
       <div className="mb-4">
-        <h4 className="text-sm font-medium text-text mb-2">Select Date</h4>
+        <h4 className="mb-2 text-sm font-semibold text-[#2d3436] dark:text-white">Select Date</h4>
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {dates.map((date) => (
             <button
               key={date.date}
               onClick={() => handleDateSelect(date.date)}
               className={`
-                flex-shrink-0 w-16 py-3 rounded-xl border-2 transition-all
+                w-16 flex-shrink-0 rounded-xl border py-3 transition-all duration-200 active:scale-[0.98]
                 ${selectedDate === date.date
-                  ? 'border-accent bg-accent/10 text-text'
-                  : 'border-border bg-surface text-text hover:border-border'
+                  ? 'border-[#4A69BD] bg-[#4A69BD] text-white shadow-md'
+                  : 'border-[#E5E7EB] bg-white text-[#2d3436] hover:border-[#4A69BD]/35 dark:border-white/12 dark:bg-[#14161c] dark:text-white'
                 }
               `}
             >
@@ -63,7 +63,7 @@ export default function TimeSlotScroller({
 
       {/* Time slots */}
       <div>
-        <h4 className="text-sm font-medium text-text mb-2">Available Times</h4>
+        <h4 className="mb-2 text-sm font-semibold text-[#2d3436] dark:text-white">Available Times</h4>
         <div className="flex flex-wrap gap-2">
           {currentDate?.slots.map((slot) => (
             <button
@@ -71,12 +71,12 @@ export default function TimeSlotScroller({
               onClick={() => handleSlotSelect(slot)}
               disabled={!slot.available}
               className={`
-                px-4 py-2 rounded-lg text-sm font-medium transition-all
+                min-h-[44px] rounded-xl border px-4 py-2 text-sm font-medium transition-colors duration-200 active:scale-[0.98]
                 ${!slot.available
-                  ? 'bg-surface2 text-muted/60 cursor-not-allowed'
+                  ? 'cursor-not-allowed border-[#E8EAED] bg-[#F5F6F8] text-[#9CA3AF] dark:border-white/10 dark:bg-white/5'
                   : selectedSlot === slot.id
-                    ? 'bg-accent text-accentContrast shadow-md'
-                    : 'bg-surface border border-border text-text hover:border-accent/40 hover:bg-accent/10'
+                    ? 'border-[#4A69BD] bg-[#4A69BD] text-white shadow-[0_4px_14px_rgba(74,105,189,0.28)]'
+                    : 'border-[#E5E7EB] bg-white text-[#2d3436] hover:border-[#4A69BD]/35 dark:border-white/12 dark:bg-[#14161c] dark:text-white'
                 }
               `}
             >

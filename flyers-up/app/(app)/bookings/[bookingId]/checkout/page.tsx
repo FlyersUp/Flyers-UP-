@@ -148,11 +148,11 @@ function CheckoutForm({
   return (
     <>
       <div
-        className="rounded-2xl bg-white dark:bg-[#1a1d24] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]"
+        className="rounded-[20px] border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.25)]"
         role="region"
         aria-labelledby="payment-method-heading"
       >
-        <h2 id="payment-method-heading" className="mb-4 text-sm font-medium text-[#222] dark:text-white">
+        <h2 id="payment-method-heading" className="mb-4 text-sm font-semibold text-[#2d3436] dark:text-white">
           Payment method
         </h2>
         <PaymentElement options={{ layout: 'tabs' }} />
@@ -441,11 +441,11 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
   }, [bookingId, isFinalPayment, retryKey]);
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0d0d0f]">
-        <div className="max-w-lg md:max-w-xl mx-auto px-4 md:px-6 py-6 pb-fu-sticky-only">
+    <div className="min-h-screen bg-[#F5F6F8] dark:bg-[#0d0d0f]">
+        <div className="mx-auto max-w-lg px-4 py-6 pb-fu-sticky-only md:max-w-xl md:px-6">
           <Link
             href={`/customer/bookings/${bookingId}`}
-            className="mb-6 inline-flex items-center gap-1 text-sm text-[#717171] dark:text-white/60 hover:text-[#222] dark:hover:text-white transition-colors"
+            className="mb-6 inline-flex items-center gap-1 text-sm text-[#6B7280] transition-colors hover:text-[#2d3436] dark:text-white/55 dark:hover:text-white"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="-ml-0.5">
               <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -453,7 +453,7 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
             Back to booking
           </Link>
 
-          <h1 className="mb-6 text-[1.5rem] font-semibold tracking-tight text-[#222] dark:text-white">
+          <h1 className="mb-6 text-[1.625rem] font-bold leading-tight tracking-tight text-[#2d3436] dark:text-white">
             {isFinalPayment ? 'Pay remaining balance' : 'Review & pay deposit'}
           </h1>
 
@@ -527,7 +527,7 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
                     theme: 'stripe',
                     variables: {
                       borderRadius: '12px',
-                      colorPrimary: '#058954',
+                      colorPrimary: '#4A69BD',
                     },
                   },
                 }}
@@ -547,7 +547,7 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
           )}
 
           {!loading && !error && !quoteData && !clientSecret && stripePromise === null && (
-            <p className="text-sm text-[#717171] dark:text-white/60">
+            <p className="text-sm text-[#6B7280] dark:text-white/55">
               Payment is not configured. Please contact support.
             </p>
           )}
@@ -566,7 +566,7 @@ export default function CheckoutPage({
     <AppLayout mode="customer">
       <Suspense
         fallback={
-          <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0d0d0f]">
+          <div className="min-h-screen bg-[#F5F6F8] dark:bg-[#0d0d0f]">
             <div className="max-w-lg md:max-w-xl mx-auto px-4 md:px-6 py-8 pb-fu-sticky-only">
               <div className="h-4 w-48 rounded bg-surface mb-6" />
               <div className="h-8 w-64 rounded bg-surface mb-6" />

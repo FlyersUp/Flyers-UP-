@@ -32,7 +32,7 @@ export function MarketingHero() {
               variant="primary"
               className="w-full min-w-[220px] px-8 py-4 text-base font-bold shadow-[0_6px_24px_rgba(255,179,71,0.5)] sm:w-auto"
             >
-              Request a Service (Free)
+              Request a Service
               <ArrowRight className="h-5 w-5" strokeWidth={2.25} aria-hidden />
             </MarketingButton>
             <MarketingButton

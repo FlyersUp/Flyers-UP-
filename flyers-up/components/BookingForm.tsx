@@ -240,15 +240,15 @@ export default function BookingForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {/* Error message */}
       {error && (
-        <div className="bg-danger/10 text-text px-4 py-3 rounded-lg text-sm">
+        <div className="rounded-2xl border border-red-200/80 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
           {error}
         </div>
       )}
 
-      <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
+      <div className="space-y-3 rounded-[20px] border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
         <ProPackagesPicker
           proId={pro.id}
           selectedPackageId={selectedPackageId}
@@ -273,14 +273,14 @@ export default function BookingForm({
       {/* Subcategory / service type — not needed when a package defines scope */}
       {subcategories.length > 0 && !selectedPackageId && (
         <div>
-          <label className="block text-sm font-medium text-text mb-1">
+          <label className="mb-1 block text-sm font-semibold text-[#2d3436] dark:text-white">
             Service type *
           </label>
           <div className="space-y-2">
             {subcategories.map((sub) => (
               <label
                 key={sub.id}
-                className="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface2/50 transition-colors has-[:checked]:border-accent has-[:checked]:bg-surface2"
+                className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#E5E7EB] bg-white p-3 transition-colors hover:border-[#4A69BD]/25 hover:bg-[#F5F6F8]/80 has-[:checked]:border-[#4A69BD] has-[:checked]:bg-[#4A69BD]/8 dark:border-white/12 dark:bg-[#14161c] dark:hover:bg-white/5 dark:has-[:checked]:border-[#4A69BD] dark:has-[:checked]:bg-[#4A69BD]/15"
               >
                 <input
                   type="radio"
@@ -303,15 +303,15 @@ export default function BookingForm({
       {/* Add-ons - optional extras the pro offers */}
       {addons.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-text mb-1">
+          <label className="mb-1 block text-sm font-semibold text-[#2d3436] dark:text-white">
             Add-ons
           </label>
-          <p className="text-xs text-muted/70 mb-2">Optional extras to include with your booking</p>
+          <p className="mb-2 text-xs text-[#6B7280] dark:text-white/55">Optional extras to include with your booking</p>
           <div className="space-y-2">
             {addons.map((addon) => (
               <label
                 key={addon.id}
-                className="flex items-center justify-between gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface2/50 transition-colors has-[:checked]:border-accent has-[:checked]:bg-surface2"
+                className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-white p-3 transition-colors hover:border-[#4A69BD]/25 hover:bg-[#F5F6F8]/80 has-[:checked]:border-[#4A69BD] has-[:checked]:bg-[#4A69BD]/8 dark:border-white/12 dark:bg-[#14161c] dark:hover:bg-white/5 dark:has-[:checked]:border-[#4A69BD] dark:has-[:checked]:bg-[#4A69BD]/15"
               >
                 <div className="flex items-center gap-3">
                   <input
@@ -337,7 +337,7 @@ export default function BookingForm({
       )}
 
       <div>
-        <p className="block text-sm font-medium text-text mb-2">Availability *</p>
+        <p className="mb-2 block text-sm font-semibold text-[#2d3436] dark:text-white">Availability *</p>
         <CustomerProAvailabilityCalendar
           proId={pro.id}
           selectedDate={formData.date}
@@ -349,7 +349,7 @@ export default function BookingForm({
       </div>
 
       <div>
-        <label htmlFor="date" className="block text-sm font-medium text-text mb-1">
+        <label htmlFor="date" className="mb-1 block text-sm font-semibold text-[#2d3436] dark:text-white">
           Date *
         </label>
         <input
@@ -360,12 +360,12 @@ export default function BookingForm({
           onChange={handleChange}
           min={minDate}
           required
-          className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent outline-none transition-colors text-text"
+          className="w-full rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 text-[#2d3436] outline-none transition-colors focus:border-[#4A69BD] focus:ring-2 focus:ring-[#4A69BD]/25 dark:border-white/12 dark:bg-[#14161c] dark:text-white"
         />
       </div>
 
       <div>
-        <label htmlFor="time" className="block text-sm font-medium text-text mb-1">
+        <label htmlFor="time" className="mb-1 block text-sm font-semibold text-[#2d3436] dark:text-white">
           Preferred time *
         </label>
         <input
@@ -375,13 +375,13 @@ export default function BookingForm({
           value={formData.time}
           onChange={handleChange}
           required
-          className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent outline-none transition-colors text-text"
+          className="w-full rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 text-[#2d3436] outline-none transition-colors focus:border-[#4A69BD] focus:ring-2 focus:ring-[#4A69BD]/25 dark:border-white/12 dark:bg-[#14161c] dark:text-white"
         />
       </div>
 
       {/* Address field */}
       <div>
-        <label htmlFor="address" className="block text-sm font-medium text-text mb-1">
+        <label htmlFor="address" className="mb-1 block text-sm font-semibold text-[#2d3436] dark:text-white">
           Service Address *
         </label>
         <input
@@ -392,13 +392,13 @@ export default function BookingForm({
           onChange={handleChange}
           placeholder="Enter your full address"
           required
-          className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent outline-none transition-colors text-text placeholder:text-muted/60"
+          className="w-full rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 text-[#2d3436] outline-none transition-colors placeholder:text-[#9CA3AF] focus:border-[#4A69BD] focus:ring-2 focus:ring-[#4A69BD]/25 dark:border-white/12 dark:bg-[#14161c] dark:text-white dark:placeholder:text-white/40"
         />
       </div>
 
       {/* Notes field */}
       <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-text mb-1">
+        <label htmlFor="notes" className="mb-1 block text-sm font-semibold text-[#2d3436] dark:text-white">
           Additional Notes
         </label>
         <textarea
@@ -408,7 +408,7 @@ export default function BookingForm({
           onChange={handleChange}
           placeholder="Any special instructions or details about the job..."
           rows={4}
-          className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-accent/40 focus:border-accent outline-none transition-colors resize-none text-text placeholder:text-muted/60"
+          className="w-full resize-none rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 text-[#2d3436] outline-none transition-colors placeholder:text-[#9CA3AF] focus:border-[#4A69BD] focus:ring-2 focus:ring-[#4A69BD]/25 dark:border-white/12 dark:bg-[#14161c] dark:text-white dark:placeholder:text-white/40"
         />
       </div>
 
@@ -416,13 +416,13 @@ export default function BookingForm({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-accent hover:opacity-95 disabled:opacity-50 text-accentContrast py-3 rounded-lg font-medium transition-opacity"
+        className="w-full rounded-full bg-[#FFB347] py-3.5 text-base font-bold text-[#2d3436] shadow-[0_6px_20px_rgba(255,179,71,0.45)] transition-all hover:brightness-[1.02] active:scale-[0.98] disabled:opacity-50 dark:text-[#1a1a1a]"
       >
         {isSubmitting ? 'Submitting...' : 'Request Booking'}
       </button>
 
       {/* Info text */}
-      <p className="text-xs text-muted/70 text-center">
+      <p className="text-center text-xs text-[#6B7280] dark:text-white/55">
         By submitting, you agree to the service terms. The pro will confirm your booking shortly.
       </p>
 

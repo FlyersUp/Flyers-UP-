@@ -196,7 +196,7 @@ export default function PublicHomePage() {
               variant="primary"
               className="min-w-[220px] px-8 py-4 text-base font-bold shadow-[0_6px_24px_rgba(255,179,71,0.5)]"
             >
-              Request a Service (Free)
+              Request a Service
             </MarketingButton>
           </div>
         </div>

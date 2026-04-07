@@ -93,8 +93,8 @@ function TripSummaryCard({
   durationHours?: number | null;
 }) {
   return (
-    <div className="flex gap-4 rounded-2xl bg-white dark:bg-[#1a1d24] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
-      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[#f0f0f0] dark:bg-white/10">
+    <div className="flex gap-4 rounded-[20px] border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.25)]">
+      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-[#F5F6F8] dark:bg-white/10">
         {proPhotoUrl ? (
           <img src={proPhotoUrl} alt={proName} className="h-full w-full object-cover" />
         ) : (
@@ -102,16 +102,16 @@ function TripSummaryCard({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="font-semibold text-[#222] dark:text-white truncate">{proName}</p>
-        <p className="text-sm text-[#717171] dark:text-white/70 truncate">{serviceName}</p>
-        <p className="mt-1 text-sm text-[#717171] dark:text-white/70">
+        <p className="truncate font-semibold text-[#2d3436] dark:text-white">{proName}</p>
+        <p className="truncate text-sm text-[#6B7280] dark:text-white/65">{serviceName}</p>
+        <p className="mt-1.5 text-sm text-[#6B7280] dark:text-white/65">
           {formatDateTime(serviceDate, serviceTime)}
         </p>
         {durationHours != null && durationHours > 0 && (
-          <p className="text-xs text-[#717171] dark:text-white/60">{durationHours} hr{durationHours !== 1 ? 's' : ''}</p>
+          <p className="text-xs text-[#6B7280] dark:text-white/55">{durationHours} hr{durationHours !== 1 ? 's' : ''}</p>
         )}
         {address && address.trim() && (
-          <p className="mt-0.5 text-xs text-[#717171] dark:text-white/60 line-clamp-1">{address}</p>
+          <p className="mt-0.5 line-clamp-1 text-xs text-[#6B7280] dark:text-white/55">{address}</p>
         )}
       </div>
     </div>
@@ -133,20 +133,20 @@ function PriceDetailsBlock({
   const hasDeposit = showDeposit && quote.amountDeposit != null && quote.amountDeposit > 0;
 
   return (
-    <div className="rounded-2xl bg-white dark:bg-[#1a1d24] shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)] overflow-hidden">
+    <div className="overflow-hidden rounded-[20px] border border-[#E8EAED] bg-white shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.25)]">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-4 text-left hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
+        className="flex w-full items-center justify-between p-5 text-left transition-colors hover:bg-[#F5F6F8]/80 dark:hover:bg-white/[0.04]"
         aria-expanded={expanded}
       >
-        <span className="text-sm font-medium text-[#222] dark:text-white">Price details</span>
-        <span className="text-sm font-medium text-[#222] dark:text-white">
+        <span className="text-sm font-semibold text-[#2d3436] dark:text-white">Price details</span>
+        <span className="text-sm font-semibold tabular-nums text-[#4A69BD] dark:text-[#6b8fd4]">
           {formatCents(hasDeposit ? quote.amountDeposit! : quote.amountTotal)}
         </span>
       </button>
       {expanded && (
-        <div className="border-t border-[#ebebeb] dark:border-white/10 px-4 pb-4 pt-3 space-y-2.5">
+        <div className="space-y-3 border-t border-[#EEF0F2] px-5 pb-5 pt-4 dark:border-white/10">
           <PriceRow label="Subtotal (your rate)" value={formatCents(baseAmount)} />
           {(quote.amountTravelFee ?? 0) > 0 && (
             <PriceRow label="Travel fee" value={formatCents(quote.amountTravelFee!)} />
@@ -173,7 +173,12 @@ function PriceDetailsBlock({
               subtext="Secure payments, support & dispute resolution"
             />
           )}
-          <PriceRow className="pt-3 border-t border-[#ebebeb] dark:border-white/10" label="Total" value={formatCents(quote.amountTotal)} emphasize />
+          <PriceRow
+            className="border-t border-[#EEF0F2] pt-4 dark:border-white/10"
+            label="Total"
+            value={formatCents(quote.amountTotal)}
+            emphasize
+          />
           {hasDeposit && (
             <>
               <PriceRow label={`Due now (${quote.depositPercent ?? 50}% deposit)`} value={formatCents(quote.amountDeposit!)} emphasize />
@@ -208,7 +213,7 @@ function PriceDetailsBlock({
 /** Compact trust line — Uber/Apple style */
 function TrustLine() {
   return (
-    <div className="flex items-center gap-2 text-xs text-[#717171] dark:text-white/60">
+    <div className="flex items-center gap-2 text-xs text-[#6B7280] dark:text-white/55">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       </svg>
@@ -236,7 +241,7 @@ export function BookingSummaryDeposit({
   const hasDeposit = (quote.amountDeposit ?? 0) > 0;
 
   return (
-    <div className={cn('space-y-4', className)} data-role="customer">
+    <div className={cn('space-y-5', className)} data-role="customer">
       {/* Trip summary — Airbnb compact card */}
       <section aria-labelledby="trip-summary">
         <h2 id="trip-summary" className="sr-only">Your booking</h2>
@@ -273,16 +278,20 @@ export function BookingSummaryDeposit({
 
       {/* Scope summary (optional) */}
       {scopeSummary && scopeSummary.trim() && (
-        <div className="rounded-2xl bg-white dark:bg-[#1a1d24] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
-          <p className="text-xs font-medium text-[#717171] dark:text-white/60 uppercase tracking-wider mb-2">Scope</p>
+        <div className="rounded-[20px] border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.25)]">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#6B7280] dark:text-white/55">
+            Scope
+          </p>
           <p className="text-sm text-[#222] dark:text-white/90">{scopeSummary}</p>
         </div>
       )}
 
       {/* Add-ons (optional) */}
       {addons && addons.length > 0 && (
-        <div className="rounded-2xl bg-white dark:bg-[#1a1d24] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
-          <p className="text-xs font-medium text-[#717171] dark:text-white/60 uppercase tracking-wider mb-2">Add-ons</p>
+        <div className="rounded-[20px] border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.25)]">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#6B7280] dark:text-white/55">
+            Add-ons
+          </p>
           <ul className="space-y-1.5 text-sm">
             {addons.map((a, i) => (
               <li key={i} className="flex justify-between">

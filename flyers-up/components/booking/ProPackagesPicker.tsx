@@ -77,18 +77,18 @@ export function ProPackagesPicker({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <label className="block text-sm font-medium text-text">Packages</label>
+        <label className="block text-sm font-semibold text-[#2d3436] dark:text-white">Packages</label>
         {selectedPackageId && (
           <button
             type="button"
-            className="text-sm text-accent underline-offset-2 hover:underline"
+            className="text-sm font-medium text-[#4A69BD] underline-offset-2 hover:underline dark:text-[#6b8fd4]"
             onClick={() => onSelectPackageId(null)}
           >
             Clear selection
           </button>
         )}
       </div>
-      <p className="text-xs text-muted/80">
+      <p className="text-xs text-[#6B7280] dark:text-white/55">
         Optional — pick one package to set scope and price. When a package is selected, you do not choose a separate
         service type; the package is enough.
       </p>
@@ -100,8 +100,10 @@ export function ProPackagesPicker({
             <li key={pkg.id}>
               <Card
                 padding="md"
-                className={`transition border ${
-                  selected ? 'border-accent ring-1 ring-accent/30 bg-surface2/40' : 'border-border'
+                className={`!border-[#E5E7EB] !bg-white shadow-[0_2px_12px_rgba(74,105,189,0.05)] transition-shadow dark:!border-white/12 dark:!bg-[#14161c] ${
+                  selected
+                    ? '!border-[#4A69BD] !bg-[#4A69BD]/[0.06] shadow-[0_4px_16px_rgba(74,105,189,0.14)] ring-1 ring-[#4A69BD]/20 dark:!bg-[#4A69BD]/12'
+                    : ''
                 }`}
               >
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -130,10 +132,10 @@ export function ProPackagesPicker({
                   <button
                     type="button"
                     onClick={() => onSelectPackageId(selected ? null : pkg.id)}
-                    className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium border transition ${
+                    className={`flex-shrink-0 rounded-xl border px-4 py-2 text-sm font-semibold transition active:scale-[0.98] ${
                       selected
-                        ? 'border-accent bg-accent/10 text-text'
-                        : 'border-border bg-surface hover:bg-hover text-text'
+                        ? 'border-[#4A69BD] bg-[#4A69BD] text-white shadow-sm'
+                        : 'border-[#E5E7EB] bg-white text-[#2d3436] hover:border-[#4A69BD]/35 dark:border-white/12 dark:bg-[#14161c] dark:text-white'
                     }`}
                   >
                     {selected ? 'Selected' : 'Select package'}

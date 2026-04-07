@@ -18,12 +18,26 @@ export function PriceRow({
   return (
     <div className={cn('flex items-start justify-between gap-4', className)}>
       <div className="min-w-0">
-        <p className={cn('text-sm', emphasize ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
+        <p
+          className={cn(
+            'text-sm',
+            emphasize ? 'font-semibold text-[#111827] dark:text-white' : 'text-[#6B7280] dark:text-white/60'
+          )}
+        >
           {label}
         </p>
-        {subtext ? <p className="mt-0.5 text-xs text-muted-foreground">{subtext}</p> : null}
+        {subtext ? (
+          <p className="mt-0.5 text-xs text-[#6B7280] dark:text-white/55">{subtext}</p>
+        ) : null}
       </div>
-      <p className={cn('text-sm', emphasize ? 'font-semibold text-foreground' : 'text-foreground')}>{value}</p>
+      <p
+        className={cn(
+          'text-sm tabular-nums',
+          emphasize ? 'font-semibold text-[#4A69BD] dark:text-[#6b8fd4]' : 'text-[#2d3436] dark:text-white/90'
+        )}
+      >
+        {value}
+      </p>
     </div>
   );
 }
