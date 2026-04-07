@@ -13,7 +13,7 @@ import { use, useCallback, useEffect, useMemo, useState } from 'react';
 import { getBookingById, getCurrentUser, type BookingDetails } from '@/lib/api';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { ProBookingJobNotes } from '@/components/bookings/ProBookingJobNotes';
-import { ProCustomerPricingBreakdown } from '@/components/bookings/ProCustomerPricingBreakdown';
+import { ProEarningsBreakdownCard } from '@/components/bookings/ProEarningsBreakdownCard';
 import { ProPendingReschedulePanel } from '@/components/bookings/ProPendingReschedulePanel';
 import {
   calendarWallTimesWithPending,
@@ -188,13 +188,14 @@ export default function ActiveJob({ params }: { params: Promise<{ jobId: string 
               </div>
 
               <div className="rounded-lg p-4 border border-border bg-surface2 border-l-[3px] border-l-accent space-y-2">
-                <Label className="mb-2 block">CUSTOMER PRICING</Label>
-                <ProCustomerPricingBreakdown
+                <Label className="mb-2 block">YOUR EARNINGS</Label>
+                <ProEarningsBreakdownCard
                   bookingId={jobId}
                   amountTotalCents={booking.amountTotal}
                   platformFeeCents={booking.platformFeeCents}
                   amountSubtotalCents={booking.amountSubtotalCents}
                   priceDollars={booking.price}
+                  refundedTotalCents={booking.refundedTotalCents}
                 />
               </div>
             </div>

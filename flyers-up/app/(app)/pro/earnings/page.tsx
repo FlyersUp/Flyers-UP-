@@ -118,7 +118,9 @@ export default function Earnings() {
           <p className="mt-3 text-sm text-muted">
             Flyers Up brought you {thisWeekJobs} customer{thisWeekJobs === 1 ? '' : 's'} this week
           </p>
-          <p className="mt-1 text-xs font-medium text-primary">Know exactly what you&apos;ll earn. Platform fee applies to customer payment.</p>
+          <p className="mt-1 text-xs font-medium text-primary">
+            Totals here reflect what you earn from completed jobs. Customers pay marketplace fees on top of your rate.
+          </p>
         </Card>
 
         {/* Summary */}

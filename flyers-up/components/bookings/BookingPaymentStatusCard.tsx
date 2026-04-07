@@ -25,6 +25,8 @@ export interface BookingPaymentStatusCardProps {
   amountDeposit?: number | null;
   amountRemaining?: number | null;
   amountTotal?: number | null;
+  /** Pro job price (amount_subtotal) — avoids showing customer all-in total as the headline. */
+  serviceSubtotalCents?: number | null;
   platformFeeCents?: number | null;
   refundedTotalCents?: number | null;
   /** Pro-only: show trust-first earnings reassurance */
@@ -47,6 +49,8 @@ export function BookingPaymentStatusCard({
   amountDeposit,
   amountRemaining,
   amountTotal,
+  serviceSubtotalCents,
+  platformFeeCents,
   refundedTotalCents,
   view = 'customer',
   onPayDeposit,
@@ -60,7 +64,14 @@ export function BookingPaymentStatusCard({
   const deposit = amountDeposit ?? 0;
   const remaining = amountRemaining ?? 0;
   const refunded = refundedTotalCents ?? 0;
-  const proTakeHome = Math.max(0, total - refunded);
+  const fees = platformFeeCents ?? 0;
+  const inferredRate =
+    (serviceSubtotalCents != null && serviceSubtotalCents > 0
+      ? serviceSubtotalCents
+      : total > 0
+        ? Math.max(0, total - fees)
+        : 0);
+  const proTakeHome = Math.max(0, inferredRate - refunded);
 
   const awaitingDeposit =
     status === 'awaiting_deposit_payment' ||
@@ -79,24 +90,34 @@ export function BookingPaymentStatusCard({
       {/* Amount breakdown */}
       {total > 0 && (
         <div className="mb-4 space-y-1">
-          <PriceRow label="Total" value={formatCents(total)} emphasize />
-          {deposit > 0 && (
-            <PriceRow label="Deposit" value={formatCents(deposit)} />
-          )}
-          {remaining > 0 && (
-            <PriceRow label="Remaining" value={formatCents(remaining)} />
-          )}
-          {view === 'pro' && (
-            <div className="mt-2 rounded-xl border border-[hsl(var(--accent-customer)/0.2)] bg-[hsl(var(--accent-customer)/0.06)] p-3">
-              <p className="text-sm font-semibold text-[hsl(var(--accent-customer))]">You keep what you earn</p>
-              <p className="mt-1 text-xs text-muted">
-                You keep 100% of your service price. Customers pay marketplace & protection fees separately.
-              </p>
-              <p className="mt-1 text-xs font-medium text-primary">No hidden cuts. No surprises.</p>
-              {proTakeHome > 0 ? (
-                <p className="mt-2 text-sm font-semibold text-primary">Current earnings: {formatCents(proTakeHome)}</p>
-              ) : null}
-            </div>
+          {view === 'customer' ? (
+            <>
+              <PriceRow label="Total" value={formatCents(total)} emphasize />
+              {deposit > 0 && <PriceRow label="Deposit" value={formatCents(deposit)} />}
+              {remaining > 0 && <PriceRow label="Remaining" value={formatCents(remaining)} />}
+            </>
+          ) : (
+            <>
+              {inferredRate > 0 && (
+                <PriceRow label="Your rate" value={formatCents(inferredRate)} emphasize />
+              )}
+              {deposit > 0 && (
+                <PriceRow label="Customer deposit (holds the booking)" value={formatCents(deposit)} />
+              )}
+              {remaining > 0 && (
+                <PriceRow label="Customer balance (after service)" value={formatCents(remaining)} />
+              )}
+              <div className="mt-2 rounded-xl border border-[hsl(var(--accent-customer)/0.2)] bg-[hsl(var(--accent-customer)/0.06)] p-3">
+                <p className="text-sm font-semibold text-[hsl(var(--accent-customer))]">Net payout (est.)</p>
+                <p className="mt-1 text-xs text-muted">
+                  Your rate is what you earn before refunds. Customers pay marketplace fees on top — those are not
+                  deducted from your payout.
+                </p>
+                {proTakeHome > 0 ? (
+                  <p className="mt-2 text-sm font-semibold text-primary">{formatCents(proTakeHome)}</p>
+                ) : null}
+              </div>
+            </>
           )}
         </div>
       )}

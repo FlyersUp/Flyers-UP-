@@ -21,7 +21,7 @@ import { use, useEffect, useState } from 'react';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { ProCustomerPreferenceActions } from '@/components/bookings/ProCustomerPreferenceActions';
 import { ProBookingJobNotes } from '@/components/bookings/ProBookingJobNotes';
-import { ProCustomerPricingBreakdown } from '@/components/bookings/ProCustomerPricingBreakdown';
+import { ProEarningsBreakdownCard } from '@/components/bookings/ProEarningsBreakdownCard';
 import { ProPendingReschedulePanel } from '@/components/bookings/ProPendingReschedulePanel';
 import { formatWallDateLong } from '@/lib/bookings/pending-reschedule';
 
@@ -276,12 +276,14 @@ export default function ProBookingDetailPage({
                   </div>
                   <ProCustomerPreferenceActions customerUserId={booking.customerId} />
                   <div className="mt-3 pt-3 border-t border-border">
-                    <ProCustomerPricingBreakdown
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Your earnings</p>
+                    <ProEarningsBreakdownCard
                       bookingId={bookingId}
                       amountTotalCents={booking.amountTotal}
                       platformFeeCents={booking.platformFeeCents}
                       amountSubtotalCents={booking.amountSubtotalCents}
                       priceDollars={booking.price}
+                      refundedTotalCents={booking.refundedTotalCents}
                     />
                   </div>
                 </div>
@@ -305,6 +307,7 @@ export default function ProBookingDetailPage({
                       amountDeposit={booking.amountDeposit}
                       amountRemaining={booking.amountRemaining}
                       amountTotal={booking.amountTotal}
+                      serviceSubtotalCents={booking.amountSubtotalCents}
                       platformFeeCents={booking.platformFeeCents}
                       refundedTotalCents={booking.refundedTotalCents}
                       view="pro"

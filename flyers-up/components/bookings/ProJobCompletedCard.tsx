@@ -1,8 +1,7 @@
 'use client';
 
 /**
- * Pro "Job completed" moment — trust + earnings clarity.
- * Shown when Pro marks job complete (awaiting_remaining_payment, awaiting_customer_confirmation).
+ * Pro "Job completed" moment — trust + earnings clarity (pro-safe: no customer fee stack).
  */
 
 import { PriceRow } from '@/components/ui/PriceRow';
@@ -31,8 +30,8 @@ export function ProJobCompletedCard({
   const total = amountTotal ?? 0;
   const fee = platformFeeCents ?? 0;
   const refunded = refundedTotalCents ?? 0;
-  const servicePrice = Math.max(0, total - fee); // What pro earns (before refunds)
-  const proEarnings = Math.max(0, servicePrice - refunded);
+  const yourRate = Math.max(0, total - fee);
+  const netPayout = Math.max(0, yourRate - refunded);
 
   return (
     <div
@@ -42,34 +41,26 @@ export function ProJobCompletedCard({
       )}
     >
       <div className="text-center mb-5">
-        <span className="text-3xl" aria-hidden>🎉</span>
+        <span className="text-3xl" aria-hidden>
+          🎉
+        </span>
         <h3 className="text-xl font-semibold text-text mt-2">Job completed</h3>
         <p className="text-sm text-muted mt-1">
           {awaitingConfirmation
             ? "Waiting for customer to confirm. You'll be notified once payment is released."
-            : 'Nice work. You\'re ready to get paid.'}
+            : "Nice work. You're ready to get paid."}
         </p>
       </div>
 
       <div className="rounded-xl border border-border bg-[hsl(var(--card-neutral))] p-4 space-y-2">
         <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">Your earnings</p>
-        <PriceRow label="Service price" value={formatCents(servicePrice)} />
-        <PriceRow label="You keep" value={formatCents(proEarnings)} emphasize />
+        <PriceRow label="Your rate" value={formatCents(yourRate)} />
+        {refunded > 0 ? <PriceRow label="Refunds (adjusted)" value={`−${formatCents(refunded)}`} /> : null}
+        <PriceRow label="Net payout (est.)" value={formatCents(netPayout)} emphasize />
         <div className="mt-3 pt-3 border-t border-border">
           <p className="text-xs font-medium text-[hsl(var(--accent-customer))]">
-            ✓ You keep 100% of your service price
+            ✓ Marketplace fees are paid by the customer — not taken from your rate.
           </p>
-        </div>
-      </div>
-
-      <div className="mt-4 rounded-xl border border-border bg-[hsl(var(--card-neutral))] p-4 space-y-2">
-        <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">Customer paid</p>
-        <PriceRow label="Service" value={formatCents(servicePrice)} />
-        {fee > 0 && (
-          <PriceRow label="Marketplace & protection fees (customer-paid)" value={formatCents(fee)} />
-        )}
-        <div className={cn('pt-2 border-t border-border')}>
-          <PriceRow label="Total paid" value={formatCents(total)} emphasize />
         </div>
       </div>
     </div>
