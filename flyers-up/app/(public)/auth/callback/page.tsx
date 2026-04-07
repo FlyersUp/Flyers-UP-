@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Logo from '@/components/Logo';
+import { trackGaEvent } from '@/lib/analytics/trackGa';
 import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth } from '@/lib/onboarding';
 
@@ -81,6 +82,18 @@ function CallbackInner() {
         if (!profile) {
           setError('Could not load your profile. Please try again.');
           return;
+        }
+
+        const usedGoogle = user.identities?.some((i) => i.provider === 'google') ?? false;
+        if (usedGoogle && user.created_at) {
+          const createdMs = new Date(user.created_at).getTime();
+          if (createdMs && Date.now() - createdMs < 10 * 60 * 1000) {
+            const key = `fu_ga_sign_up_google_${user.id}`;
+            if (!sessionStorage.getItem(key)) {
+              sessionStorage.setItem(key, '1');
+              trackGaEvent('sign_up', { method: 'google' });
+            }
+          }
         }
 
         // Best-effort legal acceptance logging (ignores failures).

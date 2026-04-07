@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Logo from '@/components/Logo';
+import { trackGaEvent } from '@/lib/analytics/trackGa';
 import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth, upsertProfile } from '@/lib/onboarding';
 
@@ -173,6 +174,7 @@ export function SignUpClient() {
         onboarding_step: profileRole === 'pro' ? 'pro_profile' : 'customer_profile',
       });
       profile = await getOrCreateProfile(data.user.id, data.user.email ?? null);
+      trackGaEvent('sign_up', { method: 'email' });
       if (profile) {
         const dest = routeAfterAuth(
           { ...profile, role: profileRole },

@@ -1,4 +1,7 @@
 -- Add lifetime verified job count to weekly leaderboard RPC (customer “Top pros” trust copy).
+-- Cannot CREATE OR REPLACE when OUT/RETURNS TABLE shape changes; drop then create.
+DROP FUNCTION IF EXISTS public.rpc_weekly_leaderboard(uuid);
+
 CREATE OR REPLACE FUNCTION public.rpc_weekly_leaderboard(p_category_id uuid DEFAULT NULL)
 RETURNS TABLE (
   rank bigint,
@@ -63,3 +66,6 @@ AS $$
     sp.display_name ASC
   LIMIT 10;
 $$;
+
+REVOKE ALL ON FUNCTION public.rpc_weekly_leaderboard(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.rpc_weekly_leaderboard(uuid) TO authenticated;

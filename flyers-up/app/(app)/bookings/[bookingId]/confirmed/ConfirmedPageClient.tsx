@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { BookingConfirmedContent } from '@/components/checkout/BookingConfirmedContent';
+import { trackGaEvent } from '@/lib/analytics/trackGa';
 
 export type BookingData = {
   id: string;
@@ -108,6 +109,35 @@ export function ConfirmedPageClient({ bookingId }: { bookingId: string }) {
       ? paymentProcessingFinal(booking)
       : paymentProcessingDeposit(booking)
     : false;
+
+  useEffect(() => {
+    if (!booking || loading || typeof window === 'undefined') return;
+    if (isFinalPhase) {
+      const paid =
+        (booking.finalPaymentStatus ?? '').toUpperCase() === 'PAID' ||
+        (toCents(booking.amountRemaining) ?? 0) <= 0;
+      const key = `fu_ga_purchase_${bookingId}`;
+      if (paid && !sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, '1');
+        const totalCents = toCents(booking.amountTotal);
+        const value = totalCents != null ? totalCents / 100 : 0;
+        trackGaEvent('purchase', {
+          transaction_id: `booking-${bookingId}`,
+          value,
+          currency: 'USD',
+        });
+      }
+    } else {
+      const paid = (booking.paymentStatus ?? '').toUpperCase() === 'PAID';
+      const key = `fu_ga_deposit_${bookingId}`;
+      if (paid && !sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, '1');
+        const depCents = toCents(booking.amountDeposit);
+        const value = depCents != null ? depCents / 100 : 0;
+        trackGaEvent('deposit_paid', { value, currency: 'USD' });
+      }
+    }
+  }, [booking, loading, isFinalPhase, bookingId]);
 
   return (
     <div className="min-h-screen bg-bg">

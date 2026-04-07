@@ -20,6 +20,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { DashboardCard, DashboardSectionSkeleton } from '@/components/dashboard/DashboardCard';
 import Link from 'next/link';
 import { SideMenu } from '@/components/ui/SideMenu';
+import { trackGaEvent } from '@/lib/analytics/trackGa';
 import { getProJobs, getProEarnings, type Booking } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { ChevronRight, DollarSign, Briefcase, Calendar, Inbox, Bell } from 'lucide-react';
@@ -140,6 +141,7 @@ function PendingRequestCard({
         setError(data.error ?? 'Failed to accept');
         return;
       }
+      trackGaEvent('booking_accepted');
       onAccept();
     } catch {
       setError('Something went wrong');

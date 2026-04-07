@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser, getActiveAddonsForPro, type ServicePro, type ServiceAddon } from '@/lib/api';
 import { createBookingWithPayment } from '@/app/actions/bookings';
+import { trackGaEvent } from '@/lib/analytics/trackGa';
 import { QuickRulesSheet, hasSeenQuickRules } from '@/components/booking/QuickRulesSheet';
 import { DEFAULT_BOOKING_TIMEZONE, earliestCustomerBookableDateIso } from '@/lib/datetime';
 import { CustomerProAvailabilityCalendar } from '@/components/booking/CustomerProAvailabilityCalendar';
@@ -188,6 +189,8 @@ export default function BookingForm({
         setError(result.error || 'Failed to create booking. Please try again.');
         return;
       }
+
+      trackGaEvent('job_posted');
 
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('booking_success', 'true');

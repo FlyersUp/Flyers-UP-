@@ -2,6 +2,7 @@
 
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { getCurrentUser, createBooking } from '@/lib/api';
+import { trackGaEvent } from '@/lib/analytics/trackGa';
 import { supabase } from '@/lib/supabaseClient';
 import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 import { useRouter, useParams } from 'next/navigation';
@@ -187,6 +188,7 @@ export default function RequestOffersPage() {
       });
 
       if (booking?.id) {
+        trackGaEvent('job_posted');
         await supabase
           .from('job_requests')
           .update({ status: 'in_progress', selected_offer_id: offerId, booking_id: booking.id })

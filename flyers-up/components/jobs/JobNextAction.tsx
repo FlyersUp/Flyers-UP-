@@ -9,6 +9,7 @@ import {
   DEPOSIT_REQUIRED_BEFORE_EN_ROUTE_CODE,
   EN_ROUTE_TOO_EARLY_CODE,
 } from '@/lib/bookings/pro-en-route-readiness';
+import { trackGaEvent } from '@/lib/analytics/trackGa';
 import { getBookingById, type BookingDetails } from '@/lib/api';
 import { ArrivalVerificationModal } from '@/components/marketplace/ArrivalVerificationModal';
 import { JobCompletionModal } from '@/components/marketplace/JobCompletionModal';
@@ -93,6 +94,7 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
         setError((data as { error?: string }).error || 'Failed to accept booking');
         return;
       }
+      trackGaEvent('booking_accepted');
       const updated = await getBookingById(booking.id);
       if (updated) onUpdated(updated);
     } catch {

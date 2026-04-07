@@ -7,6 +7,7 @@ import Logo from '@/components/Logo';
 import { AuthSocialButton } from '@/components/auth/AuthSocialButton';
 import { EmailOtpForm } from '@/components/auth/EmailOtpForm';
 import { signIn, signUp } from '@/lib/api';
+import { trackGaEvent } from '@/lib/analytics/trackGa';
 import { supabase } from '@/lib/supabaseClient';
 
 type UserRole = 'customer' | 'pro';
@@ -142,6 +143,10 @@ export function SignInClient() {
       ]);
 
       if (result.success && result.user) {
+        if (isSignUp) {
+          trackGaEvent('sign_up', { method: 'email' });
+        }
+
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) {

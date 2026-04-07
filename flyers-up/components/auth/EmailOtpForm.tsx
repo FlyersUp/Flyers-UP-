@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { OTPInput } from '@/components/auth/OTPInput';
 import { getOrCreateProfile, routeAfterAuth, upsertProfile } from '@/lib/onboarding';
+import { trackGaEvent } from '@/lib/analytics/trackGa';
 import { supabase } from '@/lib/supabaseClient';
 
 const TERMS_VERSION = '2026-01-27';
@@ -183,6 +184,10 @@ export function EmailOtpForm({ nextPath, createAccountRole }: EmailOtpFormProps)
         });
         const refreshed = await getOrCreateProfile(data.user.id, data.user.email ?? trimmedEmail);
         if (refreshed) profile = refreshed;
+        const createdMs = data.user.created_at ? new Date(data.user.created_at).getTime() : 0;
+        if (createdMs && Date.now() - createdMs < 10 * 60 * 1000) {
+          trackGaEvent('sign_up', { method: 'email' });
+        }
       }
 
       try {

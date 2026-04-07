@@ -6,6 +6,7 @@ import Logo from '@/components/Logo';
 import { supabase } from '@/lib/supabaseClient';
 import { getOrCreateProfile, routeAfterAuth, upsertProfile, type AppRole } from '@/lib/onboarding';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
+import { trackGaEvent } from '@/lib/analytics/trackGa';
 
 /** Role picker brand colors (customer = green, pro = orange) */
 const ROLE_GREEN = '#bee3ba';
@@ -123,6 +124,8 @@ function RoleInner() {
         setError(res.error || 'Could not save your choice. Please try again.');
         return;
       }
+
+      trackGaEvent('select_role', { role: selected });
 
       const profile = await getOrCreateProfile(user.id, user.email ?? null);
       if (!profile) {
