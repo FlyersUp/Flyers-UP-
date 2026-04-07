@@ -129,9 +129,15 @@ export default function PublicHomePage() {
           className="mt-10"
         >
           {!showAllOccupations ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-pb-2 px-4 pb-2 pt-1 [scrollbar-width:thin] sm:mx-0 sm:px-0">
               {displayFeatured.map((occ) => (
-                <MarketingCategoryCard key={occ.id} name={occ.name} slug={occ.slug} />
+                <MarketingCategoryCard
+                  key={occ.id}
+                  name={occ.name}
+                  slug={occ.slug}
+                  layout="strip"
+                  className="min-w-[min(85vw,280px)] shrink-0 snap-start sm:min-w-[260px]"
+                />
               ))}
             </div>
           ) : allOccupationsLoading && allOccupations.length === 0 ? (
