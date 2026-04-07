@@ -34,6 +34,8 @@ type Props = {
   onSelectDate: (isoDate: string) => void;
   onSelectTime: (hhmm: string) => void;
   durationMinutes?: number;
+  /** YYYY-MM-DD — days before this are not selectable (must match native date input `min`). */
+  minimumDateIso?: string;
 };
 
 export function CustomerProAvailabilityCalendar({
@@ -43,6 +45,7 @@ export function CustomerProAvailabilityCalendar({
   onSelectDate,
   onSelectTime,
   durationMinutes = 60,
+  minimumDateIso,
 }: Props) {
   const [zone, setZone] = useState(DEFAULT_BOOKING_TIMEZONE);
   const [cursor, setCursor] = useState(() => {
@@ -191,7 +194,10 @@ export function CustomerProAvailabilityCalendar({
               }
               const level: DayLevel = cell.summary?.level ?? 'unavailable';
               const isSelected = cell.date === selectedDate;
-              const disabled = level === 'unavailable' || level === 'fully_booked';
+              const beforeMin =
+                Boolean(minimumDateIso) && cell.date < (minimumDateIso as string);
+              const disabled =
+                beforeMin || level === 'unavailable' || level === 'fully_booked';
               return (
                 <button
                   key={cell.date}

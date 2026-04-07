@@ -4,10 +4,14 @@
  */
 import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert';
-import { Settings } from 'luxon';
+import { DateTime, Settings } from 'luxon';
 import { bookingWallTimeToUtcIso, addHoursToUtcIso } from '../booking-instant';
 import { formatGoogleCalendarDatesParam, formatIcsUtcDateTime } from '../calendar-export';
-import { serviceDatePrefetchRange, todayIsoInBookingTimezone } from '../today';
+import {
+  earliestCustomerBookableDateIso,
+  serviceDatePrefetchRange,
+  todayIsoInBookingTimezone,
+} from '../today';
 
 afterEach(() => {
   Settings.now = () => Date.now();
@@ -88,5 +92,29 @@ describe('todayIsoInBookingTimezone', () => {
       new Date(Settings.now()).toISOString().slice(0, 10),
       todayIsoInBookingTimezone('America/New_York')
     );
+  });
+});
+
+describe('earliestCustomerBookableDateIso', () => {
+  const zone = 'America/New_York';
+  const noonNy = DateTime.fromObject(
+    { year: 2026, month: 4, day: 7, hour: 12, minute: 0 },
+    { zone }
+  );
+
+  it('sameDayEnabled=true returns that calendar day in zone', () => {
+    assert.strictEqual(earliestCustomerBookableDateIso(true, zone, noonNy), '2026-04-07');
+  });
+
+  it('sameDayEnabled=false returns the next calendar day in zone', () => {
+    assert.strictEqual(earliestCustomerBookableDateIso(false, zone, noonNy), '2026-04-08');
+  });
+
+  it('aligns with server/month grid: no same-day means tomorrow even when "today" has slots in API noise', () => {
+    const lateNy = DateTime.fromObject(
+      { year: 2026, month: 4, day: 7, hour: 23, minute: 30 },
+      { zone }
+    );
+    assert.strictEqual(earliestCustomerBookableDateIso(false, zone, lateNy), '2026-04-08');
   });
 });

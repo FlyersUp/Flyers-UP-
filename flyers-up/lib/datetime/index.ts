@@ -27,5 +27,9 @@ export {
   formatIcsUtcDateTime,
   formatIcsUtcStampNow,
 } from './calendar-export';
-export { todayIsoInBookingTimezone, serviceDatePrefetchRange } from './today';
+export {
+  todayIsoInBookingTimezone,
+  serviceDatePrefetchRange,
+  earliestCustomerBookableDateIso,
+} from './today';
 export { localCalendarDateToYmd } from './local-calendar';

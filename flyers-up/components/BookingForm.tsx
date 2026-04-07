@@ -19,8 +19,7 @@ import { useRouter } from 'next/navigation';
 import { getCurrentUser, getActiveAddonsForPro, type ServicePro, type ServiceAddon } from '@/lib/api';
 import { createBookingWithPayment } from '@/app/actions/bookings';
 import { QuickRulesSheet, hasSeenQuickRules } from '@/components/booking/QuickRulesSheet';
-import { DateTime } from 'luxon';
-import { DEFAULT_BOOKING_TIMEZONE } from '@/lib/datetime';
+import { DEFAULT_BOOKING_TIMEZONE, earliestCustomerBookableDateIso } from '@/lib/datetime';
 import { CustomerProAvailabilityCalendar } from '@/components/booking/CustomerProAvailabilityCalendar';
 import { ProPackagesPicker } from '@/components/booking/ProPackagesPicker';
 
@@ -79,13 +78,21 @@ export default function BookingForm({
   });
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(initialPackageId?.trim() || null);
 
+  const sameDayEnabled = Boolean(pro.sameDayAvailable);
+
   useEffect(() => {
     setFormData((prev) => {
-      if (prev.date) return prev;
-      const md = DateTime.now().setZone(DEFAULT_BOOKING_TIMEZONE).toISODate() ?? '';
-      return { ...prev, date: md };
+      const min = earliestCustomerBookableDateIso(sameDayEnabled, DEFAULT_BOOKING_TIMEZONE);
+      if (!min) return prev;
+      if (!prev.date) {
+        return { ...prev, date: min };
+      }
+      if (prev.date < min) {
+        return { ...prev, date: min };
+      }
+      return prev;
     });
-  }, []);
+  }, [sameDayEnabled, pro.id]);
 
   useEffect(() => {
     setFormData((prev) => ({
@@ -133,6 +140,8 @@ export default function BookingForm({
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const minDate = earliestCustomerBookableDateIso(sameDayEnabled, DEFAULT_BOOKING_TIMEZONE);
+
   const doSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
@@ -146,6 +155,15 @@ export default function BookingForm({
 
       if (!formData.date || !formData.time || !formData.address) {
         setError('Please fill in all required fields');
+        setIsSubmitting(false);
+        return;
+      }
+      if (minDate && formData.date < minDate) {
+        setError(
+          sameDayEnabled
+            ? 'That date is no longer valid. Choose today or a future date.'
+            : 'Same-day booking is not available for this pro. Choose a date from tomorrow onward.'
+        );
         setIsSubmitting(false);
         return;
       }
@@ -192,6 +210,14 @@ export default function BookingForm({
       setError('Please fill in all required fields');
       return;
     }
+    if (minDate && formData.date < minDate) {
+      setError(
+        sameDayEnabled
+          ? 'That date is no longer valid. Choose today or a future date.'
+          : 'Same-day booking is not available for this pro. Choose a date from tomorrow onward.'
+      );
+      return;
+    }
     if (subcategories.length > 0 && !selectedPackageId && !formData.subcategoryId) {
       setError('Please select a service type');
       return;
@@ -212,9 +238,6 @@ export default function BookingForm({
       void doSubmit();
     }
   };
-
-  const minDate =
-    DateTime.now().setZone(DEFAULT_BOOKING_TIMEZONE).plus({ days: 1 }).toISODate() ?? '';
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -321,6 +344,7 @@ export default function BookingForm({
           selectedTime={formData.time}
           onSelectDate={(iso) => setFormData((prev) => ({ ...prev, date: iso }))}
           onSelectTime={(hhmm) => setFormData((prev) => ({ ...prev, time: hhmm }))}
+          minimumDateIso={minDate}
         />
       </div>
 
