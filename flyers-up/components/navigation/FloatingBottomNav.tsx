@@ -51,6 +51,7 @@ function getModeFromPath(pathname: string | null): 'customer' | 'pro' | null {
     pathname?.startsWith('/customer') ||
     pathname?.startsWith('/dashboard/customer') ||
     pathname?.startsWith('/flyer-wall') ||
+    pathname?.startsWith('/leaderboard') ||
     pathname?.startsWith('/requests') ||
     pathname?.startsWith('/occupations')
   )

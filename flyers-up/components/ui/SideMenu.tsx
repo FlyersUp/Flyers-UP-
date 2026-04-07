@@ -57,6 +57,7 @@ const CUSTOMER_SECTIONS: MenuSection[] = [
     titleKey: 'sidebar.discovery',
     items: [
       { labelKey: 'sidebar.customer.flyerWall', href: '/flyer-wall' },
+      { labelKey: 'sidebar.customer.leaderboard', href: '/leaderboard' },
       { labelKey: 'sidebar.customer.browseOccupations', href: '/occupations' },
       { labelKey: 'sidebar.customer.nearbyPros', href: '/occupations' },
       { labelKey: 'sidebar.customer.favorites', href: '/customer/favorites' },

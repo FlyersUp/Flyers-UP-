@@ -1,19 +1,23 @@
 /**
- * Format timestamp as relative time: "Just now", "3m", "2h", "Yesterday", "Jan 15"
+ * Human-readable relative time (notifications, Fly Wall, etc.).
  */
-export function formatRelativeTime(isoString: string): string {
-  const date = new Date(isoString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHour = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHour / 24);
-
+export function formatCompletedAgo(iso: string, nowMs: number = Date.now()): string {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return 'Recently';
+  let diffSec = Math.max(0, Math.floor((nowMs - t) / 1000));
   if (diffSec < 60) return 'Just now';
-  if (diffMin < 60) return `${diffMin}m`;
-  if (diffHour < 24) return `${diffHour}h`;
-  if (diffDay === 1) return 'Yesterday';
-  if (diffDay < 7) return `${diffDay}d`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return diffMin === 1 ? '1 minute ago' : `${diffMin} minutes ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return diffHr === 1 ? '1 hour ago' : `${diffHr} hours ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return diffDay === 1 ? 'Yesterday' : `${diffDay} days ago`;
+  const diffWk = Math.floor(diffDay / 7);
+  if (diffWk < 5) return diffWk === 1 ? '1 week ago' : `${diffWk} weeks ago`;
+  const diffMo = Math.floor(diffDay / 30);
+  return diffMo <= 1 ? '1 month ago' : `${diffMo} months ago`;
+}
+
+export function formatRelativeTime(iso: string, nowMs: number = Date.now()): string {
+  return formatCompletedAgo(iso, nowMs);
 }

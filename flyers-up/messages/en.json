@@ -57,6 +57,7 @@
       "verifiedProsExplained": "Verified Pros Explained",
       "disputesSupport": "Disputes & Support",
       "flyerWall": "Flyer Wall",
+      "leaderboard": "Weekly leaderboard",
       "browseOccupations": "Browse Occupations",
       "nearbyPros": "Nearby Pros",
       "favorites": "Favorites",
@@ -248,9 +249,29 @@
     "uploading": "Uploading…"
   },
   "flyerWall": {
-    "title": "Flyer Wall",
+    "title": "Fly Wall",
+    "subtitle": "Recent completed jobs — proof, not hype",
+    "loading": "Loading…",
+    "loadingMore": "Loading more…",
+    "leaderboardLink": "Top pros",
+    "intro": "Each card is a real job that finished on Flyers Up. Locations are neighborhood-level only; we never show street addresses or customer details.",
+    "emptyTitle": "The wall is quiet — the marketplace is still warming up",
+    "emptyBody": "As pros complete verified jobs, before/after proof and ratings will appear here first. That is how you will know real work is happening near you.",
+    "emptyCtaBrowse": "Browse services",
+    "emptyCtaRequest": "Post a request",
+    "emptyTrust": "Every entry you will see here is tied to a completed booking and optional customer rating — never comments or payouts.",
     "noFlyers": "No flyers yet",
     "noFlyersDesc": "Pros will appear here as they join. Check back soon!"
+  },
+  "leaderboard": {
+    "title": "This week’s standouts",
+    "subtitle": "Top pros by verified completions in the last 7 days, weighted by average rating. Only pros with at least three lifetime completed jobs qualify — quality over noise.",
+    "loading": "Loading…",
+    "flyWallLink": "Fly Wall",
+    "emptyTitle": "No leaderboard yet",
+    "emptyBody": "Once pros complete several jobs and stay active this week, top performers will show up here automatically.",
+    "footnote": "Rankings favor steady, highly rated work — not the lowest price. Earnings and fees are never shown.",
+    "jobsThisWeek": "{count, plural, one {# job this week} other {# jobs this week}}"
   },
   "legal": {
     "termsOfService": "Terms of service",

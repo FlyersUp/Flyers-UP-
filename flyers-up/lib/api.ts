@@ -819,55 +819,6 @@ export async function getProById(proId: string): Promise<ServicePro | null> {
 }
 
 /**
- * Get all pros for Flyer Wall (bulletin board). Returns pros from all active categories.
- */
-export async function getProsForFlyerWall(): Promise<ServicePro[]> {
-  const { data: categories } = await supabase
-    .from('service_categories')
-    .select('id, slug, name')
-    .eq('is_active_phase1', true);
-
-  if (!categories?.length) return [];
-
-  const categoryIds = categories.map((c) => c.id);
-  const { data: pros, error } = await supabase
-    .from('service_pros')
-    .select('*')
-    .in('category_id', categoryIds)
-    .eq('available', true)
-    .order('rating', { ascending: false })
-    .limit(50);
-
-  if (error || !pros?.length) return [];
-
-  const catMap = new Map(categories.map((c) => [c.id, c]));
-  const profilePhotoUrls = await getProfilePhotoUrlsForUserIds(pros.map((p) => p.user_id));
-
-  return pros.map((pro) => {
-    const cat = catMap.get(pro.category_id);
-    const p = pro as { same_day_available?: boolean };
-    return {
-      id: pro.id,
-      userId: pro.user_id,
-      name: pro.display_name,
-      bio: pro.bio || '',
-      categorySlug: cat?.slug ?? 'general',
-      categoryName: cat?.name ?? 'General',
-      rating: pro.rating,
-      reviewCount: pro.review_count,
-      startingPrice: pro.starting_price,
-      location: pro.location || pro.service_area_zip || 'Not specified',
-      available: pro.available,
-      logoUrl: pro.logo_url || null,
-      profilePhotoUrl: profilePhotoUrls.get(pro.user_id) ?? null,
-      businessHours: pro.business_hours || null,
-      serviceRadius: pro.service_radius ?? null,
-      sameDayAvailable: Boolean(p?.same_day_available),
-    };
-  });
-}
-
-/**
  * Public pro profile fields for customer browsing.
  * This is the "listing" customers use to evaluate and request a job.
  */

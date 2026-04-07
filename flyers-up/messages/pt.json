@@ -57,6 +57,7 @@
       "verifiedProsExplained": "Pros verificados explicado",
       "disputesSupport": "Disputas e suporte",
       "flyerWall": "Mural de flyers",
+      "leaderboard": "Ranking semanal",
       "browseOccupations": "Explorar ocupações",
       "nearbyPros": "Pros próximos",
       "favorites": "Favoritos",
@@ -248,9 +249,29 @@
     "uploading": "Enviando…"
   },
   "flyerWall": {
-    "title": "Mural de flyers",
+    "title": "Fly Wall",
+    "subtitle": "Trabalhos concluídos recentemente — prova real",
+    "loading": "Carregando…",
+    "loadingMore": "Carregando mais…",
+    "leaderboardLink": "Top pros",
+    "intro": "Cada card é um trabalho real concluído no Flyers Up. Mostramos apenas região ou CEP — nunca endereço completo nem dados do cliente.",
+    "emptyTitle": "O mural está quieto — o mercado está começando",
+    "emptyBody": "Quando os pros concluírem trabalhos verificados, fotos antes/depois e avaliações aparecerão aqui primeiro.",
+    "emptyCtaBrowse": "Explorar serviços",
+    "emptyCtaRequest": "Publicar pedido",
+    "emptyTrust": "Cada entrada está ligada a uma reserva concluída e, às vezes, a uma avaliação — nunca comentários ou pagamentos.",
     "noFlyers": "Ainda não há flyers",
     "noFlyersDesc": "Os profissionais aparecerão aqui conforme forem se cadastrando. Volte em breve!"
+  },
+  "leaderboard": {
+    "title": "Destaques da semana",
+    "subtitle": "Top pros por trabalhos verificados nos últimos 7 dias, ponderados pela média de avaliações. Apenas pros com pelo menos três trabalhos concluídos no total.",
+    "loading": "Carregando…",
+    "flyWallLink": "Fly Wall",
+    "emptyTitle": "Ainda não há ranking",
+    "emptyBody": "Com mais atividade, os melhores pros aparecerão aqui automaticamente.",
+    "footnote": "O ranking favorece trabalho consistente e bem avaliado — não o menor preço. Sem exibir ganhos ou taxas.",
+    "jobsThisWeek": "{count, plural, one {# trabalho esta semana} other {# trabalhos esta semana}}"
   },
   "legal": {
     "termsOfService": "Termos de serviço",

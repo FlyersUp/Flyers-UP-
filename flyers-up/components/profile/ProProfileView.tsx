@@ -28,6 +28,8 @@ import { ProReviewSection } from '@/components/profile/ProReviewSection';
 import { AboutServiceAreaSection } from '@/components/profile/AboutServiceAreaSection';
 import { ReportUserBlockUser } from '@/components/moderation/ReportUserBlockUser';
 import { ProPackagesProfileSection } from '@/components/profile/ProPackagesProfileSection';
+import { PerformanceSnapshotSection } from '@/components/profile/PerformanceSnapshotSection';
+import { ProFollowButton } from '@/components/profile/ProFollowButton';
 
 export function ProProfileView({
   profile,
@@ -66,6 +68,18 @@ export function ProProfileView({
       <section>
         <TrustBadgesRow trust={profile.trust} />
       </section>
+
+      {/* 2b. Follow (foundation for later; no feed yet) */}
+      <section>
+        <ProFollowButton proId={profile.id} />
+      </section>
+
+      {/* 2c. Performance snapshot — trust metrics only */}
+      {profile.performanceSnapshot && (
+        <section>
+          <PerformanceSnapshotSection snapshot={profile.performanceSnapshot} />
+        </section>
+      )}
 
       {/* 3. Services + pricing — highest conviction */}
       <section>

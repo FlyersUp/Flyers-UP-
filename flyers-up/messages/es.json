@@ -57,6 +57,7 @@
       "verifiedProsExplained": "Pros verificados explicado",
       "disputesSupport": "Disputas y soporte",
       "flyerWall": "Muro de flyers",
+      "leaderboard": "Ranking semanal",
       "browseOccupations": "Explorar ocupaciones",
       "nearbyPros": "Pros cercanos",
       "favorites": "Favoritos",
@@ -248,9 +249,29 @@
     "uploading": "Subiendo…"
   },
   "flyerWall": {
-    "title": "Muro de flyers",
+    "title": "Fly Wall",
+    "subtitle": "Trabajos terminados recientemente — pruebas reales",
+    "loading": "Cargando…",
+    "loadingMore": "Cargando más…",
+    "leaderboardLink": "Top pros",
+    "intro": "Cada tarjeta es un trabajo real completado en Flyers Up. Solo mostramos zona o código postal; nunca direcciones exactas ni datos del cliente.",
+    "emptyTitle": "El muro está tranquilo — el mercado está arrancando",
+    "emptyBody": "Cuando los pros completen trabajos verificados, verás pruebas antes/después y valoraciones aquí primero.",
+    "emptyCtaBrowse": "Explorar servicios",
+    "emptyCtaRequest": "Publicar solicitud",
+    "emptyTrust": "Cada entrada está ligada a una reserva completada y, a veces, a una valoración — nunca comentarios ni pagos.",
     "noFlyers": "Aún no hay flyers",
     "noFlyersDesc": "Los profesionales aparecerán aquí a medida que se unan. ¡Vuelve pronto!"
+  },
+  "leaderboard": {
+    "title": "Destacados de la semana",
+    "subtitle": "Top pros por trabajos verificados en los últimos 7 días, ponderado por valoración media. Solo entran pros con al menos tres trabajos completados en total.",
+    "loading": "Cargando…",
+    "flyWallLink": "Fly Wall",
+    "emptyTitle": "Aún no hay ranking",
+    "emptyBody": "Cuando haya más actividad, los mejores pros aparecerán aquí automáticamente.",
+    "footnote": "El ranking favorece trabajo constante y bien valorado — no el precio más bajo. No mostramos ganancias ni comisiones.",
+    "jobsThisWeek": "{count, plural, one {# trabajo esta semana} other {# trabajos esta semana}}"
   },
   "legal": {
     "termsOfService": "Términos de servicio",

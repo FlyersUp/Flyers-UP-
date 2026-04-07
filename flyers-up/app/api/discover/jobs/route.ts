@@ -33,7 +33,8 @@ export async function GET() {
     const booking = c.bookings as { address?: string } | null;
     const pro = c.service_pros as { display_name?: string; id?: string; rating?: number } | null;
     const addr = (booking?.address ?? '') as string;
-    const neighborhood = addr.split(',')[1]?.trim() || addr.split(',')[0]?.trim() || 'Local';
+    const zipMatch = addr.match(/\b(\d{5})\b/);
+    const neighborhood = zipMatch ? `ZIP ${zipMatch[1]}` : 'Local area';
     return {
       id: c.id,
       serviceType: 'Home Cleaning',

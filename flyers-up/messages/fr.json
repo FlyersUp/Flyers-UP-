@@ -57,6 +57,7 @@
       "verifiedProsExplained": "Pros vérifiés expliqués",
       "disputesSupport": "Litiges et assistance",
       "flyerWall": "Mur des flyers",
+      "leaderboard": "Classement hebdo",
       "browseOccupations": "Parcourir les métiers",
       "nearbyPros": "Pros à proximité",
       "favorites": "Favoris",
@@ -248,9 +249,29 @@
     "uploading": "Téléchargement…"
   },
   "flyerWall": {
-    "title": "Mur des flyers",
+    "title": "Fly Wall",
+    "subtitle": "Jobs terminés récemment — des preuves, pas du bruit",
+    "loading": "Chargement…",
+    "loadingMore": "Chargement…",
+    "leaderboardLink": "Top pros",
+    "intro": "Chaque carte correspond à un vrai job terminé sur Flyers Up. Zones ou code postal seulement — jamais d’adresse précise ni de données client.",
+    "emptyTitle": "Le mur est calme — le marché démarre",
+    "emptyBody": "Quand les pros terminent des jobs vérifiés, des photos avant/après et des notes apparaîtront ici en premier.",
+    "emptyCtaBrowse": "Parcourir les services",
+    "emptyCtaRequest": "Publier une demande",
+    "emptyTrust": "Chaque entrée est liée à une réservation terminée et parfois à une note — jamais de commentaires ni de paiements.",
     "noFlyers": "Pas encore de flyers",
     "noFlyersDesc": "Les pros apparaîtront ici au fur et à mesure de leur inscription. Revenez bientôt !"
+  },
+  "leaderboard": {
+    "title": "Meilleurs de la semaine",
+    "subtitle": "Top pros par jobs vérifiés sur 7 jours, pondérés par la note moyenne. Seulement les pros avec au moins trois jobs terminés au total.",
+    "loading": "Chargement…",
+    "flyWallLink": "Fly Wall",
+    "emptyTitle": "Pas encore de classement",
+    "emptyBody": "Avec plus d’activité, les meilleurs pros apparaîtront ici automatiquement.",
+    "footnote": "Le classement valorise la régularité et la qualité — pas le prix le plus bas. Aucun revenu ni frais affichés.",
+    "jobsThisWeek": "{count, plural, one {# job cette semaine} other {# jobs cette semaine}}"
   },
   "legal": {
     "termsOfService": "Conditions d'utilisation",

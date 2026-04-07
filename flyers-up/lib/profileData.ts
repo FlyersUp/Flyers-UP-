@@ -1,4 +1,5 @@
 import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabaseServer';
+import { formatAvgResponseMinutes } from '@/lib/formatResponseTime';
 
 export type ProWorkPhoto =
   | {
@@ -56,6 +57,13 @@ export type ProTrustInfo = {
   jobsCompleted?: number;
 };
 
+export type ProPerformanceSnapshot = {
+  jobsCompleted: number;
+  avgRating: number | null;
+  repeatCustomerPct: number | null;
+  avgResponseLabel: string;
+};
+
 export type PublicProProfileModel = {
   id: string; // service_pros.id
   userId: string; // profiles.id
@@ -85,6 +93,7 @@ export type PublicProProfileModel = {
   reviews: ProReview[];
   pricing: ProPricingInfo;
   trust: ProTrustInfo;
+  performanceSnapshot: ProPerformanceSnapshot | null;
 };
 
 export type CustomerPublicModel = {
@@ -210,6 +219,7 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
     { data: safetySettings },
     { data: occRow },
     { data: proSvcRows },
+    perfRpc,
   ] = await Promise.all([
     admin.from('profiles').select('id, phone, avatar_url').eq('id', userId).maybeSingle(),
     admin.from('service_categories').select('name').eq('id', (pro as any).category_id).maybeSingle(),
@@ -236,6 +246,7 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
       ? admin.from('occupations').select('name').eq('id', occupationId).maybeSingle()
       : Promise.resolve({ data: null }),
     admin.from('pro_services').select('occupation_services(name)').eq('pro_id', proRowId),
+    admin.rpc('rpc_pro_performance_snapshot', { p_pro_id: proRowId }),
   ]);
 
   const businessName = safeText((pro as any).display_name) ?? 'Service Pro';
@@ -283,6 +294,38 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
         : null;
 
   const jobsFromPro = typeof (pro as any).jobs_completed === 'number' ? (pro as any).jobs_completed : null;
+
+  let performanceSnapshot: ProPerformanceSnapshot | null = null;
+  const perfRow =
+    Array.isArray(perfRpc.data) && perfRpc.data[0] ? (perfRpc.data[0] as Record<string, unknown>) : null;
+  const fallbackJobs =
+    jobsFromPro ?? (typeof jobsCompletedCount === 'number' ? jobsCompletedCount : 0);
+  const fallbackRating = typeof (pro as any).rating === 'number' ? Number((pro as any).rating) : null;
+
+  if (!perfRpc.error && perfRow) {
+    const jc = Number(perfRow.jobs_completed ?? 0);
+    const ar = Number(perfRow.avg_rating ?? 0);
+    const rp = Number(perfRow.repeat_customer_pct ?? 0);
+    const rm = perfRow.avg_response_minutes;
+    const rmNum = rm != null && rm !== '' ? Number(rm) : null;
+    performanceSnapshot = {
+      jobsCompleted: Number.isFinite(jc) ? jc : fallbackJobs,
+      avgRating: Number.isFinite(ar) && ar > 0 ? ar : fallbackRating,
+      repeatCustomerPct: Number.isFinite(rp) ? rp : null,
+      avgResponseLabel: formatAvgResponseMinutes(rmNum),
+    };
+  } else {
+    performanceSnapshot = {
+      jobsCompleted: fallbackJobs,
+      avgRating: fallbackRating != null && fallbackRating > 0 ? fallbackRating : null,
+      repeatCustomerPct: null,
+      avgResponseLabel: '—',
+    };
+  }
+  if (perfRpc.error && isDev()) {
+    console.warn('rpc_pro_performance_snapshot unavailable:', perfRpc.error.message);
+  }
+
   const model: PublicProProfileModel = {
     id: String((pro as any).id),
     userId,
@@ -337,6 +380,7 @@ export async function getPublicProProfileByIdServer(proId: string): Promise<Publ
       licensed: Boolean((pro as any).licensed),
       jobsCompleted: jobsFromPro ?? undefined,
     },
+    performanceSnapshot,
   };
 
   if (isDev()) {
