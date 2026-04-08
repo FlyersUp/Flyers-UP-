@@ -1,12 +1,12 @@
 'use client';
 
 import { AppLayout } from '@/components/layouts/AppLayout';
+import { CustomerPageShell } from '@/components/customer/CustomerPageShell';
 import { getCurrentUser, getServiceCategories, type ServiceCategory } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { SideMenu } from '@/components/ui/SideMenu';
 import { JobDetailsForm, PhotoUploadGrid, PriceEstimateCard } from '@/components/scope-lock';
 import { computePriceEstimate } from '@/lib/scopeLock/priceCalculator';
 import type { JobDetails, PhotoEntry } from '@/lib/scopeLock/jobDetailsSchema';
@@ -14,6 +14,18 @@ import { isValidUsZip5, normalizeUsZip5 } from '@/lib/jobRequestLocation';
 
 const REQUIRED_PHOTO_MIN = 2;
 const MAX_REQUEST_PHOTOS = 12;
+
+/** Match BookingForm / customer marketplace inputs (trust blue focus, white fields). */
+const fieldClass =
+  'w-full rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 text-[#2d3436] outline-none transition-colors placeholder:text-[#9CA3AF] focus:border-[#4A69BD] focus:ring-2 focus:ring-[#4A69BD]/25 dark:border-white/12 dark:bg-[#14161c] dark:text-white dark:placeholder:text-white/40';
+
+const labelClass = 'mb-1 block text-sm font-semibold text-[#2d3436] dark:text-white';
+
+const sectionCardClass =
+  'rounded-2xl border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]';
+
+const primaryCtaClass =
+  'w-full rounded-full bg-[#FFB347] py-3.5 text-base font-bold text-[#2d3436] shadow-[0_6px_20px_rgba(255,179,71,0.45)] transition-all hover:brightness-[1.02] active:scale-[0.98] disabled:opacity-50 dark:text-[#1a1a1a]';
 
 function fileFingerprint(f: File): string {
   return `${f.name}:${f.size}:${f.lastModified}`;
@@ -25,7 +37,6 @@ export default function NewRequestPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState('Account');
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,7 +70,9 @@ export default function NewRequestPage() {
         return;
       }
       setUserId(user.id);
-      setUserName(user.email?.split('@')[0] ?? 'Account');
+      const fallback = user.email?.split('@')[0] ?? 'Account';
+      const full = user.fullName?.trim();
+      setUserName(full || fallback);
       setReady(true);
     };
     void guard();
@@ -175,9 +188,8 @@ export default function NewRequestPage() {
     }
     setSubmitting(true);
     try {
-      const photos = photosCategorized.length > 0
-        ? photosCategorized.map((p) => p.url)
-        : await uploadPhotos();
+      const photos =
+        photosCategorized.length > 0 ? photosCategorized.map((p) => p.url) : await uploadPhotos();
       const photosCategorizedPayload =
         photosCategorized.length > 0 ? photosCategorized : undefined;
       const jobDetailsPayload = isCleaning ? jobDetails : undefined;
@@ -229,66 +241,71 @@ export default function NewRequestPage() {
   if (!ready) {
     return (
       <AppLayout mode="customer">
-        <div className="min-h-[40vh] flex items-center justify-center">
-          <p className="text-sm text-muted/70">Loading…</p>
-        </div>
+        <CustomerPageShell title="New Request" userName={userName}>
+          <div className="mx-auto flex min-h-[40vh] max-w-2xl items-center justify-center px-4">
+            <p className="text-sm text-text3">Loading…</p>
+          </div>
+        </CustomerPageShell>
       </AppLayout>
     );
   }
 
   return (
     <AppLayout mode="customer">
-      <div className="min-h-screen bg-[#F5F5F5]">
-        <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
-          <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-            <Link
-              href="/customer/requests"
-              className="text-sm font-medium text-black/70 hover:text-black"
-            >
-              ← Back
-            </Link>
-            <h1 className="text-xl font-semibold text-[#111]">New Request</h1>
-            <div className="w-14" />
-          </div>
-        </div>
+      <CustomerPageShell title="New Request" userName={userName}>
+        <div className="mx-auto min-w-0 w-full max-w-2xl px-3 pb-10 pt-2 sm:px-4">
+          <Link
+            href="/customer/requests"
+            className="inline-flex text-sm font-medium text-[hsl(var(--accent-customer))] hover:underline"
+          >
+            ← Back to requests
+          </Link>
 
-        <div className="max-w-2xl mx-auto px-4 py-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="mt-4 space-y-5">
             {error && (
-              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+              <div className="rounded-2xl border border-red-200/80 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
                 {error}
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-[#111] mb-1">Title *</label>
+              <label className={labelClass} htmlFor="req-title">
+                Title *
+              </label>
               <input
+                id="req-title"
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Sink leaking"
-                className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                className={fieldClass}
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#111] mb-1">Description</label>
+              <label className={labelClass} htmlFor="req-desc">
+                Description
+              </label>
               <textarea
+                id="req-desc"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe what you need..."
                 rows={3}
-                className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5] resize-none"
+                className={`${fieldClass} resize-none`}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#111] mb-1">Occupation *</label>
+              <label className={labelClass} htmlFor="req-occupation">
+                Occupation *
+              </label>
               <select
+                id="req-occupation"
                 value={serviceCategory}
                 onChange={(e) => setServiceCategory(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                className={fieldClass}
                 required
               >
                 <option value="">Select occupation</option>
@@ -304,35 +321,44 @@ export default function NewRequestPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-[#111] mb-1">Budget min ($)</label>
+                <label className={labelClass} htmlFor="req-budget-min">
+                  Budget min ($)
+                </label>
                 <input
+                  id="req-budget-min"
                   type="number"
                   min="0"
                   step="1"
                   value={budgetMin}
                   onChange={(e) => setBudgetMin(e.target.value)}
                   placeholder="80"
-                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                  className={fieldClass}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#111] mb-1">Budget max ($)</label>
+                <label className={labelClass} htmlFor="req-budget-max">
+                  Budget max ($)
+                </label>
                 <input
+                  id="req-budget-max"
                   type="number"
                   min="0"
                   step="1"
                   value={budgetMax}
                   onChange={(e) => setBudgetMax(e.target.value)}
                   placeholder="120"
-                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                  className={fieldClass}
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-[#111] mb-1">ZIP code *</label>
+                <label className={labelClass} htmlFor="req-zip">
+                  ZIP code *
+                </label>
                 <input
+                  id="req-zip"
                   type="text"
                   inputMode="numeric"
                   autoComplete="postal-code"
@@ -340,98 +366,112 @@ export default function NewRequestPage() {
                   value={locationZip}
                   onChange={(e) => setLocationZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
                   placeholder="e.g. 11212"
-                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                  className={fieldClass}
                   required
                 />
-                <p className="mt-1 text-xs text-black/50">Used so nearby pros can find your request.</p>
+                <p className="mt-1 text-xs text-[#6B7280] dark:text-white/55">
+                  Used so nearby pros can find your request.
+                </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#111] mb-1">Neighborhood (optional)</label>
+                <label className={labelClass} htmlFor="req-neighborhood">
+                  Neighborhood (optional)
+                </label>
                 <input
+                  id="req-neighborhood"
                   type="text"
                   value={locationNote}
                   onChange={(e) => setLocationNote(e.target.value)}
                   placeholder="e.g. East Flatbush"
-                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                  className={fieldClass}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-[#111] mb-1">Preferred date</label>
+                <label className={labelClass} htmlFor="req-date">
+                  Preferred date
+                </label>
                 <input
+                  id="req-date"
                   type="date"
                   value={preferredDate}
                   onChange={(e) => setPreferredDate(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                  className={fieldClass}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#111] mb-1">Preferred time</label>
+                <label className={labelClass} htmlFor="req-time">
+                  Preferred time
+                </label>
                 <input
+                  id="req-time"
                   type="text"
                   value={preferredTime}
                   onChange={(e) => setPreferredTime(e.target.value)}
                   placeholder="e.g. 2pm or Today"
-                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+                  className={fieldClass}
                 />
               </div>
             </div>
 
             {isCleaning ? (
               <>
-                <div className="p-4 rounded-xl bg-white border border-black/10">
-                  <h3 className="text-sm font-semibold text-[#111] mb-4">Job Details (required)</h3>
-                  <JobDetailsForm
-                    value={jobDetails}
-                    onChange={setJobDetails}
-                    errors={{}}
-                  />
+                <div className={sectionCardClass}>
+                  <h3 className="mb-4 text-sm font-semibold text-[#2d3436] dark:text-white">
+                    Job details (required)
+                  </h3>
+                  <JobDetailsForm value={jobDetails} onChange={setJobDetails} errors={{}} />
                 </div>
-                {priceEstimate && (
-                  <PriceEstimateCard estimate={priceEstimate} />
-                )}
-                <div className="p-4 rounded-xl bg-white border border-black/10">
+                {priceEstimate && <PriceEstimateCard estimate={priceEstimate} />}
+                <div className={sectionCardClass}>
                   <PhotoUploadGrid
                     photos={photosCategorized}
                     onChange={setPhotosCategorized}
                     onUpload={uploadPhoto}
                     minRequired={REQUIRED_PHOTO_MIN}
-                    errors={photosCategorized.length < REQUIRED_PHOTO_MIN && photosCategorized.length > 0 ? [`Add ${REQUIRED_PHOTO_MIN - photosCategorized.length} more photo(s)`] : []}
+                    errors={
+                      photosCategorized.length < REQUIRED_PHOTO_MIN &&
+                      photosCategorized.length > 0
+                        ? [`Add ${REQUIRED_PHOTO_MIN - photosCategorized.length} more photo(s)`]
+                        : []
+                    }
                   />
                 </div>
               </>
             ) : (
               <div>
-                <label className="block text-sm font-medium text-[#111] mb-1">
+                <label className={labelClass} htmlFor="req-photos">
                   Photos (min {REQUIRED_PHOTO_MIN} required)
                 </label>
-                <p className="text-xs text-black/50 mb-2">
-                  Add photos one at a time or several at once — each tap on &quot;Choose files&quot; adds to your list (up to {MAX_REQUEST_PHOTOS}).
+                <p className="mb-2 text-xs text-[#6B7280] dark:text-white/55">
+                  Add photos one at a time or several at once — each tap on &quot;Choose files&quot; adds to your list (up
+                  to {MAX_REQUEST_PHOTOS}).
                 </p>
                 <input
+                  id="req-photos"
                   type="file"
                   accept="image/*"
                   multiple
                   onChange={handleNonCleaningPhotosChange}
                   disabled={photoFiles.length >= MAX_REQUEST_PHOTOS}
-                  className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#B2FBA5] file:font-semibold file:text-black disabled:opacity-60"
+                  className={`${fieldClass} text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-[#FFB347] file:px-4 file:py-2 file:text-sm file:font-bold file:text-[#2d3436] disabled:opacity-60`}
                 />
                 {photoFiles.length > 0 && (
                   <ul className="mt-2 space-y-1">
                     {photoFiles.map((f, i) => (
                       <li
                         key={`${fileFingerprint(f)}-${i}`}
-                        className="flex items-center justify-between gap-2 text-xs text-black/70 bg-white border border-black/10 rounded-lg px-3 py-2"
+                        className="flex items-center justify-between gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-xs text-[#2d3436] dark:border-white/12 dark:bg-[#14161c] dark:text-white/80"
                       >
-                        <span className="truncate min-w-0" title={f.name}>
+                        <span className="min-w-0 truncate" title={f.name}>
                           {f.name}
                         </span>
                         <button
                           type="button"
                           onClick={() => removePhotoFileAt(i)}
-                          className="shrink-0 text-red-600 font-medium hover:underline"
+                          className="shrink-0 font-medium text-red-600 hover:underline dark:text-red-400"
                         >
                           Remove
                         </button>
@@ -440,7 +480,7 @@ export default function NewRequestPage() {
                   </ul>
                 )}
                 {photoFiles.length > 0 && (
-                  <p className="mt-1 text-xs text-black/60">
+                  <p className="mt-1 text-xs text-[#6B7280] dark:text-white/55">
                     {photoFiles.length} photo{photoFiles.length === 1 ? '' : 's'} selected
                     {photoFiles.length < REQUIRED_PHOTO_MIN &&
                       ` — add ${REQUIRED_PHOTO_MIN - photoFiles.length} more`}
@@ -449,17 +489,12 @@ export default function NewRequestPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full py-3 rounded-xl bg-[#B2FBA5] text-black font-semibold hover:opacity-95 disabled:opacity-60 transition-opacity"
-            >
-              {submitting ? 'Posting…' : 'Post Request'}
+            <button type="submit" disabled={submitting} className={primaryCtaClass}>
+              {submitting ? 'Posting…' : 'Post request'}
             </button>
           </form>
         </div>
-      </div>
-      <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} role="customer" userName={userName} />
+      </CustomerPageShell>
     </AppLayout>
   );
 }

@@ -90,7 +90,7 @@ export function PhotoUploadGrid({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-[#111]">
+        <p className="text-sm font-semibold text-[#2d3436] dark:text-white">
           Photos (min {minRequired} required)
         </p>
         {!meetsMin && totalCount > 0 && (
@@ -101,7 +101,7 @@ export function PhotoUploadGrid({
       </div>
 
       {errors.length > 0 && (
-        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+        <div className="rounded-2xl border border-red-200/80 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
           {errors.map((e, i) => (
             <p key={i}>{e}</p>
           ))}
@@ -112,14 +112,14 @@ export function PhotoUploadGrid({
         {photosByCategory.map((cat) => (
           <div
             key={cat.id}
-            className="rounded-xl border border-black/10 bg-white p-4 overflow-hidden"
+            className="overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-4 dark:border-white/12 dark:bg-[#14161c]"
           >
-            <p className="text-xs font-medium text-black/60 mb-2">{cat.label}</p>
+            <p className="mb-2 text-xs font-medium text-[#6B7280] dark:text-white/55">{cat.label}</p>
             <div className="space-y-2">
               {cat.items.map((p, idx) => {
                 const globalIdx = photos.findIndex((x) => x === p);
                 return (
-                  <div key={globalIdx} className="relative aspect-video rounded-lg overflow-hidden bg-[#F5F5F5]">
+                  <div key={globalIdx} className="relative aspect-video overflow-hidden rounded-lg bg-surface2 dark:bg-white/5">
                     <Image
                       src={p.url}
                       alt={cat.label}
@@ -145,7 +145,7 @@ export function PhotoUploadGrid({
                   type="button"
                   onClick={() => triggerUpload(cat.id)}
                   disabled={uploading}
-                  className="w-full aspect-video rounded-lg border-2 border-dashed border-black/20 flex items-center justify-center text-black/50 hover:border-[#B2FBA5] hover:text-[#B2FBA5] transition-colors disabled:opacity-50"
+                  className="flex aspect-video w-full items-center justify-center rounded-lg border-2 border-dashed border-[#E5E7EB] text-[#6B7280] transition-colors hover:border-[#4A69BD] hover:text-[#4A69BD] disabled:opacity-50 dark:border-white/20 dark:text-white/50 dark:hover:border-[#4A69BD] dark:hover:text-[#7B93D6]"
                 >
                   {uploading ? 'Uploading…' : '+ Add photo'}
                 </button>

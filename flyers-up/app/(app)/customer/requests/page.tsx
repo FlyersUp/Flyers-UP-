@@ -94,7 +94,7 @@ function RequestCard({
         <button
           type="button"
           onClick={() => onViewOffers(request.id)}
-          className="mt-3 w-full py-2 rounded-lg bg-[#B2FBA5] text-black font-semibold text-sm hover:opacity-95 transition-opacity"
+          className="mt-3 w-full rounded-full bg-[#FFB347] py-2.5 text-sm font-bold text-[#2d3436] shadow-[0_4px_16px_rgba(255,179,71,0.4)] transition-all hover:brightness-[1.02] active:scale-[0.99] dark:text-[#1a1a1a]"
         >
           View Offers
         </button>
@@ -203,7 +203,7 @@ export default function CustomerRequestsPage() {
             <h1 className="text-xl font-semibold text-[#111]">Demand Board</h1>
             <Link
               href="/customer/requests/new"
-              className="rounded-xl px-4 py-2 bg-[#B2FBA5] text-black font-semibold text-sm hover:opacity-95"
+              className="rounded-full bg-[#FFB347] px-4 py-2 text-sm font-bold text-[#2d3436] shadow-[0_4px_14px_rgba(255,179,71,0.4)] transition-all hover:brightness-[1.02] dark:text-[#1a1a1a]"
             >
               New Request
             </Link>
@@ -225,7 +225,7 @@ export default function CustomerRequestsPage() {
               </p>
               <Link
                 href="/customer/requests/new"
-                className="inline-block mt-4 px-6 py-2 rounded-xl bg-[#B2FBA5] text-black font-semibold hover:opacity-95"
+                className="mt-4 inline-block rounded-full bg-[#FFB347] px-6 py-2.5 font-bold text-[#2d3436] shadow-[0_4px_14px_rgba(255,179,71,0.4)] transition-all hover:brightness-[1.02] dark:text-[#1a1a1a]"
               >
                 Create Request
               </Link>

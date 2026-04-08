@@ -106,7 +106,7 @@ export function JobDetailsForm({ value, onChange, errors = {}, disabled }: JobDe
           value={value.cleaning_type ?? 'standard'}
           onChange={(e) => update('cleaning_type', e.target.value as CleaningType)}
           disabled={disabled}
-          className="w-full px-4 py-3 rounded-xl bg-[#F2F2F0] border border-black/10 text-[#111] focus:outline-none focus:ring-2 focus:ring-[#B2FBA5]"
+          className="w-full rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 text-[#2d3436] outline-none transition-colors focus:border-[#4A69BD] focus:ring-2 focus:ring-[#4A69BD]/25 dark:border-white/12 dark:bg-[#14161c] dark:text-white"
         >
           {CLEANING_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -128,9 +128,9 @@ export function JobDetailsForm({ value, onChange, errors = {}, disabled }: JobDe
                 checked={value.condition === c.value}
                 onChange={() => update('condition', c.value)}
                 disabled={disabled}
-                className="w-4 h-4 rounded-full border-black/20 text-[#B2FBA5] focus:ring-[#B2FBA5]"
+                className="h-4 w-4 rounded-full border-[#E5E7EB] text-[#4A69BD] focus:ring-[#4A69BD]/25 dark:border-white/20"
               />
-              <span className="text-sm text-[#111]">{c.label}</span>
+              <span className="text-sm text-[#2d3436] dark:text-white">{c.label}</span>
             </label>
           ))}
         </div>
@@ -143,9 +143,9 @@ export function JobDetailsForm({ value, onChange, errors = {}, disabled }: JobDe
             checked={value.pets ?? false}
             onChange={(e) => update('pets', e.target.checked)}
             disabled={disabled}
-            className="w-4 h-4 rounded border-black/20 text-[#B2FBA5] focus:ring-[#B2FBA5]"
+            className="h-4 w-4 rounded border-[#E5E7EB] text-[#4A69BD] focus:ring-[#4A69BD]/25 dark:border-white/20"
           />
-          <span className="text-sm font-medium text-[#111]">Pets in home</span>
+          <span className="text-sm font-medium text-[#2d3436] dark:text-white">Pets in home</span>
         </label>
       </div>
 
@@ -155,15 +155,15 @@ export function JobDetailsForm({ value, onChange, errors = {}, disabled }: JobDe
           {ADDONS.map((a) => (
             <label
               key={a.id}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-black/10 bg-white cursor-pointer hover:bg-[#F5F5F5]">
+              className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 transition-colors hover:border-[#4A69BD]/25 hover:bg-[#F5F6F8]/80 dark:border-white/12 dark:bg-[#14161c] dark:hover:bg-white/5">
               <input
                 type="checkbox"
                 checked={(value.addons ?? []).includes(a.id)}
                 onChange={() => toggleAddon(a.id)}
                 disabled={disabled}
-                className="w-4 h-4 rounded border-black/20 text-[#B2FBA5] focus:ring-[#B2FBA5]"
+                className="h-4 w-4 rounded border-[#E5E7EB] text-[#4A69BD] focus:ring-[#4A69BD]/25 dark:border-white/20"
               />
-              <span className="text-sm text-[#111]">{a.label}</span>
+              <span className="text-sm text-[#2d3436] dark:text-white">{a.label}</span>
             </label>
           ))}
         </div>

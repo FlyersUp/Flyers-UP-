@@ -10,33 +10,33 @@ export interface PriceEstimateCardProps {
 export function PriceEstimateCard({ estimate, className = '' }: PriceEstimateCardProps) {
   return (
     <div
-      className={`rounded-2xl border border-black/5 bg-white p-5 shadow-sm ${className}`}
+      className={`rounded-2xl border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)] ${className}`}
     >
-      <h3 className="text-sm font-medium text-[#6A6A6A] mb-3">AI Price Estimate</h3>
+      <h3 className="mb-3 text-sm font-semibold text-[#6B7280] dark:text-white/55">AI price estimate</h3>
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-[#3A3A3A]">Base (sq ft × $0.10)</span>
-          <span className="text-[#111111]">${estimate.breakdown.base_price.toFixed(2)}</span>
+          <span className="text-[#6B7280] dark:text-white/55">Base (sq ft × $0.10)</span>
+          <span className="text-[#2d3436] dark:text-white">${estimate.breakdown.base_price.toFixed(2)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#3A3A3A]">Bedrooms</span>
-          <span className="text-[#111111]">${estimate.breakdown.bedroom_cost.toFixed(2)}</span>
+          <span className="text-[#6B7280] dark:text-white/55">Bedrooms</span>
+          <span className="text-[#2d3436] dark:text-white">${estimate.breakdown.bedroom_cost.toFixed(2)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#3A3A3A]">Bathrooms</span>
-          <span className="text-[#111111]">${estimate.breakdown.bathroom_cost.toFixed(2)}</span>
+          <span className="text-[#6B7280] dark:text-white/55">Bathrooms</span>
+          <span className="text-[#2d3436] dark:text-white">${estimate.breakdown.bathroom_cost.toFixed(2)}</span>
         </div>
-        <div className="flex justify-between border-t border-black/5 pt-3 mt-3">
-          <span className="text-[#3A3A3A]">Subtotal</span>
-          <span className="text-[#111111]">${estimate.subtotal.toFixed(2)}</span>
+        <div className="mt-3 flex justify-between border-t border-[#E8EAED] pt-3 dark:border-white/10">
+          <span className="text-[#6B7280] dark:text-white/55">Subtotal</span>
+          <span className="text-[#2d3436] dark:text-white">${estimate.subtotal.toFixed(2)}</span>
         </div>
-        <div className="flex justify-between border-t border-black/5 pt-3 mt-3 font-semibold">
-          <span className="text-[#111111]">Suggested range</span>
-          <span className="text-[#111111]">
+        <div className="mt-3 flex justify-between border-t border-[#E8EAED] pt-3 font-semibold dark:border-white/10">
+          <span className="text-[#2d3436] dark:text-white">Suggested range</span>
+          <span className="text-[#2d3436] dark:text-white">
             ${estimate.estimate_low.toFixed(0)} – ${estimate.estimate_high.toFixed(0)}
           </span>
         </div>
-        <p className="text-xs text-black/50 mt-2">
+        <p className="mt-2 text-xs text-[#6B7280] dark:text-white/50">
           Pros may adjust the price based on their assessment.
         </p>
       </div>
