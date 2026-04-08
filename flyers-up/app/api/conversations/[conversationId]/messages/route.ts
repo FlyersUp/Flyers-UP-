@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
+import { messageLimiter } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,12 @@ export async function POST(
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const { success } = await messageLimiter.limit(`msg:${user.id}:${ip}`);
+    if (!success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
 
     const { conversationId } = await params;
     if (!conversationId) return NextResponse.json({ error: 'conversationId required' }, { status: 400 });

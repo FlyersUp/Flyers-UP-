@@ -4,6 +4,7 @@ export const preferredRegion = ['cle1'];
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
+import { legalLimiter } from '@/lib/rate-limit';
 
 function getClientIp(req: NextRequest): string | null {
   // Prefer proxy header (Vercel/most CDNs). Take first IP if multiple.
@@ -49,6 +50,12 @@ export async function POST(req: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ ok: false, error: 'Not authenticated' }, { status: 401 });
+  }
+
+  const ipForLimit = getClientIp(req) || 'unknown';
+  const { success: withinLegalLimit } = await legalLimiter.limit(`legal:${user.id}:${ipForLimit}`);
+  if (!withinLegalLimit) {
+    return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 });
   }
 
   let payload: { termsVersion?: string } | null = null;

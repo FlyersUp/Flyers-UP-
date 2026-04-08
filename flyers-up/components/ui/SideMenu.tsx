@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { supabase } from '@/lib/supabaseClient';
@@ -252,6 +253,11 @@ export function SideMenu({
     email: null,
     idShort: null,
   });
+  const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setPortalEl(document.body);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -325,7 +331,7 @@ export function SideMenu({
     router.replace('/');
   }
 
-  return (
+  const overlay = (
     <div
       className={`fixed inset-0 z-[110] ${open ? 'visible pointer-events-auto' : 'invisible pointer-events-none'}`}
       aria-hidden={!open}
@@ -342,16 +348,16 @@ export function SideMenu({
         aria-label={t('sidebar.closeMenu')}
       />
 
-      {/* Drawer panel - left-side slide-in */}
+      {/* Drawer panel - left-side slide-in (portaled to body so z-index clears AppLayout's z-[1] trap vs FloatingBottomNav z-50) */}
       <aside
-        className={`fixed left-0 top-0 z-[111] h-dvh w-[86%] max-w-[430px] flex flex-col shadow-[var(--shadow-md)] transition-transform duration-300 ease-out
-          bg-surface text-text border-r border-border`}
+        className={`fixed left-0 top-0 z-[111] flex h-[100dvh] max-h-[100dvh] min-h-0 w-[86%] max-w-[430px] flex-col shadow-[var(--shadow-md)] transition-transform duration-300 ease-out
+          bg-surface text-text border-r border-border safe-area-x`}
         style={{
           transform: open ? 'translateX(0)' : 'translateX(-100%)',
         }}
       >
         {/* Fixed header */}
-        <div className="flex-shrink-0 border-b border-border px-6 py-6">
+        <div className="flex-shrink-0 border-b border-border px-6 py-6 safe-area-top">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <h2 className="text-[1.9rem] font-semibold tracking-[-0.02em] text-text truncate">
@@ -379,8 +385,8 @@ export function SideMenu({
           </div>
         </div>
 
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-4">
+        {/* Scrollable content — bottom pad matches FloatingBottomNav + safe area (see globals --fu-content-pad-below-nav) */}
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-6 py-4 pb-[var(--fu-content-pad-below-nav)]">
           {guidance?.showIncompletePlatformSetupInNav &&
             guidance.incompletePlatformSetupHref && (
               <div
@@ -425,7 +431,7 @@ export function SideMenu({
           )}
         </div>
 
-        {/* Footer with Messages + Logout */}
+        {/* Footer with Messages + Logout — inset for home indicator; nav clearance is in scroll padding above */}
         <div className="flex-shrink-0 border-t border-border px-6 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))]">
           <div className="flex items-center justify-between gap-3">
             <Link
@@ -446,4 +452,7 @@ export function SideMenu({
       </aside>
     </div>
   );
+
+  if (!portalEl) return null;
+  return createPortal(overlay, portalEl);
 }

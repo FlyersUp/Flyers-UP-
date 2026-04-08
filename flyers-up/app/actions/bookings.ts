@@ -26,6 +26,8 @@ import { isServiceProBookableByCustomers } from '@/lib/pro/pro-bookability';
 import { applyMinimumBookingSubtotal } from '@/lib/pricing/config';
 import { computeMarketplaceFees, resolveMarketplacePricingVersionForBooking } from '@/lib/pricing/fees';
 import { getSuggestedPriceCents } from '@/lib/pricing/suggestions';
+import { bookingLimiter } from '@/lib/rate-limit';
+import { headers } from 'next/headers';
 
 type BookingStatus = 'requested' | 'accepted' | 'declined' | 'completed' | 'cancelled';
 
@@ -69,6 +71,13 @@ export async function createBookingWithPayment(
     }
     if ((profile as { account_status?: string }).account_status !== 'active') {
       return { success: false, error: 'Your account is deactivated. Reactivate to book services.' };
+    }
+
+    const h = await headers();
+    const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const { success: withinBookingLimit } = await bookingLimiter.limit(`booking:${user.id}:${ip}`);
+    if (!withinBookingLimit) {
+      return { success: false, error: 'Too many requests. Please try again shortly.' };
     }
 
     // 2) Validate pro exists + get pricing context.

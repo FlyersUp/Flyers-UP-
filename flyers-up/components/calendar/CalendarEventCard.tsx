@@ -3,21 +3,13 @@
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import type { CalendarEvent } from '@/lib/calendar/event-from-booking';
+import { formatCalendarEventStatus } from '@/lib/schedule/formatEventStatus';
 
 type Props = {
   event: CalendarEvent;
   mode: 'pro' | 'customer';
   compact?: boolean;
 };
-
-function formatStatus(s: string): string {
-  const lower = (s || '').toLowerCase();
-  if (lower === 'deposit_paid') return 'Deposit paid';
-  if (lower === 'in_progress') return 'In progress';
-  if (lower === 'accepted' || lower === 'scheduled') return 'Scheduled';
-  if (lower.includes('awaiting')) return 'Awaiting';
-  return s.replace(/_/g, ' ');
-}
 
 export function CalendarEventCard({ event, mode, compact }: Props) {
   const otherParty = mode === 'pro' ? event.customerName : event.proDisplayName;
@@ -38,7 +30,7 @@ export function CalendarEventCard({ event, mode, compact }: Props) {
                 <div className="text-sm text-muted mt-1 truncate">{event.address}</div>
               )}
               <span className="inline-block mt-2 px-2 py-0.5 rounded-full text-xs font-medium bg-surface2 text-text2">
-                {formatStatus(event.status)}
+                {formatCalendarEventStatus(event.status)}
               </span>
             </div>
             {event.price != null && event.price > 0 && (
