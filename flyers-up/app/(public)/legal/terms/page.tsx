@@ -142,7 +142,7 @@ export default function LegalTermsPage() {
         </p>
         <p>
           <span className="font-medium">Opt-Out:</span> You may opt out of arbitration within 30 days of account creation by
-          emailing hello.flyersup@gmail.com with your name, account email, and a clear request to opt out of arbitration.
+          emailing support@flyersup.app with your name, account email, and a clear request to opt out of arbitration.
         </p>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 12 — Governing Law</h2>
@@ -168,7 +168,7 @@ export default function LegalTermsPage() {
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 15 — Contact</h2>
         <p>
-          Flyers Up LLC — hello.flyersup@gmail.com
+          Flyers Up LLC — support@flyersup.app
         </p>
         <p className="text-muted">Mailing Address: c/o Registered Agent (mailing address on file)</p>
       </div>

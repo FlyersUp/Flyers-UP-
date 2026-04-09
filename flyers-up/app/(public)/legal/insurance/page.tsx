@@ -86,7 +86,7 @@ export default function InsurancePage() {
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 9 — Contact</h2>
         <p>
-          Questions about this policy: Flyers Up LLC — hello.flyersup@gmail.com
+          Questions about this policy: Flyers Up LLC — support@flyersup.app
         </p>
         <p className="text-muted">
           For insurance coverage, consult a licensed insurance professional. Flyers Up does not provide insurance advice.

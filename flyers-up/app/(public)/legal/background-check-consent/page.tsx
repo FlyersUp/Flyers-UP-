@@ -129,7 +129,7 @@ export default function BackgroundCheckConsentPage() {
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 11 — Contact</h2>
         <p>
-          Questions regarding this Policy or screening may be directed to: Flyers Up LLC — hello.flyersup@gmail.com
+          Questions regarding this Policy or screening may be directed to: Flyers Up LLC — support@flyersup.app
         </p>
       </div>
     </LegalPageShell>

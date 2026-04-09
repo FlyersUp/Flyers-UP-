@@ -6,6 +6,9 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
+    "cap:sync": "npx cap sync",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android",
     "lint": "eslint",
     "generate-icons": "node scripts/generate-app-icons.js",
     "generate-maskable": "node scripts/generate-maskable-icon.js",
@@ -14,6 +17,10 @@
     "test:integration": "INTEGRATION_TEST=1 npx tsx --test lib/bookings/__tests__/integration.test.ts"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
+    "@capacitor/ios": "^8.3.0",
     "@next/third-parties": "^16.2.2",
     "@stripe/react-stripe-js": "^5.6.0",
     "@stripe/stripe-js": "^8.6.0",

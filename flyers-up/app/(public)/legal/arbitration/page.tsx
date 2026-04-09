@@ -30,7 +30,7 @@ export default function ArbitrationPage() {
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 1 — Informal Resolution</h2>
         <p>
-          Before initiating arbitration, you agree to contact us at hello.flyersup@gmail.com and attempt to resolve the
+          Before initiating arbitration, you agree to contact us at support@flyersup.app and attempt to resolve the
           dispute informally. We will attempt to resolve the dispute within 30 days. If the dispute is not resolved
           within 30 days, either party may proceed to arbitration as set forth below.
         </p>
@@ -77,7 +77,7 @@ export default function ArbitrationPage() {
         <p>
           You may opt out of this arbitration agreement within 30 days of the date you first accepted the Terms of Service
           (or, if you are a Pro, the date you first accepted the Independent Contractor Agreement). To opt out, you must
-          send a written notice to hello.flyersup@gmail.com that includes: (a) your name; (b) your account email; (c)
+          send a written notice to support@flyersup.app that includes: (a) your name; (b) your account email; (c)
           your mailing address; and (d) a clear statement that you opt out of the arbitration agreement. You may also
           mail written notice to our registered agent. If you validly opt out, the arbitration agreement will not apply
           to you, but the rest of the Terms will remain in effect.
@@ -98,7 +98,7 @@ export default function ArbitrationPage() {
         </p>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 9 — Contact</h2>
-        <p>Flyers Up LLC — hello.flyersup@gmail.com</p>
+        <p>Flyers Up LLC — support@flyersup.app</p>
       </div>
     </LegalPageShell>
   );

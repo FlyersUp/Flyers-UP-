@@ -8,6 +8,13 @@ import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/sup
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { messageLimiter } from '@/lib/rate-limit';
+import { rejectIfMessagingBlocked } from '@/lib/messaging/blockEnforcement';
+import {
+  CHAT_MESSAGE_ERROR_CODES,
+  RECIPIENT_INACTIVE_MESSAGE,
+  normalizeChatMessageBody,
+} from '@/lib/messaging/chat-message-errors';
+import { isProfileActiveForOperations } from '@/lib/account/lifecycle';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,7 +31,10 @@ export async function POST(
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     const { success } = await messageLimiter.limit(`msg:${user.id}:${ip}`);
     if (!success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+      return NextResponse.json(
+        { error: 'Too many requests', code: CHAT_MESSAGE_ERROR_CODES.RATE_LIMITED },
+        { status: 429 }
+      );
     }
 
     const { conversationId } = await params;
@@ -37,7 +47,8 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
 
-    const message = typeof body.message === 'string' ? body.message.trim() : '';
+    const message =
+      typeof body.message === 'string' ? normalizeChatMessageBody(body.message) : '';
     if (!message) return NextResponse.json({ error: 'message required' }, { status: 400 });
 
     const admin = createAdminSupabaseClient();
@@ -64,6 +75,28 @@ export async function POST(
     }
 
     const actualSenderRole = isCustomer ? 'customer' : 'pro';
+    const otherUserId = actualSenderRole === 'customer' ? proUserId : conv.customer_id;
+    if (otherUserId) {
+      const { data: otherProfile } = await admin
+        .from('profiles')
+        .select('account_status')
+        .eq('id', otherUserId)
+        .maybeSingle();
+      const st = (otherProfile as { account_status?: string | null } | null)?.account_status;
+      if (!isProfileActiveForOperations(st)) {
+        return NextResponse.json(
+          { error: RECIPIENT_INACTIVE_MESSAGE, code: CHAT_MESSAGE_ERROR_CODES.RECIPIENT_INACTIVE },
+          { status: 403 }
+        );
+      }
+    }
+    const blockedRes = await rejectIfMessagingBlocked(
+      admin,
+      user.id,
+      otherUserId,
+      'POST /api/conversations/[id]/messages'
+    );
+    if (blockedRes) return blockedRes;
 
     const { data: msg, error: insertErr } = await admin
       .from('conversation_messages')

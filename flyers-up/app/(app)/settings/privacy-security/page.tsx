@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { changePassword } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { TrustRow } from '@/components/ui/TrustRow';
+import { OFFICIAL_SUPPORT_EMAIL_DISPLAY } from '@/lib/support/official-contact';
 
 const DEACTIVATE_CONFIRM_PHRASE = 'DEACTIVATE MY ACCOUNT';
 
@@ -350,8 +351,8 @@ export default function PrivacySecurityPage() {
             <p className="mb-2">This account has been permanently deleted and anonymized.</p>
             <p className="text-muted text-xs">
               Questions? Contact{' '}
-              <a className="text-accent underline" href="mailto:support@flyersup.app">
-                support@flyersup.app
+              <a className="text-accent underline" href={`mailto:${OFFICIAL_SUPPORT_EMAIL_DISPLAY}`}>
+                {OFFICIAL_SUPPORT_EMAIL_DISPLAY}
               </a>
               .
             </p>
@@ -397,8 +398,8 @@ export default function PrivacySecurityPage() {
             </p>
             <p className="text-xs text-muted">
               Payment, payout, and tax records are retained. For data export questions, contact{' '}
-              <a className="text-accent underline" href="mailto:support@flyersup.app">
-                support@flyersup.app
+              <a className="text-accent underline" href={`mailto:${OFFICIAL_SUPPORT_EMAIL_DISPLAY}`}>
+                {OFFICIAL_SUPPORT_EMAIL_DISPLAY}
               </a>
               .
             </p>

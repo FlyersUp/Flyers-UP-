@@ -8,6 +8,11 @@ import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/sup
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
+import {
+  getBookingMessagingParties,
+  otherPartyUserIdForBooking,
+  rejectIfMessagingBlocked,
+} from '@/lib/messaging/blockEnforcement';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -60,6 +65,19 @@ export async function POST(
   if (priceStatus !== 'quoted') {
     return NextResponse.json({ error: 'No quote to counter' }, { status: 409 });
   }
+
+  const parties = await getBookingMessagingParties(admin, {
+    customer_id: booking.customer_id as string,
+    pro_id: booking.pro_id as string,
+  });
+  if (!parties) return NextResponse.json({ error: 'Invalid booking' }, { status: 500 });
+  const blockedRes = await rejectIfMessagingBlocked(
+    admin,
+    user.id,
+    otherPartyUserIdForBooking(parties, user.id),
+    'POST /api/bookings/[id]/counter'
+  );
+  if (blockedRes) return blockedRes;
 
   const round = ((booking as { negotiation_round?: number }).negotiation_round ?? 0) + 1;
   if (round > MAX_ROUNDS) {

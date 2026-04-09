@@ -133,7 +133,7 @@ export default function DataProcessingAgreementPage() {
           <li><span className="font-medium">Objection:</span> Object to Processing based on legitimate interests or for direct marketing</li>
         </ul>
         <p>
-          To exercise these rights, contact hello.flyersup@gmail.com. We will respond within the timeframes required by
+          To exercise these rights, contact support@flyersup.app. We will respond within the timeframes required by
           applicable law. We may require verification of identity before processing requests. You may also have the
           right to lodge a complaint with a supervisory authority in your jurisdiction.
         </p>
@@ -197,7 +197,7 @@ export default function DataProcessingAgreementPage() {
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 14 — Contact</h2>
         <p>
           Questions regarding this DPA or our data processing practices may be directed to: Flyers Up LLC —
-          hello.flyersup@gmail.com
+          support@flyersup.app
         </p>
       </div>
     </LegalPageShell>

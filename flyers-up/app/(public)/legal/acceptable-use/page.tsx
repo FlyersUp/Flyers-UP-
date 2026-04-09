@@ -94,7 +94,10 @@ export default function AcceptableUsePage() {
         </p>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 10 — Contact</h2>
-        <p>To report violations: Flyers Up LLC — hello.flyersup@gmail.com</p>
+        <p>
+          To report platform abuse: sign in and use in-app reporting where available, email Flyers Up LLC at
+          support@flyersup.app, or submit a signed-in support ticket from <Link href="/support" className="underline hover:text-text">/support</Link>. Flyers Up does not guarantee response times or outcomes.
+        </p>
       </div>
     </LegalPageShell>
   );

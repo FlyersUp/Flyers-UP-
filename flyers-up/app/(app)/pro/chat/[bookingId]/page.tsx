@@ -10,6 +10,13 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { BookingChatThread, type ChatItem } from '@/components/chat/BookingChatThread';
+import { ReportUserBlockUser } from '@/components/moderation/ReportUserBlockUser';
+import { useYouBlockedOtherUser } from '@/hooks/useYouBlockedOtherUser';
+import { YouBlockedUserBanner } from '@/components/moderation/YouBlockedUserBanner';
+import {
+  CHAT_SEND_DEFAULT_ERROR_HINT,
+  hintFromChatMessageApiError,
+} from '@/lib/messaging/chat-message-send-hint';
 
 /**
  * Pro Chat - messages + quote cards, send quote / accept budget
@@ -24,11 +31,14 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
   const [customerBudget, setCustomerBudget] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [customerName, setCustomerName] = useState<string>('Customer');
+  const [customerUserId, setCustomerUserId] = useState<string | null>(null);
   const [isInquiry, setIsInquiry] = useState(false);
   const [quoteAmount, setQuoteAmount] = useState('');
   const [quoteMessage, setQuoteMessage] = useState('');
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const [sendHint, setSendHint] = useState<string | null>(null);
   const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
+  const { youBlocked, loading: blockLoading, unblock } = useYouBlockedOtherUser(customerUserId);
 
   useEffect(() => {
     clearMessagesAlert();
@@ -52,6 +62,7 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
       (b?.notes?.includes('Contact request') ?? false)
     );
     const custId = (booking as { customer_id?: string })?.customer_id;
+    setCustomerUserId(custId ?? null);
     if (custId) {
       const { data: profile } = await supabase
         .from('profiles')
@@ -107,6 +118,7 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
   }, [bookingId]);
 
   const handleSendQuote = async (amount: number, msg?: string) => {
+    if (youBlocked) return;
     const res = await fetch(`/api/bookings/${bookingId}/quote`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -121,6 +133,7 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
   };
 
   const handleAcceptBudget = async () => {
+    if (youBlocked) return;
     if (customerBudget == null || customerBudget <= 0) return;
     setQuoteLoading(true);
     try {
@@ -162,15 +175,30 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
           <div className="w-10 h-10 rounded-full bg-surface2 flex items-center justify-center">
             <span className="text-muted">P</span>
           </div>
-          <div className="flex-1">
-            <div className="font-semibold text-text">{customerName}</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-text truncate">{customerName}</div>
             {isInquiry ? (
               <span className="text-xs text-muted">Inquiry – questions only, no booking yet</span>
             ) : (
               <Badge variant="highlight">{status.replaceAll('_', ' ').toUpperCase()}</Badge>
             )}
           </div>
+          {customerUserId ? (
+            <ReportUserBlockUser
+              targetUserId={customerUserId}
+              targetDisplayName={customerName}
+              bookingId={bookingId}
+              variant="menu"
+            />
+          ) : null}
         </div>
+
+        <YouBlockedUserBanner
+          youBlocked={youBlocked}
+          loading={blockLoading}
+          onUnblock={unblock}
+          partyLabel="this customer"
+        />
 
         {isInquiry && (
           <div className="mx-4 mb-2 px-3 py-2 rounded-lg bg-surface2 border border-[var(--surface-border)] text-sm text-muted">
@@ -186,7 +214,7 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
                 <p className="text-sm font-medium text-[#111]">Customer budget: ${customerBudget!.toFixed(2)}</p>
                 <Button
                   onClick={handleAcceptBudget}
-                  disabled={quoteLoading}
+                  disabled={quoteLoading || youBlocked}
                   showArrow={false}
                   className="mt-2 px-4 py-2 text-sm bg-[#FFC067] text-black"
                 >
@@ -213,6 +241,7 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
                 />
                 <Button
                   onClick={async () => {
+                    if (youBlocked) return;
                     const amt = parseFloat(quoteAmount);
                     if (!Number.isFinite(amt) || amt < 0) return;
                     setQuoteLoading(true);
@@ -224,7 +253,7 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
                       setQuoteLoading(false);
                     }
                   }}
-                  disabled={quoteLoading}
+                  disabled={quoteLoading || youBlocked}
                   showArrow={false}
                   className="px-4 py-2 text-sm bg-[#FFC067] text-black"
                 >
@@ -260,24 +289,40 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
           )}
         </div>
 
+        {sendHint ? (
+          <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-800 text-sm text-amber-900 dark:text-amber-100">
+            {sendHint}
+          </div>
+        ) : null}
+
         {!isInquiry && (
           <div className="px-4 py-2 flex flex-wrap gap-2 bg-surface border-t border-[var(--surface-border)]">
             {['On my way', 'Running 10 minutes late', 'Need access instructions', 'Job finished'].map((preset) => (
               <button
                 key={preset}
                 type="button"
+                disabled={youBlocked}
                 onClick={async () => {
-                  const { data: { user } } = await supabase.auth.getUser();
-                  if (!user) return;
-                  await supabase.from('booking_messages').insert({
-                    booking_id: bookingId,
-                    sender_id: user.id,
-                    sender_role: 'pro',
-                    message: preset,
-                  });
-                  await load();
+                  if (youBlocked) return;
+                  setSendHint(null);
+                  try {
+                    const res = await fetch(`/api/bookings/${bookingId}/messages`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ message: preset }),
+                      credentials: 'same-origin',
+                    });
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => ({}));
+                      setSendHint(hintFromChatMessageApiError(data));
+                      return;
+                    }
+                    await load();
+                  } catch {
+                    setSendHint(CHAT_SEND_DEFAULT_ERROR_HINT);
+                  }
                 }}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#FFC067]/30 text-gray-800 border border-amber-200 hover:bg-[#FFC067]/50 transition-colors"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#FFC067]/30 text-gray-800 border border-amber-200 hover:bg-[#FFC067]/50 transition-colors disabled:opacity-40 disabled:pointer-events-none"
               >
                 {preset}
               </button>
@@ -292,22 +337,32 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               className="flex-1"
+              disabled={youBlocked}
             />
             <Button
               onClick={async () => {
                 const text = message.trim();
-                if (!text) return;
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
-                await supabase.from('booking_messages').insert({
-                  booking_id: bookingId,
-                  sender_id: user.id,
-                  sender_role: 'pro',
-                  message: text,
-                });
-                setMessage('');
-                await load();
+                if (!text || youBlocked) return;
+                setSendHint(null);
+                try {
+                  const res = await fetch(`/api/bookings/${bookingId}/messages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text }),
+                    credentials: 'same-origin',
+                  });
+                  if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    setSendHint(hintFromChatMessageApiError(data));
+                    return;
+                  }
+                  setMessage('');
+                  await load();
+                } catch {
+                  setSendHint(CHAT_SEND_DEFAULT_ERROR_HINT);
+                }
               }}
+              disabled={youBlocked}
               showArrow={false}
             >
               Send

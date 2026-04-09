@@ -93,7 +93,7 @@ export default function SecurityPage() {
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 10 — Contact</h2>
         <p>
-          To report a security concern: Flyers Up LLC — hello.flyersup@gmail.com
+          To report a security concern: Flyers Up LLC — support@flyersup.app
         </p>
       </div>
     </LegalPageShell>

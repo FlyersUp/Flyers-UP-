@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Button } from '@/components/ui/Button';
 import { TrustRow } from '@/components/ui/TrustRow';
+import { OFFICIAL_SUPPORT_EMAIL_DISPLAY } from '@/lib/support/official-contact';
 
 export default function CustomerRatingsReviewsSettingsPage() {
   const [note, setNote] = useState('');
@@ -73,7 +74,7 @@ export default function CustomerRatingsReviewsSettingsPage() {
             <div className="flex justify-end">
               <a
                 className="inline-block"
-                href={`mailto:support@flyersup.app?subject=${encodeURIComponent('Ratings & Reviews request')}&body=${encodeURIComponent(note)}`}
+                href={`mailto:${OFFICIAL_SUPPORT_EMAIL_DISPLAY}?subject=${encodeURIComponent('Ratings & Reviews request')}&body=${encodeURIComponent(note)}`}
               >
                 <Button type="button" showArrow={false}>
                   Email support

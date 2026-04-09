@@ -12,6 +12,9 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { useConversationPresence } from '@/hooks/useConversationPresence';
+import { ReportUserBlockUser } from '@/components/moderation/ReportUserBlockUser';
+import { useYouBlockedOtherUser } from '@/hooks/useYouBlockedOtherUser';
+import { YouBlockedUserBanner } from '@/components/moderation/YouBlockedUserBanner';
 
 export default function ProConversationChat({ params }: { params: Promise<{ conversationId: string }> }) {
   const { conversationId } = use(params);
@@ -20,7 +23,10 @@ export default function ProConversationChat({ params }: { params: Promise<{ conv
   const [rows, setRows] = useState<Array<{ id: string; sender_role: string; message: string; created_at: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [customerName, setCustomerName] = useState<string>('Customer');
+  const [customerUserId, setCustomerUserId] = useState<string | null>(null);
+  const [sendHint, setSendHint] = useState<string | null>(null);
   const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
+  const { youBlocked, loading: blockLoading, unblock } = useYouBlockedOtherUser(customerUserId);
 
   useEffect(() => {
     clearMessagesAlert();
@@ -35,6 +41,7 @@ export default function ProConversationChat({ params }: { params: Promise<{ conv
       .eq('id', conversationId)
       .maybeSingle();
     const custId = (conv as { customer_id?: string })?.customer_id;
+    setCustomerUserId(custId ?? null);
     if (custId) {
       const { data: profile } = await supabase
         .from('profiles')
@@ -71,11 +78,25 @@ export default function ProConversationChat({ params }: { params: Promise<{ conv
           <div className="w-10 h-10 rounded-full bg-surface2 flex items-center justify-center">
             <span className="text-muted">P</span>
           </div>
-          <div className="flex-1">
-            <div className="font-semibold text-text">{customerName}</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-text truncate">{customerName}</div>
             <span className="text-xs text-muted">Inquiry – questions only, no booking yet</span>
           </div>
+          {customerUserId ? (
+            <ReportUserBlockUser
+              targetUserId={customerUserId}
+              targetDisplayName={customerName}
+              variant="menu"
+            />
+          ) : null}
         </div>
+
+        <YouBlockedUserBanner
+          youBlocked={youBlocked}
+          loading={blockLoading}
+          onUnblock={unblock}
+          partyLabel="this customer"
+        />
 
         <div className="mx-4 mb-2 px-3 py-2 rounded-lg bg-surface2 border border-[var(--surface-border)] text-sm text-muted">
           Customer is asking questions. They can start a booking when they&apos;re ready.
@@ -119,6 +140,10 @@ export default function ProConversationChat({ params }: { params: Promise<{ conv
           )}
         </div>
 
+        {sendHint ? (
+          <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 text-sm text-amber-900">{sendHint}</div>
+        ) : null}
+
         <div className="bg-surface border-t border-[var(--surface-border)] px-4 py-4">
           <div className="flex gap-2">
             <Input
@@ -126,20 +151,27 @@ export default function ProConversationChat({ params }: { params: Promise<{ conv
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               className="flex-1"
+              disabled={youBlocked}
             />
             <Button
               onClick={async () => {
                 const text = message.trim();
-                if (!text) return;
+                if (!text || youBlocked) return;
+                setSendHint(null);
                 const res = await fetch(`/api/conversations/${conversationId}/messages`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ message: text }),
                 });
-                if (!res.ok) return;
+                if (!res.ok) {
+                  const data = await res.json().catch(() => ({}));
+                  setSendHint(typeof data?.error === 'string' ? data.error : 'Could not send message');
+                  return;
+                }
                 setMessage('');
                 await load();
               }}
+              disabled={youBlocked}
               showArrow={false}
             >
               Send

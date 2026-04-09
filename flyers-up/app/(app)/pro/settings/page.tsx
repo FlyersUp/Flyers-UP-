@@ -52,6 +52,7 @@ export default function ProSettingsIndex() {
     {
       title: 'Legal & Trust',
       rows: [
+        { label: 'Privacy, terms & support', href: '/support' },
         { label: 'Privacy policy', href: '/pro/settings/support-legal' },
         { label: 'Terms', href: '/pro/settings/support-legal' },
         { label: 'Dispute policy', href: '/pro/settings/support-legal' },

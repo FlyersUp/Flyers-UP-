@@ -54,6 +54,7 @@ export default function CustomerSettings() {
     {
       title: 'Legal & Trust',
       rows: [
+        { label: 'Privacy, terms & support', href: '/support' },
         { label: 'Privacy policy', href: '/customer/settings/support-legal' },
         { label: 'Terms', href: '/customer/settings/support-legal' },
         { label: 'Dispute policy', href: '/customer/settings/support-legal' },

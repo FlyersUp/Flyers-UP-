@@ -7,7 +7,8 @@ import { SettingsCard } from '@/components/settings/SettingsCard';
 import { SectionHeader } from '@/components/settings/SectionHeader';
 import { LegalLinksList } from '@/components/settings/LegalLinksList';
 import { SupportMessageForm } from '@/components/settings/SupportMessageForm';
-import { Mail, HelpCircle, AlertCircle } from 'lucide-react';
+import { Mail, HelpCircle, AlertCircle, Globe } from 'lucide-react';
+import { OFFICIAL_SUPPORT_EMAIL_DISPLAY } from '@/lib/support/official-contact';
 
 export default function CustomerSupportLegalPage() {
   const messageFormRef = useRef<HTMLDivElement>(null);
@@ -33,14 +34,25 @@ export default function CustomerSupportLegalPage() {
           <SettingsCard>
             <SectionHeader label="Quick help" />
             <div className="space-y-2">
+              <Link
+                href="/support"
+                className="flex items-center gap-3 p-4 rounded-xl border border-black/5 hover:bg-black/[0.02] hover:border-black/10 transition-colors"
+              >
+                <Globe size={20} className="text-muted shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-text">Privacy, terms & support</div>
+                  <div className="text-xs text-muted">Full support page — FAQs, policies, and contact</div>
+                </div>
+                <span className="text-muted text-xs">→</span>
+              </Link>
               <a
-                href="mailto:support@flyersup.app?subject=Flyers%20Up%20Support%20(Customer)"
+                href={`mailto:${OFFICIAL_SUPPORT_EMAIL_DISPLAY}?subject=${encodeURIComponent('Flyers Up Support (Customer)')}`}
                 className="flex items-center gap-3 p-4 rounded-xl border border-black/5 hover:bg-black/[0.02] hover:border-black/10 transition-colors"
               >
                 <Mail size={20} className="text-muted shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-text">Contact support</div>
-                  <div className="text-xs text-muted">support@flyersup.app</div>
+                  <div className="text-xs text-muted">{OFFICIAL_SUPPORT_EMAIL_DISPLAY}</div>
                 </div>
                 <span className="text-muted text-xs">→</span>
               </a>
@@ -82,11 +94,14 @@ export default function CustomerSupportLegalPage() {
             <div className="space-y-2 text-sm">
               <p>
                 <span className="font-medium text-text">Email:</span>{' '}
-                <a href="mailto:support@flyersup.app" className="text-accent hover:underline">
-                  support@flyersup.app
+                <a href={`mailto:${OFFICIAL_SUPPORT_EMAIL_DISPLAY}`} className="text-accent hover:underline">
+                  {OFFICIAL_SUPPORT_EMAIL_DISPLAY}
                 </a>
               </p>
-              <p className="text-muted">Typically within 24 hours</p>
+              <p className="text-muted">
+                Tickets are saved to our tools; optional email alerts may fire when configured. We do not guarantee
+                response times.
+              </p>
             </div>
           </SettingsCard>
 

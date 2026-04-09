@@ -66,8 +66,8 @@ export function MarketingFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/signin" className="hover:text-market-slate">
-                  Contact
+                <Link href="/support" className="hover:text-market-slate">
+                  Support
                 </Link>
               </li>
               <li>

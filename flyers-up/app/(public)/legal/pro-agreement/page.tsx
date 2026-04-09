@@ -121,7 +121,7 @@ export default function ProAgreementPage() {
         </p>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 13 — Contact</h2>
-        <p>Flyers Up LLC — hello.flyersup@gmail.com</p>
+        <p>Flyers Up LLC — support@flyersup.app</p>
       </div>
     </LegalPageShell>
   );

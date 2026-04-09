@@ -15,6 +15,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import type { UpdateServiceProParams } from '@/lib/api';
 import { requireProUser } from '@/app/actions/_auth';
 import { createAuthedSupabaseClient } from '@/lib/authedSupabaseServer';
+import { getSupportInboxEmail } from '@/lib/support/official-contact';
 
 export async function updateMyServiceProAction(
   params: UpdateServiceProParams,
@@ -35,7 +36,7 @@ export async function updateMyServiceProAction(
     if ((acct as { account_status?: string | null } | null)?.account_status !== 'active') {
       return {
         success: false,
-        error: 'Your pro account is closed. Contact support@flyersup.app if you need help.',
+        error: `Your pro account is closed. Contact ${getSupportInboxEmail()} if you need help.`,
       };
     }
 

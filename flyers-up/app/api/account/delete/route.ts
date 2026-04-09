@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { stripe } from '@/lib/stripe';
+import { getSupportInboxEmail } from '@/lib/support/official-contact';
 
 const CONFIRM_PHRASE = 'DELETE MY ACCOUNT';
 
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            'Service pro accounts cannot be permanently deleted in the app (payment, payout, and tax records must be retained). Close your account from Settings → Privacy & Security → Close my account, or email support@flyersup.app for help.',
+            `Service pro accounts cannot be permanently deleted in the app (payment, payout, and tax records must be retained). Close your account from Settings → Privacy & Security → Close my account, or email ${getSupportInboxEmail()} for help.`,
         },
         { status: 403 }
       );

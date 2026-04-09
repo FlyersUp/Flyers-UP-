@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 
@@ -12,6 +13,8 @@ export interface ConversationChatHeaderProps {
   bookingHref?: string | null;
   /** True when conversation has no linked booking (inquiry only) */
   isInquiry?: boolean;
+  /** e.g. report/block menu */
+  trailingActions?: ReactNode;
 }
 
 function getInitial(name: string): string {
@@ -28,6 +31,7 @@ export function ConversationChatHeader({
   bookingContext,
   bookingHref,
   isInquiry = false,
+  trailingActions,
 }: ConversationChatHeaderProps) {
   return (
     <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] px-4 py-3 shadow-sm safe-area-pt">
@@ -54,14 +58,17 @@ export function ConversationChatHeader({
           {isInquiry ? 'Questions only – no booking yet' : bookingContext ?? 'Conversation'}
         </p>
       </div>
-      {bookingHref && (
-        <Link
-          href={bookingHref}
-          className="shrink-0 text-sm font-medium text-[#058954] hover:text-[#047a48] dark:hover:text-[#2dd68a]"
-        >
-          View booking
-        </Link>
-      )}
+      <div className="flex shrink-0 items-center gap-2">
+        {bookingHref && (
+          <Link
+            href={bookingHref}
+            className="text-sm font-medium text-[#058954] hover:text-[#047a48] dark:hover:text-[#2dd68a]"
+          >
+            View booking
+          </Link>
+        )}
+        {trailingActions}
+      </div>
     </header>
   );
 }

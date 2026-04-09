@@ -46,6 +46,7 @@ export function LegalPageShell({ children, backHref }: LegalPageShellProps) {
         <div className="max-w-3xl w-full min-w-0 mx-auto px-4">
           <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-muted">
             <Link href="/" className="hover:text-text transition-colors">Home</Link>
+            <Link href="/support" className="hover:text-text transition-colors">Support</Link>
             <Link href="/legal/terms" className="hover:text-text transition-colors">Terms</Link>
             <Link href="/legal/privacy" className="hover:text-text transition-colors">Privacy</Link>
             <Link href="/legal/pro-agreement" className="hover:text-text transition-colors">Pro Agreement</Link>

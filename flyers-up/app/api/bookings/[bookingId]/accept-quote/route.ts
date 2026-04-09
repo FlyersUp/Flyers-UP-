@@ -8,6 +8,11 @@ import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/sup
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
+import {
+  getBookingMessagingParties,
+  otherPartyUserIdForBooking,
+  rejectIfMessagingBlocked,
+} from '@/lib/messaging/blockEnforcement';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,6 +43,20 @@ export async function POST(
 
   if (bErr || !booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
   if (booking.customer_id !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const parties = await getBookingMessagingParties(admin, {
+    customer_id: booking.customer_id as string,
+    pro_id: booking.pro_id as string,
+  });
+  if (!parties) return NextResponse.json({ error: 'Invalid booking' }, { status: 500 });
+  const blockedRes = await rejectIfMessagingBlocked(
+    admin,
+    user.id,
+    otherPartyUserIdForBooking(parties, user.id),
+    'POST /api/bookings/[id]/accept-quote'
+  );
+  if (blockedRes) return blockedRes;
+
   if (booking.status !== 'requested' && (booking as { status?: string }).status !== 'pending') {
     return NextResponse.json({ error: 'Booking not in negotiation state' }, { status: 409 });
   }

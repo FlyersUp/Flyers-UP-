@@ -5,23 +5,18 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
+import { isValidUserReportReason } from '@/lib/moderation/report-reasons';
+import { appendTrustSafetyAudit } from '@/lib/trust-safety/auditLog';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const VALID_REASONS = [
-  'harassment',
-  'spam',
-  'inappropriate_content',
-  'fraud',
-  'safety_concern',
-  'other',
-] as const;
-
 export async function POST(req: Request) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     let body: { reportedUserId?: string; reason?: string; context?: string; bookingId?: string };
@@ -34,30 +29,47 @@ export async function POST(req: Request) {
     const reportedUserId = normalizeUuidOrNull(body?.reportedUserId);
     if (!reportedUserId) return NextResponse.json({ error: 'Invalid reportedUserId' }, { status: 400 });
 
-    const reason = body?.reason;
-    if (!reason || !VALID_REASONS.includes(reason as typeof VALID_REASONS[number])) {
-      return NextResponse.json(
-        { error: 'Invalid reason', allowed: VALID_REASONS },
-        { status: 400 }
-      );
+    const reasonRaw = String(body?.reason ?? '').trim();
+    if (!isValidUserReportReason(reasonRaw)) {
+      return NextResponse.json({ error: 'Invalid reason' }, { status: 400 });
     }
 
     if (reportedUserId === user.id) {
       return NextResponse.json({ error: 'Cannot report yourself' }, { status: 400 });
     }
 
-    const admin = createAdminSupabaseClient();
-    const { error } = await admin.from('user_reports').insert({
-      reporter_id: user.id,
-      reported_user_id: reportedUserId,
-      reason,
-      context: typeof body?.context === 'string' ? body.context.trim().slice(0, 1000) : null,
-      booking_id: body?.bookingId ? normalizeUuidOrNull(body.bookingId) : null,
-    });
+    const contextRaw = typeof body?.context === 'string' ? body.context.trim().slice(0, 1000) : '';
+    const context = contextRaw.length > 0 ? contextRaw : null;
 
-    if (error) {
+    const admin = createAdminSupabaseClient();
+    const { data: inserted, error } = await admin
+      .from('user_reports')
+      .insert({
+        reporter_id: user.id,
+        reported_user_id: reportedUserId,
+        reason: reasonRaw,
+        context,
+        booking_id: body?.bookingId ? normalizeUuidOrNull(body.bookingId) : null,
+        status: 'pending',
+      })
+      .select('id')
+      .single();
+
+    if (error || !inserted?.id) {
       console.error('user_reports insert failed:', error);
       return NextResponse.json({ error: 'Failed to submit report' }, { status: 500 });
+    }
+
+    try {
+      await appendTrustSafetyAudit(admin, {
+        resource_type: 'user_report',
+        resource_id: inserted.id as string,
+        action: 'report_submitted',
+        actor_user_id: user.id,
+        details: { reason: reasonRaw, has_booking_id: Boolean(body?.bookingId) },
+      });
+    } catch (e) {
+      console.error('[users/report] audit failed (report saved):', e);
     }
 
     return NextResponse.json({ ok: true }, { status: 200 });

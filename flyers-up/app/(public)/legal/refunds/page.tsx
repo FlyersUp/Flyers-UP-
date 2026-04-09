@@ -75,7 +75,7 @@ export default function RefundsPage() {
         <p>
           Disputes regarding service quality, non-performance, or other booking-related issues must be reported within
           <span className="font-medium"> 7 days</span> of service completion. To report a dispute, contact support at
-          hello.flyersup@gmail.com or use the in-app dispute tools. Include your booking ID, a description of the
+          support@flyersup.app or use the in-app dispute tools. Include your booking ID, a description of the
           issue, and any supporting documentation.
         </p>
         <p>
@@ -100,7 +100,7 @@ export default function RefundsPage() {
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 8 — Contact</h2>
         <p>
-          For refund or cancellation questions: Flyers Up LLC — hello.flyersup@gmail.com
+          For refund or cancellation questions: Flyers Up LLC — support@flyersup.app
         </p>
         <p className="text-muted">
           For legal disputes with Flyers Up, see our <Link href="/legal/arbitration" className="underline hover:text-text">Dispute Resolution and Arbitration Policy</Link>.

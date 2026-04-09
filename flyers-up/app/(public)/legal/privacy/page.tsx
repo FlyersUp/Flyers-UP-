@@ -102,7 +102,7 @@ export default function LegalPrivacyPage() {
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 6 — Your Rights</h2>
         <p>
-          You may request access, correction, or deletion of your information by contacting hello.flyersup@gmail.com. We
+          You may request access, correction, or deletion of your information by contacting support@flyersup.app. We
           will respond within 30 days, subject to legal and operational limitations. We may require verification of identity.
         </p>
         <p>
@@ -135,7 +135,7 @@ export default function LegalPrivacyPage() {
         </p>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 10 — Contact</h2>
-        <p>Flyers Up LLC — hello.flyersup@gmail.com</p>
+        <p>Flyers Up LLC — support@flyersup.app</p>
         <p className="text-muted">Mailing Address: c/o Registered Agent (mailing address on file)</p>
       </div>
     </LegalPageShell>

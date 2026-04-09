@@ -24,6 +24,7 @@ import { isCalendarCommittedStatus } from '@/lib/calendar/committed-states';
 import { InstantRebookCard } from '@/components/marketplace/InstantRebookCard';
 import { JobCompletedFlyer } from '@/components/marketplace/JobCompletedFlyer';
 import { bottomChrome } from '@/lib/layout/bottomChrome';
+import { ReportUserBlockUser } from '@/components/moderation/ReportUserBlockUser';
 import { ProPendingReschedulePanel } from '@/components/bookings/ProPendingReschedulePanel';
 import { calendarWallTimesWithPending, pendingRescheduleLine } from '@/lib/bookings/pending-reschedule';
 import { isCustomerMoneyFullySettled } from '@/lib/bookings/customer-payment-settled';
@@ -93,6 +94,8 @@ export interface BookingDetailData {
   hasCustomerReview?: boolean;
   customerConfirmed?: boolean;
   confirmedByCustomerAt?: string | null;
+  /** Pro auth user id (for report/block). */
+  proUserId?: string | null;
 }
 
 function toTrackBookingData(b: BookingDetailData): TrackBookingData {
@@ -478,6 +481,30 @@ export function BookingDetailContent({
             <section className="mb-5">
               <TrackBookingTrustSection bookingId={bookingId} />
             </section>
+
+            {/* 6b. Safety — user report vs booking issue (separate flows) */}
+            {fullBooking.proUserId ? (
+              <section className="mb-5 rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-4">
+                <h2 className="text-sm font-semibold text-text mb-1">Safety & help</h2>
+                <p className="text-xs text-muted mb-3">
+                  Report inappropriate behavior from your pro, or open a booking issue for service, billing, or quality.
+                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <ReportUserBlockUser
+                    targetUserId={fullBooking.proUserId}
+                    targetDisplayName={fullBooking.proName ?? 'Pro'}
+                    bookingId={bookingId}
+                    variant="inline"
+                  />
+                  <Link
+                    href={`/customer/bookings/${bookingId}/issues/new`}
+                    className="text-sm font-medium text-accent hover:underline text-center sm:text-right"
+                  >
+                    Report a booking issue →
+                  </Link>
+                </div>
+              </section>
+            ) : null}
 
             {/* 7. Action area */}
             <section className="mb-6">

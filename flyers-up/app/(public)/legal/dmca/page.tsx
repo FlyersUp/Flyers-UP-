@@ -54,7 +54,7 @@ export default function DMCAPage() {
           </li>
         </ol>
         <p>
-          Send takedown notices to: <span className="font-medium">hello.flyersup@gmail.com</span> with the subject line
+          Send takedown notices to: <span className="font-medium">support@flyersup.app</span> with the subject line
           &quot;DMCA Takedown Notice.&quot;
         </p>
 
@@ -71,7 +71,7 @@ export default function DMCAPage() {
           <li>Your physical or electronic signature.</li>
         </ol>
         <p>
-          Send counter notices to: <span className="font-medium">hello.flyersup@gmail.com</span> with the subject line
+          Send counter notices to: <span className="font-medium">support@flyersup.app</span> with the subject line
           &quot;DMCA Counter Notice.&quot;
         </p>
 
@@ -102,12 +102,12 @@ export default function DMCAPage() {
         </p>
         <p className="font-medium">
           Flyers Up LLC<br />
-          Email: hello.flyersup@gmail.com<br />
+          Email: support@flyersup.app<br />
           Subject: DMCA Takedown Notice / DMCA Counter Notice
         </p>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 7 — Contact</h2>
-        <p>Flyers Up LLC — hello.flyersup@gmail.com</p>
+        <p>Flyers Up LLC — support@flyersup.app</p>
       </div>
     </LegalPageShell>
   );

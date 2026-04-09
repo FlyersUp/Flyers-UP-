@@ -1,7 +1,7 @@
 import { LegalPageShell } from '@/components/LegalPageShell';
 import Link from 'next/link';
 
-const VERSION = '2026-03-11';
+const VERSION = '2026-04-08';
 
 export const metadata = {
   title: 'Community Guidelines — Flyers Up',
@@ -14,7 +14,7 @@ export default function CommunityGuidelinesPage() {
       <h1 className="text-2xl font-semibold tracking-tight">Flyers Up LLC — Community Guidelines</h1>
       <div className="mt-2 text-sm text-muted">
         <div><span className="font-medium text-text">Effective Date:</span> March 11, 2026</div>
-        <div><span className="font-medium text-text">Last Updated:</span> March 11, 2026</div>
+        <div><span className="font-medium text-text">Last Updated:</span> April 8, 2026</div>
       </div>
 
       <div className="mt-6 space-y-5 text-sm leading-relaxed text-text">
@@ -89,12 +89,15 @@ export default function CommunityGuidelinesPage() {
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 9 — Reporting</h2>
         <p>
-          To report violations, contact hello.flyersup@gmail.com or use the in-app reporting tools. We encourage users
-          to report conduct that violates these Guidelines.
+          To report another member for conduct that violates these Guidelines, sign in and use the in-app{' '}
+          <span className="font-medium text-text">Report</span> entry points (for example from chat or a profile). That
+          flow is separate from general support tickets and from booking dispute tools. You may also email
+          support@flyersup.app. Reports may be reviewed using internal tools; Flyers Up does not guarantee email
+          delivery, response times, or specific enforcement outcomes.
         </p>
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 10 — Contact</h2>
-        <p>Flyers Up LLC — hello.flyersup@gmail.com</p>
+        <p>Flyers Up LLC — support@flyersup.app</p>
       </div>
     </LegalPageShell>
   );

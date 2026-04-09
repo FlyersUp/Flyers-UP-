@@ -92,7 +92,7 @@ export default function PaymentsPage() {
 
         <h2 className="text-lg font-semibold tracking-tight pt-4">Section 9 — Contact</h2>
         <p>
-          Questions about payments or fees: Flyers Up LLC — hello.flyersup@gmail.com
+          Questions about payments or fees: Flyers Up LLC — support@flyersup.app
         </p>
       </div>
     </LegalPageShell>

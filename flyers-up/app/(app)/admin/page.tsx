@@ -22,6 +22,8 @@ import {
   Store,
   ImageIcon,
   ShieldCheck,
+  MessageSquare,
+  Flag,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -185,6 +187,23 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           title: 'Users',
           description: 'Search profiles + pro availability.',
           icon: <Users className="h-4 w-4" />,
+        },
+      ],
+    },
+    {
+      title: 'Support & moderation',
+      tools: [
+        {
+          href: '/admin/support',
+          title: 'Support tickets',
+          description: 'Inbox: filters, full message, diagnostics, status & internal notes.',
+          icon: <MessageSquare className="h-4 w-4" />,
+        },
+        {
+          href: '/admin/reports',
+          title: 'User reports',
+          description: 'Abuse reports: reason, parties, linked booking, moderation workflow.',
+          icon: <Flag className="h-4 w-4" />,
         },
       ],
     },

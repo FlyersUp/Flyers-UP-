@@ -16,10 +16,13 @@ import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { useConversationPresence } from '@/hooks/useConversationPresence';
 import { ConversationChatHeader } from '@/components/chat/ConversationChatHeader';
+import { ReportUserBlockUser } from '@/components/moderation/ReportUserBlockUser';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { ConversationInput } from '@/components/chat/ConversationInput';
 import { ConversationThreadEmpty } from '@/components/chat/ConversationThreadEmpty';
 import { ConversationThreadError } from '@/components/chat/ConversationThreadError';
+import { useYouBlockedOtherUser } from '@/hooks/useYouBlockedOtherUser';
+import { YouBlockedUserBanner } from '@/components/moderation/YouBlockedUserBanner';
 
 interface MessageRow {
   id: string;
@@ -31,9 +34,11 @@ interface MessageRow {
 interface ConversationMeta {
   proName: string;
   proAvatarUrl: string | null;
+  proUserId: string | null;
   bookingContext: string | null;
   bookingHref: string | null;
   isInquiry: boolean;
+  bookingIdForReport: string | null;
 }
 
 export default function CustomerConversationChat({ params }: { params: Promise<{ conversationId: string }> }) {
@@ -51,6 +56,7 @@ export default function CustomerConversationChat({ params }: { params: Promise<{
   const [sending, setSending] = useState(false);
   const [sendFailed, setSendFailed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { youBlocked, loading: blockLoading, unblock } = useYouBlockedOtherUser(meta?.proUserId ?? null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -88,8 +94,10 @@ export default function CustomerConversationChat({ params }: { params: Promise<{
       let bookingContext: string | null = null;
       let bookingHref: string | null = null;
       let isInquiry = true;
+      let bookingIdForReport: string | null = null;
 
       if (bookingIdFromQuery) {
+        bookingIdForReport = bookingIdFromQuery;
         const { data: b } = await supabase
           .from('bookings')
           .select('id, service_date, service_time, status')
@@ -119,9 +127,11 @@ export default function CustomerConversationChat({ params }: { params: Promise<{
       setMeta({
         proName,
         proAvatarUrl,
+        proUserId: pro?.user_id ?? null,
         bookingContext,
         bookingHref,
         isInquiry,
+        bookingIdForReport,
       });
 
       const { data: msgs, error: msgErr } = await supabase
@@ -189,7 +199,7 @@ export default function CustomerConversationChat({ params }: { params: Promise<{
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
-    if (!text || sending) return;
+    if (!text || sending || youBlocked) return;
 
     setSending(true);
     setSendFailed(false);
@@ -215,7 +225,7 @@ export default function CustomerConversationChat({ params }: { params: Promise<{
     } finally {
       setSending(false);
     }
-  }, [conversationId, input, sending]);
+  }, [conversationId, input, sending, youBlocked]);
 
   if (loading && !meta) {
     return (
@@ -250,8 +260,25 @@ export default function CustomerConversationChat({ params }: { params: Promise<{
             bookingContext={meta.bookingContext}
             bookingHref={meta.bookingHref}
             isInquiry={meta.isInquiry}
+            trailingActions={
+              meta.proUserId ? (
+                <ReportUserBlockUser
+                  targetUserId={meta.proUserId}
+                  targetDisplayName={meta.proName}
+                  bookingId={meta.bookingIdForReport ?? undefined}
+                  variant="menu"
+                />
+              ) : null
+            }
           />
         )}
+
+        <YouBlockedUserBanner
+          youBlocked={youBlocked}
+          loading={blockLoading}
+          onUnblock={unblock}
+          partyLabel="this pro"
+        />
 
         {meta?.isInquiry && (
           <div className="mx-4 mt-3 px-4 py-2.5 rounded-xl bg-white dark:bg-[#171A20] border border-black/5 dark:border-white/10 text-sm text-[#6A6A6A] dark:text-[#A1A8B3]">
@@ -301,6 +328,7 @@ export default function CustomerConversationChat({ params }: { params: Promise<{
           placeholder="Message your pro…"
           sending={sending}
           showAttachmentPlaceholder={false}
+          disabled={youBlocked}
         />
       </div>
     </AppLayout>

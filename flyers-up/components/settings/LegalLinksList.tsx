@@ -9,6 +9,7 @@ interface LegalItem {
 }
 
 const ITEMS: LegalItem[] = [
+  { label: 'Support & contact', href: '/support' },
   { label: 'Terms of service', href: '/legal/terms' },
   { label: 'Privacy policy', href: '/legal/privacy' },
   { label: 'Pro agreement', href: '/legal/pro-agreement' },

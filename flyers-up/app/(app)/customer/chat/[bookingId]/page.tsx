@@ -8,8 +8,15 @@ import { supabase } from '@/lib/supabaseClient';
 import { useNavAlerts } from '@/contexts/NavAlertsContext';
 import { BookingChatThread, type ChatItem } from '@/components/chat/BookingChatThread';
 import { ConversationChatHeader } from '@/components/chat/ConversationChatHeader';
+import { ReportUserBlockUser } from '@/components/moderation/ReportUserBlockUser';
 import { ConversationInput } from '@/components/chat/ConversationInput';
 import { ConversationThreadEmpty } from '@/components/chat/ConversationThreadEmpty';
+import { useYouBlockedOtherUser } from '@/hooks/useYouBlockedOtherUser';
+import { YouBlockedUserBanner } from '@/components/moderation/YouBlockedUserBanner';
+import {
+  CHAT_SEND_DEFAULT_ERROR_HINT,
+  hintFromChatMessageApiError,
+} from '@/lib/messaging/chat-message-send-hint';
 
 /**
  * Customer Chat - messages + quote cards for price negotiation.
@@ -26,12 +33,14 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
   const [negotiationRound, setNegotiationRound] = useState(0);
   const [loading, setLoading] = useState(true);
   const [proName, setProName] = useState<string>('Pro');
+  const [proUserId, setProUserId] = useState<string | null>(null);
   const [proAvatarUrl, setProAvatarUrl] = useState<string | null>(null);
   const [bookingContext, setBookingContext] = useState<string | null>(null);
   const [isInquiry, setIsInquiry] = useState(false);
   const [sending, setSending] = useState(false);
-  const [sendFailed, setSendFailed] = useState(false);
+  const [sendHint, setSendHint] = useState<string | null>(null);
   const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
+  const { youBlocked, loading: blockLoading, unblock } = useYouBlockedOtherUser(proUserId);
 
   useEffect(() => {
     clearMessagesAlert();
@@ -72,6 +81,7 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
     const raw = (booking as { service_pros?: { display_name: string | null; user_id?: string; logo_url?: string | null } | { display_name: string | null; user_id?: string; logo_url?: string | null }[] | null })?.service_pros;
     const pro = Array.isArray(raw) ? raw[0] : raw;
     setProAvatarUrl(pro?.logo_url ?? null);
+    setProUserId(pro?.user_id ?? null);
     let name = pro?.display_name?.trim();
     if (!name && pro?.user_id) {
       const { data: prof } = await supabase
@@ -169,37 +179,31 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
 
   const handleSend = useCallback(async () => {
     const text = message.trim();
-    if (!text || sending) return;
+    if (!text || sending || youBlocked) return;
     setSending(true);
-    setSendFailed(false);
+    setSendHint(null);
     setMessage('');
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setSendFailed(true);
+      const res = await fetch(`/api/bookings/${bookingId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+        credentials: 'same-origin',
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
         setMessage(text);
-        setSending(false);
+        setSendHint(hintFromChatMessageApiError(data));
         return;
       }
-      const { error } = await supabase.from('booking_messages').insert({
-        booking_id: bookingId,
-        sender_id: user.id,
-        sender_role: 'customer',
-        message: text,
-      });
-      if (error) {
-        setSendFailed(true);
-        setMessage(text);
-      } else {
-        await load();
-      }
+      await load();
     } catch {
-      setSendFailed(true);
       setMessage(text);
+      setSendHint(CHAT_SEND_DEFAULT_ERROR_HINT);
     } finally {
       setSending(false);
     }
-  }, [bookingId, message, sending]);
+  }, [bookingId, message, sending, youBlocked]);
 
   return (
     <AppLayout mode="customer">
@@ -210,6 +214,23 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
           bookingContext={bookingContext}
           bookingHref={`/customer/bookings/${bookingId}`}
           isInquiry={isInquiry}
+          trailingActions={
+            proUserId ? (
+              <ReportUserBlockUser
+                targetUserId={proUserId}
+                targetDisplayName={proName}
+                bookingId={bookingId}
+                variant="menu"
+              />
+            ) : null
+          }
+        />
+
+        <YouBlockedUserBanner
+          youBlocked={youBlocked}
+          loading={blockLoading}
+          onUnblock={unblock}
+          partyLabel="this pro"
         />
 
         {isInquiry && (
@@ -258,11 +279,11 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
           )}
         </div>
 
-        {sendFailed && (
+        {sendHint ? (
           <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-200">
-            Message failed to send. Try again.
+            {sendHint}
           </div>
-        )}
+        ) : null}
 
         <ConversationInput
           value={message}
@@ -270,6 +291,7 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
           onSend={handleSend}
           placeholder="Message your pro…"
           sending={sending}
+          disabled={youBlocked}
         />
       </div>
     </AppLayout>

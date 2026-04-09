@@ -147,16 +147,18 @@ async function getCustomerBooking(bookingId: string) {
   let proName = 'Pro';
   let categoryName: string | undefined;
   let proPhotoUrl: string | null = null;
+  let proUserId: string | null = null;
 
   if (booking.pro_id) {
     const { data: pro } = await admin
       .from('service_pros')
-      .select('display_name, logo_url, category_id')
+      .select('display_name, logo_url, category_id, user_id')
       .eq('id', booking.pro_id)
       .maybeSingle();
     if (pro) {
       proName = (pro as { display_name?: string }).display_name?.trim() || 'Pro';
       proPhotoUrl = (pro as { logo_url?: string | null }).logo_url ?? null;
+      proUserId = (pro as { user_id?: string }).user_id ?? null;
       const catId = (pro as { category_id?: string }).category_id;
       if (catId) {
         const { data: cat } = await admin
@@ -176,6 +178,7 @@ async function getCustomerBooking(bookingId: string) {
     id: booking.id,
     customerId: booking.customer_id,
     proId: booking.pro_id,
+    proUserId,
     serviceDate: booking.service_date,
     serviceTime: booking.service_time,
     bookingTimezone: (booking as { booking_timezone?: string | null }).booking_timezone ?? null,
