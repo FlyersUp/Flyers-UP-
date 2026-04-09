@@ -11,6 +11,7 @@ import {
 import { bookingStatusBlocksCustomerSlots } from '@/lib/availability/booking-occupancy';
 import { subtractIntervals, mergeIntervals } from '@/lib/availability/intervals';
 import { Interval } from 'luxon';
+import { defaultBusinessHoursModel, stringifyBusinessHoursModel } from '@/lib/utils/businessHours';
 
 function baseSettings() {
   return {
@@ -86,6 +87,31 @@ test('computeSlotsForDay respects JS weekday rules (Wed = 3)', () => {
   const slots = computeSlotsForDay('2026-03-04', 60, c);
   assert.ok(slots.length >= 2);
   assert.ok(slots.some((s) => s.value === '09:00'));
+});
+
+test('weekdays without a pro_availability_rules row fall back to business_hours', () => {
+  const bh = stringifyBusinessHoursModel(defaultBusinessHoursModel());
+  const c = ctx({
+    rules: [
+      {
+        id: '1',
+        day_of_week: 5,
+        start_time: '09:00',
+        end_time: '17:00',
+        is_available: true,
+      },
+    ],
+    businessHoursJson: bh,
+    leadTimeMinutes: 0,
+    // Wednesday afternoon NY so Thursday 2026-03-05 is not "today" (avoids 90m same-day floor in assertions)
+    nowUtc: DateTime.fromISO('2026-03-04T18:00:00.000Z', { zone: 'utc' }),
+  });
+  // 2026-03-04 is Wednesday (see tests above) → 2026-03-05 is Thursday (no rule row → use weekly hours)
+  const thursdaySlots = computeSlotsForDay('2026-03-05', 60, c);
+  assert.ok(thursdaySlots.length >= 1, 'Thursday should use business_hours when no Thursday rule exists');
+  assert.ok(thursdaySlots.some((s) => s.value === '09:00'));
+  const fridaySlots = computeSlotsForDay('2026-03-06', 60, c);
+  assert.ok(fridaySlots.length >= 1, 'Friday still uses availability rule row');
 });
 
 test('requested booking does not block slots', () => {

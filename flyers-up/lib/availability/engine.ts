@@ -100,10 +100,18 @@ function workingIntervalsFromBusinessHours(dateISO: string, zone: string, model:
 function effectiveWorkingIntervals(dateISO: string, ctx: ComputeContext): Interval[] {
   const day = DateTime.fromISO(dateISO, { zone: ctx.zone });
   if (!day.isValid) return [];
-  if (ctx.rules.length > 0) {
-    return workingIntervalsFromRules(dateISO, ctx.zone, ctx.rules);
-  }
   const model = parseBusinessHoursModel(ctx.businessHoursJson ?? null);
+  if (ctx.rules.length > 0) {
+    const jsDow = luxonWeekdayToJsDay(day.weekday);
+    const hasRulesForThisWeekday = ctx.rules.some((r) => r.day_of_week === jsDow);
+    // Partial rules: only days with at least one row use the rules table. Other weekdays
+    // fall back to weekly business_hours so My Business hours still apply (fixes e.g.
+    // Thursday "Off" while Friday works when only Friday had legacy/rule rows).
+    if (hasRulesForThisWeekday) {
+      return workingIntervalsFromRules(dateISO, ctx.zone, ctx.rules);
+    }
+    return workingIntervalsFromBusinessHours(dateISO, ctx.zone, model);
+  }
   return workingIntervalsFromBusinessHours(dateISO, ctx.zone, model);
 }
 
