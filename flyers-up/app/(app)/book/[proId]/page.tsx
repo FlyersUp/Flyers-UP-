@@ -107,8 +107,8 @@ export default function BookingPage() {
 
   return (
     <Layout title="Flyers Up" showBackButton hideNavLinks>
-      <div className="-mx-3 bg-[#F5F6F8] py-2 pb-10 sm:-mx-[var(--page-pad-x)]">
-        <div className="mx-auto w-full max-w-2xl px-3 sm:px-4">
+      <div className="-mx-3 bg-[#F5F6F8] py-2 pb-6 sm:-mx-[var(--page-pad-x)] sm:pb-8">
+        <div className="mx-auto w-full min-w-0 max-w-2xl px-3 sm:px-4">
         {/* Page header */}
         <div className="mb-8">
           <h1 className="mb-2 text-[1.625rem] font-bold leading-tight tracking-tight text-[#2d3436] dark:text-white">

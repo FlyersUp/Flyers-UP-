@@ -34,10 +34,11 @@ export default function Layout({
     <div
       data-role={mode}
       data-accent={accentDensity}
-      className="mx-auto flex min-h-dvh min-h-[100svh] min-w-0 w-full max-w-full flex-col overflow-x-clip bg-bg text-text pb-fu-nav"
+      className="mx-auto flex min-h-dvh min-h-[100svh] min-w-0 w-full max-w-full flex-col overflow-x-clip bg-bg text-text"
     >
       <Navbar title={title} showBackButton={showBackButton} hideRightLinks={hideNavLinks} />
-      <main className="mobile-page-root mx-auto w-full max-w-6xl min-w-0 px-3 py-[var(--page-pad-y)] sm:px-[var(--page-pad-x)]">
+      {/* pb-fu-nav on main so scroll height always clears the fixed FloatingBottomNav + safe area */}
+      <main className="mobile-page-root mx-auto w-full max-w-6xl min-w-0 flex-1 px-3 py-[var(--page-pad-y)] pb-fu-nav sm:px-[var(--page-pad-x)]">
         {children}
       </main>
       <FloatingBottomNav />
