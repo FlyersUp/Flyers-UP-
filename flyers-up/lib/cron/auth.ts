@@ -16,8 +16,11 @@ export function requireCronSecret(req: NextRequest): Response | null {
   }
 
   const headerSecret = req.headers.get('x-cron-secret');
+  const authHeader = req.headers.get('authorization');
+  const bearer =
+    authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : null;
   const querySecret = req.nextUrl.searchParams.get('secret');
-  const provided = headerSecret ?? querySecret;
+  const provided = headerSecret ?? bearer ?? querySecret ?? undefined;
 
   if (provided !== secret) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {

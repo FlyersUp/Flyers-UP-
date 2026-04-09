@@ -289,8 +289,10 @@ export async function POST(req: NextRequest) {
               final_payment_intent_id?: string | null;
             });
             const phase = (meta.payment_phase ?? meta.phase ?? '').toLowerCase();
+            const isFinalPaymentFailure =
+              kind === 'remaining' || phase === 'final' || phase === 'remaining';
             console.log('Payment failed for booking:', bookingId, 'kind:', kind, 'phase:', phase);
-            if (kind === 'remaining' || phase === 'final' || phase === 'remaining') {
+            if (isFinalPaymentFailure) {
               await admin
                 .from('bookings')
                 .update({ final_payment_intent_id: paymentIntent.id, final_payment_status: 'FAILED' })
@@ -321,7 +323,8 @@ export async function POST(req: NextRequest) {
               data: { payment_intent_id: paymentIntent.id },
             });
             const { data: b } = await admin.from('bookings').select('customer_id').eq('id', bookingId).maybeSingle();
-            if (b?.customer_id) {
+            // Final/remaining failures: handleFinalPaymentFailed already notifies (deduped by PaymentIntent id).
+            if (b?.customer_id && !isFinalPaymentFailure) {
               void createNotificationEvent({
                 userId: b.customer_id,
                 type: NOTIFICATION_TYPES.PAYMENT_FAILED,

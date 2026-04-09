@@ -30,6 +30,8 @@ import type {
 } from '@/lib/bookings/payment-lifecycle-types';
 import { assertPayoutHoldReason } from '@/lib/bookings/payment-lifecycle-types';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
+import { createNotificationEvent } from '@/lib/notifications';
+import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 
 type AdminClient = SupabaseClient;
 
@@ -646,12 +648,71 @@ export async function attemptFinalCharge(
     return { ok: false, code: 'failed' };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    await handleFinalPaymentFailed(admin, {
-      paymentIntentId: '',
-      failureCode: 'exception',
-      failureMessage: msg,
-    });
+    console.error('[attemptFinalCharge] exception', { bookingId: input.bookingId, message: msg });
+    await recoverFinalChargeException(admin, input.bookingId, msg);
     return { ok: false, code: 'exception' };
+  }
+}
+
+/**
+ * Stripe client threw before a PaymentIntent id existed — move booking out of final_processing and notify customer.
+ */
+export async function recoverFinalChargeException(
+  admin: AdminClient,
+  bookingId: string,
+  errorMessage: string
+): Promise<void> {
+  const { data: row } = await admin
+    .from('bookings')
+    .select('payment_lifecycle_status, final_charge_retry_count, customer_id')
+    .eq('id', bookingId)
+    .maybeSingle();
+
+  const lc = String((row as { payment_lifecycle_status?: string } | null)?.payment_lifecycle_status ?? '');
+  if (lc !== 'final_processing') return;
+
+  const nextRetry =
+    Number((row as { final_charge_retry_count?: number } | null)?.final_charge_retry_count ?? 0) + 1;
+  const now = new Date().toISOString();
+
+  await admin
+    .from('bookings')
+    .update({
+      payment_lifecycle_status: 'payment_failed',
+      payment_failed_at: now,
+      payout_blocked: true,
+      payout_hold_reason: 'charge_failed',
+      final_payment_status: 'FAILED',
+      final_charge_retry_count: nextRetry,
+    })
+    .eq('id', bookingId)
+    .eq('payment_lifecycle_status', 'final_processing');
+
+  await logBookingPaymentEvent(admin, {
+    bookingId,
+    eventType: 'final_payment_failed',
+    phase: 'final',
+    status: 'exception',
+    metadata: {
+      failure_message: errorMessage,
+      retry_count: nextRetry,
+      no_payment_intent: true,
+    },
+  });
+  await syncBookingPaymentSummary(admin, bookingId);
+
+  const cid = (row as { customer_id?: string } | null)?.customer_id;
+  if (cid) {
+    void createNotificationEvent({
+      userId: cid,
+      type: NOTIFICATION_TYPES.PAYMENT_FAILED,
+      bookingId,
+      titleOverride: 'Remaining payment could not be processed',
+      bodyOverride:
+        'We could not charge your saved card. Please update your payment method or pay the remaining balance in the app.',
+      basePath: 'customer',
+      dedupeKey: `final_charge_exception:${bookingId}:${nextRetry}`,
+    });
   }
 }
 
@@ -670,7 +731,9 @@ export async function handleFinalPaymentSucceeded(
   const now = new Date().toISOString();
   const prevRow = await admin
     .from('bookings')
-    .select('amount_paid_cents, deposit_amount_cents, amount_deposit')
+    .select(
+      'amount_paid_cents, deposit_amount_cents, amount_deposit, status, status_history, customer_id'
+    )
     .eq('id', bookingId)
     .maybeSingle();
   const pr = prevRow.data as Record<string, unknown> | null;
@@ -680,6 +743,14 @@ export async function handleFinalPaymentSucceeded(
     0;
   const finalAmt = paymentIntent.amount;
   const newPaid = depositPaid + finalAmt;
+
+  const prevStatus = String(pr?.status ?? '');
+  const history = Array.isArray(pr?.status_history)
+    ? ([...(pr!.status_history as { status: string; at: string }[])] as { status: string; at: string }[])
+    : [];
+  const isAwaitingRemaining = prevStatus === 'awaiting_remaining_payment';
+  const nextBookingStatus = isAwaitingRemaining ? 'awaiting_customer_confirmation' : 'fully_paid';
+  const nextHistory = [...history, { status: nextBookingStatus, at: now }];
 
   await admin
     .from('bookings')
@@ -691,6 +762,8 @@ export async function handleFinalPaymentSucceeded(
       fully_paid_at: now,
       amount_paid_cents: newPaid,
       payment_lifecycle_status: 'final_paid',
+      status: nextBookingStatus,
+      status_history: nextHistory,
     })
     .eq('id', bookingId);
 
@@ -703,6 +776,20 @@ export async function handleFinalPaymentSucceeded(
     currency: paymentIntent.currency,
     stripePaymentIntentId: paymentIntent.id,
   });
+
+  const customerId = (pr?.customer_id as string | undefined) ?? null;
+  if (customerId) {
+    const dollars = (finalAmt / 100).toFixed(2);
+    void createNotificationEvent({
+      userId: customerId,
+      type: NOTIFICATION_TYPES.PAYMENT_REMAINING_PAID,
+      bookingId,
+      titleOverride: 'Remaining balance charged',
+      bodyOverride: `We charged $${dollars} to your saved card. View your booking for your receipt.`,
+      basePath: 'customer',
+      dedupeKey: `final_remaining_paid_pi:${paymentIntent.id}`,
+    });
+  }
 
   const ev = await evaluatePayoutEligibility(admin, bookingId);
   if (ev.eligible) {
@@ -809,6 +896,21 @@ export async function handleFinalPaymentFailed(
   }
 
   await syncBookingPaymentSummary(admin, bookingId);
+
+  const { data: cust } = await admin.from('bookings').select('customer_id').eq('id', bookingId).maybeSingle();
+  const cid = (cust as { customer_id?: string } | null)?.customer_id;
+  if (cid) {
+    void createNotificationEvent({
+      userId: cid,
+      type: NOTIFICATION_TYPES.PAYMENT_FAILED,
+      bookingId,
+      titleOverride: 'Remaining payment could not be processed',
+      bodyOverride:
+        'Your saved card was declined or could not be charged. Please update your payment method or pay the remaining balance in the app.',
+      basePath: 'customer',
+      dedupeKey: `final_pi_failed:${input.paymentIntentId}`,
+    });
+  }
 }
 
 export async function evaluatePayoutEligibility(

@@ -6,9 +6,14 @@ import { attemptFinalCharge, logBookingPaymentEvent } from '@/lib/bookings/payme
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const LOG = '[cron/bookings/final-charge-retries]';
+
 export async function GET(req: NextRequest) {
   const authErr = requireCronSecret(req);
-  if (authErr) return authErr;
+  if (authErr) {
+    console.warn(`${LOG} auth failed`);
+    return authErr;
+  }
 
   const admin = createSupabaseAdmin();
   const now = Date.now();
@@ -23,9 +28,11 @@ export async function GET(req: NextRequest) {
     .not('final_payment_status', 'ilike', 'paid');
 
   if (error) {
-    console.error('[cron/bookings/final-charge-retries]', error);
+    console.error(LOG, 'query failed', error);
     return NextResponse.json({ error: 'Query failed' }, { status: 500 });
   }
+
+  console.info(`${LOG} run`, { candidateRows: rows?.length ?? 0 });
 
   let retried = 0;
   for (const r of rows ?? []) {
@@ -46,6 +53,7 @@ export async function GET(req: NextRequest) {
     });
 
     const res = await attemptFinalCharge(admin, { bookingId: r.id });
+    console.info(`${LOG} attempt`, { bookingId: r.id, ok: res.ok, code: res.code });
     if (res.ok || res.code === 'requires_action') retried++;
   }
 

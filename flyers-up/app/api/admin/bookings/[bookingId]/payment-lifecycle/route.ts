@@ -14,6 +14,7 @@ import {
   resolveDispute,
   syncBookingPaymentSummary,
 } from '@/lib/bookings/payment-lifecycle-service';
+import { reconcileBookingForFinalAutoCharge } from '@/lib/bookings/final-charge-candidates';
 import { refundPaymentIntent, refundPaymentIntentPartial } from '@/lib/stripe/server';
 import { stripe as stripeClient } from '@/lib/stripe';
 
@@ -69,6 +70,15 @@ export async function POST(
         actorUserId: user.id,
       });
       return NextResponse.json({ ok: r.ok, code: r.code });
+    }
+    case 'reconcile_and_retry_final_charge': {
+      const reconciled = await reconcileBookingForFinalAutoCharge(admin, id);
+      const r = await attemptFinalCharge(admin, {
+        bookingId: id,
+        initiatedByAdmin: true,
+        actorUserId: user.id,
+      });
+      return NextResponse.json({ ok: r.ok, code: r.code, reconciled });
     }
     case 'send_final_payment_link': {
       await logBookingPaymentEvent(admin, {

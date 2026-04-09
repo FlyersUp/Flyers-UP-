@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useHydrated } from '@/hooks/useHydrated';
 import { formatBookingDateTimeInZone } from '@/lib/datetime';
+import { bookingFinalCheckoutPath } from '@/lib/bookings/booking-routes';
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -64,6 +65,7 @@ export function PaymentStatusModule({
   const hydrated = useHydrated();
   const isPaid = paymentStatus === 'PAID';
   const isFullyPaid = finalPaymentStatus === 'PAID' || status === 'fully_paid' || status === 'paid';
+  const finalFailed = String(finalPaymentStatus ?? '').toUpperCase() === 'FAILED' && !isFullyPaid;
   const isExpired = status === 'expired_unpaid';
   const isPaymentRequired =
     status === 'payment_required' ||
@@ -142,6 +144,24 @@ export function PaymentStatusModule({
             Paid at {formatBookingDateTimeInZone(new Date(paidAt).toISOString())}
           </p>
         )}
+      </div>
+    );
+  }
+
+  if (finalFailed) {
+    return (
+      <div className="rounded-2xl border border-amber-200/90 bg-amber-50 p-5 shadow-sm dark:border-amber-800 dark:bg-amber-950/30">
+        <h3 className="text-sm font-medium text-[#6A6A6A] dark:text-amber-200/90 mb-2">Payment &amp; status</h3>
+        <p className="text-sm font-medium text-[#111111] dark:text-amber-50">Remaining payment failed</p>
+        <p className="text-xs text-[#6A6A6A] dark:text-amber-100/80 mt-1">
+          Update your card or try again. Your balance is still due.
+        </p>
+        <Link
+          href={bookingFinalCheckoutPath(bookingId)}
+          className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 mt-3"
+        >
+          Retry payment {amountRemaining != null ? formatCents(amountRemaining) : ''}
+        </Link>
       </div>
     );
   }

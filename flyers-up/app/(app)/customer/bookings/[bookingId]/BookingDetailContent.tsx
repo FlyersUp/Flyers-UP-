@@ -225,6 +225,8 @@ export function BookingDetailContent({
           fullyPaidAt: booking.fullyPaidAt,
           amountRemaining: booking.amountRemaining,
         });
+        const finalChargeFailed =
+          String(booking.finalPaymentStatus ?? '').toUpperCase() === 'FAILED' && !moneySettled;
         const customerConfirmed = fullBooking.customerConfirmed === true;
         const showPayRemaining = shouldShowCustomerPayRemainingCta({
           status: booking.status,
@@ -335,6 +337,24 @@ export function BookingDetailContent({
 
         return (
           <div className={primaryAction ? bottomChrome.pbStickyBarOnly : ''} data-role="customer">
+            {finalChargeFailed ? (
+              <div
+                className="mb-4 rounded-2xl border border-amber-200/90 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-700/80 dark:bg-amber-950/35 dark:text-amber-50"
+                role="status"
+              >
+                <p className="font-semibold">Remaining payment didn&apos;t go through</p>
+                <p className="mt-1 text-amber-900/90 dark:text-amber-100/85">
+                  Update your payment method or pay manually. Your balance is still due; funds stay protected until you
+                  confirm the job.
+                </p>
+                <Link
+                  href={checkoutFinalHref}
+                  className="mt-2 inline-block text-sm font-semibold text-amber-950 underline underline-offset-2 hover:no-underline dark:text-amber-100"
+                >
+                  Update payment / retry
+                </Link>
+              </div>
+            ) : null}
             {/* Back + page title */}
             <div className="flex items-center justify-between gap-4 mb-6">
               <Link

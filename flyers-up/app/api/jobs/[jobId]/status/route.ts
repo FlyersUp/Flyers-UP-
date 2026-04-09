@@ -35,6 +35,7 @@ import {
   proEnRouteDepositBlockedResponse,
   proEnRouteScheduleBlockedResponse,
 } from '@/lib/bookings/pro-en-route-readiness';
+import { markBookingCompleted } from '@/lib/bookings/payment-lifecycle-service';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -364,6 +365,12 @@ export async function PATCH(
         }
       } catch (postErr) {
         console.error('Post-update (events/notify) failed:', postErr, { jobId: id });
+      }
+
+      try {
+        await markBookingCompleted(admin, { bookingId: id, completedByUserId: user.id });
+      } catch (lcErr) {
+        console.error('[jobs/status] markBookingCompleted failed', lcErr, { jobId: id });
       }
     }
 
