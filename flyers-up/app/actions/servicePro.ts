@@ -63,6 +63,12 @@ export async function updateMyServiceProAction(
       // Keep in sync with operations/deposit validation (availabilityValidation)
       updateData.same_day_enabled = params.same_day_available;
     }
+    if (params.lead_time_minutes !== undefined) {
+      const n = Math.round(Number(params.lead_time_minutes));
+      if (Number.isFinite(n) && n >= 0 && n <= 60 * 24 * 14) {
+        updateData.lead_time_minutes = n;
+      }
+    }
 
     const minJobPrice = params.min_job_price;
 
@@ -131,6 +137,16 @@ export async function updateMyServiceProAction(
         .from('pro_profiles')
         .upsert({ user_id: userId, min_job_price: minJobPrice }, { onConflict: 'user_id' });
       if (ppErr) console.warn('[pro_profiles] min_job_price sync:', ppErr.message);
+    }
+
+    if (params.same_day_available !== undefined) {
+      const { error: ppSdErr } = await writer
+        .from('pro_profiles')
+        .upsert(
+          { user_id: userId, same_day_bookings: params.same_day_available },
+          { onConflict: 'user_id' }
+        );
+      if (ppSdErr) console.warn('[pro_profiles] same_day_bookings sync:', ppSdErr.message);
     }
 
     // Sync service_types to service_addons so customers see them at checkout (migration 063)

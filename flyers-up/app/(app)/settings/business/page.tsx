@@ -35,6 +35,7 @@ import {
   validateWeeklyHours,
   defaultBusinessHoursModel,
 } from '@/lib/utils/businessHours';
+import { MIN_SAME_DAY_LEAD_MINUTES } from '@/lib/availability/lead-time';
 
 type TabType = 'profile' | 'schedule' | 'services' | 'income' | 'reviews';
 
@@ -80,6 +81,10 @@ export default function BusinessSettingsPage() {
   const [subcategoriesLoading, setSubcategoriesLoading] = useState(false);
   const [selectedSubcategoryIds, setSelectedSubcategoryIds] = useState<string[]>([]);
   const [subcategoriesSaving, setSubcategoriesSaving] = useState(false);
+
+  const [sameDayAvailable, setSameDayAvailable] = useState(false);
+  const [minNoticeHours, setMinNoticeHours] = useState('1');
+  const [bookingPrefsSaving, setBookingPrefsSaving] = useState(false);
 
   // Earnings
   const { earnings, loading: earningsLoading } = useProEarningsRealtime(userId);
@@ -164,7 +169,16 @@ export default function BusinessSettingsPage() {
         setLocation(proData.location || '');
         setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
         setBeforeAfterPhotos(proData.beforeAfterPhotos || []);
-        
+        setSameDayAvailable(Boolean(proData.sameDayAvailable));
+        const lm = proData.leadTimeMinutes;
+        setMinNoticeHours(
+          Number.isFinite(lm) && lm >= 0
+            ? lm === 0
+              ? '0'
+              : String(Math.round((lm / 60) * 10) / 10).replace(/\.0$/, '')
+            : '1'
+        );
+
         // Load service types from Supabase; fall back to localStorage for older sessions.
         if (proData.serviceTypes && proData.serviceTypes.length > 0) {
           setServiceTypes(
@@ -271,6 +285,15 @@ export default function BusinessSettingsPage() {
         setLocation(proData.location || '');
         setBusinessHoursModel(parseBusinessHoursModel(proData.businessHours || ''));
         setBeforeAfterPhotos(proData.beforeAfterPhotos || []);
+        setSameDayAvailable(Boolean(proData.sameDayAvailable));
+        const lmSaved = proData.leadTimeMinutes;
+        setMinNoticeHours(
+          Number.isFinite(lmSaved) && lmSaved >= 0
+            ? lmSaved === 0
+              ? '0'
+              : String(Math.round((lmSaved / 60) * 10) / 10).replace(/\.0$/, '')
+            : '1'
+        );
         setSuccess('Business profile saved.');
         setToast('Saved!');
         setTimeout(() => setToast(null), 3000);
@@ -281,6 +304,61 @@ export default function BusinessSettingsPage() {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSaveBookingPreferences() {
+    if (!userId) return;
+    const h = parseFloat(minNoticeHours);
+    if (!Number.isFinite(h) || h < 0 || h > 168) {
+      setError('Minimum notice must be between 0 and 168 hours.');
+      return;
+    }
+    const leadMinutes = Math.round(h * 60);
+
+    setBookingPrefsSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const accessToken = session?.access_token ?? undefined;
+      if (!accessToken) {
+        setError('Your session expired. Please sign in again.');
+        router.push(`/auth?next=${encodeURIComponent(pathname || '/pro/settings/business')}`);
+        return;
+      }
+      const res = await updateMyServiceProAction(
+        {
+          same_day_available: sameDayAvailable,
+          lead_time_minutes: leadMinutes,
+        },
+        accessToken
+      );
+      if (!res.success) {
+        setError(res.error || 'Failed to save booking preferences.');
+        return;
+      }
+      const proData = await getMyServicePro(userId);
+      if (!proData) {
+        setError('Saved, but could not reload your settings. Please refresh.');
+        return;
+      }
+      setSameDayAvailable(Boolean(proData.sameDayAvailable));
+      const lm = proData.leadTimeMinutes;
+      setMinNoticeHours(
+        Number.isFinite(lm) && lm >= 0
+          ? lm === 0
+            ? '0'
+            : String(Math.round((lm / 60) * 10) / 10).replace(/\.0$/, '')
+          : '1'
+      );
+      setSuccess('Booking preferences saved.');
+      setToast('Saved!');
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setBookingPrefsSaving(false);
     }
   }
 
@@ -378,7 +456,7 @@ export default function BusinessSettingsPage() {
 
   if (loadingData) {
     return (
-      <div className="space-y-6">
+      <div className="w-full max-w-full min-w-0 space-y-6">
         <div className="text-muted/70">Loading...</div>
       </div>
     );
@@ -386,7 +464,7 @@ export default function BusinessSettingsPage() {
 
   if (userRole !== 'pro') {
     return (
-      <div className="space-y-6">
+      <div className="w-full max-w-full min-w-0 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-text mb-2">My Business</h1>
           <p className="text-muted">Manage your business profile and service details</p>
@@ -419,8 +497,8 @@ export default function BusinessSettingsPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="w-full max-w-full min-w-0 space-y-6 overflow-x-hidden pb-10 sm:pb-8">
+      <div className="min-w-0">
         <h1 className="text-2xl font-bold text-text mb-2">My Business</h1>
         <p className="text-muted">
           Control what customers see, what you offer, and when you’re available.
@@ -431,22 +509,27 @@ export default function BusinessSettingsPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2 border-b border-border">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
-              activeTab === tab.id
-                ? 'bg-surface2 text-text border border-[var(--surface-border)] border-l-[3px] border-l-accent'
-                : 'text-muted hover:bg-surface2'
-            }`}
-          >
-            <span>{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
+      {/* Tabs: wrap on narrow widths so the row never forces horizontal page scroll */}
+      <div className="min-w-0 max-w-full border-b border-border pb-2">
+        <div className="flex flex-wrap gap-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex min-w-0 max-w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors sm:px-4 sm:text-base ${
+                activeTab === tab.id
+                  ? 'border border-[var(--surface-border)] border-l-[3px] border-l-accent bg-surface2 text-text'
+                  : 'text-muted hover:bg-surface2'
+              }`}
+            >
+              <span className="shrink-0" aria-hidden>
+                {tab.icon}
+              </span>
+              <span className="min-w-0 break-words">{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Success/Error Messages */}
@@ -464,13 +547,16 @@ export default function BusinessSettingsPage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-accent text-accentContrast rounded-lg shadow-lg">
+        <div
+          className="fixed left-1/2 z-50 max-w-[min(20rem,calc(100vw-2rem))] min-w-0 -translate-x-1/2 rounded-lg bg-accent px-4 py-2 text-center text-accentContrast shadow-lg"
+          style={{ bottom: 'max(5.5rem, calc(var(--fu-bottom-nav-chrome, 5rem) + 0.5rem))' }}
+        >
           {toast}
         </div>
       )}
 
       {/* Tab Content */}
-      <div className="surface-card p-6 overflow-visible">
+      <div className="surface-card min-w-0 max-w-full overflow-x-hidden p-4 sm:p-6">
         {/* Edit Business Profile Tab */}
         {activeTab === 'profile' && (
           <>
@@ -722,8 +808,54 @@ export default function BusinessSettingsPage() {
 
         {/* Manage Service Tab */}
         {activeTab === 'services' && (
-          <div className="space-y-6">
-            <div>
+          <div className="min-w-0 max-w-full space-y-6">
+            <div className="surface-card min-w-0 max-w-full p-4 sm:p-5">
+              <h3 className="mb-1 font-semibold text-text">Same-day &amp; booking notice</h3>
+              <p className="mb-4 text-sm text-muted">
+                Controls whether customers can book you for today and how much advance notice you require.
+              </p>
+              <div className="mb-4 flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-text">Allow same-day bookings</div>
+                  <p className="mt-1 text-xs text-muted/80">
+                    When off, customers only see dates starting tomorrow. When on, today appears if slots are still available.
+                  </p>
+                </div>
+                <Switch
+                  checked={sameDayAvailable}
+                  onCheckedChange={setSameDayAvailable}
+                  aria-label="Allow same-day bookings"
+                />
+              </div>
+              <div className="mb-4">
+                <label htmlFor="minNoticeHours" className="mb-1.5 block text-sm font-medium text-text">
+                  Minimum booking notice (hours)
+                </label>
+                <input
+                  id="minNoticeHours"
+                  type="number"
+                  min={0}
+                  max={168}
+                  step={0.5}
+                  value={minNoticeHours}
+                  onChange={(e) => setMinNoticeHours(e.target.value)}
+                  className="w-full max-w-full min-w-0 rounded-[var(--radius-lg)] border border-border bg-surface px-4 py-3 text-text shadow-[var(--shadow-1)] focus:border-borderStrong focus:outline-none focus:ring-2 focus:ring-trust/30"
+                />
+                <p className="mt-2 text-xs text-muted/80">
+                  Applied to new bookings. Same-day slots use the longer of this notice and {MIN_SAME_DAY_LEAD_MINUTES} minutes
+                  before start.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleSaveBookingPreferences()}
+                disabled={bookingPrefsSaving}
+                className="w-full rounded-xl bg-accent px-4 py-3 font-medium text-accentContrast shadow-lg transition-all hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                {bookingPrefsSaving ? 'Saving…' : 'Save booking preferences'}
+              </button>
+            </div>
+            <div className="min-w-0">
               {!categoryId ? (
                 <div className="p-4 mb-6 rounded-lg border border-border bg-surface2 text-text">
                   <p className="font-medium mb-1">Set your primary service first</p>
@@ -739,7 +871,7 @@ export default function BusinessSettingsPage() {
                   </button>
                 </div>
               ) : (
-                <div className="surface-card p-4 mb-6">
+                <div className="surface-card mb-6 min-w-0 max-w-full p-4">
                   <h3 className="font-semibold text-text mb-2">Subcategories (within your primary service)</h3>
                   <p className="text-sm text-muted mb-4">
                     Select which subcategories you offer. These are the only options available—your primary service is locked.
@@ -798,8 +930,8 @@ export default function BusinessSettingsPage() {
                   )}
                 </div>
               )}
-              <div className="surface-card p-4 mb-4">
-                <div className="flex items-start justify-between gap-4">
+              <div className="surface-card mb-4 min-w-0 max-w-full p-4">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="font-semibold text-text mb-1">Add-Ons</div>
                     <div className="text-sm text-muted">
@@ -821,7 +953,7 @@ export default function BusinessSettingsPage() {
                   {serviceTypes.map((service, idx) => {
                     const serviceId = service.id ?? `svc-${idx}-${String(service.name).replace(/\s/g, '-')}`;
                     return (
-                    <div key={serviceId} className="surface-card p-4">
+                    <div key={serviceId} className="surface-card min-w-0 max-w-full p-4">
                       {editingServiceId === serviceId ? (
                         <div className="space-y-3">
                           <input
@@ -869,28 +1001,30 @@ export default function BusinessSettingsPage() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1">
-                            <p className="font-medium text-text">{service.name}</p>
+                        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <p className="break-words font-medium text-text">{service.name}</p>
                             <p className="text-sm text-muted">${service.price}</p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingServiceId(serviceId);
-                              setEditServiceForm({ name: service.name, price: service.price });
-                            }}
-                            className="px-3 py-1.5 text-sm font-medium text-text hover:bg-surface2 active:bg-surface2 rounded-lg transition-colors cursor-pointer"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleRemoveService(serviceId)}
-                            className="px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-danger/10 active:bg-danger/15 rounded-lg transition-colors cursor-pointer"
-                          >
-                            Remove
-                          </button>
+                          <div className="flex shrink-0 flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingServiceId(serviceId);
+                                setEditServiceForm({ name: service.name, price: service.price });
+                              }}
+                              className="cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium text-text transition-colors hover:bg-surface2 active:bg-surface2"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleRemoveService(serviceId)}
+                              className="cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-danger/10 active:bg-danger/15"
+                            >
+                              Remove
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -902,13 +1036,13 @@ export default function BusinessSettingsPage() {
 
               <div className="border-t border-border pt-6">
                 <h4 className="font-medium text-text mb-4">Add New Service</h4>
-                <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="mb-3 grid min-w-0 max-w-full grid-cols-1 gap-3 sm:grid-cols-2">
                   <input
                     type="text"
                     value={newServiceName}
                     onChange={(e) => setNewServiceName(e.target.value)}
                     placeholder="Service name"
-                    className="px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                    className="min-w-0 max-w-full rounded-lg border border-border bg-surface px-3 py-2 text-text focus:border-accent focus:ring-2 focus:ring-accent/40"
                   />
                   <input
                     type="number"
@@ -917,12 +1051,13 @@ export default function BusinessSettingsPage() {
                     placeholder="Price ($)"
                     min="0"
                     step="0.01"
-                    className="px-3 py-2 border border-border rounded-lg bg-surface text-text focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                    className="min-w-0 max-w-full rounded-lg border border-border bg-surface px-3 py-2 text-text focus:border-accent focus:ring-2 focus:ring-accent/40"
                   />
                 </div>
                 <button
+                  type="button"
                   onClick={() => void handleAddService()}
-                  className="px-4 py-2 bg-accent text-accentContrast rounded-lg hover:bg-accent transition-colors"
+                  className="w-full rounded-lg bg-accent px-4 py-2 text-accentContrast transition-colors hover:bg-accent sm:w-auto"
                 >
                   Add Service
                 </button>
@@ -940,26 +1075,26 @@ export default function BusinessSettingsPage() {
               {earningsLoading ? (
                 <p className="text-muted/70">Loading earnings...</p>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="p-4 bg-surface2 border border-[var(--surface-border)] rounded-lg">
+                <div className="mb-6 grid min-w-0 max-w-full grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+                  <div className="min-w-0 rounded-lg border border-[var(--surface-border)] bg-surface2 p-4">
                     <p className="text-sm text-muted mb-1">Total Earnings</p>
                     <p className="text-2xl font-bold text-accent">
                       {formatMoney(Math.round(earnings?.totalEarnings || 0))}
                     </p>
                   </div>
-                  <div className="p-4 bg-surface2 border border-[var(--surface-border)] rounded-lg">
+                  <div className="min-w-0 rounded-lg border border-[var(--surface-border)] bg-surface2 p-4">
                     <p className="text-sm text-muted mb-1">This Month</p>
                     <p className="text-2xl font-bold text-accent">
                       {formatMoney(Math.round(earnings?.thisMonth || 0))}
                     </p>
                   </div>
-                  <div className="p-4 bg-surface2 border border-border rounded-lg">
+                  <div className="min-w-0 rounded-lg border border-border bg-surface2 p-4">
                     <p className="text-sm text-muted mb-1">Jobs Completed</p>
                     <p className="text-2xl font-bold text-text">
                       {earnings?.completedJobs || 0}
                     </p>
                   </div>
-                  <div className="p-4 bg-surface2 border border-[var(--surface-border)] rounded-lg">
+                  <div className="min-w-0 rounded-lg border border-[var(--surface-border)] bg-surface2 p-4">
                     <p className="text-sm text-muted mb-1">Pending</p>
                     <p className="text-2xl font-bold text-accent">
                       {formatMoney(Math.round(earnings?.pendingPayments || 0))}
@@ -973,9 +1108,12 @@ export default function BusinessSettingsPage() {
                 {completedBookings.length > 0 ? (
                   <div className="space-y-2">
                     {completedBookings.slice(0, 10).map((booking) => (
-                      <div key={booking.id} className="surface-card flex items-center justify-between p-3">
-                        <div>
-                          <p className="font-medium text-text">{booking.customerName}</p>
+                      <div
+                        key={booking.id}
+                        className="surface-card flex min-w-0 max-w-full flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="min-w-0">
+                          <p className="break-words font-medium text-text">{booking.customerName}</p>
                           <p className="text-sm text-muted/70">
                             {new Date(booking.date).toLocaleDateString()}
                           </p>

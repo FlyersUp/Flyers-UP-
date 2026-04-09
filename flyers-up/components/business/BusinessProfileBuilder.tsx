@@ -167,7 +167,7 @@ export function BusinessProfileBuilder({
     : 'Set your location and radius to see coverage';
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="min-w-0 max-w-full space-y-6 pb-8">
       {/* 1. Profile Strength */}
       <ProfileStrength checklist={checklist} />
 

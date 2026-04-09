@@ -2496,6 +2496,10 @@ export interface ServiceProProfile {
   primaryOccupationId: string | null;
   primaryOccupationName: string | null;
   primaryOccupationSlug: string | null;
+  /** Discovery + slot generation: allow booking for “today” in pro timezone */
+  sameDayAvailable: boolean;
+  /** Min minutes from “now” to first bookable slot (same-day uses max with platform floor) */
+  leadTimeMinutes: number;
 }
 
 export async function getMyServicePro(userId: string): Promise<ServiceProProfile | null> {
@@ -2612,6 +2616,14 @@ export async function getMyServicePro(userId: string): Promise<ServiceProProfile
       primaryOccupationId: occId,
       primaryOccupationName,
       primaryOccupationSlug,
+      sameDayAvailable: Boolean(
+        (data as { same_day_enabled?: boolean | null }).same_day_enabled ??
+          (data as { same_day_available?: boolean | null }).same_day_available
+      ),
+      leadTimeMinutes: (() => {
+        const n = Number((data as { lead_time_minutes?: number | null }).lead_time_minutes);
+        return Number.isFinite(n) && n >= 0 ? Math.round(n) : 60;
+      })(),
     };
   } catch (err) {
     console.error('Unexpected error fetching service pro:', err);
@@ -2644,6 +2656,8 @@ export interface UpdateServiceProParams {
   certifications?: unknown[];
   service_types?: unknown[];
   same_day_available?: boolean;
+  /** Min minutes from now to first bookable slot */
+  lead_time_minutes?: number;
   /** Stored in pro_profiles; passed through to updateProProfile */
   min_job_price?: number | null;
 }
