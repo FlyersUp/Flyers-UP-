@@ -78,12 +78,14 @@ export default function BookingForm({
     subcategoryId: '' as string,
   });
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(initialPackageId?.trim() || null);
+  /** Pro calendar IANA zone from availability APIs — keeps min date aligned with server slot logic. */
+  const [bookingWallTimezone, setBookingWallTimezone] = useState(DEFAULT_BOOKING_TIMEZONE);
 
   const sameDayEnabled = Boolean(pro.sameDayAvailable);
 
   useEffect(() => {
     setFormData((prev) => {
-      const min = earliestCustomerBookableDateIso(sameDayEnabled, DEFAULT_BOOKING_TIMEZONE);
+      const min = earliestCustomerBookableDateIso(sameDayEnabled, bookingWallTimezone);
       if (!min) return prev;
       if (!prev.date) {
         return { ...prev, date: min };
@@ -93,7 +95,7 @@ export default function BookingForm({
       }
       return prev;
     });
-  }, [sameDayEnabled, pro.id]);
+  }, [sameDayEnabled, pro.id, bookingWallTimezone]);
 
   useEffect(() => {
     setFormData((prev) => ({
@@ -141,7 +143,7 @@ export default function BookingForm({
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const minDate = earliestCustomerBookableDateIso(sameDayEnabled, DEFAULT_BOOKING_TIMEZONE);
+  const minDate = earliestCustomerBookableDateIso(sameDayEnabled, bookingWallTimezone);
 
   const doSubmit = async () => {
     setIsSubmitting(true);
@@ -348,6 +350,8 @@ export default function BookingForm({
           onSelectDate={(iso) => setFormData((prev) => ({ ...prev, date: iso }))}
           onSelectTime={(hhmm) => setFormData((prev) => ({ ...prev, time: hhmm }))}
           minimumDateIso={minDate}
+          onCalendarTimezone={setBookingWallTimezone}
+          sameDayBookingEnabled={sameDayEnabled}
         />
       </div>
 

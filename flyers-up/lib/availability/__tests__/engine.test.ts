@@ -355,6 +355,30 @@ test('computeMonthSummaries marks beyond max_advance as unavailable', () => {
   assert.equal(late!.level, 'unavailable');
 });
 
+test('computeMonthSummaries: same-day with lead time removing all slots is unavailable not fully_booked', () => {
+  // 2026-03-04 is Wednesday (weekday 3). 20:00 UTC = 3:00 PM America/New_York (EST).
+  // Lead 4h => earliest bookable start 7 PM; working hours end 5 PM => zero slots but free intervals exist.
+  const c = ctx({
+    rules: [
+      {
+        id: '1',
+        day_of_week: 3,
+        start_time: '09:00',
+        end_time: '17:00',
+        is_available: true,
+      },
+    ],
+    nowUtc: DateTime.fromISO('2026-03-04T20:00:00Z', { zone: 'utc' }),
+    leadTimeMinutes: 240,
+    sameDayEnabled: true,
+  });
+  const days = computeMonthSummaries(2026, 3, 60, c);
+  const today = days.find((d) => d.date === '2026-03-04');
+  assert.ok(today);
+  assert.equal(today!.slotCount, 0);
+  assert.equal(today!.level, 'unavailable');
+});
+
 test('proposedBookingUtcWindow America/New_York wall clock', () => {
   const w = proposedBookingUtcWindow('2026-07-15', '14:00', 'America/New_York', 60);
   assert.ok(w);

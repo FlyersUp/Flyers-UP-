@@ -27,6 +27,7 @@ import {
   type BookingMoneySnapshot,
 } from '@/lib/bookings/remaining-balance-cents';
 import { perfLog, perfLoggingEnabled, perfNoteGetCurrentUser } from '@/lib/perfBoot';
+import { resolveSameDayEnabledFromServicePro } from '@/lib/operations/availabilityValidation';
 import type { UserRole, BookingStatus } from '@/types/database';
 
 const SUPABASE_CONFIGURED = Boolean(
@@ -815,6 +816,7 @@ export async function getProById(proId: string): Promise<ServicePro | null> {
     startingPrice: data.starting_price,
     location: data.location || 'Not specified',
     available: data.available,
+    sameDayAvailable: resolveSameDayEnabledFromServicePro(data as { same_day_enabled?: boolean | null; same_day_available?: boolean | null }),
   };
 }
 
@@ -886,6 +888,7 @@ export async function getPublicProProfileById(proId: string): Promise<PublicProP
     serviceAreaZip: (data as any).service_area_zip ?? null,
     serviceRadius: (data as any).service_radius ?? null,
     beforeAfterPhotos: photos,
+    sameDayAvailable: resolveSameDayEnabledFromServicePro(data as { same_day_enabled?: boolean | null; same_day_available?: boolean | null }),
   };
 }
 
@@ -997,6 +1000,7 @@ export async function getProByUserId(userId: string): Promise<ServicePro | null>
     startingPrice: data.starting_price,
     location: data.location || 'Not specified',
     available: data.available,
+    sameDayAvailable: resolveSameDayEnabledFromServicePro(data as { same_day_enabled?: boolean | null; same_day_available?: boolean | null }),
   };
 }
 

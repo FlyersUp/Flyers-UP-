@@ -326,9 +326,22 @@ export function computeMonthSummaries(
     const had =
       effectiveWorkingIntervals(dateISO, ctx).length > 0 && !ctx.blockedDates.includes(dateISO);
     const slots = computeSlotsForDay(dateISO, durationMinutes, ctx);
+    let level = dayLevel(slots.length, had);
+    // Same-day + lead time can remove every slot while working hours still exist — show "off" (unavailable),
+    // not "booked" (fully_booked), so the calendar matches slot APIs and customer expectations.
+    if (
+      ctx.sameDayEnabled &&
+      today &&
+      dateISO === today &&
+      had &&
+      slots.length === 0 &&
+      computeFreeLocalIntervals(dateISO, ctx).length > 0
+    ) {
+      level = 'unavailable';
+    }
     out.push({
       date: dateISO,
-      level: dayLevel(slots.length, had),
+      level,
       slotCount: slots.length,
     });
   }

@@ -36,6 +36,10 @@ type Props = {
   durationMinutes?: number;
   /** YYYY-MM-DD — days before this are not selectable (must match native date input `min`). */
   minimumDateIso?: string;
+  /** Fired when month/day APIs resolve the pro calendar timezone (aligns parent min date with slots). */
+  onCalendarTimezone?: (ianaZone: string) => void;
+  /** Used for accessible titles on disabled days (same-day vs lead-time). */
+  sameDayBookingEnabled?: boolean;
 };
 
 export function CustomerProAvailabilityCalendar({
@@ -46,6 +50,8 @@ export function CustomerProAvailabilityCalendar({
   onSelectTime,
   durationMinutes = 60,
   minimumDateIso,
+  onCalendarTimezone,
+  sameDayBookingEnabled = false,
 }: Props) {
   const [zone, setZone] = useState(DEFAULT_BOOKING_TIMEZONE);
   const [cursor, setCursor] = useState(() => {
@@ -65,6 +71,11 @@ export function CustomerProAvailabilityCalendar({
   const month = cursor.month;
 
   const headers = useMemo(() => weekdayHeaders(zone), [zone]);
+  const todayInZone = useMemo(() => DateTime.now().setZone(zone).toISODate() ?? '', [zone]);
+
+  useEffect(() => {
+    onCalendarTimezone?.(zone);
+  }, [zone, onCalendarTimezone]);
 
   const monthParam = `${year}-${String(month).padStart(2, '0')}`;
 
@@ -200,11 +211,26 @@ export function CustomerProAvailabilityCalendar({
                 Boolean(minimumDateIso) && cell.date < (minimumDateIso as string);
               const disabled =
                 beforeMin || level === 'unavailable' || level === 'fully_booked';
+              let dayTitle: string | undefined;
+              if (disabled) {
+                if (beforeMin) {
+                  dayTitle = sameDayBookingEnabled
+                    ? 'This date is before the earliest day you can book.'
+                    : 'Same-day booking is off for this pro; choose tomorrow or later.';
+                } else if (cell.date === todayInZone && level === 'unavailable') {
+                  dayTitle = 'No remaining times today that meet minimum notice.';
+                } else if (level === 'fully_booked') {
+                  dayTitle = 'No open times left on this day.';
+                } else if (level === 'unavailable') {
+                  dayTitle = 'This day is not available.';
+                }
+              }
               return (
                 <button
                   key={cell.date}
                   type="button"
                   disabled={disabled}
+                  title={dayTitle}
                   onClick={() => onSelectDate(cell.date!)}
                   className={`aspect-square rounded-full text-xs font-semibold transition-colors duration-200 ${levelStyles[level]} ${
                     isSelected && !disabled
