@@ -44,7 +44,7 @@ const CUSTOMER_SECTIONS: MenuSection[] = [
     items: [
       { labelKey: 'sidebar.customer.profile', href: '/customer/settings/account-profile' },
       { labelKey: 'sidebar.customer.addresses', href: '/customer/settings/addresses' },
-      { labelKey: 'sidebar.customer.paymentMethods', href: '/customer/settings/payment-methods' },
+      { labelKey: 'sidebar.customer.paymentMethods', href: '/customer/settings/payments/methods' },
       { labelKey: 'sidebar.customer.preferences', href: '/customer/settings/booking-preferences' },
     ],
   },
@@ -71,9 +71,9 @@ const CUSTOMER_SECTIONS: MenuSection[] = [
   {
     titleKey: 'sidebar.payments',
     items: [
-      { labelKey: 'sidebar.customer.paymentHistory', href: '/customer/settings/payments' },
-      { labelKey: 'sidebar.customer.receipts', href: '/customer/settings/payments' },
-      { labelKey: 'sidebar.customer.refunds', href: '/customer/settings/refunds' },
+      { labelKey: 'sidebar.customer.paymentHistory', href: '/customer/settings/payments/history' },
+      { labelKey: 'sidebar.customer.receipts', href: '/customer/settings/payments/receipts' },
+      { labelKey: 'sidebar.customer.refunds', href: '/customer/settings/payments/refunds' },
     ],
   },
   {

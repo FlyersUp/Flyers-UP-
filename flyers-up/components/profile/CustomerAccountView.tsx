@@ -206,7 +206,7 @@ export function CustomerAccountView({
         <div className="rounded-2xl border border-black/5 bg-white shadow-sm overflow-hidden">
           {[
             { label: 'Account', href: '/customer/settings/account-profile' },
-            { label: 'Payments', href: '/customer/settings/payment-methods' },
+            { label: 'Payments', href: '/customer/settings/payments' },
             { label: 'Notifications', href: '/customer/settings/notifications' },
             { label: 'Privacy', href: '/customer/settings/privacy-security' },
           ].map((it) => (

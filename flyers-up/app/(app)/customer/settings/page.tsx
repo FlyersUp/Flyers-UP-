@@ -33,9 +33,11 @@ export default function CustomerSettings() {
     {
       title: 'Payments',
       rows: [
-        { label: 'Payment methods', href: '/customer/settings/payment-methods' },
-        { label: 'Receipts & Billing', href: '/customer/settings/payments' },
-        { label: 'Refunds', href: '/customer/settings/refunds' },
+        { label: 'Payment hub', href: '/customer/settings/payments' },
+        { label: 'Payment methods', href: '/customer/settings/payments/methods' },
+        { label: 'Payment history', href: '/customer/settings/payments/history' },
+        { label: 'Receipts', href: '/customer/settings/payments/receipts' },
+        { label: 'Refunds', href: '/customer/settings/payments/refunds' },
       ],
     },
     {

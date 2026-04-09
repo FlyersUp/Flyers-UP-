@@ -19,7 +19,21 @@ type BookingRow = {
   status: string;
   price: number | null;
   created_at: string;
+  amount_deposit?: number | null;
+  final_payment_status?: string | null;
+  payment_status?: string | null;
+  paid_deposit_at?: string | null;
+  fully_paid_at?: string | null;
+  refund_type?: string | null;
+  refund_amount_cents?: number | null;
+  refunded_total_cents?: number | null;
+  total_amount_cents?: number | null;
 };
+
+const BASE_SELECT =
+  'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at';
+const PAYMENT_SELECT_EXTRA =
+  ', amount_deposit, final_payment_status, payment_status, paid_deposit_at, fully_paid_at, refund_type, refund_amount_cents, refunded_total_cents, total_amount_cents';
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -27,6 +41,8 @@ export async function GET(req: Request) {
   const from = url.searchParams.get('from'); // YYYY-MM-DD (service_date)
   const to = url.searchParams.get('to'); // YYYY-MM-DD (service_date)
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit') ?? '50'), 1), 100);
+  const sort = url.searchParams.get('sort')?.trim() ?? '';
+  const payments = url.searchParams.get('payments') === '1';
 
   try {
     const authed = await createServerSupabaseClient();
@@ -44,25 +60,37 @@ export async function GET(req: Request) {
 
     const admin = createAdminSupabaseClient();
 
-    let q = admin
-      .from('bookings')
-      .select('id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at')
-      .eq('customer_id', user.id)
-      .order('service_date', { ascending: true })
-      .order('service_time', { ascending: true })
-      .limit(limit);
+    const selectColumns = payments ? BASE_SELECT + PAYMENT_SELECT_EXTRA : BASE_SELECT;
 
-    if (statusesRaw) {
-      const statuses = statusesRaw
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      if (statuses.length > 0) q = q.in('status', statuses);
+    const buildQuery = (columns: string) => {
+      let q = admin.from('bookings').select(columns).eq('customer_id', user.id).limit(limit);
+      if (sort === 'created_desc') {
+        q = q.order('created_at', { ascending: false });
+      } else {
+        q = q.order('service_date', { ascending: true }).order('service_time', { ascending: true });
+      }
+      if (statusesRaw) {
+        const statuses = statusesRaw
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (statuses.length > 0) q = q.in('status', statuses);
+      }
+      if (from) q = q.gte('service_date', from);
+      if (to) q = q.lte('service_date', to);
+      return q;
+    };
+
+    let { data: bookings, error: bookingsErr } = await buildQuery(selectColumns);
+    if (bookingsErr && payments) {
+      const msg = bookingsErr.message ?? '';
+      const col = msg.includes('does not exist') || (bookingsErr as { code?: string }).code === 'PGRST204';
+      if (col) {
+        const retry = await buildQuery(BASE_SELECT);
+        bookings = retry.data;
+        bookingsErr = retry.error;
+      }
     }
-    if (from) q = q.gte('service_date', from);
-    if (to) q = q.lte('service_date', to);
-
-    const { data: bookings, error: bookingsErr } = await q;
     if (bookingsErr) {
       void recordServerErrorEvent({
         message: 'API customer bookings: query failed',
@@ -74,7 +102,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: bookingsErr.message }, { status: 500 });
     }
 
-    const rows = (bookings as BookingRow[]) ?? [];
+    const rows: BookingRow[] = Array.isArray(bookings) ? (bookings as unknown as BookingRow[]) : [];
     const proIds = Array.from(
       new Set(rows.map((b) => normalizeUuidOrNull(b.pro_id)).filter((v): v is string => Boolean(v)))
     );
