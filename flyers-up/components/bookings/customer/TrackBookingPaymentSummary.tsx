@@ -81,6 +81,10 @@ export interface TrackBookingPaymentSummaryProps {
   serviceTime?: string;
   /** Primary CTA (e.g. Pay deposit, Pay remaining) — rendered above summary */
   primaryAction?: React.ReactNode;
+  /** Lifecycle-driven line for split final payment (auto-charge, processing, success, failure). */
+  finalPaymentCustomerNote?: string | null;
+  /** Compact "Payment summary" layout for booking detail (fewer line items). */
+  layoutVariant?: 'full' | 'compact';
   className?: string;
 }
 
@@ -117,6 +121,8 @@ export function TrackBookingPaymentSummary({
   serviceDate,
   serviceTime,
   primaryAction,
+  finalPaymentCustomerNote = null,
+  layoutVariant = 'full',
   className = '',
 }: TrackBookingPaymentSummaryProps) {
   const tz = bookingTimezone?.trim() || DEFAULT_BOOKING_TIMEZONE;
@@ -242,6 +248,11 @@ export function TrackBookingPaymentSummary({
     return formatCents(cents);
   };
 
+  const serviceFeesAggregateCents = Math.max(
+    0,
+    receipt.customerTotalCents - receipt.serviceSubtotalCents + receipt.promoDiscountCents
+  );
+
   if (isExpired) {
     return (
       <section
@@ -249,7 +260,7 @@ export function TrackBookingPaymentSummary({
         aria-labelledby="track-receipt"
       >
         <h2 id="track-receipt" className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-3">
-          Receipt
+          {layoutVariant === 'compact' ? 'Payment summary' : 'Receipt'}
         </h2>
         <p className="text-sm font-medium text-[#111111] dark:text-[#F5F7FA]">Expired — not paid</p>
         <p className="text-xs text-[#6A6A6A] dark:text-[#A1A8B3] mt-1">The payment window has passed.</p>
@@ -259,6 +270,118 @@ export function TrackBookingPaymentSummary({
         >
           Request again
         </Link>
+      </section>
+    );
+  }
+
+  if (layoutVariant === 'compact') {
+    const feesShown =
+      receipt.feeTotalCents > 0 ? receipt.feeTotalCents : serviceFeesAggregateCents;
+    const depositPaidCents =
+      receipt.depositPhaseStatus === 'paid' ? receipt.depositScheduledCents : 0;
+
+    return (
+      <section
+        className={`rounded-2xl border border-sky-200/40 dark:border-sky-800/35 bg-gradient-to-b from-sky-50/90 to-white dark:from-sky-950/25 dark:to-[#171A20] p-5 shadow-sm ${className}`}
+        aria-labelledby="track-payment-summary"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <h2 id="track-payment-summary" className="text-base font-semibold text-[#111111] dark:text-[#F5F7FA]">
+            Payment summary
+          </h2>
+          <span
+            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusBadgeClass(receipt.overallStatus)}`}
+          >
+            {statusLabel(receipt.overallStatus)}
+          </span>
+        </div>
+
+        <div className="space-y-3 text-sm">
+          <div className="flex justify-between gap-3 min-w-0">
+            <span className="text-[#6A6A6A] dark:text-[#A1A8B3] shrink-0">Subtotal</span>
+            <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums text-right">
+              {lineMoney(receipt.serviceSubtotalCents)}
+            </span>
+          </div>
+          <div className="flex justify-between gap-3 min-w-0">
+            <span className="text-[#6A6A6A] dark:text-[#A1A8B3] shrink-0">Service fees</span>
+            <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums text-right">
+              {feesShown > 0 ? formatCents(feesShown) : '—'}
+            </span>
+          </div>
+          {receipt.promoDiscountCents > 0 && (
+            <div className="flex justify-between gap-3 min-w-0">
+              <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Discount</span>
+              <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
+                -{formatCents(receipt.promoDiscountCents)}
+              </span>
+            </div>
+          )}
+          <div className="flex justify-between gap-3 min-w-0 pt-2 border-t border-black/[0.06] dark:border-white/[0.08]">
+            <span className="font-semibold text-[#111111] dark:text-[#F5F7FA]">Total</span>
+            <span className="font-bold text-[#111111] dark:text-[#F5F7FA] tabular-nums">
+              {showFullFeeBreakdown || receipt.customerTotalCents > 0
+                ? formatCents(receipt.customerTotalCents)
+                : '—'}
+            </span>
+          </div>
+
+          {receipt.isSplitPayment && (
+            <>
+              {depositPaidCents > 0 && (
+                <div className="flex justify-between gap-3 min-w-0 pt-1">
+                  <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Deposit paid</span>
+                  <span className="font-semibold text-[#058954] tabular-nums">
+                    -{formatCents(depositPaidCents)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between gap-3 min-w-0">
+                <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Remaining due</span>
+                <span className="font-bold text-[#4A69BD] dark:text-[#7BA3E8] tabular-nums">
+                  {formatCents(Math.max(0, receipt.remainingDueCents))}
+                </span>
+              </div>
+            </>
+          )}
+
+          {receipt.isSplitPayment && finalPaymentCustomerNote && (
+            <p className="text-xs text-[#111111] dark:text-[#F5F7FA] leading-relaxed rounded-xl bg-white/70 dark:bg-white/[0.06] px-3 py-2.5 border border-black/[0.06] dark:border-white/[0.08]">
+              {finalPaymentCustomerNote}
+            </p>
+          )}
+          {receipt.isSplitPayment &&
+            !finalPaymentCustomerNote &&
+            receipt.overallStatus === 'deposit_paid' && (
+              <p className="text-xs text-[#6A6A6A] dark:text-[#A1A8B3] leading-relaxed">
+                Balance is collected after your service per booking terms.
+              </p>
+            )}
+
+          {receipt.refundedTotalCents > 0 && (
+            <div className="flex justify-between gap-3 text-sm">
+              <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Refunded</span>
+              <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
+                {formatCents(receipt.refundedTotalCents)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <a
+          href={`/api/customer/bookings/${bookingId}/receipt?format=html`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-black/10 dark:border-white/15 bg-white/80 dark:bg-white/[0.06] py-3 text-sm font-medium text-[#111111] dark:text-[#F5F7FA] hover:bg-white dark:hover:bg-white/[0.09] transition-colors"
+        >
+          View printable receipt
+        </a>
+
+        {needsDeposit && paymentDueAt && (
+          <p className="text-xs text-amber-800/90 dark:text-amber-200/90 mt-3">
+            Complete deposit before {formatBookingDateTimeInZone(paymentDueAt, tz) || paymentDueAt}.
+          </p>
+        )}
       </section>
     );
   }
@@ -444,12 +567,19 @@ export function TrackBookingPaymentSummary({
           </div>
         )}
 
-        {receipt.overallStatus === 'deposit_paid' && receipt.isSplitPayment && (
-          <p className="text-xs text-[#6A6A6A] dark:text-[#A1A8B3] leading-relaxed">
-            Remaining due after completion is collected after your service. We will email you a full summary when the
-            booking is paid in full.
+        {receipt.isSplitPayment && finalPaymentCustomerNote && (
+          <p className="text-xs text-[#111111] dark:text-[#F5F7FA] leading-relaxed rounded-xl bg-black/[0.04] dark:bg-white/[0.06] px-3 py-2.5 border border-black/[0.06] dark:border-white/[0.08]">
+            {finalPaymentCustomerNote}
           </p>
         )}
+        {receipt.isSplitPayment &&
+          !finalPaymentCustomerNote &&
+          receipt.overallStatus === 'deposit_paid' && (
+            <p className="text-xs text-[#6A6A6A] dark:text-[#A1A8B3] leading-relaxed">
+              Remaining due after completion is collected after your service. We will email you a full summary when the
+              booking is paid in full.
+            </p>
+          )}
 
         <p className="pt-2">
           <a

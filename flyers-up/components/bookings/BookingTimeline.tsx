@@ -11,11 +11,14 @@ import { DEFAULT_BOOKING_TIMEZONE, formatTimelineTimestampInZone } from '@/lib/d
 
 const GREEN = '#B2FBA5';
 const ORANGE = '#FFC067';
+const CUSTOMER_BLUE = '#4A69BD';
 
 export interface BookingTimelineProps {
   status: Status;
   /** IANA zone for timeline stamps; avoids SSR/client toLocaleString mismatches. */
   timeZone?: string;
+  /** Customer booking detail: blue emphasis to match step tracker. */
+  tone?: 'default' | 'customer';
   timestamps: Partial<Record<Status, string>> & {
     booked?: string;
     awaitingAcceptance?: string;
@@ -34,6 +37,7 @@ export function BookingTimeline({
   timestamps,
   compact = false,
   timeZone = DEFAULT_BOOKING_TIMEZONE,
+  tone = 'default',
 }: BookingTimelineProps) {
   const tsMap: Partial<Record<Status, string>> = {
     BOOKED: timestamps.booked ?? timestamps.BOOKED,
@@ -56,6 +60,50 @@ export function BookingTimeline({
         const state = getStageState(status, stage);
         const ts = tsMap[stage];
         const isLast = idx === STATUS_ORDER.length - 1;
+
+        const dotStyle =
+          tone === 'customer'
+            ? state === 'done'
+              ? {
+                  backgroundColor: CUSTOMER_BLUE,
+                  color: '#ffffff',
+                }
+              : state === 'active'
+                ? {
+                    backgroundColor: CUSTOMER_BLUE,
+                    boxShadow: `0 0 0 4px ${CUSTOMER_BLUE}33`,
+                    color: '#ffffff',
+                  }
+                : {
+                    backgroundColor: 'transparent',
+                    border: '2px solid hsl(var(--border))',
+                    color: 'transparent',
+                  }
+            : state === 'done'
+              ? {
+                  backgroundColor: GREEN,
+                  color: 'hsl(var(--text))',
+                }
+              : state === 'active'
+                ? {
+                    backgroundColor: ORANGE,
+                    boxShadow: `0 0 0 4px ${ORANGE}40`,
+                    color: 'hsl(var(--text))',
+                  }
+                : {
+                    backgroundColor: 'transparent',
+                    border: '2px solid hsl(var(--border))',
+                    color: 'transparent',
+                  };
+
+        const connectorColor =
+          tone === 'customer'
+            ? state === 'done'
+              ? `${CUSTOMER_BLUE}55`
+              : 'hsl(var(--border) / 0.6)'
+            : state === 'done'
+              ? `${GREEN}66`
+              : 'hsl(var(--border) / 0.6)';
 
         return (
           <li
@@ -97,10 +145,7 @@ export function BookingTimeline({
                 <div
                   className="absolute left-1/2 top-6 -translate-x-1/2 w-0.5 bottom-0"
                   style={{
-                    backgroundColor:
-                      state === 'done'
-                        ? `${GREEN}66`
-                        : 'hsl(var(--border) / 0.6)',
+                    backgroundColor: connectorColor,
                   }}
                 />
               )}
@@ -110,8 +155,8 @@ export function BookingTimeline({
               <div
                 className={
                   state === 'upcoming'
-                    ? 'text-gray-500'
-                    : 'text-gray-900'
+                    ? 'text-gray-500 dark:text-gray-400'
+                    : 'text-gray-900 dark:text-gray-100'
                 }
               >
                 <span className={`font-medium ${compact ? 'text-sm' : 'text-sm'}`}>

@@ -45,6 +45,8 @@ export interface TrackBookingData {
   /** Explicit customer completion confirmation (bookings.customer_confirmed). */
   customerConfirmed?: boolean;
   confirmedByCustomerAt?: string | null;
+  paymentLifecycleStatus?: string | null;
+  customerReviewDeadlineAt?: string | null;
 }
 
 interface TrackBookingRealtimeProps {
@@ -80,6 +82,10 @@ export function TrackBookingRealtime({
     initialBooking.serviceDate,
     initialBooking.serviceTime,
     initialBooking.pendingReschedule?.id,
+    initialBooking.paymentLifecycleStatus,
+    initialBooking.finalPaymentStatus,
+    initialBooking.customerReviewDeadlineAt,
+    initialBooking.remainingDueAt,
   ]);
 
   useEffect(() => {

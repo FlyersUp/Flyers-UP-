@@ -8,6 +8,10 @@ import { DEFAULT_BOOKING_TIMEZONE } from '@/lib/datetime';
 export interface BookingProgressTimelineProps {
   status: string;
   bookingTimezone?: string | null;
+  /** When false, render only the timeline (no outer card) for use inside a parent section. */
+  withCardShell?: boolean;
+  /** Visual accent for customer booking detail. */
+  timelineTone?: 'default' | 'customer';
   createdAt: string;
   statusHistory?: { status: string; at: string }[];
   acceptedAt?: string | null;
@@ -35,6 +39,8 @@ export function BookingProgressTimeline({
   paidAt,
   paidDepositAt,
   fullyPaidAt,
+  withCardShell = true,
+  timelineTone = 'default',
 }: BookingProgressTimelineProps) {
   const tz = bookingTimezone?.trim() || DEFAULT_BOOKING_TIMEZONE;
   const paymentCtx = { paidAt, paidDepositAt, fullyPaidAt };
@@ -53,22 +59,32 @@ export function BookingProgressTimeline({
     if (t) timestamps.AWAITING_ACCEPTANCE = t;
   }
 
+  const inner = (
+    <BookingTimeline
+      status={timelineStatus}
+      timeZone={tz}
+      compact={!withCardShell}
+      tone={timelineTone}
+      timestamps={{
+        booked: timestamps.BOOKED,
+        awaitingAcceptance: timestamps.AWAITING_ACCEPTANCE,
+        accepted: timestamps.ACCEPTED,
+        onTheWay: timestamps.ON_THE_WAY,
+        arrived: timestamps.ARRIVED,
+        started: timestamps.IN_PROGRESS,
+        completed: timestamps.COMPLETED,
+        paid: timestamps.PAID,
+      }}
+    />
+  );
+
+  if (!withCardShell) {
+    return inner;
+  }
+
   return (
     <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#171A20] p-6 shadow-sm">
-      <BookingTimeline
-        status={timelineStatus}
-        timeZone={tz}
-        timestamps={{
-          booked: timestamps.BOOKED,
-          awaitingAcceptance: timestamps.AWAITING_ACCEPTANCE,
-          accepted: timestamps.ACCEPTED,
-          onTheWay: timestamps.ON_THE_WAY,
-          arrived: timestamps.ARRIVED,
-          started: timestamps.IN_PROGRESS,
-          completed: timestamps.COMPLETED,
-          paid: timestamps.PAID,
-        }}
-      />
+      {inner}
     </div>
   );
 }

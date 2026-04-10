@@ -42,7 +42,8 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { isCustomerMoneyFullySettled } from '@/lib/bookings/customer-payment-settled';
-import { shouldShowCustomerPayRemainingCta } from '@/lib/bookings/customer-booking-actions';
+import { deriveCustomerRemainingPaymentUiStateNow } from '@/lib/bookings/customer-remaining-payment-ui';
+import { CustomerRemainingPaymentCallout } from '@/components/bookings/customer/CustomerRemainingPaymentCallout';
 
 type PageState =
   | 'loading'
@@ -57,6 +58,7 @@ interface BookingData {
   status: string;
   paymentStatus?: string;
   finalPaymentStatus?: string | null;
+  paidAt?: string | null;
   paidDepositAt?: string | null;
   paidRemainingAt?: string | null;
   fullyPaidAt?: string | null;
@@ -82,6 +84,10 @@ interface BookingData {
   photos_snapshot?: Array<{ category?: string; url: string }> | null;
   job_details_snapshot?: Record<string, unknown> | null;
   customerConfirmed?: boolean;
+  paymentLifecycleStatus?: string | null;
+  customerReviewDeadlineAt?: string | null;
+  remainingDueAt?: string | null;
+  bookingTimezone?: string | null;
 }
 
 function formatCents(cents: number): string {
@@ -103,6 +109,23 @@ function formatDate(serviceDate?: string, serviceTime?: string): string {
   } catch {
     return serviceDate;
   }
+}
+
+function remainingPaymentInputFromBooking(b: BookingData) {
+  return {
+    status: b.status,
+    paymentStatus: b.paymentStatus,
+    finalPaymentStatus: b.finalPaymentStatus,
+    paymentLifecycleStatus: b.paymentLifecycleStatus,
+    paidDepositAt: b.paidDepositAt,
+    paidAt: b.paidAt ?? null,
+    paidRemainingAt: b.paidRemainingAt,
+    fullyPaidAt: b.fullyPaidAt,
+    completedAt: b.completedAt ?? b.completion?.completedAt ?? null,
+    remainingDueAt: b.remainingDueAt,
+    customerReviewDeadlineAt: b.customerReviewDeadlineAt,
+    amountRemaining: b.amountRemaining,
+  };
 }
 
 function formatTimestamp(iso: string): string {
@@ -168,26 +191,14 @@ export default function JobCompletePage({
         return;
       }
 
-      const isFullyPaid =
-        b.status === 'fully_paid' ||
-        b.status === 'paid' ||
-        moneySettled;
-      if (isFullyPaid) {
+      const remainingUi = deriveCustomerRemainingPaymentUiStateNow(remainingPaymentInputFromBooking(b));
+
+      if (remainingUi.kind === 'success') {
         setState('payment_success');
         return;
       }
 
-      const canPayRemaining =
-        shouldShowCustomerPayRemainingCta({
-          status: b.status,
-          remainingDueCents,
-          finalPaymentStatus: b.finalPaymentStatus,
-          paidRemainingAt: b.paidRemainingAt,
-          fullyPaidAt: b.fullyPaidAt,
-          amountRemaining: b.amountRemaining,
-        }) && (b.paymentStatus === 'PAID' || (b.amountDeposit ?? 0) === 0);
-
-      if (!canPayRemaining) {
+      if (remainingUi.kind === 'none') {
         setState('not_eligible');
         return;
       }
@@ -203,9 +214,11 @@ export default function JobCompletePage({
     void fetchBooking();
   }, [fetchBooking]);
 
-  const remaining = booking?.amountRemaining ?? 0;
-  const checkoutHref = `/bookings/${bookingId}/checkout?phase=final`;
   const conversationHref = `/customer/chat/${bookingId}`;
+  const completedPaymentUi =
+    state === 'completed' && booking
+      ? deriveCustomerRemainingPaymentUiStateNow(remainingPaymentInputFromBooking(booking))
+      : null;
 
   return (
     <AppLayout mode="customer" data-role="customer">
@@ -379,28 +392,18 @@ export default function JobCompletePage({
               {/* 6. Actions - sticky on mobile */}
               <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface/95 backdrop-blur-sm p-4 pb-[env(safe-area-inset-bottom)] sm:relative sm:mt-8 sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0">
                 <div className="max-w-lg mx-auto space-y-3 sm:space-y-4">
-                  {!isCustomerMoneyFullySettled({
-                    finalPaymentStatus: booking.finalPaymentStatus,
-                    paidRemainingAt: booking.paidRemainingAt,
-                    fullyPaidAt: booking.fullyPaidAt,
-                    amountRemaining: booking.amountRemaining,
-                  }) ? (
-                    <>
-                      <p className="text-xs text-muted text-center -mt-2">
-                        Pay the remaining balance — you&apos;ll confirm job completion after payment is settled.
-                      </p>
-                      <Link
-                        href={checkoutHref}
-                        className="flex h-12 w-full items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.68)] bg-accentOrange text-sm font-semibold text-[hsl(var(--accent-contrast))] transition-colors hover:bg-[hsl(var(--accent-pro)/0.92)] focus:outline-none focus:ring-2 focus:ring-[var(--ring-orange)] focus:ring-offset-2"
-                      >
-                        Release remaining payment
-                      </Link>
-                    </>
-                  ) : (
-                    <p className="text-xs text-center text-muted py-2" role="status">
-                      Payment complete — no balance due.
-                    </p>
-                  )}
+                  {completedPaymentUi && completedPaymentUi.kind !== 'none' ? (
+                    <CustomerRemainingPaymentCallout
+                      bookingId={bookingId}
+                      state={completedPaymentUi}
+                      variant="compact"
+                      customerReviewDeadlineAt={booking.customerReviewDeadlineAt ?? null}
+                      remainingDueAt={booking.remainingDueAt ?? null}
+                      bookingTimezone={booking.bookingTimezone ?? null}
+                      paidRemainingAt={booking.paidRemainingAt ?? null}
+                      fullyPaidAt={booking.fullyPaidAt ?? null}
+                    />
+                  ) : null}
                   <div className="flex gap-3 sm:flex-wrap">
                     <Link
                       href={conversationHref}
@@ -604,7 +607,7 @@ function PaymentSummaryCard({ booking }: { booking: BookingData }) {
               <span className="text-[#058954] font-medium">{formatCents(deposit)}</span>
             </div>
             <div className="flex justify-between font-semibold pt-2">
-              <span className="text-[#111111] dark:text-[#F5F7FA]">Remaining due now</span>
+              <span className="text-[#111111] dark:text-[#F5F7FA]">Remaining balance</span>
               <span className="text-[#111111] dark:text-[#F5F7FA]">{formatCents(remaining)}</span>
             </div>
             <p className="text-xs text-[#6A6A6A] dark:text-[#A1A8B3] mt-3">
@@ -634,10 +637,11 @@ function ProtectionSection({
       aria-labelledby="protection-heading"
     >
       <h2 id="protection-heading" className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-2">
-        Need help before paying?
+        Something not right?
       </h2>
       <p className="text-sm text-[#3A3A3A] dark:text-[#A1A8B3]">
-        If something wasn&apos;t completed as expected, our team can review. Issues are handled discreetly.
+        If the work wasn&apos;t completed as expected, report an issue or contact support before the review window
+        ends. Issues are handled discreetly.
       </p>
       <Link
         href={supportHref}
