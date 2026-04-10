@@ -84,7 +84,7 @@ test('fully paid → paid', () => {
   assert.equal(n.normalizeBranch, 'derive:success');
 });
 
-test('final_processing → processing', () => {
+test('final_processing without finalPaymentIntentId → post_review_due (never show processing without PI)', () => {
   const n = normalizeCustomerPaymentCard(
     {
       ...depositPaidBase,
@@ -92,8 +92,8 @@ test('final_processing → processing', () => {
     },
     Date.parse('2026-01-02T12:00:00Z')
   );
-  assert.equal(n.kind, 'processing');
-  assert.equal(n.normalizeBranch, 'derive:final_processing');
+  assert.equal(n.kind, 'post_review_due');
+  assert.equal(n.normalizeBranch, 'guard:final_processing_without_payment_intent');
 });
 
 test('final_processing + explicit empty finalPaymentIntentId → post_review_due (stale / mismatched DB)', () => {
@@ -120,6 +120,21 @@ test('final_processing + finalPaymentIntentId set → processing', () => {
   );
   assert.equal(n.kind, 'processing');
   assert.equal(n.normalizeBranch, 'derive:final_processing');
+});
+
+test('final_processing + PI but booking already fully_paid (stale lifecycle) → paid not processing', () => {
+  const n = normalizeCustomerPaymentCard(
+    {
+      ...depositPaidBase,
+      status: 'fully_paid',
+      amountRemaining: 5000,
+      paymentLifecycleStatus: 'final_processing',
+      finalPaymentIntentId: 'pi_test_123',
+    },
+    Date.parse('2026-01-02T12:00:00Z')
+  );
+  assert.equal(n.kind, 'paid');
+  assert.equal(n.normalizeBranch, 'guard:processing_suppressed_already_paid');
 });
 
 test('hasExplicitNewLifecycleColumns respects lifecycle and deadline', () => {

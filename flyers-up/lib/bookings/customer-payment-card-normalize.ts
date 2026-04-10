@@ -59,6 +59,22 @@ function moneyFullySettled(input: CustomerRemainingPaymentUiInput, remainingCent
 }
 
 /**
+ * Final payment already succeeded (or lifecycle says post-final). Used to suppress “Processing” when
+ * webhook/booking row has moved on but a stale payload still has final_processing.
+ */
+function isFinalPaymentAlreadySucceeded(
+  input: CustomerRemainingPaymentUiInput,
+  remainingCents: number
+): boolean {
+  if (moneyFullySettled(input, remainingCents)) return true;
+  const lc = String(input.paymentLifecycleStatus ?? '').trim().toLowerCase();
+  if (lc === 'final_paid' || lc === 'payout_ready' || lc === 'payout_sent') return true;
+  const st = String(input.status ?? '').trim().toLowerCase();
+  if (st === 'fully_paid' || st === 'payout_released') return true;
+  return false;
+}
+
+/**
  * New 24h flow populates lifecycle status and/or customer_review_deadline_at.
  * Legacy rows often omit both while still owing remaining balance after completion.
  */
@@ -138,11 +154,22 @@ export function normalizeCustomerPaymentCard(
     };
   }
 
+  // “Processing” = off-session charge in flight: lifecycle final_processing + stored final PI id,
+  // and booking row does not already show a succeeded final (avoids lag after webhook).
   if (raw.kind === 'processing') {
-    const lc = String(input.paymentLifecycleStatus ?? '').trim().toLowerCase();
     const pi = String(input.finalPaymentIntentId ?? '').trim();
-    const piFieldSupplied = Object.prototype.hasOwnProperty.call(input, 'finalPaymentIntentId');
-    if (lc === 'final_processing' && piFieldSupplied && !pi) {
+
+    if (isFinalPaymentAlreadySucceeded(input, remainingCents)) {
+      return {
+        kind: 'paid',
+        normalizeBranch: 'guard:processing_suppressed_already_paid',
+        remainingCents,
+        countdownDeadlineIso: null,
+        raw,
+      };
+    }
+
+    if (!pi) {
       return {
         kind: 'post_review_due',
         normalizeBranch: 'guard:final_processing_without_payment_intent',
@@ -151,6 +178,7 @@ export function normalizeCustomerPaymentCard(
         raw,
       };
     }
+
     return {
       kind: 'processing',
       normalizeBranch: 'derive:final_processing',
