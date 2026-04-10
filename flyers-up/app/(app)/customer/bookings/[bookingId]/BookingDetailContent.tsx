@@ -4,7 +4,7 @@ import { useState, useCallback, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { TrackBookingRealtime, type TrackBookingData } from '@/components/bookings/TrackBookingRealtime';
-import { deriveTimelineDisplayStatus, buildTimestampsFromBooking } from '@/components/jobs/jobStatus';
+import { deriveTimelineDisplayStatus } from '@/components/jobs/jobStatus';
 import { MultiDayBookingProgressSection } from '@/components/bookings/MultiDayBookingProgressSection';
 import { BookingProgressTimeline } from '@/components/bookings/customer/BookingProgressTimeline';
 import { TrackBookingMessagingEntry } from '@/components/bookings/customer/TrackBookingMessagingEntry';
@@ -27,6 +27,8 @@ import {
 import { normalizeCustomerPaymentCardNow } from '@/lib/bookings/customer-payment-card-normalize';
 import { finalPaymentReceiptNoteFromKind } from '@/lib/bookings/customer-final-payment-receipt-note';
 import { BookingPaymentStatusCard } from '@/components/bookings/customer/BookingPaymentStatusCard';
+import { PaymentHeldCustomerCard, PaymentHoldWhyCallout } from '@/components/payments/payment-held';
+import { buildPaymentHeldUiStateFromBooking } from '@/lib/bookings/payment-held-ui-state';
 import { BookingDetailHeader } from '@/components/bookings/customer/booking-detail/BookingDetailHeader';
 import { BookingStepTracker } from '@/components/bookings/customer/booking-detail/BookingStepTracker';
 import { BookingProviderCard } from '@/components/bookings/customer/booking-detail/BookingProviderCard';
@@ -98,6 +100,12 @@ export interface BookingDetailData {
   proUserId?: string | null;
   paymentLifecycleStatus?: string | null;
   customerReviewDeadlineAt?: string | null;
+  payoutReleased?: boolean | null;
+  requiresAdminReview?: boolean | null;
+  payoutHoldReason?: string | null;
+  suspiciousCompletion?: boolean | null;
+  suspiciousCompletionReason?: string | null;
+  adminHold?: boolean | null;
 }
 
 function toTrackBookingData(b: BookingDetailData): TrackBookingData {
@@ -141,6 +149,12 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     confirmedByCustomerAt: b.confirmedByCustomerAt ?? null,
     paymentLifecycleStatus: b.paymentLifecycleStatus ?? null,
     customerReviewDeadlineAt: b.customerReviewDeadlineAt ?? null,
+    payoutReleased: b.payoutReleased ?? null,
+    requiresAdminReview: b.requiresAdminReview ?? null,
+    payoutHoldReason: b.payoutHoldReason ?? null,
+    suspiciousCompletion: b.suspiciousCompletion ?? null,
+    suspiciousCompletionReason: b.suspiciousCompletionReason ?? null,
+    adminHold: b.adminHold ?? null,
   };
 }
 
@@ -286,6 +300,23 @@ export function BookingDetailContent({
           fullBooking.proName;
 
         const firstAfterPhoto = fullBooking.completion?.afterPhotoUrls?.[0] ?? null;
+
+        const paymentHeldCustomerState = buildPaymentHeldUiStateFromBooking(
+          'customer',
+          {
+            payoutReleased: fullBooking.payoutReleased ?? null,
+            paymentLifecycleStatus: fullBooking.paymentLifecycleStatus ?? null,
+            requiresAdminReview: fullBooking.requiresAdminReview ?? null,
+            payoutHoldReason: fullBooking.payoutHoldReason ?? null,
+            suspiciousCompletion: fullBooking.suspiciousCompletion ?? null,
+            suspiciousCompletionReason: fullBooking.suspiciousCompletionReason ?? null,
+            adminHold: fullBooking.adminHold ?? null,
+          },
+          {
+            deposit: fullBooking.paidDepositAt ?? fullBooking.paidAt ?? null,
+            completed: fullBooking.completedAt ?? null,
+          }
+        );
 
         const actionBar = (
           <BookingDetailActionBar
@@ -479,6 +510,22 @@ export function BookingDetailContent({
                 layoutVariant="compact"
               />
             </section>
+
+            {paymentHeldCustomerState ? (
+              <section className="mb-4 space-y-3">
+                <PaymentHeldCustomerCard
+                  state={paymentHeldCustomerState}
+                  bookingHref={`/customer/bookings/${bookingId}`}
+                  supportHref="/support"
+                />
+                {paymentHeldCustomerState.whyCallout ? (
+                  <PaymentHoldWhyCallout
+                    headline={paymentHeldCustomerState.whyCallout.headline}
+                    body={paymentHeldCustomerState.whyCallout.body}
+                  />
+                ) : null}
+              </section>
+            ) : null}
 
             <section className="mb-4">
               <BookingProtectionCard />

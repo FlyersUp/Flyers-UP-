@@ -25,6 +25,8 @@ import { ProEarningsBreakdownCard } from '@/components/bookings/ProEarningsBreak
 import { ProPendingReschedulePanel } from '@/components/bookings/ProPendingReschedulePanel';
 import { formatWallDateLong } from '@/lib/bookings/pending-reschedule';
 import { getProAutomatedPayoutStatusMessage } from '@/lib/bookings/pro-payout-status-message';
+import { PaymentHeldProCard, PaymentHoldWhyCallout } from '@/components/payments/payment-held';
+import { buildPaymentHeldUiStateFromBooking } from '@/lib/bookings/payment-held-ui-state';
 
 export default function ProBookingDetailPage({
   params,
@@ -191,6 +193,23 @@ export default function ProBookingDetailPage({
               (booking.amountTotal ?? 0) - (booking.platformFeeCents ?? 0) - (booking.refundedTotalCents ?? 0)
             );
 
+            const paymentHeldProState = buildPaymentHeldUiStateFromBooking(
+              'pro',
+              {
+                payoutReleased: booking.payoutReleased ?? null,
+                paymentLifecycleStatus: booking.paymentLifecycleStatus ?? null,
+                requiresAdminReview: booking.requiresAdminReview ?? null,
+                payoutHoldReason: booking.payoutHoldReason ?? null,
+                suspiciousCompletion: booking.suspiciousCompletion ?? null,
+                suspiciousCompletionReason: booking.suspiciousCompletionReason ?? null,
+                adminHold: booking.adminHold ?? null,
+              },
+              {
+                deposit: booking.paidDepositAt ?? booking.paidAt ?? null,
+                completed: booking.completedAt ?? null,
+              }
+            );
+
             return (
               <>
                 <header className="mb-6">
@@ -300,6 +319,21 @@ export default function ProBookingDetailPage({
 
                 <section className="mb-6">
                   <h2 className="text-base font-semibold text-text mb-4">Payment</h2>
+                  {paymentHeldProState ? (
+                    <div className="mb-4 space-y-4">
+                      <PaymentHeldProCard
+                        state={paymentHeldProState}
+                        detailsHref={`/pro/jobs/${bookingId}`}
+                        supportHref="/support"
+                      />
+                      {paymentHeldProState.whyCallout ? (
+                        <PaymentHoldWhyCallout
+                          headline={paymentHeldProState.whyCallout.headline}
+                          body={paymentHeldProState.whyCallout.body}
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div className="mb-4">
                     <PayoutTimeline
                       payoutStatus={booking.payoutStatus}

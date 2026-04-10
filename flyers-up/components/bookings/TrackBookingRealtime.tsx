@@ -47,6 +47,12 @@ export interface TrackBookingData {
   confirmedByCustomerAt?: string | null;
   paymentLifecycleStatus?: string | null;
   customerReviewDeadlineAt?: string | null;
+  payoutReleased?: boolean | null;
+  requiresAdminReview?: boolean | null;
+  payoutHoldReason?: string | null;
+  suspiciousCompletion?: boolean | null;
+  suspiciousCompletionReason?: string | null;
+  adminHold?: boolean | null;
 }
 
 interface TrackBookingRealtimeProps {

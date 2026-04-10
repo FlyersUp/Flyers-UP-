@@ -41,7 +41,7 @@ async function getCustomerBooking(bookingId: string) {
   let bookingQuery = admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, customer_fees_retained_cents, refunded_total_cents, total_amount_cents, amount_subtotal, amount_deposit, amount_remaining, amount_total, service_date, service_time, booking_timezone, address, notes, status, price, created_at, accepted_at, en_route_at, on_the_way_at, arrived_at, started_at, completed_at, cancelled_at, status_history, job_request_id, scope_confirmed_at, no_show_eligible_at, scheduled_start_at, grace_period_minutes, customer_confirmed, confirmed_by_customer_at, payment_lifecycle_status, customer_review_deadline_at'
+      'id, customer_id, pro_id, payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, customer_fees_retained_cents, refunded_total_cents, total_amount_cents, amount_subtotal, amount_deposit, amount_remaining, amount_total, service_date, service_time, booking_timezone, address, notes, status, price, created_at, accepted_at, en_route_at, on_the_way_at, arrived_at, started_at, completed_at, cancelled_at, status_history, job_request_id, scope_confirmed_at, no_show_eligible_at, scheduled_start_at, grace_period_minutes, customer_confirmed, confirmed_by_customer_at, payment_lifecycle_status, customer_review_deadline_at, payout_released, requires_admin_review, payout_hold_reason, suspicious_completion, suspicious_completion_reason, admin_hold'
     )
     .eq('id', id);
 
@@ -119,6 +119,12 @@ async function getCustomerBooking(bookingId: string) {
     confirmed_by_customer_at?: string | null;
     payment_lifecycle_status?: string | null;
     customer_review_deadline_at?: string | null;
+    payout_released?: boolean | null;
+    requires_admin_review?: boolean | null;
+    payout_hold_reason?: string | null;
+    suspicious_completion?: boolean | null;
+    suspicious_completion_reason?: string | null;
+    admin_hold?: boolean | null;
   };
 
   const remainingMoney: BookingMoneySnapshot = {
@@ -247,6 +253,12 @@ async function getCustomerBooking(bookingId: string) {
     confirmedByCustomerAt: b.confirmed_by_customer_at ?? null,
     paymentLifecycleStatus: b.payment_lifecycle_status ?? null,
     customerReviewDeadlineAt: b.customer_review_deadline_at ?? null,
+    payoutReleased: b.payout_released === true,
+    requiresAdminReview: b.requires_admin_review === true,
+    payoutHoldReason: b.payout_hold_reason ?? null,
+    suspiciousCompletion: b.suspicious_completion === true,
+    suspiciousCompletionReason: b.suspicious_completion_reason ?? null,
+    adminHold: b.admin_hold === true,
   };
 }
 

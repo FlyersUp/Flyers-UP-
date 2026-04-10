@@ -39,6 +39,10 @@ export function ProBookingRealtime({
     initialBooking?.status,
     initialBooking?.serviceDate,
     initialBooking?.pendingReschedule?.id,
+    initialBooking?.paymentLifecycleStatus,
+    initialBooking?.requiresAdminReview,
+    initialBooking?.payoutReleased,
+    initialBooking?.payoutHoldReason,
   ]);
 
   useEffect(() => {

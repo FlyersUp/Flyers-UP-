@@ -151,6 +151,15 @@ export interface BookingDetails {
   payoutStatus?: string | null;
   /** After automatic payout cron: funds transferred to Connect account */
   payoutReleased?: boolean | null;
+  /** Marketplace payment lifecycle (e.g. payout_on_hold). */
+  paymentLifecycleStatus?: string | null;
+  /** Payout paused for manual review (see payout cron / admin tools). */
+  requiresAdminReview?: boolean | null;
+  /** DB hold reason for payout; used only for calm UI mapping, never shown raw. */
+  payoutHoldReason?: string | null;
+  suspiciousCompletion?: boolean | null;
+  suspiciousCompletionReason?: string | null;
+  adminHold?: boolean | null;
   refundStatus?: string | null;
   /** Maps to DB customer_fees_retained_cents (full customer-facing fee bucket, not legacy 15% only). */
   platformFeeCents?: number | null;
@@ -1120,6 +1129,12 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       paidRemainingAt: d.paid_remaining_at as string | null | undefined,
       payoutStatus: d.payout_status as string | null | undefined,
       payoutReleased: d.payout_released === true,
+      paymentLifecycleStatus: (d.payment_lifecycle_status as string | null | undefined) ?? null,
+      requiresAdminReview: d.requires_admin_review === true,
+      payoutHoldReason: (d.payout_hold_reason as string | null | undefined) ?? null,
+      suspiciousCompletion: d.suspicious_completion === true,
+      suspiciousCompletionReason: (d.suspicious_completion_reason as string | null | undefined) ?? null,
+      adminHold: d.admin_hold === true,
       refundStatus: d.refund_status as string | null | undefined,
       platformFeeCents: d.customer_fees_retained_cents as number | null | undefined,
       refundedTotalCents: d.refunded_total_cents as number | null | undefined,
