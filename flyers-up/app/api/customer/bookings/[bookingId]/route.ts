@@ -15,6 +15,7 @@ import {
   type BookingMoneySnapshot,
 } from '@/lib/bookings/remaining-balance-cents';
 import { getUnifiedBookingPaymentAmountsForBooking } from '@/lib/bookings/booking-receipt-service';
+import { resolveFinalPaymentIntentStripeSnapshotForCustomerUi } from '@/lib/stripe/verify-final-payment-intent-status';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -252,6 +253,15 @@ export async function GET(
         remainingAmountCents: fallbackRemaining,
       };
 
+    const finalPaymentIntentId =
+      (typeof b.final_payment_intent_id === 'string' && b.final_payment_intent_id.trim()) ||
+      (typeof b.stripe_payment_intent_remaining_id === 'string' && b.stripe_payment_intent_remaining_id.trim()) ||
+      null;
+    const stripeSnapshot = await resolveFinalPaymentIntentStripeSnapshotForCustomerUi({
+      paymentLifecycleStatus: b.payment_lifecycle_status ?? null,
+      finalPaymentIntentId,
+    });
+
     return NextResponse.json(
       {
         booking: {
@@ -334,10 +344,8 @@ export async function GET(
           suspiciousCompletion: b.suspicious_completion === true,
           suspiciousCompletionReason: b.suspicious_completion_reason ?? null,
           adminHold: b.admin_hold === true,
-          finalPaymentIntentId:
-            b.final_payment_intent_id?.trim() ||
-            b.stripe_payment_intent_remaining_id?.trim() ||
-            null,
+          finalPaymentIntentId,
+          ...stripeSnapshot,
         },
       },
       { status: 200, headers: { 'Cache-Control': 'no-store' } }

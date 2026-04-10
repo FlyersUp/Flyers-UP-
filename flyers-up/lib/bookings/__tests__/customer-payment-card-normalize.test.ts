@@ -109,7 +109,22 @@ test('final_processing + explicit empty finalPaymentIntentId → post_review_due
   assert.equal(n.normalizeBranch, 'guard:final_processing_without_payment_intent');
 });
 
-test('final_processing + finalPaymentIntentId set → processing', () => {
+test('final_processing + PI + live Stripe in-flight → processing', () => {
+  const n = normalizeCustomerPaymentCard(
+    {
+      ...depositPaidBase,
+      paymentLifecycleStatus: 'final_processing',
+      finalPaymentIntentId: 'pi_test_123',
+      finalPaymentIntentStripeLiveChecked: true,
+      finalPaymentIntentStripeStatus: 'processing',
+    },
+    Date.parse('2026-01-02T12:00:00Z')
+  );
+  assert.equal(n.kind, 'processing');
+  assert.equal(n.normalizeBranch, 'derive:final_processing_stripe_confirmed');
+});
+
+test('final_processing + PI but Stripe live check missing → post_review_due', () => {
   const n = normalizeCustomerPaymentCard(
     {
       ...depositPaidBase,
@@ -118,8 +133,38 @@ test('final_processing + finalPaymentIntentId set → processing', () => {
     },
     Date.parse('2026-01-02T12:00:00Z')
   );
-  assert.equal(n.kind, 'processing');
-  assert.equal(n.normalizeBranch, 'derive:final_processing');
+  assert.equal(n.kind, 'post_review_due');
+  assert.equal(n.normalizeBranch, 'guard:stripe_live_check_missing');
+});
+
+test('final_processing + PI + live checked + requires_payment_method → post_review_due', () => {
+  const n = normalizeCustomerPaymentCard(
+    {
+      ...depositPaidBase,
+      paymentLifecycleStatus: 'final_processing',
+      finalPaymentIntentId: 'pi_test_123',
+      finalPaymentIntentStripeLiveChecked: true,
+      finalPaymentIntentStripeStatus: 'requires_payment_method',
+    },
+    Date.parse('2026-01-02T12:00:00Z')
+  );
+  assert.equal(n.kind, 'post_review_due');
+  assert.equal(n.normalizeBranch, 'guard:stripe_pi_not_in_flight');
+});
+
+test('final_processing + PI + live checked + succeeded → paid', () => {
+  const n = normalizeCustomerPaymentCard(
+    {
+      ...depositPaidBase,
+      paymentLifecycleStatus: 'final_processing',
+      finalPaymentIntentId: 'pi_test_123',
+      finalPaymentIntentStripeLiveChecked: true,
+      finalPaymentIntentStripeStatus: 'succeeded',
+    },
+    Date.parse('2026-01-02T12:00:00Z')
+  );
+  assert.equal(n.kind, 'paid');
+  assert.equal(n.normalizeBranch, 'guard:stripe_pi_succeeded');
 });
 
 test('final_processing + PI but booking already fully_paid (stale lifecycle) → paid not processing', () => {
@@ -130,6 +175,8 @@ test('final_processing + PI but booking already fully_paid (stale lifecycle) →
       amountRemaining: 5000,
       paymentLifecycleStatus: 'final_processing',
       finalPaymentIntentId: 'pi_test_123',
+      finalPaymentIntentStripeLiveChecked: true,
+      finalPaymentIntentStripeStatus: 'processing',
     },
     Date.parse('2026-01-02T12:00:00Z')
   );

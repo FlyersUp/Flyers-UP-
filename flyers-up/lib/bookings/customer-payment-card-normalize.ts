@@ -8,6 +8,7 @@ import {
   deriveCustomerRemainingPaymentUiState,
   type CustomerRemainingPaymentUiState,
 } from '@/lib/bookings/customer-remaining-payment-ui';
+import { isStripeFinalPaymentIntentInFlightStatus } from '@/lib/bookings/final-payment-intent-stripe-gate';
 
 const POST_COMPLETION_STATUSES = new Set([
   'awaiting_remaining_payment',
@@ -154,8 +155,8 @@ export function normalizeCustomerPaymentCard(
     };
   }
 
-  // “Processing” = off-session charge in flight: lifecycle final_processing + stored final PI id,
-  // and booking row does not already show a succeeded final (avoids lag after webhook).
+  // “Processing” only when DB says final_processing, we have a PI id, live Stripe read ran, and
+  // PaymentIntent.status is actively in-flight (processing / requires_capture / requires_action).
   if (raw.kind === 'processing') {
     const pi = String(input.finalPaymentIntentId ?? '').trim();
 
@@ -179,9 +180,43 @@ export function normalizeCustomerPaymentCard(
       };
     }
 
+    const liveChecked = input.finalPaymentIntentStripeLiveChecked === true;
+    const stripeStatus = input.finalPaymentIntentStripeStatus ?? null;
+
+    if (!liveChecked) {
+      return {
+        kind: 'post_review_due',
+        normalizeBranch: 'guard:stripe_live_check_missing',
+        remainingCents,
+        countdownDeadlineIso: deadlineIso || null,
+        raw,
+      };
+    }
+
+    const st = String(stripeStatus ?? '').trim().toLowerCase();
+    if (st === 'succeeded') {
+      return {
+        kind: 'paid',
+        normalizeBranch: 'guard:stripe_pi_succeeded',
+        remainingCents,
+        countdownDeadlineIso: null,
+        raw,
+      };
+    }
+
+    if (!isStripeFinalPaymentIntentInFlightStatus(stripeStatus)) {
+      return {
+        kind: 'post_review_due',
+        normalizeBranch: 'guard:stripe_pi_not_in_flight',
+        remainingCents,
+        countdownDeadlineIso: deadlineIso || null,
+        raw,
+      };
+    }
+
     return {
       kind: 'processing',
-      normalizeBranch: 'derive:final_processing',
+      normalizeBranch: 'derive:final_processing_stripe_confirmed',
       remainingCents,
       countdownDeadlineIso: null,
       raw,

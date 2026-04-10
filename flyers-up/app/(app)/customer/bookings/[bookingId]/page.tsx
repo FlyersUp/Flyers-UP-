@@ -15,6 +15,7 @@ import {
   type BookingMoneySnapshot,
 } from '@/lib/bookings/remaining-balance-cents';
 import { getUnifiedBookingPaymentAmountsForBooking } from '@/lib/bookings/booking-receipt-service';
+import { resolveFinalPaymentIntentStripeSnapshotForCustomerUi } from '@/lib/stripe/verify-final-payment-intent-status';
 
 async function getCustomerBooking(bookingId: string) {
   const id = normalizeUuidOrNull(bookingId);
@@ -184,6 +185,16 @@ async function getCustomerBooking(bookingId: string) {
     }
   }
 
+  const finalPaymentIntentId =
+    (typeof b.final_payment_intent_id === 'string' && b.final_payment_intent_id.trim()) ||
+    (typeof b.stripe_payment_intent_remaining_id === 'string' && b.stripe_payment_intent_remaining_id.trim()) ||
+    null;
+
+  const stripeSnapshot = await resolveFinalPaymentIntentStripeSnapshotForCustomerUi({
+    paymentLifecycleStatus: b.payment_lifecycle_status ?? null,
+    finalPaymentIntentId,
+  });
+
   return {
     id: booking.id,
     customerId: booking.customer_id,
@@ -261,10 +272,8 @@ async function getCustomerBooking(bookingId: string) {
     suspiciousCompletion: b.suspicious_completion === true,
     suspiciousCompletionReason: b.suspicious_completion_reason ?? null,
     adminHold: b.admin_hold === true,
-    finalPaymentIntentId:
-      (typeof b.final_payment_intent_id === 'string' && b.final_payment_intent_id.trim()) ||
-      (typeof b.stripe_payment_intent_remaining_id === 'string' && b.stripe_payment_intent_remaining_id.trim()) ||
-      null,
+    finalPaymentIntentId,
+    ...stripeSnapshot,
   };
 }
 

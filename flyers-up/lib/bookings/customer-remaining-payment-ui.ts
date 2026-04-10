@@ -23,6 +23,10 @@ export type CustomerRemainingPaymentUiInput = {
    * lifecycle is final_processing, UI must not claim an in-flight Stripe charge.
    */
   finalPaymentIntentId?: string | null;
+  /** Live Stripe PaymentIntent.status from server when final_processing + PI id (see verify-final-payment-intent-status). */
+  finalPaymentIntentStripeStatus?: string | null;
+  /** True only after server ran a Stripe retrieve for this booking payload (final_processing + PI id). */
+  finalPaymentIntentStripeLiveChecked?: boolean;
 };
 
 export type CustomerRemainingPaymentUiState =

@@ -108,6 +108,8 @@ export interface BookingDetailData {
   adminHold?: boolean | null;
   /** Coalesced final / remaining Stripe PaymentIntent id for accurate payment-card normalization. */
   finalPaymentIntentId?: string | null;
+  finalPaymentIntentStripeStatus?: string | null;
+  finalPaymentIntentStripeLiveChecked?: boolean;
 }
 
 function toTrackBookingData(b: BookingDetailData): TrackBookingData {
@@ -158,6 +160,8 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     suspiciousCompletionReason: b.suspiciousCompletionReason ?? null,
     adminHold: b.adminHold ?? null,
     finalPaymentIntentId: b.finalPaymentIntentId ?? null,
+    finalPaymentIntentStripeStatus: b.finalPaymentIntentStripeStatus ?? null,
+    finalPaymentIntentStripeLiveChecked: b.finalPaymentIntentStripeLiveChecked ?? undefined,
   };
 }
 
@@ -236,6 +240,8 @@ export function BookingDetailContent({
           customerReviewDeadlineAt: fullBooking.customerReviewDeadlineAt ?? null,
           amountRemaining: booking.amountRemaining ?? fullBooking.amountRemaining,
           finalPaymentIntentId: fullBooking.finalPaymentIntentId ?? null,
+          finalPaymentIntentStripeStatus: fullBooking.finalPaymentIntentStripeStatus ?? null,
+          finalPaymentIntentStripeLiveChecked: fullBooking.finalPaymentIntentStripeLiveChecked === true,
         };
         const paymentNormalized = normalizeCustomerPaymentCardNow(remainingPaymentInput);
 
