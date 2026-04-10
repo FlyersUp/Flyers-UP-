@@ -71,6 +71,7 @@ export type BookingPaymentEventType =
   | 'payout_blocked'
   | 'payout_ready'
   | 'payout_sent'
+  | 'payout_released'
   | 'refund_created'
   | 'refund_succeeded'
   | 'dispute_opened'
