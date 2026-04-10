@@ -106,6 +106,8 @@ export interface BookingDetailData {
   suspiciousCompletion?: boolean | null;
   suspiciousCompletionReason?: string | null;
   adminHold?: boolean | null;
+  /** Coalesced final / remaining Stripe PaymentIntent id for accurate payment-card normalization. */
+  finalPaymentIntentId?: string | null;
 }
 
 function toTrackBookingData(b: BookingDetailData): TrackBookingData {
@@ -155,6 +157,7 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     suspiciousCompletion: b.suspiciousCompletion ?? null,
     suspiciousCompletionReason: b.suspiciousCompletionReason ?? null,
     adminHold: b.adminHold ?? null,
+    finalPaymentIntentId: b.finalPaymentIntentId ?? null,
   };
 }
 
@@ -232,6 +235,7 @@ export function BookingDetailContent({
           remainingDueAt: fullBooking.remainingDueAt ?? booking.remainingDueAt,
           customerReviewDeadlineAt: fullBooking.customerReviewDeadlineAt ?? null,
           amountRemaining: booking.amountRemaining ?? fullBooking.amountRemaining,
+          finalPaymentIntentId: fullBooking.finalPaymentIntentId ?? null,
         };
         const paymentNormalized = normalizeCustomerPaymentCardNow(remainingPaymentInput);
 

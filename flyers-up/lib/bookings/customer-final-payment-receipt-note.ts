@@ -7,6 +7,8 @@ export function finalPaymentReceiptNoteFromKind(kind: CustomerPaymentCardKind): 
       return 'Final payment will auto-charge after the 24-hour review window';
     case 'processing':
       return 'Processing final payment';
+    case 'post_review_due':
+      return 'Remaining balance due — pay now or wait for automatic charge';
     case 'pending_manual':
       return 'Remaining payment pending — this booking may need manual completion';
     case 'unknown':

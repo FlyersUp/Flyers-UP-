@@ -37,7 +37,7 @@ export function timelineForRemainingPaymentState(
       return {
         deposit: 'complete',
         completed: 'complete',
-        autoCharge: 'processing',
+        autoCharge: 'current',
         paid: 'upcoming',
       };
     case 'processing':
@@ -82,6 +82,13 @@ export function timelineForPaymentCardKind(kind: CustomerPaymentCardKind): Payme
         paid: 'upcoming',
       };
     case 'scheduled':
+      return {
+        deposit: 'complete',
+        completed: 'complete',
+        autoCharge: 'current',
+        paid: 'upcoming',
+      };
+    case 'post_review_due':
       return {
         deposit: 'complete',
         completed: 'complete',

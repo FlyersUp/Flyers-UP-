@@ -53,6 +53,7 @@ export interface TrackBookingData {
   suspiciousCompletion?: boolean | null;
   suspiciousCompletionReason?: string | null;
   adminHold?: boolean | null;
+  finalPaymentIntentId?: string | null;
 }
 
 interface TrackBookingRealtimeProps {

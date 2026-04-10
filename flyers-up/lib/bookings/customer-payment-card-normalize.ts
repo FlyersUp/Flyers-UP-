@@ -20,6 +20,8 @@ export type CustomerPaymentCardKind =
   | 'none'
   | 'before_completion'
   | 'scheduled'
+  /** Review window ended; balance still due — not the same as an active Stripe off-session charge. */
+  | 'post_review_due'
   | 'processing'
   | 'action_required'
   | 'pending_manual'
@@ -137,6 +139,18 @@ export function normalizeCustomerPaymentCard(
   }
 
   if (raw.kind === 'processing') {
+    const lc = String(input.paymentLifecycleStatus ?? '').trim().toLowerCase();
+    const pi = String(input.finalPaymentIntentId ?? '').trim();
+    const piFieldSupplied = Object.prototype.hasOwnProperty.call(input, 'finalPaymentIntentId');
+    if (lc === 'final_processing' && piFieldSupplied && !pi) {
+      return {
+        kind: 'post_review_due',
+        normalizeBranch: 'guard:final_processing_without_payment_intent',
+        remainingCents,
+        countdownDeadlineIso: deadlineIso || null,
+        raw,
+      };
+    }
     return {
       kind: 'processing',
       normalizeBranch: 'derive:final_processing',
@@ -169,8 +183,8 @@ export function normalizeCustomerPaymentCard(
   if (raw.kind === 'post_review_auto_pending') {
     if (hasExplicitNewLifecycleColumns(input)) {
       return {
-        kind: 'processing',
-        normalizeBranch: 'derive:post_review_with_lifecycle_columns',
+        kind: 'post_review_due',
+        normalizeBranch: 'derive:post_review_balance_due',
         remainingCents,
         countdownDeadlineIso: null,
         raw,

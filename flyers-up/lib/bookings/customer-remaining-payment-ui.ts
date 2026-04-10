@@ -18,6 +18,11 @@ export type CustomerRemainingPaymentUiInput = {
   /** bookings.customer_review_deadline_at — aligns with auto-charge cron */
   customerReviewDeadlineAt?: string | null;
   amountRemaining?: number | null;
+  /**
+   * bookings.final_payment_intent_id (or legacy remaining PI column). When provided and empty while
+   * lifecycle is final_processing, UI must not claim an in-flight Stripe charge.
+   */
+  finalPaymentIntentId?: string | null;
 };
 
 export type CustomerRemainingPaymentUiState =

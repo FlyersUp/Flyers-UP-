@@ -43,7 +43,7 @@ test('new booking: inside 24h review window → scheduled with countdown ISO', (
   assert.equal(n.countdownDeadlineIso, deadline);
 });
 
-test('new booking: past window with lifecycle columns → processing (auto-charge path)', () => {
+test('new booking: past window with lifecycle columns → post_review_due (not in-flight Stripe charge)', () => {
   const n = normalizeCustomerPaymentCard(
     {
       ...depositPaidBase,
@@ -52,8 +52,8 @@ test('new booking: past window with lifecycle columns → processing (auto-charg
     },
     Date.parse('2026-01-02T12:00:00Z')
   );
-  assert.equal(n.kind, 'processing');
-  assert.equal(n.normalizeBranch, 'derive:post_review_with_lifecycle_columns');
+  assert.equal(n.kind, 'post_review_due');
+  assert.equal(n.normalizeBranch, 'derive:post_review_balance_due');
 });
 
 test('final payment failed → action_required', () => {
@@ -89,6 +89,32 @@ test('final_processing → processing', () => {
     {
       ...depositPaidBase,
       paymentLifecycleStatus: 'final_processing',
+    },
+    Date.parse('2026-01-02T12:00:00Z')
+  );
+  assert.equal(n.kind, 'processing');
+  assert.equal(n.normalizeBranch, 'derive:final_processing');
+});
+
+test('final_processing + explicit empty finalPaymentIntentId → post_review_due (stale / mismatched DB)', () => {
+  const n = normalizeCustomerPaymentCard(
+    {
+      ...depositPaidBase,
+      paymentLifecycleStatus: 'final_processing',
+      finalPaymentIntentId: null,
+    },
+    Date.parse('2026-01-02T12:00:00Z')
+  );
+  assert.equal(n.kind, 'post_review_due');
+  assert.equal(n.normalizeBranch, 'guard:final_processing_without_payment_intent');
+});
+
+test('final_processing + finalPaymentIntentId set → processing', () => {
+  const n = normalizeCustomerPaymentCard(
+    {
+      ...depositPaidBase,
+      paymentLifecycleStatus: 'final_processing',
+      finalPaymentIntentId: 'pi_test_123',
     },
     Date.parse('2026-01-02T12:00:00Z')
   );

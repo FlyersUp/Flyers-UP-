@@ -159,6 +159,43 @@ export function BookingPaymentStatusCard({
     );
   }
 
+  if (normalized.kind === 'post_review_due') {
+    return (
+      <div className={`${cardShell} ${wrap} space-y-3`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone="scheduled">Due</Badge>
+        </div>
+        <div>
+          <p className={titleClass}>Remaining balance due</p>
+          <p className={bodyClass}>
+            The review window has ended. Pay the remaining balance now, or wait while we attempt to charge your saved
+            payment method automatically.
+          </p>
+          {normalized.remainingCents > 0 ? (
+            <p className={`${bodyClass} mt-1 font-medium text-[#111111] dark:text-[#F5F7FA]`}>
+              Amount due: {formatCents(normalized.remainingCents)}
+            </p>
+          ) : null}
+        </div>
+        <TimelineBlock kind="post_review_due" compact={compact} />
+        <Link href={checkoutHref} className={primaryBtn}>
+          Pay remaining now
+        </Link>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center pt-1">
+          <Link href={issueHref} className={`${linkAccent} text-center sm:text-left`}>
+            Report issue
+          </Link>
+          <span className="hidden sm:inline text-[#D1D5DB] dark:text-white/20" aria-hidden>
+            ·
+          </span>
+          <Link href={supportHref} className={`${linkAccent} text-center sm:text-left`}>
+            Contact support
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (normalized.kind === 'scheduled') {
     return (
       <div className={`${cardShell} ${wrap} space-y-3`}>
