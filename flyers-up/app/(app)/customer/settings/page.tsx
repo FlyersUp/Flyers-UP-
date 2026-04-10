@@ -18,7 +18,8 @@ export default function CustomerSettings() {
       rows: [
         { label: 'Profile', href: '/customer/settings/account-profile' },
         { label: 'Login & Security', href: '/customer/settings/privacy-security' },
-        { label: 'Verification', href: '/customer/settings/safety-preferences' },
+        { label: 'Verification', href: '/customer/settings/verification' },
+        { label: 'Safety & preferences', href: '/customer/settings/safety-preferences' },
       ],
     },
     {
@@ -60,7 +61,7 @@ export default function CustomerSettings() {
         { label: 'Privacy policy', href: '/customer/settings/support-legal' },
         { label: 'Terms', href: '/customer/settings/support-legal' },
         { label: 'Dispute policy', href: '/customer/settings/support-legal' },
-        { label: 'Verification & background checks', href: '/customer/settings/safety-preferences' },
+        { label: 'Verification & background checks', href: '/trust-verification' },
       ],
     },
   ];

@@ -2,9 +2,13 @@
 
 /**
  * Report user / Block user — report opens a reason + details modal; block is immediate with confirm.
+ * Block state: viewer → target via `blocked_users` / useYouBlockedOtherUser (RLS + /api/users/block).
  */
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { USER_REPORT_REASONS } from '@/lib/moderation/report-reasons';
+import { useYouBlockedOtherUser, type YouBlockedOtherUserState } from '@/hooks/useYouBlockedOtherUser';
+import { blockMenuItemLabel, blockMenuItemPendingLabel } from '@/lib/messaging/block-relationship-ui';
 
 interface ReportUserBlockUserProps {
   targetUserId: string;
@@ -13,6 +17,11 @@ interface ReportUserBlockUserProps {
   variant?: 'menu' | 'inline';
   /** When set, replaces default classes for the ⋯ menu trigger (menu variant only). */
   menuTriggerClassName?: string;
+  /**
+   * When set, block/unblock UI uses this state (e.g. share one hook with a parent “Blocked” badge).
+   * When omitted, fetches via useYouBlockedOtherUser(targetUserId).
+   */
+  blockRelationship?: YouBlockedOtherUserState;
 }
 
 const defaultMenuTriggerClass =
@@ -24,13 +33,25 @@ export function ReportUserBlockUser({
   bookingId,
   variant = 'menu',
   menuTriggerClassName,
+  blockRelationship: blockRelationshipProp,
 }: ReportUserBlockUserProps) {
+  const router = useRouter();
+  const internalBlock = useYouBlockedOtherUser(blockRelationshipProp ? null : targetUserId);
+  const rel = blockRelationshipProp ?? internalBlock;
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reason, setReason] = useState<string>('other');
   const [details, setDetails] = useState('');
-  const [loading, setLoading] = useState<'report' | 'block' | null>(null);
+  const [loading, setLoading] = useState<'report' | 'block' | 'unblock' | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
+  /** Optimistic override; null = follow `rel.youBlocked`. */
+  const [optimisticBlocked, setOptimisticBlocked] = useState<boolean | null>(null);
+
+  const statusLoading = rel.loading;
+  /** Displayed block state (optimistic while mutating). */
+  const displayBlocked = optimisticBlocked !== null ? optimisticBlocked : rel.youBlocked;
+  const blockBusy = loading === 'block' || loading === 'unblock';
 
   const closeReport = () => {
     setReportOpen(false);
@@ -49,6 +70,7 @@ export function ReportUserBlockUser({
       const res = await fetch('/api/users/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           reportedUserId: targetUserId,
           reason,
@@ -74,30 +96,66 @@ export function ReportUserBlockUser({
   const handleBlock = async () => {
     if (
       !confirm(
-        `Block ${targetDisplayName}?\n\nBlocking is separate from reporting them to Flyers Up. While blocked, you won’t send them new messages in chat where blocking is enforced; other areas may still improve over time. You can unblock from the banner in chat.`
+        `Block ${targetDisplayName}?\n\nBlocking is separate from reporting them to Flyers Up. While blocked, you won’t send them new messages in chat where blocking is enforced; other areas may still improve over time. You can unblock from this menu or from the banner in chat.`
       )
     )
       return;
+    setOptimisticBlocked(true);
     setLoading('block');
     try {
-      const res = await fetch('/api/users/block', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ blockedUserId: targetUserId }),
-      });
-      if (res.ok) {
-        alert('User blocked.');
-        setMenuOpen(false);
-        window.location.reload();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        alert(data?.error || 'Could not block user.');
+      const ok = await rel.block();
+      if (!ok) {
+        setOptimisticBlocked(null);
+        await rel.refetch();
+        alert('Could not block user.');
+        return;
       }
+      await rel.refetch();
+      setOptimisticBlocked(null);
+      setMenuOpen(false);
+      router.refresh();
     } catch {
+      setOptimisticBlocked(null);
+      void rel.refetch();
       alert('Could not block. Please try again.');
     } finally {
       setLoading(null);
     }
+  };
+
+  const handleUnblock = async () => {
+    if (
+      !confirm(
+        `Unblock ${targetDisplayName}?\n\nThey will be able to message you again where the app allows it.`
+      )
+    )
+      return;
+    setOptimisticBlocked(false);
+    setLoading('unblock');
+    try {
+      const ok = await rel.unblock();
+      if (!ok) {
+        setOptimisticBlocked(null);
+        await rel.refetch();
+        alert('Could not unblock user.');
+        return;
+      }
+      await rel.refetch();
+      setOptimisticBlocked(null);
+      setMenuOpen(false);
+      router.refresh();
+    } catch {
+      setOptimisticBlocked(null);
+      void rel.refetch();
+      alert('Could not unblock. Please try again.');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleBlockOrUnblock = () => {
+    if (displayBlocked) void handleUnblock();
+    else void handleBlock();
   };
 
   const openReportModal = () => {
@@ -178,6 +236,14 @@ export function ReportUserBlockUser({
     </div>
   ) : null;
 
+  const blockButtonDisabled = !!loading || statusLoading || blockBusy;
+  const blockButtonLabel =
+    loading === 'unblock'
+      ? blockMenuItemPendingLabel(true)
+      : loading === 'block'
+        ? blockMenuItemPendingLabel(false)
+        : blockMenuItemLabel(displayBlocked);
+
   if (variant === 'inline') {
     return (
       <>
@@ -192,11 +258,17 @@ export function ReportUserBlockUser({
           </button>
           <button
             type="button"
-            onClick={handleBlock}
-            disabled={!!loading}
+            onClick={() => void handleBlockOrUnblock()}
+            disabled={blockButtonDisabled}
             className="px-3 py-1.5 text-sm font-medium text-danger hover:opacity-90 border border-border rounded-lg transition-colors disabled:opacity-50"
           >
-            {loading === 'block' ? 'Blocking…' : 'Block'}
+            {loading === 'unblock'
+              ? 'Unblocking…'
+              : loading === 'block'
+                ? 'Blocking…'
+                : displayBlocked
+                  ? 'Unblock'
+                  : 'Block'}
           </button>
         </div>
         {reportModal}
@@ -231,11 +303,11 @@ export function ReportUserBlockUser({
               </button>
               <button
                 type="button"
-                onClick={handleBlock}
-                disabled={!!loading}
+                onClick={() => void handleBlockOrUnblock()}
+                disabled={blockButtonDisabled}
                 className="w-full px-4 py-2 text-left text-sm text-danger hover:bg-surface2 disabled:opacity-50"
               >
-                {loading === 'block' ? 'Blocking…' : 'Block user'}
+                {blockButtonLabel}
               </button>
             </div>
           </>

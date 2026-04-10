@@ -9,6 +9,7 @@ import type { PublicProProfileModel } from '@/lib/profileData';
 import { ProfilePhotoTile } from '@/components/shared/ProfilePhotoTile';
 import { FavoriteButton } from '@/components/profile/FavoriteButton';
 import { ReportUserBlockUser } from '@/components/moderation/ReportUserBlockUser';
+import { useYouBlockedOtherUser } from '@/hooks/useYouBlockedOtherUser';
 import { ShieldCheck, Award } from 'lucide-react';
 
 interface ProfileHeroCardProps {
@@ -22,6 +23,7 @@ function formatYears(years: number | null): string | null {
 }
 
 export function ProfileHeroCard({ profile, showFavorite = true }: ProfileHeroCardProps) {
+  const blockRelationship = useYouBlockedOtherUser(profile.userId);
   const photoUrl = profile.logoUrl || profile.avatarUrl;
   const rating = profile.stats.avgRating;
   const reviewCount = profile.stats.reviewCount ?? 0;
@@ -41,11 +43,20 @@ export function ProfileHeroCard({ profile, showFavorite = true }: ProfileHeroCar
         role="toolbar"
         aria-label="Profile actions"
       >
+        {blockRelationship.youBlocked ? (
+          <span
+            className="shrink-0 rounded-full border border-black/[0.08] dark:border-white/10 bg-black/[0.04] dark:bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#6A6A6A] dark:text-[#A1A8B3]"
+            title="You have blocked this user"
+          >
+            Blocked
+          </span>
+        ) : null}
         {showFavorite ? <FavoriteButton proId={profile.id} /> : null}
         <ReportUserBlockUser
           targetUserId={profile.userId}
           targetDisplayName={profile.businessName}
           variant="menu"
+          blockRelationship={blockRelationship}
         />
       </div>
       <div className="p-5 pr-24 sm:p-6 sm:pr-28">
