@@ -24,6 +24,7 @@ import { ProBookingJobNotes } from '@/components/bookings/ProBookingJobNotes';
 import { ProEarningsBreakdownCard } from '@/components/bookings/ProEarningsBreakdownCard';
 import { ProPendingReschedulePanel } from '@/components/bookings/ProPendingReschedulePanel';
 import { formatWallDateLong } from '@/lib/bookings/pending-reschedule';
+import { getProAutomatedPayoutStatusMessage } from '@/lib/bookings/pro-payout-status-message';
 
 export default function ProBookingDetailPage({
   params,
@@ -176,6 +177,15 @@ export default function ProBookingDetailPage({
               ['completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment', 'awaiting_customer_confirmation'].includes(booking.status);
             const isPayoutSucceeded = (booking.payoutStatus ?? '').toLowerCase() === 'succeeded' || (booking.payoutStatus ?? '').toLowerCase() === 'paid';
             const customerPaid = !!booking.fullyPaidAt || !!booking.paidRemainingAt;
+            const automatedPayoutHint =
+              customerPaid && booking.completedAt
+                ? getProAutomatedPayoutStatusMessage({
+                    completedAt: booking.completedAt,
+                    paidRemainingAt: booking.paidRemainingAt,
+                    payoutReleased: booking.payoutReleased,
+                    payoutStatus: booking.payoutStatus,
+                  })
+                : null;
             const proEarnings = Math.max(
               0,
               (booking.amountTotal ?? 0) - (booking.platformFeeCents ?? 0) - (booking.refundedTotalCents ?? 0)
@@ -295,6 +305,9 @@ export default function ProBookingDetailPage({
                       payoutStatus={booking.payoutStatus}
                       customerPaid={customerPaid}
                     />
+                    {automatedPayoutHint && (
+                      <p className="mt-2 text-xs text-muted text-center">{automatedPayoutHint}</p>
+                    )}
                   </div>
                   <div className="space-y-4">
                     <BookingPaymentStatusCard

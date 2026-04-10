@@ -301,6 +301,7 @@ export interface Database {
           amount_paid_cents?: number | null;
           payout_amount_cents?: number | null;
           payout_blocked?: boolean | null;
+          requires_admin_review?: boolean | null;
           issue_reported_at?: string | null;
           issue_summary?: string | null;
           admin_hold?: boolean | null;
@@ -366,6 +367,7 @@ export interface Database {
           amount_paid_cents?: number | null;
           payout_amount_cents?: number | null;
           payout_blocked?: boolean | null;
+          requires_admin_review?: boolean | null;
           issue_reported_at?: string | null;
           issue_summary?: string | null;
           admin_hold?: boolean | null;
@@ -431,6 +433,7 @@ export interface Database {
           amount_paid_cents?: number | null;
           payout_amount_cents?: number | null;
           payout_blocked?: boolean | null;
+          requires_admin_review?: boolean | null;
           issue_reported_at?: string | null;
           issue_summary?: string | null;
           admin_hold?: boolean | null;

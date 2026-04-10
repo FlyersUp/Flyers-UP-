@@ -159,6 +159,56 @@ describe('state-machine', () => {
       });
       assert.ok(r.eligible, r.reason);
     });
+
+    it('autoReleaseAfterCompletionHours blocks until window passes', () => {
+      const recent = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const r = isPayoutEligible({
+        ...base,
+        customer_confirmed: false,
+        auto_confirm_at: null,
+        completed_at: recent,
+        autoReleaseAfterCompletionHours: 24,
+      });
+      assert.ok(!r.eligible);
+      assert.ok(r.reason?.includes('review window'));
+    });
+
+    it('autoReleaseAfterCompletionHours allows after window', () => {
+      const old = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+      const r = isPayoutEligible({
+        ...base,
+        customer_confirmed: false,
+        auto_confirm_at: null,
+        completed_at: old,
+        autoReleaseAfterCompletionHours: 24,
+      });
+      assert.ok(r.eligible, r.reason);
+    });
+
+    it('autoReleaseAfterCompletionHours blocks suspicious completion', () => {
+      const old = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+      const r = isPayoutEligible({
+        ...base,
+        customer_confirmed: false,
+        auto_confirm_at: null,
+        completed_at: old,
+        suspicious_completion: true,
+        autoReleaseAfterCompletionHours: 24,
+      });
+      assert.ok(!r.eligible);
+      assert.ok(r.reason?.includes('Suspicious') || r.reason?.includes('admin review'));
+    });
+
+    it('adminTransferOverride skips confirm and suspicious gates', () => {
+      const r = isPayoutEligible({
+        ...base,
+        customer_confirmed: false,
+        auto_confirm_at: null,
+        suspicious_completion: true,
+        adminTransferOverride: true,
+      });
+      assert.ok(r.eligible, r.reason);
+    });
   });
 });
 

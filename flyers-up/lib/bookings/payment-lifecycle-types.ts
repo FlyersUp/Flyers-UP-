@@ -51,7 +51,11 @@ export type PayoutHoldReason =
   | 'fraud_review'
   | 'no_show_review'
   | 'insufficient_completion_evidence'
-  | 'admin_hold';
+  | 'admin_hold'
+  | 'waiting_post_completion_review'
+  | 'payout_blocked'
+  | 'already_released'
+  | 'refund_pending';
 
 export type BookingPaymentEventType =
   | 'deposit_intent_created'
@@ -107,6 +111,10 @@ export function assertPayoutHoldReason(v: string): PayoutHoldReason {
     'no_show_review',
     'insufficient_completion_evidence',
     'admin_hold',
+    'waiting_post_completion_review',
+    'payout_blocked',
+    'already_released',
+    'refund_pending',
   ]);
   return (allowed.has(v) ? v : 'none') as PayoutHoldReason;
 }

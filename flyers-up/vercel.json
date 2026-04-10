@@ -14,7 +14,7 @@
       "schedule": "0 0 * * *"
     },
     {
-      "path": "/api/cron/release-payouts",
+      "path": "/api/cron/bookings/payout-release",
       "schedule": "0 0 * * *"
     },
     {

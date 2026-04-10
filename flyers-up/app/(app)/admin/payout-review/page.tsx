@@ -131,7 +131,13 @@ export default function AdminPayoutReviewPage() {
                         ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200'
                         : item.reason === 'missing_evidence'
                           ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200'
-                          : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                          : item.reason === 'dispute_open' || item.reason === 'refund_pending'
+                            ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200'
+                            : item.reason === 'payout_blocked'
+                              ? 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200'
+                              : item.reason === 'stripe_not_ready' || item.reason === 'pro_payout_hold'
+                                ? 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200'
+                                : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
                     }`}
                   >
                     {item.reason.replace(/_/g, ' ')}

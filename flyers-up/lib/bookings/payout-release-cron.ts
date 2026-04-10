@@ -1,31 +1,89 @@
 /**
- * Single implementation for scheduled payout release (job-completion + eligibility guards).
- * Invoked only from GET /api/cron/bookings/payout-release — not from the deprecated /api/cron/release-payouts.
+ * Scheduled automatic payout release (Stripe Connect transfer via releasePayout).
+ * Invoked only from GET /api/cron/bookings/payout-release.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
-import { evaluatePayoutRiskForPro } from '@/lib/payoutRisk';
-import { isPayoutEligible } from '@/lib/bookings/state-machine';
-import { resolveMilestonePayoutGate } from '@/lib/bookings/multi-day-payout';
-import { releasePayout } from '@/lib/bookings/payment-lifecycle-service';
+import {
+  evaluatePayoutTransferEligibility,
+  releasePayout,
+} from '@/lib/bookings/payment-lifecycle-service';
+import type { PayoutHoldReason } from '@/lib/bookings/payment-lifecycle-types';
 
 export type PayoutReleaseCronResult = {
   released: number;
   failed: number;
+  flagged: number;
+  /** Candidates seen (payout not released, deposit+remaining paid, in completed-like status) */
   total: number;
 };
 
-export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<PayoutReleaseCronResult> {
-  const now = new Date().toISOString();
+type QueueReason =
+  | 'dispute_open'
+  | 'refund_pending'
+  | 'payout_blocked'
+  | 'missing_evidence'
+  | 'stripe_not_ready'
+  | 'pro_payout_hold'
+  | 'suspicious_completion';
 
+function payoutReviewQueueReason(hold: PayoutHoldReason): QueueReason {
+  switch (hold) {
+    case 'dispute_open':
+      return 'dispute_open';
+    case 'refund_pending':
+      return 'refund_pending';
+    case 'payout_blocked':
+      return 'payout_blocked';
+    case 'fraud_review':
+      return 'pro_payout_hold';
+    case 'missing_payment_method':
+      return 'stripe_not_ready';
+    case 'no_show_review':
+    case 'admin_hold':
+      return 'payout_blocked';
+    case 'insufficient_completion_evidence':
+      return 'missing_evidence';
+    default:
+      return 'missing_evidence';
+  }
+}
+
+async function flagForManualPayoutReview(
+  admin: SupabaseClient,
+  bookingId: string,
+  holdReason: PayoutHoldReason,
+  extra?: Record<string, unknown>
+): Promise<void> {
+  const reason = payoutReviewQueueReason(holdReason);
+  const now = new Date().toISOString();
+  try {
+    await admin.from('bookings').update({ requires_admin_review: true }).eq('id', bookingId);
+  } catch (e) {
+    console.warn('[payout-release-cron] requires_admin_review update failed', bookingId, e);
+  }
+  try {
+    await admin.from('payout_review_queue').upsert(
+      {
+        booking_id: bookingId,
+        reason,
+        details: { holdReason, source: 'payout_release_cron', flagged_at: now, ...extra },
+        status: 'pending',
+      },
+      { onConflict: 'booking_id' }
+    );
+  } catch (e) {
+    console.warn('[payout-release-cron] payout_review_queue upsert failed', bookingId, e);
+  }
+}
+
+export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<PayoutReleaseCronResult> {
   const { data: candidates, error } = await admin
     .from('bookings')
-    .select(
-      'id, pro_id, status, total_amount_cents, amount_total, amount_subtotal, customer_fees_retained_cents, amount_platform_fee, refunded_total_cents, currency, paid_deposit_at, paid_remaining_at, stripe_destination_account_id, customer_confirmed, auto_confirm_at, arrived_at, started_at, completed_at, dispute_open, cancellation_reason, refund_status, suspicious_completion, is_multi_day, service_pros(stripe_account_id, user_id)'
-    )
-    .in('status', ['completed', 'customer_confirmed', 'auto_confirmed'])
+    .select('id, pro_id, service_pros(user_id)')
+    .in('status', ['completed', 'customer_confirmed', 'auto_confirmed', 'payout_eligible'])
     .eq('payout_released', false)
     .not('refund_status', 'eq', 'pending')
     .not('paid_deposit_at', 'is', null)
@@ -36,95 +94,57 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
     throw new Error('Query failed');
   }
 
-  const toProcess: NonNullable<typeof candidates> = [];
-  for (const b of candidates ?? []) {
-    const isMultiFlag = (b as { is_multi_day?: boolean }).is_multi_day === true;
-    const gate = await resolveMilestonePayoutGate(admin, b.id, isMultiFlag);
-    if (gate.fetchError) {
-      console.warn('[payout-release-cron] skip booking (milestone gate query failed)', b.id);
-      continue;
-    }
-    const eligibility = isPayoutEligible({
-      status: b.status,
-      arrived_at: (b as { arrived_at?: string | null }).arrived_at ?? null,
-      started_at: (b as { started_at?: string | null }).started_at ?? null,
-      completed_at: (b as { completed_at?: string | null }).completed_at ?? null,
-      customer_confirmed: (b as { customer_confirmed?: boolean }).customer_confirmed === true,
-      auto_confirm_at: (b as { auto_confirm_at?: string | null }).auto_confirm_at ?? null,
-      dispute_open: (b as { dispute_open?: boolean }).dispute_open === true,
-      cancellation_reason: (b as { cancellation_reason?: string | null }).cancellation_reason ?? null,
-      paid_deposit_at: b.paid_deposit_at ?? null,
-      paid_remaining_at: b.paid_remaining_at ?? null,
-      refund_status: (b as { refund_status?: string | null }).refund_status ?? null,
-      suspicious_completion: (b as { suspicious_completion?: boolean }).suspicious_completion === true,
-      is_multi_day: gate.enforceMilestoneGate,
-      multi_day_schedule_ok: gate.scheduleOk,
-    });
-    if (!eligibility.eligible) continue;
-
-    const customerConfirmed = (b as { customer_confirmed?: boolean }).customer_confirmed === true;
-    const autoConfirmAt = (b as { auto_confirm_at?: string | null }).auto_confirm_at;
-    const autoConfirmPassed = autoConfirmAt != null && autoConfirmAt < now;
-    if (!customerConfirmed && !autoConfirmPassed) continue;
-
-    const { data: jc } = await admin
-      .from('job_completions')
-      .select('after_photo_urls, booking_id')
-      .eq('booking_id', b.id)
-      .maybeSingle();
-    const rawUrls = (jc as { after_photo_urls?: string[] } | null)?.after_photo_urls ?? [];
-    const validUrls = rawUrls.filter(
-      (u): u is string =>
-        typeof u === 'string' &&
-        u.trim().length > 5 &&
-        !/^(placeholder|n\/a|none|null|undefined)$/i.test(u.trim())
-    );
-    if (validUrls.length >= 2 && jc?.booking_id === b.id) toProcess.push(b);
-  }
-
   let released = 0;
   let failed = 0;
+  let flagged = 0;
 
-  for (const b of toProcess) {
-    const totalCents = Number(b.total_amount_cents ?? b.amount_total ?? 0) || 0;
-    if (totalCents <= 0) continue;
-
-    const proUser = (b.service_pros as { user_id?: string })?.user_id;
-    if (proUser) {
-      const risk = await evaluatePayoutRiskForPro(proUser);
-      if (risk.payoutsOnHold) continue;
+  for (const row of candidates ?? []) {
+    const bookingId = row.id as string;
+    const proUserId = (row as { service_pros?: { user_id?: string } }).service_pros?.user_id;
+    const ev = await evaluatePayoutTransferEligibility(admin, bookingId, { initiatedByAdmin: false });
+    if (ev.ok) {
+      const out = await releasePayout(admin, { bookingId });
+      if (out.ok) {
+        await admin.from('booking_events').insert({
+          booking_id: bookingId,
+          type: 'PAYOUT_RELEASED',
+          data: { transfer_id: out.transferId, via: 'payout_release_cron' },
+        });
+        if (proUserId) {
+          void createNotificationEvent({
+            userId: proUserId,
+            type: NOTIFICATION_TYPES.PAYOUT_SENT,
+            bookingId,
+            basePath: 'pro',
+          });
+        }
+        released++;
+      } else {
+        failed++;
+        await flagForManualPayoutReview(admin, bookingId, 'missing_payment_method', {
+          release_error: out.code ?? 'unknown',
+          note: 'Automatic transfer attempt failed; needs admin or retry',
+        });
+        flagged++;
+        if (proUserId && out.code === 'transfer_failed') {
+          void createNotificationEvent({
+            userId: proUserId,
+            type: NOTIFICATION_TYPES.PAYOUT_FAILED,
+            bookingId,
+            titleOverride: 'Payout issue',
+            bodyOverride: 'We could not process your payout. Please contact support.',
+            basePath: 'pro',
+          });
+        }
+      }
+      continue;
     }
 
-    const out = await releasePayout(admin, { bookingId: b.id });
-    if (out.ok) {
-      await admin.from('booking_events').insert({
-        booking_id: b.id,
-        type: 'PAYOUT_RELEASED',
-        data: { transfer_id: out.transferId, via: 'payout_release_cron' },
-      });
-      if (proUser) {
-        void createNotificationEvent({
-          userId: proUser,
-          type: NOTIFICATION_TYPES.PAYOUT_SENT,
-          bookingId: b.id,
-          basePath: 'pro',
-        });
-      }
-      released++;
-    } else {
-      failed++;
-      if (proUser && out.code === 'transfer_failed') {
-        void createNotificationEvent({
-          userId: proUser,
-          type: NOTIFICATION_TYPES.PAYOUT_FAILED,
-          bookingId: b.id,
-          titleOverride: 'Payout issue',
-          bodyOverride: 'We could not process your payout. Please contact support.',
-          basePath: 'pro',
-        });
-      }
+    if (ev.flagForAdminReview) {
+      await flagForManualPayoutReview(admin, bookingId, ev.holdReason);
+      flagged++;
     }
   }
 
-  return { released, failed, total: candidates?.length ?? 0 };
+  return { released, failed, flagged, total: candidates?.length ?? 0 };
 }

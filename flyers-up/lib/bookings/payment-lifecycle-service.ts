@@ -18,7 +18,7 @@ import {
   refundPaymentIntent,
   refundPaymentIntentPartial,
 } from '@/lib/stripe/server';
-import { isPayoutEligible } from '@/lib/bookings/state-machine';
+import { isPayoutEligible, PAYOUT_AUTO_RELEASE_REVIEW_HOURS } from '@/lib/bookings/state-machine';
 import { resolveMilestonePayoutGate } from '@/lib/bookings/multi-day-payout';
 import { resolveProPayoutTransferCents } from '@/lib/bookings/booking-payout-economics';
 import { evaluatePayoutRiskForPro } from '@/lib/payoutRisk';
@@ -913,6 +913,178 @@ export async function handleFinalPaymentFailed(
   }
 }
 
+export type PayoutTransferEvaluation =
+  | { ok: true }
+  | { ok: false; holdReason: PayoutHoldReason; flagForAdminReview: boolean };
+
+/**
+ * Eligibility for Stripe transfer (cron auto-release or admin approve_payout).
+ * Differs from {@link evaluatePayoutEligibility}: uses post-completion review window for automatic
+ * release, optional admin bypass for confirmation/photos/suspicious flags, and enforces Connect readiness.
+ */
+export async function evaluatePayoutTransferEligibility(
+  admin: AdminClient,
+  bookingId: string,
+  opts: { initiatedByAdmin: boolean }
+): Promise<PayoutTransferEvaluation> {
+  const { data: b, error } = await admin
+    .from('bookings')
+    .select(
+      [
+        'id',
+        'status',
+        'arrived_at',
+        'started_at',
+        'completed_at',
+        'customer_confirmed',
+        'auto_confirm_at',
+        'dispute_open',
+        'cancellation_reason',
+        'paid_deposit_at',
+        'paid_remaining_at',
+        'refund_status',
+        'suspicious_completion',
+        'is_multi_day',
+        'payout_released',
+        'admin_hold',
+        'dispute_status',
+        'payment_lifecycle_status',
+        'final_payment_status',
+        'payout_blocked',
+        'payout_hold_reason',
+        'stripe_destination_account_id',
+        'service_pros(stripe_account_id, user_id, stripe_charges_enabled)',
+      ].join(', ')
+    )
+    .eq('id', bookingId)
+    .maybeSingle();
+
+  if (error || !b) {
+    return { ok: false, holdReason: 'missing_final_payment', flagForAdminReview: false };
+  }
+
+  const row = b as unknown as Record<string, unknown>;
+  if (row.payout_released === true) {
+    return { ok: false, holdReason: 'already_released', flagForAdminReview: false };
+  }
+  if (row.admin_hold === true) {
+    return { ok: false, holdReason: 'admin_hold', flagForAdminReview: true };
+  }
+
+  const disputeClear =
+    row.dispute_status == null ||
+    String(row.dispute_status).trim() === '' ||
+    String(row.dispute_status) === 'none';
+  if (!disputeClear || row.dispute_open === true) {
+    return { ok: false, holdReason: 'dispute_open', flagForAdminReview: true };
+  }
+
+  const lc = String(row.payment_lifecycle_status ?? '');
+  const finalPaidLegacy =
+    String((row as { final_payment_status?: string }).final_payment_status ?? '').toUpperCase() === 'PAID';
+  const paidFinal =
+    lc === 'paid' ||
+    ['final_paid', 'payout_ready', 'payout_sent'].includes(lc) ||
+    finalPaidLegacy;
+  if (!paidFinal) {
+    return { ok: false, holdReason: 'missing_final_payment', flagForAdminReview: false };
+  }
+
+  if (!opts.initiatedByAdmin && row.payout_blocked === true) {
+    return { ok: false, holdReason: 'payout_blocked', flagForAdminReview: true };
+  }
+
+  const isMultiFlag = row.is_multi_day === true;
+  const gate = await resolveMilestonePayoutGate(admin, bookingId, isMultiFlag);
+  if (gate.fetchError) {
+    return { ok: false, holdReason: 'insufficient_completion_evidence', flagForAdminReview: true };
+  }
+
+  const sm = isPayoutEligible({
+    status: String(row.status ?? ''),
+    arrived_at: (row.arrived_at as string) ?? null,
+    started_at: (row.started_at as string) ?? null,
+    completed_at: (row.completed_at as string) ?? null,
+    customer_confirmed: row.customer_confirmed === true,
+    auto_confirm_at: (row.auto_confirm_at as string) ?? null,
+    dispute_open: row.dispute_open === true,
+    cancellation_reason: (row.cancellation_reason as string) ?? null,
+    paid_deposit_at: (row.paid_deposit_at as string) ?? null,
+    paid_remaining_at: (row.paid_remaining_at as string) ?? null,
+    refund_status: (row.refund_status as string) ?? null,
+    suspicious_completion: row.suspicious_completion === true,
+    is_multi_day: gate.enforceMilestoneGate,
+    multi_day_schedule_ok: gate.scheduleOk,
+    adminTransferOverride: opts.initiatedByAdmin,
+    autoReleaseAfterCompletionHours: opts.initiatedByAdmin ? null : PAYOUT_AUTO_RELEASE_REVIEW_HOURS,
+  });
+
+  if (!sm.eligible) {
+    const r = sm.reason ?? '';
+    if (r.includes('review window has not passed')) {
+      return { ok: false, holdReason: 'waiting_post_completion_review', flagForAdminReview: false };
+    }
+    if (r.includes('Dispute')) return { ok: false, holdReason: 'dispute_open', flagForAdminReview: true };
+    if (r.includes('no-show')) return { ok: false, holdReason: 'no_show_review', flagForAdminReview: true };
+    if (r.includes('Suspicious') || r.includes('admin review')) {
+      return { ok: false, holdReason: 'fraud_review', flagForAdminReview: true };
+    }
+    if (r.includes('Payment not complete') || r.includes('deposit or remaining')) {
+      return { ok: false, holdReason: 'missing_final_payment', flagForAdminReview: false };
+    }
+    if (r.includes('Refund')) return { ok: false, holdReason: 'refund_pending', flagForAdminReview: true };
+    if (r.includes('not in')) return { ok: false, holdReason: 'insufficient_completion_evidence', flagForAdminReview: false };
+    if (r.includes('not arrived') || r.includes('not been started') || r.includes('not been completed')) {
+      return { ok: false, holdReason: 'insufficient_completion_evidence', flagForAdminReview: false };
+    }
+    if (r.includes('Multi-day')) {
+      return { ok: false, holdReason: 'insufficient_completion_evidence', flagForAdminReview: true };
+    }
+    return { ok: false, holdReason: 'insufficient_completion_evidence', flagForAdminReview: false };
+  }
+
+  if (!opts.initiatedByAdmin) {
+    const { data: jc } = await admin
+      .from('job_completions')
+      .select('after_photo_urls, booking_id')
+      .eq('booking_id', bookingId)
+      .maybeSingle();
+    const rawUrls = (jc as { after_photo_urls?: string[] } | null)?.after_photo_urls ?? [];
+    const validUrls = rawUrls.filter(
+      (u): u is string =>
+        typeof u === 'string' &&
+        u.trim().length > 5 &&
+        !/^(placeholder|n\/a|none|null|undefined)$/i.test(u.trim())
+    );
+    if (validUrls.length < 2 || jc?.booking_id !== bookingId) {
+      return { ok: false, holdReason: 'insufficient_completion_evidence', flagForAdminReview: true };
+    }
+  }
+
+  const dest =
+    (row.stripe_destination_account_id as string) ??
+    ((row.service_pros as { stripe_account_id?: string })?.stripe_account_id ?? '');
+  if (!dest || !String(dest).trim()) {
+    return { ok: false, holdReason: 'missing_payment_method', flagForAdminReview: true };
+  }
+
+  const chargesOn =
+    (row.service_pros as { stripe_charges_enabled?: boolean })?.stripe_charges_enabled === true;
+  if (!opts.initiatedByAdmin && !chargesOn) {
+    return { ok: false, holdReason: 'missing_payment_method', flagForAdminReview: true };
+  }
+
+  const proUser = (row.service_pros as { user_id?: string })?.user_id;
+  if (proUser) {
+    const risk = await evaluatePayoutRiskForPro(proUser);
+    if (risk.payoutsOnHold) {
+      return { ok: false, holdReason: 'fraud_review', flagForAdminReview: true };
+    }
+  }
+
+  return { ok: true };
+}
+
 export async function evaluatePayoutEligibility(
   admin: AdminClient,
   bookingId: string
@@ -968,7 +1140,9 @@ export async function evaluatePayoutEligibility(
   const finalPaidLegacy =
     String((row as { final_payment_status?: string }).final_payment_status ?? '').toUpperCase() === 'PAID';
   const paidFinal =
-    ['final_paid', 'payout_ready', 'payout_sent'].includes(lc) || finalPaidLegacy;
+    lc === 'paid' ||
+    ['final_paid', 'payout_ready', 'payout_sent'].includes(lc) ||
+    finalPaidLegacy;
   if (!paidFinal) {
     return { eligible: false, holdReason: 'missing_final_payment' };
   }
@@ -1045,9 +1219,10 @@ export async function releasePayout(
   admin: AdminClient,
   input: { bookingId: string; initiatedByAdmin?: boolean; actorUserId?: string | null }
 ): Promise<{ ok: boolean; code?: string; transferId?: string | null }> {
-  const ev = await evaluatePayoutEligibility(admin, input.bookingId);
-  if (!ev.eligible) {
-    return { ok: false, code: ev.holdReason };
+  const initiatedByAdmin = input.initiatedByAdmin === true;
+  const transferEv = await evaluatePayoutTransferEligibility(admin, input.bookingId, { initiatedByAdmin });
+  if (!transferEv.ok) {
+    return { ok: false, code: transferEv.holdReason };
   }
 
   const { data: holdRow } = await admin
@@ -1066,7 +1241,7 @@ export async function releasePayout(
     'no_show_review',
   ]);
   if (
-    !input.initiatedByAdmin &&
+    !initiatedByAdmin &&
     h?.payout_blocked &&
     hardHolds.has(String(h.payout_hold_reason ?? ''))
   ) {
@@ -1186,6 +1361,7 @@ export async function releasePayout(
       transferred_total_cents: netToPro,
       payout_amount_cents: netToPro,
       payment_lifecycle_status: 'payout_sent',
+      requires_admin_review: false,
     })
     .eq('id', input.bookingId);
 

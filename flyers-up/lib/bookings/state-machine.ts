@@ -111,6 +111,9 @@ export function isPayoutBlockedStatus(status: string): boolean {
   return NO_PAYOUT_STATUSES.includes(status);
 }
 
+/** Hours after job completion before automatic marketplace payout release (cron). */
+export const PAYOUT_AUTO_RELEASE_REVIEW_HOURS = 24;
+
 export interface PayoutEligibilityInput {
   status: string;
   arrived_at: string | null;
@@ -129,6 +132,16 @@ export interface PayoutEligibilityInput {
   is_multi_day?: boolean;
   /** Required true when is_multi_day is true; ignored when false/undefined */
   multi_day_schedule_ok?: boolean;
+  /**
+   * Admin manual transfer: skip customer/auto-confirm and suspicious-completion gates;
+   * still requires arrived/started/completed, payments, no refund pending, etc.
+   */
+  adminTransferOverride?: boolean;
+  /**
+   * Automatic cron transfer: use completed_at + hours instead of customer/auto confirm.
+   * When set, suspicious_completion always blocks (admin must approve).
+   */
+  autoReleaseAfterCompletionHours?: number | null;
 }
 
 /**
@@ -163,14 +176,30 @@ export function isPayoutEligible(input: PayoutEligibilityInput): { eligible: boo
     return { eligible: false, reason: 'Refund is pending' };
   }
 
-  const confirmed =
-    input.customer_confirmed || (input.auto_confirm_at != null && input.auto_confirm_at < now);
-  if (!confirmed) {
-    return { eligible: false, reason: 'Customer has not confirmed and auto-confirm window has not passed' };
-  }
+  if (!input.adminTransferOverride) {
+    const hours = input.autoReleaseAfterCompletionHours;
+    if (hours != null && hours > 0) {
+      if (input.suspicious_completion) {
+        return { eligible: false, reason: 'Suspicious completion requires admin review' };
+      }
+      if (!input.completed_at) {
+        return { eligible: false, reason: 'Job has not been completed (completed_at is null)' };
+      }
+      const deadline = new Date(input.completed_at).getTime() + hours * 60 * 60 * 1000;
+      if (Date.now() < deadline) {
+        return { eligible: false, reason: 'Post-completion review window has not passed' };
+      }
+    } else {
+      const confirmed =
+        input.customer_confirmed || (input.auto_confirm_at != null && input.auto_confirm_at < now);
+      if (!confirmed) {
+        return { eligible: false, reason: 'Customer has not confirmed and auto-confirm window has not passed' };
+      }
 
-  if (input.suspicious_completion && !input.customer_confirmed) {
-    return { eligible: false, reason: 'Suspicious completion requires customer confirmation' };
+      if (input.suspicious_completion && !input.customer_confirmed) {
+        return { eligible: false, reason: 'Suspicious completion requires customer confirmation' };
+      }
+    }
   }
 
   if (input.is_multi_day) {

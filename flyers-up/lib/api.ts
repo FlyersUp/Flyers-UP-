@@ -149,6 +149,8 @@ export interface BookingDetails {
   paidDepositAt?: string | null;
   paidRemainingAt?: string | null;
   payoutStatus?: string | null;
+  /** After automatic payout cron: funds transferred to Connect account */
+  payoutReleased?: boolean | null;
   refundStatus?: string | null;
   /** Maps to DB customer_fees_retained_cents (full customer-facing fee bucket, not legacy 15% only). */
   platformFeeCents?: number | null;
@@ -1117,6 +1119,7 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       paidDepositAt: d.paid_deposit_at as string | null | undefined,
       paidRemainingAt: d.paid_remaining_at as string | null | undefined,
       payoutStatus: d.payout_status as string | null | undefined,
+      payoutReleased: d.payout_released === true,
       refundStatus: d.refund_status as string | null | undefined,
       platformFeeCents: d.customer_fees_retained_cents as number | null | undefined,
       refundedTotalCents: d.refunded_total_cents as number | null | undefined,

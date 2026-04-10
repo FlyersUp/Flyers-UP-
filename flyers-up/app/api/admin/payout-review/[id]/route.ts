@@ -62,12 +62,17 @@ export async function POST(
     return NextResponse.json({ error: 'Update failed' }, { status: 500 });
   }
 
-  if (action === 'approve') {
+  if (action === 'approve' || action === 'deny') {
     await admin
       .from('bookings')
       .update({
-        suspicious_completion: false,
-        suspicious_completion_reason: null,
+        ...(action === 'approve'
+          ? {
+              suspicious_completion: false,
+              suspicious_completion_reason: null,
+            }
+          : {}),
+        requires_admin_review: false,
       })
       .eq('id', row.booking_id);
   }
