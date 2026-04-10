@@ -24,8 +24,8 @@ import {
   shouldShowCustomerConfirmCompletionCta,
   shouldShowCustomerDepositPayCta,
 } from '@/lib/bookings/customer-booking-actions';
-import { deriveCustomerRemainingPaymentUiStateNow } from '@/lib/bookings/customer-remaining-payment-ui';
-import { finalPaymentReceiptNote } from '@/lib/bookings/customer-final-payment-receipt-note';
+import { normalizeCustomerPaymentCardNow } from '@/lib/bookings/customer-payment-card-normalize';
+import { finalPaymentReceiptNoteFromKind } from '@/lib/bookings/customer-final-payment-receipt-note';
 import { BookingPaymentStatusCard } from '@/components/bookings/customer/BookingPaymentStatusCard';
 import { BookingDetailHeader } from '@/components/bookings/customer/booking-detail/BookingDetailHeader';
 import { BookingStepTracker } from '@/components/bookings/customer/booking-detail/BookingStepTracker';
@@ -205,7 +205,7 @@ export function BookingDetailContent({
           amountRemaining: booking.amountRemaining,
         });
 
-        const remainingPayState = deriveCustomerRemainingPaymentUiStateNow({
+        const remainingPaymentInput = {
           status: fullBooking.status ?? booking.status,
           paymentStatus: booking.paymentStatus ?? fullBooking.paymentStatus,
           finalPaymentStatus: booking.finalPaymentStatus ?? fullBooking.finalPaymentStatus,
@@ -218,7 +218,8 @@ export function BookingDetailContent({
           remainingDueAt: fullBooking.remainingDueAt ?? booking.remainingDueAt,
           customerReviewDeadlineAt: fullBooking.customerReviewDeadlineAt ?? null,
           amountRemaining: booking.amountRemaining ?? fullBooking.amountRemaining,
-        });
+        };
+        const paymentNormalized = normalizeCustomerPaymentCardNow(remainingPaymentInput);
 
         const customerConfirmed = fullBooking.customerConfirmed === true;
         const showConfirmCompletion = shouldShowCustomerConfirmCompletionCta({
@@ -274,7 +275,7 @@ export function BookingDetailContent({
           );
         }
 
-        const finalPaymentNote = finalPaymentReceiptNote(remainingPayState);
+        const finalPaymentNote = finalPaymentReceiptNoteFromKind(paymentNormalized.kind);
 
         const showCompletionHighlight =
           !!fullBooking.completion && (timelineKey === 'COMPLETED' || timelineKey === 'PAID');
@@ -339,22 +340,18 @@ export function BookingDetailContent({
               </section>
             )}
 
-            {remainingPayState.kind !== 'none' ? (
+            {paymentNormalized.kind !== 'none' ? (
               <section
                 className={cn(
                   'mb-4',
-                  remainingPayState.kind === 'review_window_auto' &&
+                  paymentNormalized.kind === 'scheduled' &&
                     'rounded-2xl ring-2 ring-amber-200/55 dark:ring-amber-700/40 ring-offset-2 ring-offset-[#F5F4F1] dark:ring-offset-[#0c0e12]'
                 )}
               >
                 <BookingPaymentStatusCard
                   bookingId={bookingId}
-                  state={remainingPayState}
-                  customerReviewDeadlineAt={fullBooking.customerReviewDeadlineAt ?? null}
-                  remainingDueAt={fullBooking.remainingDueAt ?? booking.remainingDueAt ?? null}
+                  paymentInput={remainingPaymentInput}
                   bookingTimezone={fullBooking.bookingTimezone ?? booking.bookingTimezone ?? null}
-                  paidRemainingAt={booking.paidRemainingAt ?? fullBooking.paidRemainingAt ?? null}
-                  fullyPaidAt={booking.fullyPaidAt ?? fullBooking.fullyPaidAt ?? null}
                 />
               </section>
             ) : null}

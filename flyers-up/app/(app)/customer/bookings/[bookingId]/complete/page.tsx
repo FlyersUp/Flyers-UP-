@@ -42,7 +42,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { isCustomerMoneyFullySettled } from '@/lib/bookings/customer-payment-settled';
-import { deriveCustomerRemainingPaymentUiStateNow } from '@/lib/bookings/customer-remaining-payment-ui';
+import { normalizeCustomerPaymentCardNow } from '@/lib/bookings/customer-payment-card-normalize';
 import { CustomerRemainingPaymentCallout } from '@/components/bookings/customer/CustomerRemainingPaymentCallout';
 
 type PageState =
@@ -191,14 +191,14 @@ export default function JobCompletePage({
         return;
       }
 
-      const remainingUi = deriveCustomerRemainingPaymentUiStateNow(remainingPaymentInputFromBooking(b));
+      const paymentNorm = normalizeCustomerPaymentCardNow(remainingPaymentInputFromBooking(b));
 
-      if (remainingUi.kind === 'success') {
+      if (paymentNorm.kind === 'paid') {
         setState('payment_success');
         return;
       }
 
-      if (remainingUi.kind === 'none') {
+      if (paymentNorm.kind === 'none') {
         setState('not_eligible');
         return;
       }
@@ -215,11 +215,6 @@ export default function JobCompletePage({
   }, [fetchBooking]);
 
   const conversationHref = `/customer/chat/${bookingId}`;
-  const completedPaymentUi =
-    state === 'completed' && booking
-      ? deriveCustomerRemainingPaymentUiStateNow(remainingPaymentInputFromBooking(booking))
-      : null;
-
   return (
     <AppLayout mode="customer" data-role="customer">
       <div className="min-h-screen bg-[hsl(var(--bg))]">
@@ -392,18 +387,12 @@ export default function JobCompletePage({
               {/* 6. Actions - sticky on mobile */}
               <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface/95 backdrop-blur-sm p-4 pb-[env(safe-area-inset-bottom)] sm:relative sm:mt-8 sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0">
                 <div className="max-w-lg mx-auto space-y-3 sm:space-y-4">
-                  {completedPaymentUi && completedPaymentUi.kind !== 'none' ? (
-                    <CustomerRemainingPaymentCallout
-                      bookingId={bookingId}
-                      state={completedPaymentUi}
-                      variant="compact"
-                      customerReviewDeadlineAt={booking.customerReviewDeadlineAt ?? null}
-                      remainingDueAt={booking.remainingDueAt ?? null}
-                      bookingTimezone={booking.bookingTimezone ?? null}
-                      paidRemainingAt={booking.paidRemainingAt ?? null}
-                      fullyPaidAt={booking.fullyPaidAt ?? null}
-                    />
-                  ) : null}
+                  <CustomerRemainingPaymentCallout
+                    bookingId={bookingId}
+                    paymentInput={remainingPaymentInputFromBooking(booking)}
+                    bookingTimezone={booking.bookingTimezone ?? null}
+                    variant="compact"
+                  />
                   <div className="flex gap-3 sm:flex-wrap">
                     <Link
                       href={conversationHref}

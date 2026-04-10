@@ -61,12 +61,12 @@ export function FavoriteButton({ proId, className = '' }: { proId: string; class
       type="button"
       onClick={toggle}
       disabled={loading}
-      className={`p-2 rounded-full transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-accent/40 ${className}`}
+      className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-full p-0 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-50 ${className}`}
       aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
       title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
     >
       <Star
-        className={`w-6 h-6 transition-colors ${isFavorite ? 'fill-[#B2FBA5] text-[#B2FBA5]' : 'text-muted hover:text-[#B2FBA5]'}`}
+        className={`h-5 w-5 transition-colors ${isFavorite ? 'fill-[#B2FBA5] text-[#B2FBA5]' : 'text-muted hover:text-[#B2FBA5]'}`}
       />
     </button>
   );

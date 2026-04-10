@@ -8,6 +8,7 @@
 import type { PublicProProfileModel } from '@/lib/profileData';
 import { ProfilePhotoTile } from '@/components/shared/ProfilePhotoTile';
 import { FavoriteButton } from '@/components/profile/FavoriteButton';
+import { ReportUserBlockUser } from '@/components/moderation/ReportUserBlockUser';
 import { ShieldCheck, Award } from 'lucide-react';
 
 interface ProfileHeroCardProps {
@@ -34,8 +35,20 @@ export function ProfileHeroCard({ profile, showFavorite = true }: ProfileHeroCar
   ].filter((s) => s.value !== null && (typeof s.value === 'number' ? s.value > 0 : true));
 
   return (
-    <div className="relative rounded-2xl border border-black/6 dark:border-white/10 bg-white dark:bg-[#1D2128] shadow-sm shadow-black/5 dark:shadow-black/20 overflow-hidden">
-      <div className="p-5 sm:p-6">
+    <div className="relative rounded-2xl border border-black/6 dark:border-white/10 bg-white dark:bg-[#1D2128] shadow-sm shadow-black/5 dark:shadow-black/20">
+      <div
+        className="absolute top-3 right-3 z-10 flex items-center gap-2 rounded-full border border-black/[0.06] dark:border-white/10 bg-white/80 dark:bg-[#1D2128]/85 backdrop-blur-sm px-2 py-1 shadow-sm"
+        role="toolbar"
+        aria-label="Profile actions"
+      >
+        {showFavorite ? <FavoriteButton proId={profile.id} /> : null}
+        <ReportUserBlockUser
+          targetUserId={profile.userId}
+          targetDisplayName={profile.businessName}
+          variant="menu"
+        />
+      </div>
+      <div className="p-5 pr-24 sm:p-6 sm:pr-28">
         <div className="flex items-start gap-4">
           <div className="relative shrink-0">
             <ProfilePhotoTile
@@ -55,19 +68,16 @@ export function ProfileHeroCard({ profile, showFavorite = true }: ProfileHeroCar
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h1 className="text-lg font-semibold text-[#111111] dark:text-[#F5F7FA] truncate">
-                  {profile.businessName}
-                </h1>
-                {(reviewCount >= 20 || (rating != null && rating >= 4.8)) && (
-                  <div className="mt-1 flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-                    <Award size={14} strokeWidth={2} />
-                    <span className="text-xs font-medium">Top Rated</span>
-                  </div>
-                )}
-              </div>
-              {showFavorite && <FavoriteButton proId={profile.id} />}
+            <div className="min-w-0">
+              <h1 className="text-lg font-semibold text-[#111111] dark:text-[#F5F7FA] truncate pr-1">
+                {profile.businessName}
+              </h1>
+              {(reviewCount >= 20 || (rating != null && rating >= 4.8)) && (
+                <div className="mt-1 flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                  <Award size={14} strokeWidth={2} />
+                  <span className="text-xs font-medium">Top Rated</span>
+                </div>
+              )}
             </div>
 
             {(profile.primaryOccupationName || profile.categoryName) && (

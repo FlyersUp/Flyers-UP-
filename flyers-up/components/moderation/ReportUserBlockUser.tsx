@@ -11,13 +11,19 @@ interface ReportUserBlockUserProps {
   targetDisplayName?: string;
   bookingId?: string;
   variant?: 'menu' | 'inline';
+  /** When set, replaces default classes for the ⋯ menu trigger (menu variant only). */
+  menuTriggerClassName?: string;
 }
+
+const defaultMenuTriggerClass =
+  'h-8 w-8 shrink-0 flex items-center justify-center rounded-full p-0 text-muted hover:text-text hover:bg-black/5 dark:hover:bg-white/10 transition-colors';
 
 export function ReportUserBlockUser({
   targetUserId,
   targetDisplayName = 'this user',
   bookingId,
   variant = 'menu',
+  menuTriggerClassName,
 }: ReportUserBlockUserProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -204,10 +210,12 @@ export function ReportUserBlockUser({
         <button
           type="button"
           onClick={() => setMenuOpen(!menuOpen)}
-          className="p-2 rounded-lg text-muted hover:text-text hover:bg-surface2 transition-colors"
+          className={menuTriggerClassName ?? defaultMenuTriggerClass}
           aria-label="More options"
         >
-          <span className="text-lg">⋯</span>
+          <span className="text-lg leading-none" aria-hidden>
+            ⋯
+          </span>
         </button>
         {menuOpen && (
           <>

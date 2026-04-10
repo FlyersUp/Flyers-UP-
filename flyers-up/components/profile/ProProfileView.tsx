@@ -26,7 +26,6 @@ import { bottomChrome } from '@/lib/layout/bottomChrome';
 import { GallerySection } from '@/components/profile/GallerySection';
 import { ProReviewSection } from '@/components/profile/ProReviewSection';
 import { AboutServiceAreaSection } from '@/components/profile/AboutServiceAreaSection';
-import { ReportUserBlockUser } from '@/components/moderation/ReportUserBlockUser';
 import { ProPackagesProfileSection } from '@/components/profile/ProPackagesProfileSection';
 import { PerformanceSnapshotSection } from '@/components/profile/PerformanceSnapshotSection';
 import { ProFollowButton } from '@/components/profile/ProFollowButton';
@@ -53,14 +52,7 @@ export function ProProfileView({
   return (
     <div className={`space-y-6 ${bottomChrome.pbStickyBarOnly}`}>
       {/* 1. Hero / identity block */}
-      <section className="relative">
-        <div className="absolute top-4 right-4 z-10">
-          <ReportUserBlockUser
-            targetUserId={profile.userId}
-            targetDisplayName={profile.businessName}
-            variant="menu"
-          />
-        </div>
+      <section>
         <ProfileHeroCard profile={profile} />
       </section>
 
