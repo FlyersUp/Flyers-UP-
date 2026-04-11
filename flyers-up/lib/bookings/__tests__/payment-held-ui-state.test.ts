@@ -91,8 +91,8 @@ describe('payment-held-ui-state', () => {
       holdReason: 'fraud_review',
       context: {},
     });
-    assert.strictEqual(s.title, 'Payment under review');
-    assert.strictEqual(s.subtitle, 'Standard security check');
+    assert.strictEqual(s.title, 'Payment complete');
+    assert.strictEqual(s.subtitle, 'Payout under review');
     assert.ok(s.infoPanelBody.length > 20);
   });
 

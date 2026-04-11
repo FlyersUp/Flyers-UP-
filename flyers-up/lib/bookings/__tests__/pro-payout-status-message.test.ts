@@ -26,7 +26,7 @@ describe('getProAutomatedPayoutStatusMessage', () => {
       payoutReleased: false,
       payoutStatus: null,
     });
-    assert.strictEqual(msg, 'Payment pending review window');
+    assert.strictEqual(msg, 'Payout will follow after the review window');
   });
 
   it('shows processing when released but Stripe not checked yet', () => {
@@ -37,7 +37,7 @@ describe('getProAutomatedPayoutStatusMessage', () => {
       payoutStatus: 'succeeded',
       payoutTransferStripeLiveChecked: false,
     });
-    assert.strictEqual(msg, 'Payment released — your payout is processing');
+    assert.strictEqual(msg, 'Payout is processing');
   });
 
   it('shows payout sent only when live Stripe transfer is paid', () => {
@@ -61,6 +61,6 @@ describe('getProAutomatedPayoutStatusMessage', () => {
       payoutTransferStripeLiveChecked: true,
       payoutTransferStripeStatus: 'pending',
     });
-    assert.strictEqual(msg, 'Payment released — your payout is processing');
+    assert.strictEqual(msg, 'Payout is processing');
   });
 });

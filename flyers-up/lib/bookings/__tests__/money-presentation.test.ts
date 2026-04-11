@@ -70,9 +70,11 @@ describe('getMoneyPresentation — customer held (payout_held)', () => {
       heldTimelineTimestamps: { deposit: '2024-01-01', completed: '2024-01-02' },
     });
     assert.strictEqual(p.badge, 'Under review');
+    assert.strictEqual(p.title, 'Payment complete');
+    assert.strictEqual(p.subtitle, 'Payout under review');
     assert.strictEqual(p.timelineStep, 'held');
     assert.strictEqual(p.timelineVariant, 'customer_held');
-    assert.ok(p.body.length > 0);
+    assert.ok(p.body.startsWith('No action needed.'));
   });
 });
 
@@ -82,7 +84,7 @@ describe('getMoneyPresentation — pro', () => {
       state({ final: 'final_paid', payout: 'payout_processing' }),
       'pro'
     );
-    assert.strictEqual(p.title, 'Payment released');
+    assert.strictEqual(p.title, 'Payout processing');
     assert.strictEqual(p.timelineStep, 'released');
   });
 
@@ -101,7 +103,8 @@ describe('getMoneyPresentation — pro', () => {
       },
       heldTimelineTimestamps: { deposit: '2024-01-01', completed: '2024-01-02' },
     });
-    assert.strictEqual(p.title, 'Payment temporarily held');
+    assert.strictEqual(p.title, 'Payout temporarily held');
+    assert.strictEqual(p.subtitle, 'Under review before release');
     assert.strictEqual(p.timelineStep, 'held');
     assert.ok(p.heldProTimeline && p.heldProTimeline.length >= 3);
     const current = p.heldProTimeline!.filter((i) => i.state === 'current');

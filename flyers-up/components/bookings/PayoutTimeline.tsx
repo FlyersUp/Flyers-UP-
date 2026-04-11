@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Payout timeline: Completed → Payment released → Processing → Paid.
+ * Payout timeline: Completed → Released → Processing → Paid.
  * Pass {@link activeStepIndex} from {@link getProPayoutTimelineActiveIndex} — no payout string logic here.
  */
 
@@ -10,7 +10,7 @@ import { cn } from '@/lib/cn';
 
 const STAGES = [
   { key: 'completed', label: 'Completed' },
-  { key: 'released', label: 'Payment released' },
+  { key: 'released', label: 'Payout released' },
   { key: 'processing', label: 'Processing' },
   { key: 'paid', label: 'Paid' },
 ] as const;

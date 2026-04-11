@@ -45,11 +45,12 @@ const DEFAULT_WHY: PaymentHeldWhyCallout = {
   body: 'Reviews are usually completed within 4–12 hours during business days. Our team manually verifies high-speed service completions to ensure quality and safety.',
 };
 
-const PRO_TITLE_DEFAULT = 'Payment temporarily held';
-const PRO_SUBTITLE_DEFAULT = 'We’re doing a quick review before releasing funds.';
+const PRO_TITLE_DEFAULT = 'Payout temporarily held';
+const PRO_SUBTITLE_DEFAULT = 'Under review before release';
 
-const CUSTOMER_TITLE = 'Payment under review';
-const CUSTOMER_SUBTITLE = 'Standard security check';
+/** Customer: payment is settled; hold is on releasing funds to the pro — distinct from pro-side payout copy. */
+const CUSTOMER_TITLE = 'Payment complete';
+const CUSTOMER_SUBTITLE = 'Payout under review';
 
 function isKnownPayoutHoldReason(v: string): v is PayoutHoldReason {
   return (
@@ -109,8 +110,8 @@ function proSubtitleForExplanationCode(code: string): string {
 }
 
 function proTitleForExplanationCode(code: string, fallbackTitle: string): string {
-  if (code === 'payout_flagged_missing_photos') return 'Payment held pending photos';
-  if (code === 'payout_flagged_completion_requirements') return 'Payment held pending details';
+  if (code === 'payout_flagged_missing_photos') return 'Payout temporarily held — photos needed';
+  if (code === 'payout_flagged_completion_requirements') return 'Payout temporarily held — details needed';
   if (code === 'payout_waiting_review_window') return fallbackTitle;
   return PRO_TITLE_DEFAULT;
 }

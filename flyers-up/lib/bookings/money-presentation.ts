@@ -216,11 +216,11 @@ export function getProAutomatedPayoutStatusMessageFromMoney(
     return 'Payout transfer did not complete — contact support if this persists';
   }
   if (state.payout === 'payout_processing') {
-    return 'Payment released — your payout is processing';
+    return 'Payout is processing';
   }
 
   const end = new Date(completedAt).getTime() + PAYOUT_AUTO_RELEASE_REVIEW_HOURS * MS_PER_HOUR;
-  if (Date.now() < end) return 'Payment pending review window';
+  if (Date.now() < end) return 'Payout will follow after the review window';
   return 'Payout is being released — check back shortly';
 }
 
@@ -341,8 +341,8 @@ function buildCustomerPresentation(state: MoneyState): MoneyUiPresentation {
       return {
         badge: 'Paid',
         title: 'Payment complete',
-        subtitle: 'Your booking is fully paid.',
-        body: 'The final payment was completed successfully.',
+        subtitle: 'No action needed.',
+        body: 'Your payment for this booking is complete.',
         ctaPrimary: null,
         ctaSecondary: 'Back to booking',
         timelineStep: 'paid',
@@ -423,9 +423,9 @@ function buildProPresentation(
     });
 
     return {
-      badge: 'Under review',
-      title: 'Payment temporarily held',
-      subtitle: 'We’re doing a quick review before releasing funds.',
+      badge: heldUi.badge,
+      title: heldUi.title,
+      subtitle: heldUi.subtitle,
       body: heldUi.infoPanelBody,
       ctaPrimary: 'View booking details',
       ctaSecondary: 'Contact support',
@@ -459,7 +459,7 @@ function buildProPresentation(
         badge: 'Scheduled',
         title: 'Payout scheduled',
         subtitle: 'Your payout will be released automatically once this booking clears the review process.',
-        body: 'No action is needed right now.',
+        body: 'No action needed.',
         ctaPrimary: 'View booking details',
         ctaSecondary: 'Contact support',
         timelineStep: 'released',
@@ -472,9 +472,9 @@ function buildProPresentation(
     case 'payout_processing':
       return {
         badge: 'In progress',
-        title: 'Payment released',
-        subtitle: 'Your payout is processing.',
-        body: 'Funds have been sent for payout and are on the way to your bank.',
+        title: 'Payout processing',
+        subtitle: 'Funds are on the way to your bank.',
+        body: 'Your payout has been released and is moving to your account.',
         ctaPrimary: 'View booking details',
         ctaSecondary: 'Contact support',
         timelineStep: 'released',
@@ -531,10 +531,10 @@ function buildCustomerHeldPresentation(
   });
 
   return {
-    badge: 'Under review',
-    title: 'Payment under review',
-    subtitle: 'Standard security check',
-    body: heldUi.infoPanelBody,
+    badge: heldUi.badge,
+    title: heldUi.title,
+    subtitle: heldUi.subtitle,
+    body: `No action needed.\n\n${heldUi.infoPanelBody}`,
     ctaPrimary: 'Back to booking',
     ctaSecondary: 'Contact support',
     timelineStep: 'held',
