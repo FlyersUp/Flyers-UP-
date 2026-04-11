@@ -215,6 +215,7 @@ export async function GET(
       en_route_at?: string | null;
       on_the_way_at?: string | null;
       arrived_at?: string | null;
+      completed_at?: string | null;
       cancelled_at?: string | null;
       customer_confirmed?: boolean | null;
       confirmed_by_customer_at?: string | null;
@@ -268,7 +269,7 @@ export async function GET(
       paidAt: b.paid_at ?? null,
       paidRemainingAt: b.paid_remaining_at ?? null,
       fullyPaidAt: b.fully_paid_at ?? null,
-      completedAt: booking.completed_at ?? null,
+      completedAt: b.completed_at ?? null,
       remainingDueAt: b.remaining_due_at ?? null,
       customerReviewDeadlineAt: b.customer_review_deadline_at ?? null,
       amountRemaining: paymentAmounts.remainingAmountCents,
