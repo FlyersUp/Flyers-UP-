@@ -245,7 +245,7 @@ export type BuildPaymentHeldUiStateInput = {
 };
 
 /**
- * Build UI state for {@link PaymentHeldProCard} / {@link PaymentHeldCustomerCard}.
+ * Build UI state used inside `getMoneyPresentation` for payout_held; held cards consume `MoneyUiPresentation`.
  */
 export function buildPaymentHeldUiState(input: BuildPaymentHeldUiStateInput): PaymentHeldUiState {
   const { view, holdReason, context = {}, timelineTimestamps } = input;

@@ -1,5 +1,10 @@
 import type { CustomerRemainingPaymentUiState } from '@/lib/bookings/customer-remaining-payment-ui';
 import type { CustomerPaymentCardKind } from '@/lib/bookings/customer-payment-card-normalize';
+import type { MoneyState } from '@/lib/bookings/money-state';
+import {
+  customerPaymentTimelineModelFromPresentation,
+  getMoneyPresentation,
+} from '@/lib/bookings/money-presentation';
 
 export type PaymentTimelineStepStatus = 'complete' | 'current' | 'upcoming' | 'failed' | 'processing';
 
@@ -127,4 +132,12 @@ export function timelineForPaymentCardKind(kind: CustomerPaymentCardKind): Payme
     default:
       return null;
   }
+}
+
+/**
+ * Customer 4-step payment timeline from {@link getMoneyPresentation} + {@link MoneyState}.
+ */
+export function paymentTimelineFromMoneyState(state: MoneyState): PaymentTimelineModel | null {
+  const pres = getMoneyPresentation(state, 'customer');
+  return customerPaymentTimelineModelFromPresentation(state, pres);
 }

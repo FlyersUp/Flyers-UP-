@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Payout timeline: Completed → Payment released → Processing → Paid
- * Removes anxiety about when funds arrive.
+ * Payout timeline: Completed → Payment released → Processing → Paid.
+ * Pass {@link activeStepIndex} from {@link getProPayoutTimelineActiveIndex} — no payout string logic here.
  */
 
 import { Check } from 'lucide-react';
@@ -16,22 +16,37 @@ const STAGES = [
 ] as const;
 
 export interface PayoutTimelineProps {
+  /**
+   * Active step 0–3 from {@link getProPayoutTimelineActiveIndex}.
+   * When set, `payoutStatus` / `customerPaid` are ignored.
+   */
+  activeStepIndex?: 0 | 1 | 2 | 3;
+  /** Transfer failed in Stripe — same messaging as before. */
+  transferFailed?: boolean;
+  /** @deprecated Prefer `activeStepIndex` from money state. */
   payoutStatus?: string | null;
-  /** Customer has paid (remaining released) */
+  /** @deprecated Prefer `activeStepIndex` from money state. */
   customerPaid?: boolean;
   className?: string;
 }
 
 export function PayoutTimeline({
+  activeStepIndex: activeStepIndexProp,
+  transferFailed = false,
   payoutStatus,
   customerPaid = false,
   className,
 }: PayoutTimelineProps) {
-  const status = (payoutStatus ?? 'none').toLowerCase();
-  let stageIdx = 0;
-  if (customerPaid) stageIdx = 1; // released
-  if (status === 'pending' || status === 'in_transit') stageIdx = 2; // processing
-  if (status === 'succeeded' || status === 'paid') stageIdx = 3; // paid
+  const stageIdx = (() => {
+    if (activeStepIndexProp !== undefined) return activeStepIndexProp;
+    const status = (payoutStatus ?? 'none').toLowerCase();
+    let idx = 0;
+    if (customerPaid) idx = 1;
+    if (status === 'pending' || status === 'in_transit') idx = 2;
+    if (status === 'failed') idx = 2;
+    if (status === 'succeeded' || status === 'paid') idx = 3;
+    return idx as 0 | 1 | 2 | 3;
+  })();
 
   return (
     <div
@@ -88,10 +103,15 @@ export function PayoutTimeline({
           );
         })}
       </div>
-      {stageIdx === 2 && (
+      {stageIdx === 2 && !transferFailed && (
         <p className="text-xs text-muted mt-3 text-center">Funds are being prepared</p>
       )}
-      {stageIdx === 1 && !customerPaid && (
+      {transferFailed && (
+        <p className="text-xs text-amber-900 dark:text-amber-200 mt-3 text-center">
+          Payout transfer did not complete — contact support if this persists
+        </p>
+      )}
+      {activeStepIndexProp === undefined && stageIdx === 1 && !customerPaid && (
         <p className="text-xs text-muted mt-3 text-center">Waiting for customer confirmation</p>
       )}
     </div>

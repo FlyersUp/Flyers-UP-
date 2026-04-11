@@ -1,19 +1,19 @@
 'use client';
 
-import type { PaymentHeldUiState } from '@/lib/bookings/payment-held-ui-state';
+import type { MoneyUiPresentation } from '@/lib/bookings/money-presentation';
 import { PaymentHeldCustomerCard } from './PaymentHeldCustomerCard';
 import { PaymentHeldProCard } from './PaymentHeldProCard';
 
 export function PaymentHeldStatusCard({
   view,
-  state,
+  presentation,
   bookingHref,
   detailsHref,
   supportHref,
   className,
 }: {
   view: 'pro' | 'customer';
-  state: PaymentHeldUiState;
+  presentation: MoneyUiPresentation;
   bookingHref: string;
   detailsHref?: string;
   supportHref?: string;
@@ -22,7 +22,7 @@ export function PaymentHeldStatusCard({
   if (view === 'customer') {
     return (
       <PaymentHeldCustomerCard
-        state={state}
+        presentation={presentation}
         bookingHref={bookingHref}
         supportHref={supportHref}
         className={className}
@@ -31,7 +31,7 @@ export function PaymentHeldStatusCard({
   }
   return (
     <PaymentHeldProCard
-      state={state}
+      presentation={presentation}
       detailsHref={detailsHref ?? bookingHref}
       supportHref={supportHref}
       className={className}

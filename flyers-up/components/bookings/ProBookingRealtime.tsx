@@ -42,6 +42,7 @@ export function ProBookingRealtime({
     initialBooking?.paymentLifecycleStatus,
     initialBooking?.requiresAdminReview,
     initialBooking?.payoutReleased,
+    initialBooking?.payoutTransferId,
     initialBooking?.payoutHoldReason,
   ]);
 

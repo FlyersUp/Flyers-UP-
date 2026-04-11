@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import type { MoneyState } from '@/lib/bookings/money-state';
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -43,6 +44,8 @@ export interface PaymentStatusModuleProps {
   paidAt?: string | null;
   fullyPaidAt?: string | null;
   view: 'customer' | 'pro';
+  /** When set (pro view), fully-paid detection uses {@link getMoneyState} instead of raw columns. */
+  proMoneyState?: MoneyState | null;
 }
 
 export function PaymentStatusModule({
@@ -57,9 +60,13 @@ export function PaymentStatusModule({
   paidAt,
   fullyPaidAt,
   view,
+  proMoneyState = null,
 }: PaymentStatusModuleProps) {
   const isPaid = paymentStatus === 'PAID';
-  const isFullyPaid = finalPaymentStatus === 'PAID' || status === 'fully_paid' || status === 'paid';
+  const isFullyPaid =
+    (view === 'pro' && proMoneyState
+      ? proMoneyState.final === 'final_paid'
+      : finalPaymentStatus === 'PAID' || status === 'fully_paid' || status === 'paid');
   const isExpired = status === 'expired_unpaid';
   const isPaymentRequired = status === 'payment_required' || status === 'accepted' || status === 'awaiting_deposit_payment';
   const isDepositPaid = status === 'deposit_paid' || (isPaid && !isFullyPaid);

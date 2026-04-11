@@ -1,23 +1,51 @@
-import { PAYOUT_AUTO_RELEASE_REVIEW_HOURS } from '@/lib/bookings/state-machine';
+import { getMoneyState, type MoneyStateBookingInput, type MoneyStripeSnapshot } from '@/lib/bookings/money-state';
+import { getProAutomatedPayoutStatusMessageFromMoney } from '@/lib/bookings/money-presentation';
 
-const MS_PER_HOUR = 60 * 60 * 1000;
+type PayoutStripeFields = {
+  paidRemainingAt?: string | null;
+  payoutReleased?: boolean | null;
+  payoutTransferStripeLiveChecked?: boolean;
+  payoutTransferStripeStatus?: string | null;
+};
+
+function payoutMessageToMoney(input: PayoutStripeFields): {
+  booking: MoneyStateBookingInput;
+  stripe: MoneyStripeSnapshot;
+} {
+  const stripe: MoneyStripeSnapshot =
+    input.payoutTransferStripeLiveChecked === true
+      ? { transferStatus: input.payoutTransferStripeStatus ?? null }
+      : {};
+
+  const booking: MoneyStateBookingInput = {
+    status: 'fully_paid',
+    paymentStatus: 'PAID',
+    paymentLifecycleStatus: 'final_paid',
+    finalPaymentStatus: 'PAID',
+    paidRemainingAt: input.paidRemainingAt ?? null,
+    fullyPaidAt: input.paidRemainingAt ?? null,
+    amountRemaining: 0,
+    payoutReleased: input.payoutReleased === true,
+    requiresAdminReview: false,
+    payoutTransferId: null,
+  };
+
+  return { booking, stripe };
+}
 
 /**
  * Short status line for pros: marketplace review window → transfer initiated → paid out.
+ * Implemented via {@link getMoneyState} so wording stays aligned with payout UI.
  */
 export function getProAutomatedPayoutStatusMessage(input: {
   completedAt?: string | null;
   paidRemainingAt?: string | null;
   payoutReleased?: boolean | null;
   payoutStatus?: string | null;
+  payoutTransferStripeStatus?: string | null;
+  payoutTransferStripeLiveChecked?: boolean;
 }): string | null {
-  if (!input.paidRemainingAt || !input.completedAt) return null;
-  const st = (input.payoutStatus ?? '').toLowerCase();
-  if (input.payoutReleased === true) {
-    if (st === 'succeeded' || st === 'paid') return 'Payout sent';
-    return 'Payment released — your payout is processing';
-  }
-  const end = new Date(input.completedAt).getTime() + PAYOUT_AUTO_RELEASE_REVIEW_HOURS * MS_PER_HOUR;
-  if (Date.now() < end) return 'Payment pending review window';
-  return 'Payout is being released — check back shortly';
+  const { booking, stripe } = payoutMessageToMoney(input);
+  const money = getMoneyState(booking, stripe);
+  return getProAutomatedPayoutStatusMessageFromMoney(money, input.completedAt, input.paidRemainingAt);
 }

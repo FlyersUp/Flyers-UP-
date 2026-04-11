@@ -29,13 +29,38 @@ describe('getProAutomatedPayoutStatusMessage', () => {
     assert.strictEqual(msg, 'Payment pending review window');
   });
 
-  it('shows payout sent when released and succeeded', () => {
+  it('shows processing when released but Stripe not checked yet', () => {
     const msg = getProAutomatedPayoutStatusMessage({
       completedAt: '2020-01-01T12:00:00Z',
       paidRemainingAt: '2020-01-01T13:00:00Z',
       payoutReleased: true,
       payoutStatus: 'succeeded',
+      payoutTransferStripeLiveChecked: false,
+    });
+    assert.strictEqual(msg, 'Payment released — your payout is processing');
+  });
+
+  it('shows payout sent only when live Stripe transfer is paid', () => {
+    const msg = getProAutomatedPayoutStatusMessage({
+      completedAt: '2020-01-01T12:00:00Z',
+      paidRemainingAt: '2020-01-01T13:00:00Z',
+      payoutReleased: true,
+      payoutStatus: 'succeeded',
+      payoutTransferStripeLiveChecked: true,
+      payoutTransferStripeStatus: 'paid',
     });
     assert.strictEqual(msg, 'Payout sent');
+  });
+
+  it('shows processing when live checked but transfer still pending', () => {
+    const msg = getProAutomatedPayoutStatusMessage({
+      completedAt: '2020-01-01T12:00:00Z',
+      paidRemainingAt: '2020-01-01T13:00:00Z',
+      payoutReleased: true,
+      payoutStatus: 'succeeded',
+      payoutTransferStripeLiveChecked: true,
+      payoutTransferStripeStatus: 'pending',
+    });
+    assert.strictEqual(msg, 'Payment released — your payout is processing');
   });
 });

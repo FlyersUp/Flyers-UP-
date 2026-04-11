@@ -46,6 +46,11 @@ function isLikelyNetworkError(err: unknown): boolean {
   );
 }
 
+function trimIdOrNull(v: unknown): string | null {
+  const s = typeof v === 'string' ? v.trim() : '';
+  return s ? s : null;
+}
+
 // ============================================
 // TYPES (matching the old mockApi interface)
 // ============================================
@@ -145,10 +150,16 @@ export interface BookingDetails {
   fullyPaidAt?: string | null;
   paymentDueAt?: string | null;
   remainingDueAt?: string | null;
+  /** 24h review window deadline for auto final charge (when set). */
+  customerReviewDeadlineAt?: string | null;
+  /** Final / remaining PaymentIntent id for live status checks. */
+  finalPaymentIntentId?: string | null;
   autoConfirmAt?: string | null;
   paidDepositAt?: string | null;
   paidRemainingAt?: string | null;
   payoutStatus?: string | null;
+  /** Stripe Connect transfer id on the booking row (legacy rows may only have booking_payouts). */
+  payoutTransferId?: string | null;
   /** After automatic payout cron: funds transferred to Connect account */
   payoutReleased?: boolean | null;
   /** Marketplace payment lifecycle (e.g. payout_on_hold). */
@@ -1124,10 +1135,13 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       fullyPaidAt: d.fully_paid_at as string | null | undefined,
       paymentDueAt: d.payment_due_at as string | null | undefined,
       remainingDueAt: d.remaining_due_at as string | null | undefined,
+      customerReviewDeadlineAt: (d.customer_review_deadline_at as string | null | undefined) ?? null,
+      finalPaymentIntentId: trimIdOrNull(d.final_payment_intent_id),
       autoConfirmAt: d.auto_confirm_at as string | null | undefined,
       paidDepositAt: d.paid_deposit_at as string | null | undefined,
       paidRemainingAt: d.paid_remaining_at as string | null | undefined,
       payoutStatus: d.payout_status as string | null | undefined,
+      payoutTransferId: trimIdOrNull(d.payout_transfer_id),
       payoutReleased: d.payout_released === true,
       paymentLifecycleStatus: (d.payment_lifecycle_status as string | null | undefined) ?? null,
       requiresAdminReview: d.requires_admin_review === true,

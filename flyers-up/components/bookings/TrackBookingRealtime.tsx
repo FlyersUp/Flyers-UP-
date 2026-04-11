@@ -56,6 +56,7 @@ export interface TrackBookingData {
   finalPaymentIntentId?: string | null;
   finalPaymentIntentStripeStatus?: string | null;
   finalPaymentIntentStripeLiveChecked?: boolean;
+  payoutTransferId?: string | null;
 }
 
 interface TrackBookingRealtimeProps {

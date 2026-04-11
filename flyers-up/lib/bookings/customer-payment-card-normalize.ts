@@ -1,14 +1,19 @@
 /**
  * Normalizes legacy + new booking payment signals into one customer payment-card UI model.
  * Legacy: post-completion balance due without payment_lifecycle_status / customer_review_deadline_at.
+ *
+ * Core lifecycle resolution is delegated to {@link getMoneyState}.
  */
 
 import type { CustomerRemainingPaymentUiInput } from '@/lib/bookings/customer-remaining-payment-ui';
-import {
-  deriveCustomerRemainingPaymentUiState,
-  type CustomerRemainingPaymentUiState,
-} from '@/lib/bookings/customer-remaining-payment-ui';
+import type { CustomerRemainingPaymentUiState } from '@/lib/bookings/customer-remaining-payment-ui';
 import { isStripeFinalPaymentIntentInFlightStatus } from '@/lib/bookings/final-payment-intent-stripe-gate';
+import {
+  customerRemainingUiToMoneyStateBooking,
+  getMoneyState,
+  moneyStripeSnapshotFromCustomerFinalIntent,
+  type MoneyState,
+} from '@/lib/bookings/money-state';
 
 const POST_COMPLETION_STATUSES = new Set([
   'awaiting_remaining_payment',
@@ -86,6 +91,19 @@ export function hasExplicitNewLifecycleColumns(input: CustomerRemainingPaymentUi
   );
 }
 
+function resolvePaidNormalizeBranch(
+  money: MoneyState,
+  input: CustomerRemainingPaymentUiInput,
+  remainingCents: number
+): string {
+  if (money.raw.kind === 'success') return 'derive:success';
+  if (money.raw.kind === 'processing') {
+    if (isFinalPaymentAlreadySucceeded(input, remainingCents)) return 'guard:processing_suppressed_already_paid';
+    return 'guard:stripe_pi_succeeded';
+  }
+  return 'derive:success';
+}
+
 /**
  * Map derive + legacy heuristics → single payment card model.
  */
@@ -93,11 +111,15 @@ export function normalizeCustomerPaymentCard(
   input: CustomerRemainingPaymentUiInput,
   nowMs: number
 ): CustomerPaymentCardNormalized {
-  const remainingCents = Math.max(0, Math.round(Number(input.amountRemaining ?? 0)));
+  const stripe = moneyStripeSnapshotFromCustomerFinalIntent(input);
+  const booking = customerRemainingUiToMoneyStateBooking(input);
+  const money = getMoneyState(booking, stripe, nowMs);
+  const { raw } = money;
+  const remainingCents = money.remainingCents;
   const deadlineIso =
-    (input.customerReviewDeadlineAt || input.remainingDueAt || '').trim() || null;
-
-  const raw = deriveCustomerRemainingPaymentUiState(input, nowMs);
+    money.reviewDeadlineIso ||
+    (input.customerReviewDeadlineAt || input.remainingDueAt || '').trim() ||
+    null;
 
   if (
     raw.kind === 'none' &&
@@ -125,95 +147,7 @@ export function normalizeCustomerPaymentCard(
     };
   }
 
-  if (raw.kind === 'success') {
-    return {
-      kind: 'paid',
-      normalizeBranch: 'derive:success',
-      remainingCents,
-      countdownDeadlineIso: null,
-      raw,
-    };
-  }
-
-  if (raw.kind === 'before_completion') {
-    return {
-      kind: 'before_completion',
-      normalizeBranch: 'derive:before_completion',
-      remainingCents,
-      countdownDeadlineIso: null,
-      raw,
-    };
-  }
-
-  if (raw.kind === 'review_window_auto') {
-    return {
-      kind: 'scheduled',
-      normalizeBranch: 'derive:review_window_auto',
-      remainingCents,
-      countdownDeadlineIso: deadlineIso,
-      raw,
-    };
-  }
-
-  // “Processing” only when DB says final_processing, we have a PI id, live Stripe read ran, and
-  // PaymentIntent.status is actively in-flight (processing / requires_capture / requires_action).
-  if (raw.kind === 'processing') {
-    const pi = String(input.finalPaymentIntentId ?? '').trim();
-
-    if (isFinalPaymentAlreadySucceeded(input, remainingCents)) {
-      return {
-        kind: 'paid',
-        normalizeBranch: 'guard:processing_suppressed_already_paid',
-        remainingCents,
-        countdownDeadlineIso: null,
-        raw,
-      };
-    }
-
-    if (!pi) {
-      return {
-        kind: 'post_review_due',
-        normalizeBranch: 'guard:final_processing_without_payment_intent',
-        remainingCents,
-        countdownDeadlineIso: deadlineIso || null,
-        raw,
-      };
-    }
-
-    const liveChecked = input.finalPaymentIntentStripeLiveChecked === true;
-    const stripeStatus = input.finalPaymentIntentStripeStatus ?? null;
-
-    if (!liveChecked) {
-      return {
-        kind: 'post_review_due',
-        normalizeBranch: 'guard:stripe_live_check_missing',
-        remainingCents,
-        countdownDeadlineIso: deadlineIso || null,
-        raw,
-      };
-    }
-
-    const st = String(stripeStatus ?? '').trim().toLowerCase();
-    if (st === 'succeeded') {
-      return {
-        kind: 'paid',
-        normalizeBranch: 'guard:stripe_pi_succeeded',
-        remainingCents,
-        countdownDeadlineIso: null,
-        raw,
-      };
-    }
-
-    if (!isStripeFinalPaymentIntentInFlightStatus(stripeStatus)) {
-      return {
-        kind: 'post_review_due',
-        normalizeBranch: 'guard:stripe_pi_not_in_flight',
-        remainingCents,
-        countdownDeadlineIso: deadlineIso || null,
-        raw,
-      };
-    }
-
+  if (money.final === 'final_processing') {
     return {
       kind: 'processing',
       normalizeBranch: 'derive:final_processing_stripe_confirmed',
@@ -223,7 +157,17 @@ export function normalizeCustomerPaymentCard(
     };
   }
 
-  if (raw.kind === 'failed') {
+  if (money.final === 'final_paid') {
+    return {
+      kind: 'paid',
+      normalizeBranch: resolvePaidNormalizeBranch(money, input, remainingCents),
+      remainingCents,
+      countdownDeadlineIso: null,
+      raw,
+    };
+  }
+
+  if (money.final === 'final_failed') {
     return {
       kind: 'action_required',
       normalizeBranch: 'derive:failed',
@@ -233,7 +177,7 @@ export function normalizeCustomerPaymentCard(
     };
   }
 
-  if (raw.kind === 'requires_action') {
+  if (money.final === 'final_requires_action') {
     return {
       kind: 'action_required',
       normalizeBranch: 'derive:requires_action',
@@ -243,7 +187,66 @@ export function normalizeCustomerPaymentCard(
     };
   }
 
-  if (raw.kind === 'post_review_auto_pending') {
+  if (money.final === 'before_completion') {
+    return {
+      kind: 'before_completion',
+      normalizeBranch: 'derive:before_completion',
+      remainingCents,
+      countdownDeadlineIso: null,
+      raw,
+    };
+  }
+
+  if (money.final === 'final_review_window') {
+    return {
+      kind: 'scheduled',
+      normalizeBranch: 'derive:review_window_auto',
+      remainingCents,
+      countdownDeadlineIso: deadlineIso,
+      raw,
+    };
+  }
+
+  if (money.final === 'final_due') {
+    if (raw.kind === 'processing') {
+      const pi = String(input.finalPaymentIntentId ?? '').trim();
+      if (!pi) {
+        return {
+          kind: 'post_review_due',
+          normalizeBranch: 'guard:final_processing_without_payment_intent',
+          remainingCents,
+          countdownDeadlineIso: deadlineIso || null,
+          raw,
+        };
+      }
+      if (input.finalPaymentIntentStripeLiveChecked !== true) {
+        return {
+          kind: 'post_review_due',
+          normalizeBranch: 'guard:stripe_live_check_missing',
+          remainingCents,
+          countdownDeadlineIso: deadlineIso || null,
+          raw,
+        };
+      }
+      const stripeStatus = input.finalPaymentIntentStripeStatus ?? null;
+      if (!isStripeFinalPaymentIntentInFlightStatus(stripeStatus)) {
+        return {
+          kind: 'post_review_due',
+          normalizeBranch: 'guard:stripe_pi_not_in_flight',
+          remainingCents,
+          countdownDeadlineIso: deadlineIso || null,
+          raw,
+        };
+      }
+      return {
+        kind: 'processing',
+        normalizeBranch: 'derive:final_processing_stripe_confirmed',
+        remainingCents,
+        countdownDeadlineIso: null,
+        raw,
+      };
+    }
+
     if (hasExplicitNewLifecycleColumns(input)) {
       return {
         kind: 'post_review_due',

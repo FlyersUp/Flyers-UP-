@@ -1,16 +1,19 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import type { CustomerRemainingPaymentUiInput } from '@/lib/bookings/customer-remaining-payment-ui';
 import {
-  normalizeCustomerPaymentCard,
-  type CustomerPaymentCardKind,
-} from '@/lib/bookings/customer-payment-card-normalize';
+  customerRemainingUiToMoneyStateBooking,
+  getMoneyState,
+  moneyStripeSnapshotFromCustomerFinalIntent,
+  type MoneyState,
+} from '@/lib/bookings/money-state';
+import { getMoneyPresentation } from '@/lib/bookings/money-presentation';
 import { bookingFinalCheckoutPath } from '@/lib/bookings/booking-routes';
 import { DEFAULT_BOOKING_TIMEZONE, formatBookingDateTimeInZone } from '@/lib/datetime';
-import { timelineForPaymentCardKind } from '@/lib/bookings/payment-timeline';
+import { paymentTimelineFromMoneyState } from '@/lib/bookings/payment-timeline';
 import { PaymentCountdown } from '@/components/bookings/customer/PaymentCountdown';
 import { PaymentTimeline } from '@/components/bookings/customer/PaymentTimeline';
 
@@ -71,14 +74,8 @@ function ProcessingPulse() {
   );
 }
 
-function TimelineBlock({
-  kind,
-  compact,
-}: {
-  kind: CustomerPaymentCardKind;
-  compact: boolean;
-}) {
-  const timeline = timelineForPaymentCardKind(kind);
+function TimelineMoneyBlock({ money, compact }: { money: MoneyState; compact: boolean }) {
+  const timeline = paymentTimelineFromMoneyState(money);
   if (!timeline) return null;
   return (
     <div className="pt-1">
@@ -90,13 +87,24 @@ function TimelineBlock({
   );
 }
 
+function cardWrapClass(money: MoneyState): string {
+  if (money.final === 'before_completion') return cardMuted;
+  if (money.final === 'final_paid') {
+    return 'rounded-2xl border border-emerald-200/70 dark:border-emerald-800/45 bg-emerald-50/70 dark:bg-emerald-950/25 text-sm';
+  }
+  if (money.final === 'final_failed' || money.final === 'final_requires_action') {
+    return 'rounded-2xl border border-amber-200/90 dark:border-amber-800/55 bg-amber-50/90 dark:bg-amber-950/30 text-sm';
+  }
+  return cardShell;
+}
+
 export type BookingPaymentStatusCardProps = {
   bookingId: string;
   paymentInput: CustomerRemainingPaymentUiInput;
   bookingTimezone?: string | null;
   variant?: 'default' | 'compact';
   className?: string;
-  /** When false, skip `console.info` for normalization branch (e.g. tests). */
+  /** When false, skip `console.info` for money state (e.g. tests). */
   logNormalization?: boolean;
 };
 
@@ -108,19 +116,27 @@ export function BookingPaymentStatusCard({
   className = '',
   logNormalization = true,
 }: BookingPaymentStatusCardProps) {
-  const normalized = normalizeCustomerPaymentCard(paymentInput, Date.now());
+  const money = useMemo(() => {
+    const booking = customerRemainingUiToMoneyStateBooking(paymentInput);
+    const stripe = moneyStripeSnapshotFromCustomerFinalIntent(paymentInput);
+    return getMoneyState(booking, stripe, Date.now());
+  }, [paymentInput]);
+
+  const pres = useMemo(() => getMoneyPresentation(money, 'customer'), [money]);
 
   useEffect(() => {
-    if (!logNormalization || normalized.kind === 'none') return;
+    if (!logNormalization || (money.final === 'none' && !money.customerCardVariant)) return;
     console.info('[FlyersUp][customer-payment-card]', {
       bookingId,
-      kind: normalized.kind,
-      normalizeBranch: normalized.normalizeBranch,
-      rawKind: normalized.raw.kind,
+      final: money.final,
+      payout: money.payout,
+      customerCardVariant: money.customerCardVariant ?? null,
+      rawKind: money.raw.kind,
     });
-  }, [bookingId, logNormalization, normalized.kind, normalized.normalizeBranch, normalized.raw.kind]);
+  }, [bookingId, logNormalization, money]);
 
-  if (normalized.kind === 'none') return null;
+  if (money.final === 'none' && !money.customerCardVariant) return null;
+  if (money.payout === 'payout_held') return null;
 
   const checkoutHref = bookingFinalCheckoutPath(bookingId);
   const methodsHref = '/customer/settings/payments/methods';
@@ -139,136 +155,132 @@ export function BookingPaymentStatusCard({
     return (b.paidRemainingAt || b.fullyPaidAt || '').trim() || null;
   })();
 
-  const countdownIso = normalized.countdownDeadlineIso;
+  const countdownIso = money.reviewDeadlineIso;
+  const remaining = money.remainingCents;
+  const base = cardWrapClass(money);
 
-  if (normalized.kind === 'before_completion') {
-    return (
-      <div className={`${cardMuted} ${wrap} space-y-3`}>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="pending">Pending</Badge>
-        </div>
-        <div>
-          <p className={titleClass}>Remaining balance pending completion</p>
-          <p className={bodyClass}>Your final payment will be scheduled after the service is completed.</p>
-          {normalized.remainingCents > 0 ? (
-            <p className={`${bodyClass} mt-1`}>Estimated remaining: {formatCents(normalized.remainingCents)}</p>
-          ) : null}
-        </div>
-        <TimelineBlock kind="before_completion" compact={compact} />
+  const titleCls =
+    money.final === 'final_paid'
+      ? `${titleClass} text-emerald-950 dark:text-emerald-100`
+      : money.final === 'final_failed' || money.final === 'final_requires_action'
+        ? `${titleClass} text-amber-950 dark:text-amber-50`
+        : titleClass;
+
+  const bodyCls =
+    money.final === 'final_paid'
+      ? `${bodyClass} text-emerald-900/85 dark:text-emerald-100/80`
+      : money.final === 'final_failed' || money.final === 'final_requires_action'
+        ? `${bodyClass} text-amber-950/90 dark:text-amber-100/85`
+        : bodyClass;
+
+  return (
+    <div className={`${base} ${wrap} space-y-3`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone={pres.badgeTone}>{pres.badge}</Badge>
       </div>
-    );
-  }
-
-  if (normalized.kind === 'post_review_due') {
-    return (
-      <div className={`${cardShell} ${wrap} space-y-3`}>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="scheduled">Due</Badge>
-        </div>
-        <div>
-          <p className={titleClass}>Remaining balance due</p>
-          <p className={bodyClass}>
-            The review window has ended. Pay the remaining balance now, or wait while we attempt to charge your saved
-            payment method automatically.
+      <div>
+        <p className={titleCls}>{pres.title}</p>
+        {money.final === 'final_paid' && finalCollectedIso ? (
+          <p className={`text-xs mt-2 text-emerald-900/80 dark:text-emerald-100/75`}>
+            Final payment collected on{' '}
+            {formatBookingDateTimeInZone(finalCollectedIso, tz) || new Date(finalCollectedIso).toLocaleString()}
           </p>
-          {normalized.remainingCents > 0 ? (
-            <p className={`${bodyClass} mt-1 font-medium text-[#111111] dark:text-[#F5F7FA]`}>
-              Amount due: {formatCents(normalized.remainingCents)}
-            </p>
+        ) : (
+          <p className={bodyCls}>{pres.subtitle}</p>
+        )}
+        {money.final === 'before_completion' && remaining > 0 ? (
+          <p className={`${bodyClass} mt-1`}>Estimated remaining: {formatCents(remaining)}</p>
+        ) : null}
+        {(money.final === 'final_due' ||
+          money.customerCardVariant === 'legacy_pending_manual' ||
+          money.customerCardVariant === 'unknown_balance') &&
+        remaining > 0 ? (
+          <p className={`${bodyClass} mt-1 font-medium text-[#111111] dark:text-[#F5F7FA]`}>
+            {money.customerCardVariant === 'unknown_balance' ? 'Possible balance: ' : 'Amount due: '}
+            {formatCents(remaining)}
+          </p>
+        ) : null}
+      </div>
+
+      {money.final === 'final_review_window' && countdownIso ? (
+        <PaymentCountdown deadlineIso={countdownIso} className="pt-0.5" />
+      ) : null}
+
+      {money.final === 'final_processing' ? <ProcessingPulse /> : null}
+
+      <TimelineMoneyBlock money={money} compact={compact} />
+
+      {money.final === 'final_due' && !money.customerCardVariant && pres.ctaPrimary ? (
+        <>
+          <Link href={checkoutHref} className={primaryBtn}>
+            {pres.ctaPrimary}
+          </Link>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center pt-1">
+            <Link href={issueHref} className={`${linkAccent} text-center sm:text-left`}>
+              Report issue
+            </Link>
+            <span className="hidden sm:inline text-[#D1D5DB] dark:text-white/20" aria-hidden>
+              ·
+            </span>
+            <Link href={supportHref} className={`${linkAccent} text-center sm:text-left`}>
+              Contact support
+            </Link>
+          </div>
+        </>
+      ) : null}
+
+      {money.customerCardVariant === 'unknown_balance' ? (
+        <>
+          {remaining > 0 && pres.ctaPrimary ? (
+            <Link href={checkoutHref} className={primaryBtn}>
+              {pres.ctaPrimary}
+            </Link>
           ) : null}
-        </div>
-        <TimelineBlock kind="post_review_due" compact={compact} />
-        <Link href={checkoutHref} className={primaryBtn}>
-          Pay remaining now
-        </Link>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center pt-1">
-          <Link href={issueHref} className={`${linkAccent} text-center sm:text-left`}>
-            Report issue
-          </Link>
-          <span className="hidden sm:inline text-[#D1D5DB] dark:text-white/20" aria-hidden>
-            ·
-          </span>
-          <Link href={supportHref} className={`${linkAccent} text-center sm:text-left`}>
+          <Link href={supportHref} className={linkAccent}>
             Contact support
           </Link>
-        </div>
-      </div>
-    );
-  }
+        </>
+      ) : null}
 
-  if (normalized.kind === 'scheduled') {
-    return (
-      <div className={`${cardShell} ${wrap} space-y-3`}>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="scheduled">Scheduled</Badge>
-        </div>
-        <div>
-          <p className={titleClass}>Remaining payment scheduled</p>
-          <p className={bodyClass}>Will auto-charge after the 24-hour review window.</p>
-        </div>
-        {countdownIso ? <PaymentCountdown deadlineIso={countdownIso} className="pt-0.5" /> : null}
-        <TimelineBlock kind="scheduled" compact={compact} />
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center pt-1">
-          <Link href={issueHref} className={`${linkAccent} text-center sm:text-left`}>
-            Report issue
+      {money.customerCardVariant === 'legacy_pending_manual' && pres.ctaPrimary ? (
+        <>
+          <Link href={checkoutHref} className={primaryBtn}>
+            {pres.ctaPrimary}
           </Link>
-          <span className="hidden sm:inline text-[#D1D5DB] dark:text-white/20" aria-hidden>
-            ·
-          </span>
-          <Link href={supportHref} className={`${linkAccent} text-center sm:text-left`}>
+          <Link href={supportHref} className={linkAccent}>
             Contact support
           </Link>
-        </div>
-        <Link href={checkoutHref} className={payNowSecondary}>
-          Pay now
-        </Link>
-      </div>
-    );
-  }
+        </>
+      ) : null}
 
-  if (normalized.kind === 'processing') {
-    return (
-      <div className={`${cardShell} ${wrap} space-y-3`}>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="processing">Processing</Badge>
-        </div>
-        <div>
-          <p className={titleClass}>Processing remaining payment</p>
-          <p className={bodyClass}>We&apos;re charging your saved payment method now.</p>
-          <ProcessingPulse />
-        </div>
-        <TimelineBlock kind="processing" compact={compact} />
+      {money.final === 'final_review_window' ? (
+        <>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center pt-1">
+            <Link href={issueHref} className={`${linkAccent} text-center sm:text-left`}>
+              Report issue
+            </Link>
+            <span className="hidden sm:inline text-[#D1D5DB] dark:text-white/20" aria-hidden>
+              ·
+            </span>
+            <Link href={supportHref} className={`${linkAccent} text-center sm:text-left`}>
+              Contact support
+            </Link>
+          </div>
+          {pres.ctaPrimary ? (
+            <Link href={checkoutHref} className={payNowSecondary}>
+              {pres.ctaPrimary}
+            </Link>
+          ) : null}
+        </>
+      ) : null}
+
+      {money.final === 'final_processing' ? (
         <Link href={supportHref} className={linkAccent}>
           Contact support
         </Link>
-      </div>
-    );
-  }
+      ) : null}
 
-  if (normalized.kind === 'paid') {
-    const when = finalCollectedIso
-      ? formatBookingDateTimeInZone(finalCollectedIso, tz) || new Date(finalCollectedIso).toLocaleString()
-      : null;
-    return (
-      <div
-        className={`rounded-2xl border border-emerald-200/70 dark:border-emerald-800/45 bg-emerald-50/70 dark:bg-emerald-950/25 ${wrap} space-y-3`}
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="paid">Paid</Badge>
-        </div>
-        <div>
-          <p className={`${titleClass} text-emerald-950 dark:text-emerald-100`}>Payment complete</p>
-          {when ? (
-            <p className={`text-xs mt-2 text-emerald-900/80 dark:text-emerald-100/75`}>
-              Final payment collected on {when}
-            </p>
-          ) : (
-            <p className={`${bodyClass} text-emerald-900/85 dark:text-emerald-100/80`}>
-              Your final payment has been collected successfully.
-            </p>
-          )}
-        </div>
-        <TimelineBlock kind="paid" compact={compact} />
+      {money.final === 'final_paid' ? (
         <p className="pt-1">
           <a
             href={receiptHref}
@@ -279,101 +291,21 @@ export function BookingPaymentStatusCard({
             View receipt
           </a>
         </p>
-      </div>
-    );
-  }
+      ) : null}
 
-  if (normalized.kind === 'action_required') {
-    return (
-      <div
-        className={`rounded-2xl border border-amber-200/90 dark:border-amber-800/55 bg-amber-50/90 dark:bg-amber-950/30 ${wrap} space-y-3`}
-        role="alert"
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="action">Action needed</Badge>
-        </div>
-        <div>
-          <p className={`${titleClass} text-amber-950 dark:text-amber-50`}>Final payment failed</p>
-          <p className={`${bodyClass} text-amber-950/90 dark:text-amber-100/85`}>
-            Please retry your remaining payment.
-            {normalized.raw.kind === 'requires_action'
-              ? ' Your bank may need you to confirm the charge, or your card needs updating.'
-              : ''}{' '}
-            {normalized.remainingCents > 0 ? `Amount due: ${formatCents(normalized.remainingCents)}.` : ''}
-          </p>
-        </div>
-        <TimelineBlock kind="action_required" compact={compact} />
-        <Link href={checkoutHref} className={primaryBtn}>
-          Pay remaining now
-        </Link>
-        <Link href={methodsHref} className={secondaryBtn}>
-          Update payment method
-        </Link>
-        <Link href={supportHref} className={`${linkAccent} block text-center pt-0.5`}>
-          Contact support
-        </Link>
-      </div>
-    );
-  }
-
-  if (normalized.kind === 'pending_manual') {
-    return (
-      <div className={`${cardShell} ${wrap} space-y-3`}>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="pending">Pending</Badge>
-        </div>
-        <div>
-          <p className={titleClass}>Remaining payment pending</p>
-          <p className={bodyClass}>
-            This booking was created before the new review-window flow. You can finish payment now.
-          </p>
-          {normalized.remainingCents > 0 ? (
-            <p className={`${bodyClass} mt-1 font-medium text-[#111111] dark:text-[#F5F7FA]`}>
-              Amount due: {formatCents(normalized.remainingCents)}
-            </p>
-          ) : null}
-        </div>
-        <TimelineBlock kind="pending_manual" compact={compact} />
-        <Link href={checkoutHref} className={primaryBtn}>
-          Send remaining payment
-        </Link>
-        <Link href={supportHref} className={linkAccent}>
-          Contact support
-        </Link>
-      </div>
-    );
-  }
-
-  if (normalized.kind === 'unknown') {
-    return (
-      <div className={`${cardShell} ${wrap} space-y-3`}>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="unknown">Update</Badge>
-        </div>
-        <div>
-          <p className={titleClass}>Payment status</p>
-          <p className={bodyClass}>
-            We couldn&apos;t confirm the automatic payment schedule for this booking. If you still owe a balance, you
-            can pay now or contact support for help.
-          </p>
-          {normalized.remainingCents > 0 ? (
-            <p className={`${bodyClass} mt-1 font-medium text-[#111111] dark:text-[#F5F7FA]`}>
-              Possible balance: {formatCents(normalized.remainingCents)}
-            </p>
-          ) : null}
-        </div>
-        <TimelineBlock kind="unknown" compact={compact} />
-        {normalized.remainingCents > 0 ? (
+      {(money.final === 'final_failed' || money.final === 'final_requires_action') && pres.ctaPrimary ? (
+        <>
           <Link href={checkoutHref} className={primaryBtn}>
-            Pay remaining now
+            {pres.ctaPrimary}
           </Link>
-        ) : null}
-        <Link href={supportHref} className={linkAccent}>
-          Contact support
-        </Link>
-      </div>
-    );
-  }
-
-  return null;
+          <Link href={methodsHref} className={secondaryBtn}>
+            Update payment method
+          </Link>
+          <Link href={supportHref} className={`${linkAccent} block text-center pt-0.5`}>
+            Contact support
+          </Link>
+        </>
+      ) : null}
+    </div>
+  );
 }

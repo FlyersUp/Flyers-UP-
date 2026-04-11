@@ -42,7 +42,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { isCustomerMoneyFullySettled } from '@/lib/bookings/customer-payment-settled';
-import { normalizeCustomerPaymentCardNow } from '@/lib/bookings/customer-payment-card-normalize';
+import { customerRemainingUiToMoneyStateBooking, getMoneyState } from '@/lib/bookings/money-state';
 import { CustomerRemainingPaymentCallout } from '@/components/bookings/customer/CustomerRemainingPaymentCallout';
 
 type PageState =
@@ -191,14 +191,15 @@ export default function JobCompletePage({
         return;
       }
 
-      const paymentNorm = normalizeCustomerPaymentCardNow(remainingPaymentInputFromBooking(b));
+      const remInput = remainingPaymentInputFromBooking(b);
+      const customerMoney = getMoneyState(customerRemainingUiToMoneyStateBooking(remInput), {}, Date.now());
 
-      if (paymentNorm.kind === 'paid') {
+      if (customerMoney.final === 'final_paid') {
         setState('payment_success');
         return;
       }
 
-      if (paymentNorm.kind === 'none') {
+      if (customerMoney.final === 'none' && !customerMoney.customerCardVariant) {
         setState('not_eligible');
         return;
       }

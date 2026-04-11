@@ -24,11 +24,18 @@ import {
   shouldShowCustomerConfirmCompletionCta,
   shouldShowCustomerDepositPayCta,
 } from '@/lib/bookings/customer-booking-actions';
-import { normalizeCustomerPaymentCardNow } from '@/lib/bookings/customer-payment-card-normalize';
-import { finalPaymentReceiptNoteFromKind } from '@/lib/bookings/customer-final-payment-receipt-note';
+import {
+  customerRemainingUiToMoneyStateBooking,
+  getMoneyState,
+  moneyStripeSnapshotFromCustomerFinalIntent,
+} from '@/lib/bookings/money-state';
+import { finalPaymentReceiptNoteFromMoneyState } from '@/lib/bookings/customer-final-payment-receipt-note';
 import { BookingPaymentStatusCard } from '@/components/bookings/customer/BookingPaymentStatusCard';
-import { PaymentHeldCustomerCard, PaymentHoldWhyCallout } from '@/components/payments/payment-held';
-import { buildPaymentHeldUiStateFromBooking } from '@/lib/bookings/payment-held-ui-state';
+import { PaymentHeldCustomerCard } from '@/components/payments/payment-held';
+import {
+  getMoneyPresentation,
+  shouldShowPaymentHeldFromMoneyState,
+} from '@/lib/bookings/money-presentation';
 import { BookingDetailHeader } from '@/components/bookings/customer/booking-detail/BookingDetailHeader';
 import { BookingStepTracker } from '@/components/bookings/customer/booking-detail/BookingStepTracker';
 import { BookingProviderCard } from '@/components/bookings/customer/booking-detail/BookingProviderCard';
@@ -110,6 +117,7 @@ export interface BookingDetailData {
   finalPaymentIntentId?: string | null;
   finalPaymentIntentStripeStatus?: string | null;
   finalPaymentIntentStripeLiveChecked?: boolean;
+  payoutTransferId?: string | null;
 }
 
 function toTrackBookingData(b: BookingDetailData): TrackBookingData {
@@ -162,6 +170,7 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     finalPaymentIntentId: b.finalPaymentIntentId ?? null,
     finalPaymentIntentStripeStatus: b.finalPaymentIntentStripeStatus ?? null,
     finalPaymentIntentStripeLiveChecked: b.finalPaymentIntentStripeLiveChecked ?? undefined,
+    payoutTransferId: b.payoutTransferId ?? null,
   };
 }
 
@@ -242,8 +251,18 @@ export function BookingDetailContent({
           finalPaymentIntentId: fullBooking.finalPaymentIntentId ?? null,
           finalPaymentIntentStripeStatus: fullBooking.finalPaymentIntentStripeStatus ?? null,
           finalPaymentIntentStripeLiveChecked: fullBooking.finalPaymentIntentStripeLiveChecked === true,
+          payoutReleased: fullBooking.payoutReleased ?? null,
+          requiresAdminReview: fullBooking.requiresAdminReview ?? null,
+          payoutTransferId: fullBooking.payoutTransferId ?? null,
         };
-        const paymentNormalized = normalizeCustomerPaymentCardNow(remainingPaymentInput);
+        const customerMoney = getMoneyState(
+          customerRemainingUiToMoneyStateBooking(remainingPaymentInput),
+          moneyStripeSnapshotFromCustomerFinalIntent(remainingPaymentInput),
+          Date.now()
+        );
+        const showCustomerPaymentCard =
+          !shouldShowPaymentHeldFromMoneyState(customerMoney) &&
+          !(customerMoney.final === 'none' && !customerMoney.customerCardVariant);
 
         const customerConfirmed = fullBooking.customerConfirmed === true;
         const showConfirmCompletion = shouldShowCustomerConfirmCompletionCta({
@@ -299,7 +318,7 @@ export function BookingDetailContent({
           );
         }
 
-        const finalPaymentNote = finalPaymentReceiptNoteFromKind(paymentNormalized.kind);
+        const finalPaymentNote = finalPaymentReceiptNoteFromMoneyState(customerMoney);
 
         const showCompletionHighlight =
           !!fullBooking.completion && (timelineKey === 'COMPLETED' || timelineKey === 'PAID');
@@ -311,22 +330,26 @@ export function BookingDetailContent({
 
         const firstAfterPhoto = fullBooking.completion?.afterPhotoUrls?.[0] ?? null;
 
-        const paymentHeldCustomerState = buildPaymentHeldUiStateFromBooking(
-          'customer',
-          {
-            payoutReleased: fullBooking.payoutReleased ?? null,
-            paymentLifecycleStatus: fullBooking.paymentLifecycleStatus ?? null,
-            requiresAdminReview: fullBooking.requiresAdminReview ?? null,
-            payoutHoldReason: fullBooking.payoutHoldReason ?? null,
-            suspiciousCompletion: fullBooking.suspiciousCompletion ?? null,
-            suspiciousCompletionReason: fullBooking.suspiciousCompletionReason ?? null,
-            adminHold: fullBooking.adminHold ?? null,
-          },
-          {
-            deposit: fullBooking.paidDepositAt ?? fullBooking.paidAt ?? null,
-            completed: fullBooking.completedAt ?? null,
-          }
-        );
+        const holdSignals = {
+          payoutReleased: fullBooking.payoutReleased ?? null,
+          paymentLifecycleStatus: fullBooking.paymentLifecycleStatus ?? null,
+          requiresAdminReview: fullBooking.requiresAdminReview ?? null,
+          payoutHoldReason: fullBooking.payoutHoldReason ?? null,
+          suspiciousCompletion: fullBooking.suspiciousCompletion ?? null,
+          suspiciousCompletionReason: fullBooking.suspiciousCompletionReason ?? null,
+          adminHold: fullBooking.adminHold ?? null,
+        };
+        const heldTimelineTimestamps = {
+          deposit: fullBooking.paidDepositAt ?? fullBooking.paidAt ?? null,
+          completed: fullBooking.completedAt ?? null,
+        };
+        const paymentHeldCustomerPresentation =
+          shouldShowPaymentHeldFromMoneyState(customerMoney) && customerMoney.final === 'final_paid'
+            ? getMoneyPresentation(customerMoney, 'customer', {
+                holdSignals,
+                heldTimelineTimestamps,
+              })
+            : null;
 
         const actionBar = (
           <BookingDetailActionBar
@@ -381,11 +404,11 @@ export function BookingDetailContent({
               </section>
             )}
 
-            {paymentNormalized.kind !== 'none' ? (
+            {showCustomerPaymentCard ? (
               <section
                 className={cn(
                   'mb-4',
-                  paymentNormalized.kind === 'scheduled' &&
+                  customerMoney.final === 'final_review_window' &&
                     'rounded-2xl ring-2 ring-amber-200/55 dark:ring-amber-700/40 ring-offset-2 ring-offset-[#F5F4F1] dark:ring-offset-[#0c0e12]'
                 )}
               >
@@ -521,19 +544,13 @@ export function BookingDetailContent({
               />
             </section>
 
-            {paymentHeldCustomerState ? (
-              <section className="mb-4 space-y-3">
+            {paymentHeldCustomerPresentation ? (
+              <section className="mb-4">
                 <PaymentHeldCustomerCard
-                  state={paymentHeldCustomerState}
+                  presentation={paymentHeldCustomerPresentation}
                   bookingHref={`/customer/bookings/${bookingId}`}
                   supportHref="/support"
                 />
-                {paymentHeldCustomerState.whyCallout ? (
-                  <PaymentHoldWhyCallout
-                    headline={paymentHeldCustomerState.whyCallout.headline}
-                    body={paymentHeldCustomerState.whyCallout.body}
-                  />
-                ) : null}
               </section>
             ) : null}
 

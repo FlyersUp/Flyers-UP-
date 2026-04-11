@@ -2,16 +2,17 @@
 
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
-import type { PaymentHeldUiState } from '@/lib/bookings/payment-held-ui-state';
+import type { MoneyUiPresentation } from '@/lib/bookings/money-presentation';
 import { cn } from '@/lib/cn';
+import { PaymentHoldWhyCallout } from './PaymentHoldWhyCallout';
 
 export function PaymentHeldCustomerCard({
-  state,
+  presentation,
   bookingHref,
   supportHref = '/support',
   className,
 }: {
-  state: PaymentHeldUiState;
+  presentation: MoneyUiPresentation;
   bookingHref: string;
   supportHref?: string;
   className?: string;
@@ -31,26 +32,39 @@ export function PaymentHeldCustomerCard({
           <ShieldCheck className="h-5 w-5" strokeWidth={2} />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-bold leading-snug text-trust">{state.title}</h2>
-          <p className="mt-0.5 text-sm text-text3">{state.subtitle}</p>
+          <h2 className="text-lg font-bold leading-snug text-trust">{presentation.title}</h2>
+          <p className="mt-0.5 text-sm text-text3">{presentation.subtitle}</p>
         </div>
       </div>
 
-      <p className="text-sm leading-relaxed text-text2">{state.infoPanelBody}</p>
+      <p className="text-sm leading-relaxed text-text2">{presentation.body}</p>
+
+      {presentation.whyCallout ? (
+        <div className="mt-5">
+          <PaymentHoldWhyCallout
+            headline={presentation.whyCallout.headline}
+            body={presentation.whyCallout.body}
+          />
+        </div>
+      ) : null}
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:gap-3">
-        <Link
-          href={bookingHref}
-          className="flex h-12 flex-1 items-center justify-center rounded-full bg-trust/10 text-sm font-semibold text-trust transition-colors hover:bg-trust/[0.14]"
-        >
-          Back to booking
-        </Link>
-        <Link
-          href={supportHref}
-          className="flex h-12 flex-1 items-center justify-center rounded-full bg-trust/10 text-sm font-semibold text-trust transition-colors hover:bg-trust/[0.14]"
-        >
-          Contact support
-        </Link>
+        {presentation.ctaPrimary ? (
+          <Link
+            href={bookingHref}
+            className="flex h-12 flex-1 items-center justify-center rounded-full bg-trust/10 text-sm font-semibold text-trust transition-colors hover:bg-trust/[0.14]"
+          >
+            {presentation.ctaPrimary}
+          </Link>
+        ) : null}
+        {presentation.ctaSecondary ? (
+          <Link
+            href={supportHref}
+            className="flex h-12 flex-1 items-center justify-center rounded-full bg-trust/10 text-sm font-semibold text-trust transition-colors hover:bg-trust/[0.14]"
+          >
+            {presentation.ctaSecondary}
+          </Link>
+        ) : null}
       </div>
     </div>
   );
