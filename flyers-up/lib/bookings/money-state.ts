@@ -367,10 +367,14 @@ export function customerRemainingUiToMoneyStateBooking(
  * `undefined` finalPaymentIntentStatus until live check completes.
  */
 export function moneyStripeSnapshotFromCustomerFinalIntent(
-  input: Pick<CustomerRemainingPaymentUiInput, 'finalPaymentIntentStripeLiveChecked' | 'finalPaymentIntentStripeStatus'>
+  input: Pick<
+    CustomerRemainingPaymentUiInput,
+    'finalPaymentIntentStripeLiveChecked' | 'finalPaymentIntentStripeStatus' | 'finalPaymentIntentStatus'
+  >
 ): MoneyStripeSnapshot {
   if (input.finalPaymentIntentStripeLiveChecked === true) {
-    return { finalPaymentIntentStatus: input.finalPaymentIntentStripeStatus ?? null };
+    const st = input.finalPaymentIntentStripeStatus ?? input.finalPaymentIntentStatus ?? null;
+    return { finalPaymentIntentStatus: st };
   }
   return {};
 }

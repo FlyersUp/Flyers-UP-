@@ -54,6 +54,8 @@ export interface TrackBookingData {
   suspiciousCompletionReason?: string | null;
   adminHold?: boolean | null;
   finalPaymentIntentId?: string | null;
+  /** Same value as {@link finalPaymentIntentStripeStatus} when API sends this alias. */
+  finalPaymentIntentStatus?: string | null;
   finalPaymentIntentStripeStatus?: string | null;
   finalPaymentIntentStripeLiveChecked?: boolean;
   payoutTransferId?: string | null;
@@ -96,6 +98,10 @@ export function TrackBookingRealtime({
     initialBooking.finalPaymentStatus,
     initialBooking.customerReviewDeadlineAt,
     initialBooking.remainingDueAt,
+    initialBooking.finalPaymentIntentId,
+    initialBooking.finalPaymentIntentStatus,
+    initialBooking.finalPaymentIntentStripeStatus,
+    initialBooking.finalPaymentIntentStripeLiveChecked,
   ]);
 
   useEffect(() => {

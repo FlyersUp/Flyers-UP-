@@ -93,6 +93,7 @@ interface BookingData {
   remainingDueAt?: string | null;
   bookingTimezone?: string | null;
   finalPaymentIntentId?: string | null;
+  finalPaymentIntentStatus?: string | null;
   finalPaymentIntentStripeStatus?: string | null;
   finalPaymentIntentStripeLiveChecked?: boolean;
 }
@@ -133,7 +134,8 @@ function remainingPaymentInputFromBooking(b: BookingData) {
     customerReviewDeadlineAt: b.customerReviewDeadlineAt,
     amountRemaining: b.amountRemaining,
     finalPaymentIntentId: b.finalPaymentIntentId ?? null,
-    finalPaymentIntentStripeStatus: b.finalPaymentIntentStripeStatus ?? null,
+    finalPaymentIntentStatus: b.finalPaymentIntentStatus ?? null,
+    finalPaymentIntentStripeStatus: b.finalPaymentIntentStripeStatus ?? b.finalPaymentIntentStatus ?? null,
     finalPaymentIntentStripeLiveChecked: b.finalPaymentIntentStripeLiveChecked === true,
   };
 }

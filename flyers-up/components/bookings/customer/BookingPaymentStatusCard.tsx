@@ -128,12 +128,29 @@ export function BookingPaymentStatusCard({
     if (!logNormalization || (money.final === 'none' && !money.customerCardVariant)) return;
     console.info('[FlyersUp][customer-payment-card]', {
       bookingId,
+      paymentLifecycleStatus: paymentInput.paymentLifecycleStatus ?? null,
+      finalPaymentIntentId: paymentInput.finalPaymentIntentId ?? null,
+      finalPaymentIntentStripeLiveChecked: paymentInput.finalPaymentIntentStripeLiveChecked === true,
+      finalPaymentIntentStripeStatus: paymentInput.finalPaymentIntentStripeStatus ?? null,
+      finalPaymentIntentStatus: paymentInput.finalPaymentIntentStatus ?? null,
       final: money.final,
       payout: money.payout,
       customerCardVariant: money.customerCardVariant ?? null,
       rawKind: money.raw.kind,
     });
-  }, [bookingId, logNormalization, money]);
+  }, [
+    bookingId,
+    logNormalization,
+    money.final,
+    money.payout,
+    money.customerCardVariant,
+    money.raw.kind,
+    paymentInput.paymentLifecycleStatus,
+    paymentInput.finalPaymentIntentId,
+    paymentInput.finalPaymentIntentStripeLiveChecked,
+    paymentInput.finalPaymentIntentStripeStatus,
+    paymentInput.finalPaymentIntentStatus,
+  ]);
 
   if (money.final === 'none' && !money.customerCardVariant) return null;
   if (money.payout === 'payout_held') return null;

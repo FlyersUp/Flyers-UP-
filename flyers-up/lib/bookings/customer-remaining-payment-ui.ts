@@ -25,6 +25,8 @@ export type CustomerRemainingPaymentUiInput = {
   finalPaymentIntentId?: string | null;
   /** Live Stripe PaymentIntent.status from server when final_processing + PI id (see verify-final-payment-intent-status). */
   finalPaymentIntentStripeStatus?: string | null;
+  /** Alias of {@link finalPaymentIntentStripeStatus} for API payloads that use this name. */
+  finalPaymentIntentStatus?: string | null;
   /** True only after server ran a Stripe retrieve for this booking payload (final_processing + PI id). */
   finalPaymentIntentStripeLiveChecked?: boolean;
   /** Drive payout phase on customer track (same as pro money input). */

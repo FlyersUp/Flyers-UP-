@@ -15,6 +15,7 @@ import {
   type BookingMoneySnapshot,
 } from '@/lib/bookings/remaining-balance-cents';
 import { getUnifiedBookingPaymentAmountsForBooking } from '@/lib/bookings/booking-receipt-service';
+import type { CustomerRemainingPaymentUiInput } from '@/lib/bookings/customer-remaining-payment-ui';
 import { resolveFinalPaymentIntentStripeSnapshotForCustomerUi } from '@/lib/stripe/verify-final-payment-intent-status';
 
 export const runtime = 'nodejs';
@@ -257,9 +258,27 @@ export async function GET(
       (typeof b.final_payment_intent_id === 'string' && b.final_payment_intent_id.trim()) ||
       (typeof b.stripe_payment_intent_remaining_id === 'string' && b.stripe_payment_intent_remaining_id.trim()) ||
       null;
+
+    const deriveMoneyInput: CustomerRemainingPaymentUiInput = {
+      status: String(booking.status ?? ''),
+      paymentStatus: b.payment_status ?? null,
+      finalPaymentStatus: b.final_payment_status ?? null,
+      paymentLifecycleStatus: b.payment_lifecycle_status ?? null,
+      paidDepositAt: b.paid_deposit_at ?? null,
+      paidAt: b.paid_at ?? null,
+      paidRemainingAt: b.paid_remaining_at ?? null,
+      fullyPaidAt: b.fully_paid_at ?? null,
+      completedAt: booking.completed_at ?? null,
+      remainingDueAt: b.remaining_due_at ?? null,
+      customerReviewDeadlineAt: b.customer_review_deadline_at ?? null,
+      amountRemaining: paymentAmounts.remainingAmountCents,
+      finalPaymentIntentId,
+    };
+
     const stripeSnapshot = await resolveFinalPaymentIntentStripeSnapshotForCustomerUi({
       paymentLifecycleStatus: b.payment_lifecycle_status ?? null,
       finalPaymentIntentId,
+      deriveMoneyInput,
     });
 
     return NextResponse.json(
@@ -346,6 +365,7 @@ export async function GET(
           adminHold: b.admin_hold === true,
           finalPaymentIntentId,
           ...stripeSnapshot,
+          finalPaymentIntentStatus: stripeSnapshot.finalPaymentIntentStripeStatus ?? null,
         },
       },
       { status: 200, headers: { 'Cache-Control': 'no-store' } }

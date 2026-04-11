@@ -115,6 +115,7 @@ export interface BookingDetailData {
   adminHold?: boolean | null;
   /** Coalesced final / remaining Stripe PaymentIntent id for accurate payment-card normalization. */
   finalPaymentIntentId?: string | null;
+  finalPaymentIntentStatus?: string | null;
   finalPaymentIntentStripeStatus?: string | null;
   finalPaymentIntentStripeLiveChecked?: boolean;
   payoutTransferId?: string | null;
@@ -168,6 +169,7 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     suspiciousCompletionReason: b.suspiciousCompletionReason ?? null,
     adminHold: b.adminHold ?? null,
     finalPaymentIntentId: b.finalPaymentIntentId ?? null,
+    finalPaymentIntentStatus: b.finalPaymentIntentStatus ?? null,
     finalPaymentIntentStripeStatus: b.finalPaymentIntentStripeStatus ?? null,
     finalPaymentIntentStripeLiveChecked: b.finalPaymentIntentStripeLiveChecked ?? undefined,
     payoutTransferId: b.payoutTransferId ?? null,
@@ -249,7 +251,9 @@ export function BookingDetailContent({
           customerReviewDeadlineAt: fullBooking.customerReviewDeadlineAt ?? null,
           amountRemaining: booking.amountRemaining ?? fullBooking.amountRemaining,
           finalPaymentIntentId: fullBooking.finalPaymentIntentId ?? null,
-          finalPaymentIntentStripeStatus: fullBooking.finalPaymentIntentStripeStatus ?? null,
+          finalPaymentIntentStatus: fullBooking.finalPaymentIntentStatus ?? null,
+          finalPaymentIntentStripeStatus:
+            fullBooking.finalPaymentIntentStripeStatus ?? fullBooking.finalPaymentIntentStatus ?? null,
           finalPaymentIntentStripeLiveChecked: fullBooking.finalPaymentIntentStripeLiveChecked === true,
           payoutReleased: fullBooking.payoutReleased ?? null,
           requiresAdminReview: fullBooking.requiresAdminReview ?? null,
