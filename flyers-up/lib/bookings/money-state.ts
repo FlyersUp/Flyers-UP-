@@ -50,6 +50,40 @@ export type MoneyStateBookingInput = {
   finalPaymentIntentId?: string | null;
 };
 
+/** Row slice for resolving which Stripe PaymentIntent id represents the final/remaining charge. */
+export type BookingFinalPaymentIntentIdRow = {
+  final_payment_intent_id?: string | null;
+  stripe_payment_intent_remaining_id?: string | null;
+  payment_intent_id?: string | null;
+  stripe_payment_intent_deposit_id?: string | null;
+  deposit_payment_intent_id?: string | null;
+};
+
+function pickNonEmptyPaymentIntentId(v: unknown): string | null {
+  return typeof v === 'string' && v.trim() ? v.trim() : null;
+}
+
+/**
+ * Prefer dedicated final/remaining columns; otherwise fall back to legacy `payment_intent_id`
+ * when it is not the same id as the deposit PI (avoids treating deposit intent as final).
+ */
+export function coalesceBookingFinalPaymentIntentId(row: BookingFinalPaymentIntentIdRow): string | null {
+  const primary =
+    pickNonEmptyPaymentIntentId(row.final_payment_intent_id) ??
+    pickNonEmptyPaymentIntentId(row.stripe_payment_intent_remaining_id);
+  if (primary) return primary;
+
+  const legacy = pickNonEmptyPaymentIntentId(row.payment_intent_id);
+  if (!legacy) return null;
+
+  const depositPi =
+    pickNonEmptyPaymentIntentId(row.stripe_payment_intent_deposit_id) ??
+    pickNonEmptyPaymentIntentId(row.deposit_payment_intent_id);
+  if (depositPi && legacy === depositPi) return null;
+
+  return legacy;
+}
+
 export type MoneyFinalPhase =
   | 'none'
   | 'before_completion'

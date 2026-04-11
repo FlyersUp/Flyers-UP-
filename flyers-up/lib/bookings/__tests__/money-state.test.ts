@@ -3,7 +3,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { getMoneyState } from '../money-state';
+import { coalesceBookingFinalPaymentIntentId, getMoneyState } from '../money-state';
 
 const depositPaidBase = {
   status: 'awaiting_remaining_payment',
@@ -302,5 +302,56 @@ describe('getMoneyState — golden flow', () => {
       Date.parse('2026-01-01T16:00:00Z')
     );
     assert.strictEqual(m.payout, 'payout_paid');
+  });
+});
+
+describe('coalesceBookingFinalPaymentIntentId', () => {
+  it('prefers final_payment_intent_id over legacy payment_intent_id', () => {
+    assert.strictEqual(
+      coalesceBookingFinalPaymentIntentId({
+        final_payment_intent_id: 'pi_final',
+        payment_intent_id: 'pi_legacy',
+      }),
+      'pi_final'
+    );
+  });
+
+  it('prefers stripe_payment_intent_remaining_id when final column empty', () => {
+    assert.strictEqual(
+      coalesceBookingFinalPaymentIntentId({
+        stripe_payment_intent_remaining_id: 'pi_rem',
+        payment_intent_id: 'pi_legacy',
+      }),
+      'pi_rem'
+    );
+  });
+
+  it('uses payment_intent_id when dedicated columns empty', () => {
+    assert.strictEqual(
+      coalesceBookingFinalPaymentIntentId({
+        payment_intent_id: 'pi_only',
+      }),
+      'pi_only'
+    );
+  });
+
+  it('does not use payment_intent_id when it matches deposit PI', () => {
+    assert.strictEqual(
+      coalesceBookingFinalPaymentIntentId({
+        payment_intent_id: 'pi_dep',
+        stripe_payment_intent_deposit_id: 'pi_dep',
+      }),
+      null
+    );
+  });
+
+  it('matches deposit via deposit_payment_intent_id', () => {
+    assert.strictEqual(
+      coalesceBookingFinalPaymentIntentId({
+        payment_intent_id: 'pi_dep',
+        deposit_payment_intent_id: 'pi_dep',
+      }),
+      null
+    );
   });
 });
