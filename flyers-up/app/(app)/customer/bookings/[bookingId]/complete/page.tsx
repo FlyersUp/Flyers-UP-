@@ -42,7 +42,11 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { isCustomerMoneyFullySettled } from '@/lib/bookings/customer-payment-settled';
-import { customerRemainingUiToMoneyStateBooking, getMoneyState } from '@/lib/bookings/money-state';
+import {
+  customerRemainingUiToMoneyStateBooking,
+  getMoneyState,
+  moneyStripeSnapshotFromCustomerFinalIntent,
+} from '@/lib/bookings/money-state';
 import { CustomerRemainingPaymentCallout } from '@/components/bookings/customer/CustomerRemainingPaymentCallout';
 
 type PageState =
@@ -88,6 +92,9 @@ interface BookingData {
   customerReviewDeadlineAt?: string | null;
   remainingDueAt?: string | null;
   bookingTimezone?: string | null;
+  finalPaymentIntentId?: string | null;
+  finalPaymentIntentStripeStatus?: string | null;
+  finalPaymentIntentStripeLiveChecked?: boolean;
 }
 
 function formatCents(cents: number): string {
@@ -125,6 +132,9 @@ function remainingPaymentInputFromBooking(b: BookingData) {
     remainingDueAt: b.remainingDueAt,
     customerReviewDeadlineAt: b.customerReviewDeadlineAt,
     amountRemaining: b.amountRemaining,
+    finalPaymentIntentId: b.finalPaymentIntentId ?? null,
+    finalPaymentIntentStripeStatus: b.finalPaymentIntentStripeStatus ?? null,
+    finalPaymentIntentStripeLiveChecked: b.finalPaymentIntentStripeLiveChecked === true,
   };
 }
 
@@ -192,7 +202,11 @@ export default function JobCompletePage({
       }
 
       const remInput = remainingPaymentInputFromBooking(b);
-      const customerMoney = getMoneyState(customerRemainingUiToMoneyStateBooking(remInput), {}, Date.now());
+      const customerMoney = getMoneyState(
+        customerRemainingUiToMoneyStateBooking(remInput),
+        moneyStripeSnapshotFromCustomerFinalIntent(remInput),
+        Date.now()
+      );
 
       if (customerMoney.final === 'final_paid') {
         setState('payment_success');

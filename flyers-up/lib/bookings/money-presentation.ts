@@ -547,7 +547,9 @@ function buildCustomerHeldPresentation(
 }
 
 /**
- * Full presentation for {@link MoneyState}. Pass {@link GetMoneyPresentationOptions.holdSignals} when
+ * Full presentation for {@link MoneyState}. Customer copy is driven by `final` (and optional held hero),
+ * not by pro payout timing — never use `payout_*` alone to imply the customer still owes. Pro copy uses
+ * payout after `final_paid`. Pass {@link GetMoneyPresentationOptions.holdSignals} when
  * `state.payout === 'payout_held'` so hold explanations (suspicious completion, disputes, etc.) resolve correctly.
  */
 export function getMoneyPresentation(

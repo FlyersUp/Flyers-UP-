@@ -35,15 +35,24 @@ export async function verifyFinalPaymentIntentStatus(
 export type FinalPaymentIntentStripeSnapshot = {
   finalPaymentIntentStripeStatus: string | null;
   /**
-   * True when we performed a live Stripe read for this payload (only when lifecycle is final_processing
-   * and a final PI id exists). When false, customer UI must not show “processing payment”.
+   * True when we performed a live Stripe read for this payload (final PI id present and lifecycle is in a
+   * phase where post-review / processing truth matters). When false, customer UI must not treat Stripe
+   * status as confirmed (e.g. must not show “processing payment” from a stale guess).
    */
   finalPaymentIntentStripeLiveChecked: boolean;
 };
 
+/** Lifecycle values where a stored final PI may exist and Stripe should back {@link getMoneyState} on the customer path. */
+export const CUSTOMER_FINAL_PI_STRIPE_VERIFY_LIFECYCLES = new Set([
+  'final_processing',
+  /** After completion; auto-charge may have run while DB still lags — same PI truth as post-review `final_due`. */
+  'final_pending',
+  'requires_customer_action',
+]);
+
 /**
- * When the booking is in final_processing with a stored PI id, load live status from Stripe for the UI gate.
- * Otherwise skip the network call and mark liveChecked false (normalization ignores for non-processing states).
+ * When the booking is in a final-payment phase with a stored PI id, load live PaymentIntent.status from Stripe.
+ * Skips the network call when there is no PI or lifecycle is not in {@link CUSTOMER_FINAL_PI_STRIPE_VERIFY_LIFECYCLES}.
  */
 export async function resolveFinalPaymentIntentStripeSnapshotForCustomerUi(input: {
   paymentLifecycleStatus: string | null | undefined;
@@ -51,7 +60,7 @@ export async function resolveFinalPaymentIntentStripeSnapshotForCustomerUi(input
 }): Promise<FinalPaymentIntentStripeSnapshot> {
   const lc = String(input.paymentLifecycleStatus ?? '').trim().toLowerCase();
   const pi = String(input.finalPaymentIntentId ?? '').trim();
-  if (lc !== 'final_processing' || !pi) {
+  if (!pi || !CUSTOMER_FINAL_PI_STRIPE_VERIFY_LIFECYCLES.has(lc)) {
     return { finalPaymentIntentStripeStatus: null, finalPaymentIntentStripeLiveChecked: false };
   }
   const { exists, status } = await verifyFinalPaymentIntentStatus(pi);

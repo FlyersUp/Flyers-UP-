@@ -92,7 +92,7 @@ export function deriveCustomerRemainingPaymentUiState(
 
   if (moneyFullySettled(input, remainingCents)) return { kind: 'success' };
 
-  if (lc === 'final_paid' || lc === 'payout_ready' || lc === 'payout_sent') {
+  if (lc === 'final_paid' || lc === 'payout_ready' || lc === 'payout_sent' || lc === 'payout_on_hold') {
     return { kind: 'success' };
   }
 

@@ -89,3 +89,17 @@ test('final PAID → success', () => {
   );
   assert.equal(s.kind, 'success');
 });
+
+test('payout_on_hold → success (customer settled; stale amount_remaining must not imply balance due)', () => {
+  const s = deriveCustomerRemainingPaymentUiState(
+    {
+      ...base,
+      status: 'awaiting_customer_confirmation',
+      paymentLifecycleStatus: 'payout_on_hold',
+      amountRemaining: 100,
+      completedAt: '2026-01-01T10:00:00Z',
+    },
+    Date.parse('2026-01-03T12:00:00Z')
+  );
+  assert.equal(s.kind, 'success');
+});

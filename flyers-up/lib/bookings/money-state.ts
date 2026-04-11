@@ -111,7 +111,7 @@ function isFinalPaymentAlreadySucceededDb(
 ): boolean {
   if (moneyFullySettled(input, remainingCents)) return true;
   const lc = String(input.paymentLifecycleStatus ?? '').trim().toLowerCase();
-  if (lc === 'final_paid' || lc === 'payout_ready' || lc === 'payout_sent') return true;
+  if (lc === 'final_paid' || lc === 'payout_ready' || lc === 'payout_sent' || lc === 'payout_on_hold') return true;
   const st = String(input.status ?? '').trim().toLowerCase();
   if (st === 'fully_paid' || st === 'payout_released') return true;
   return false;
@@ -176,7 +176,10 @@ function mapRawToFinalPhase(
     case 'review_window_auto':
       return 'final_review_window';
     case 'post_review_auto_pending':
-      return 'final_due';
+      // After the review window, derive stays `post_review_auto_pending` while DB lifecycle may
+      // still lag (e.g. `final_pending`). If the final PI already succeeded in Stripe, funds are on
+      // the platform account — do not show `final_due` / "pay again"; align with PI + settlement flags.
+      return mapProcessingToFinalPhase(input, remainingCents, stripe);
     case 'processing':
       return mapProcessingToFinalPhase(input, remainingCents, stripe);
     case 'success':
@@ -193,7 +196,7 @@ function isCustomerFinalPaidForPayout(booking: MoneyStateBookingInput, finalPhas
   if (booking.paidRemainingAt || booking.fullyPaidAt) return true;
   if (String(booking.finalPaymentStatus ?? '').toUpperCase() === 'PAID') return true;
   const lc = String(booking.paymentLifecycleStatus ?? '').trim().toLowerCase();
-  if (['final_paid', 'payout_ready', 'payout_sent'].includes(lc)) return true;
+  if (['final_paid', 'payout_ready', 'payout_sent', 'payout_on_hold'].includes(lc)) return true;
   const st = String(booking.status ?? '').trim().toLowerCase();
   if (['fully_paid', 'paid'].includes(st)) return true;
   return false;

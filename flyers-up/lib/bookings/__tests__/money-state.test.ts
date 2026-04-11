@@ -71,6 +71,41 @@ describe('getMoneyState — final payment', () => {
     );
     assert.strictEqual(m.final, 'final_paid');
   });
+
+  it('payout_on_hold + stale amount_remaining is final_paid (never customer-due because payout is held)', () => {
+    const m = getMoneyState(
+      {
+        ...depositPaidBase,
+        paymentLifecycleStatus: 'payout_on_hold',
+        finalPaymentIntentId: 'pi_123',
+        paidRemainingAt: null,
+        amountRemaining: 100,
+        requiresAdminReview: true,
+        payoutReleased: false,
+      },
+      {},
+      Date.now()
+    );
+    assert.strictEqual(m.final, 'final_paid');
+    assert.strictEqual(m.payout, 'payout_held');
+  });
+
+  it('post_review_auto_pending + succeeded PI is final_paid (stale amount_remaining / lagging lifecycle)', () => {
+    const m = getMoneyState(
+      {
+        ...depositPaidBase,
+        paymentLifecycleStatus: 'final_pending',
+        finalPaymentIntentId: 'pi_123',
+        paidRemainingAt: null,
+        amountRemaining: 100,
+        customerReviewDeadlineAt: '2026-01-02T08:00:00Z',
+      },
+      { finalPaymentIntentStatus: 'succeeded' },
+      Date.parse('2026-01-03T12:00:00Z')
+    );
+    assert.strictEqual(m.raw.kind, 'post_review_auto_pending');
+    assert.strictEqual(m.final, 'final_paid');
+  });
 });
 
 describe('getMoneyState — payout', () => {
