@@ -34,7 +34,7 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
   const resendConfigured = Boolean(process.env.RESEND_API_KEY);
 
   const BOOKING_PAYMENT_COLUMNS =
-    'id, status, service_date, service_time, address, notes, customer_id, pro_id, created_at, total_amount_cents, amount_deposit, amount_remaining, amount_total, payment_status, final_payment_status, refunded_total_cents, refund_status, stripe_payment_intent_deposit_id, stripe_payment_intent_remaining_id, payment_intent_id, final_payment_intent_id, paid_deposit_at, paid_remaining_at, paid_at, fully_paid_at, price, customer_receipt_deposit_email_at, customer_receipt_final_email_at, customer_receipt_deposit_email_note, customer_receipt_final_email_note';
+    'id, status, service_date, service_time, address, notes, customer_id, pro_id, created_at, total_amount_cents, amount_deposit, amount_remaining, amount_total, payment_status, final_payment_status, refunded_total_cents, refund_status, stripe_payment_intent_deposit_id, stripe_payment_intent_remaining_id, payment_intent_id, final_payment_intent_id, paid_deposit_at, paid_remaining_at, paid_at, fully_paid_at, price, customer_receipt_deposit_email_at, customer_receipt_final_email_at, customer_receipt_deposit_email_note, customer_receipt_final_email_note, requires_admin_review, payout_released';
 
   let rows: any[] = [];
   if (!q) {
@@ -224,10 +224,19 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
                   return (
                     <tr key={id} className="border-t border-hairline">
                       <td className="px-4 py-3">
-                        <div className="font-medium text-text truncate max-w-[24ch]" title={id}>
-                          {id}
-                        </div>
-                        <div className="text-xs text-muted/80 truncate max-w-[32ch]" title={b.address ?? ''}>
+                        <Link
+                          href={`/admin/bookings/${id}`}
+                          className="font-medium text-accent hover:underline truncate max-w-[24ch] block font-mono text-xs"
+                          title={id}
+                        >
+                          {id.slice(0, 8)}…
+                        </Link>
+                        {b.requires_admin_review === true && b.payout_released !== true ? (
+                          <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
+                            Payout review
+                          </span>
+                        ) : null}
+                        <div className="text-xs text-muted/80 truncate max-w-[32ch] mt-1" title={b.address ?? ''}>
                           {b.address ?? '—'}
                         </div>
                       </td>
@@ -271,12 +280,17 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
                         <div className="mt-2 space-y-0.5 text-[10px] leading-snug text-muted border-t border-hairline pt-2">
                           <div title={depEmailLabel}>{depEmailLabel}</div>
                           <div title={finEmailLabel}>{finEmailLabel}</div>
-                          <Link
-                            href={`/admin/bookings/${id}/payments`}
-                            className="inline-block text-accent hover:underline font-medium"
-                          >
-                            Payment audit →
-                          </Link>
+                          <div className="flex flex-wrap gap-x-2 gap-y-1">
+                            <Link href={`/admin/bookings/${id}`} className="text-accent hover:underline font-medium">
+                              Booking →
+                            </Link>
+                            <Link
+                              href={`/admin/bookings/${id}/payments`}
+                              className="text-accent hover:underline font-medium"
+                            >
+                              Payments →
+                            </Link>
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">

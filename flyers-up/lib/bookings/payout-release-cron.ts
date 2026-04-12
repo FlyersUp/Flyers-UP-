@@ -85,6 +85,7 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
     .select('id, pro_id, service_pros(user_id)')
     .in('status', ['completed', 'customer_confirmed', 'auto_confirmed', 'payout_eligible'])
     .eq('payout_released', false)
+    .or('requires_admin_review.is.null,requires_admin_review.eq.false')
     .not('refund_status', 'eq', 'pending')
     .not('paid_deposit_at', 'is', null)
     .not('paid_remaining_at', 'is', null);

@@ -10,8 +10,8 @@ import {
   attemptFinalCharge,
   logBookingPaymentEvent,
   openDispute,
-  releasePayout,
   resolveDispute,
+  runAdminApprovePayoutRelease,
   syncBookingPaymentSummary,
 } from '@/lib/bookings/payment-lifecycle-service';
 import { reconcileBookingForFinalAutoCharge } from '@/lib/bookings/final-charge-candidates';
@@ -241,41 +241,14 @@ export async function POST(
       return NextResponse.json({ ok: true });
     }
     case 'approve_payout': {
-      const out = await releasePayout(admin, { bookingId: id, initiatedByAdmin: true, actorUserId: user.id });
+      const out = await runAdminApprovePayoutRelease(admin, { bookingId: id, actorUserId: user.id });
       if (!out.ok) {
         return NextResponse.json({ ok: false, code: out.code, transferId: out.transferId ?? null });
       }
-      const now = new Date().toISOString();
-      await admin
-        .from('payout_review_queue')
-        .update({
-          status: 'approved',
-          reviewed_by: user.id,
-          reviewed_at: now,
-        })
-        .eq('booking_id', id)
-        .eq('status', 'pending');
-      const { data: bRow } = await admin
-        .from('bookings')
-        .select('transferred_total_cents')
-        .eq('id', id)
-        .maybeSingle();
-      const amountCents = Number((bRow as { transferred_total_cents?: number } | null)?.transferred_total_cents ?? 0) || 0;
-      await logBookingPaymentEvent(admin, {
-        bookingId: id,
-        eventType: 'payout_released',
-        phase: 'payout',
-        status: 'released',
-        amountCents,
-        stripeTransferId: out.transferId ?? null,
-        actorType: 'admin',
-        actorUserId: user.id,
-        metadata: { source: 'admin_override' },
-      });
       return NextResponse.json({
         ok: true,
         transferId: out.transferId ?? null,
-        amountTransferredCents: amountCents,
+        amountTransferredCents: out.amountTransferredCents ?? 0,
       });
     }
     case 'open_dispute': {

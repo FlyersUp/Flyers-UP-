@@ -1,7 +1,8 @@
 import Layout from '@/components/Layout';
 import Link from 'next/link';
 import { requireAdminUser, isAdminUser } from '@/app/(app)/admin/_admin';
-import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
+import { countFlaggedPayoutReviewsForAdmin } from '@/lib/admin/flagged-payout-review';
 import { getCommandCenterData, getJobsWaitingForAttention } from '@/lib/adminCommandCenter';
 import { KpiCard } from '@/components/admin/KpiCard';
 import { AlertList, type AlertItem as PlatformAlertItem } from '@/components/admin/AlertList';
@@ -102,9 +103,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     );
   }
 
-  const [ccData, jobsWaiting] = await Promise.all([
+  const adminSb = createAdminSupabaseClient();
+  const [ccData, jobsWaiting, payoutReviewPending] = await Promise.all([
     getCommandCenterData(),
     getJobsWaitingForAttention(),
+    countFlaggedPayoutReviewsForAdmin(adminSb),
   ]);
 
   const { revenue, jobs, pros, customers, alerts } = ccData;
@@ -118,6 +121,15 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       count: jobsWaiting.length,
       severity: jobsWaiting.length >= 3 ? 'warning' : 'info',
       href: '/admin/bookings',
+    });
+  }
+  if (payoutReviewPending > 0) {
+    platformAlerts.push({
+      id: 'payout-review',
+      label: `Payout review (${payoutReviewPending})`,
+      count: payoutReviewPending,
+      severity: payoutReviewPending >= 3 ? 'warning' : 'info',
+      href: '/admin/payments/payout-review',
     });
   }
   if (revenue.refundsCount > 0) {
@@ -235,9 +247,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           icon: <FileText className="h-4 w-4" />,
         },
         {
-          href: '/admin/payout-review',
-          title: 'Payout Review Queue',
-          description: 'Suspicious completions, missing evidence, approve/deny/escalate.',
+          href: '/admin/payments/payout-review',
+          title: 'Payout review',
+          description:
+            payoutReviewPending > 0
+              ? `${payoutReviewPending} booking(s) need release approval (flagged payouts).`
+              : 'Flagged payouts: approve & release when review is complete.',
           icon: <ShieldCheck className="h-4 w-4" />,
         },
       ],

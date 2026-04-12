@@ -952,6 +952,7 @@ export async function evaluatePayoutTransferEligibility(
         'final_payment_status',
         'payout_blocked',
         'payout_hold_reason',
+        'requires_admin_review',
         'stripe_destination_account_id',
         'service_pros(stripe_account_id, user_id, stripe_charges_enabled)',
       ].join(', ')
@@ -966,6 +967,9 @@ export async function evaluatePayoutTransferEligibility(
   const row = b as unknown as Record<string, unknown>;
   if (row.payout_released === true) {
     return { ok: false, holdReason: 'already_released', flagForAdminReview: false };
+  }
+  if (!opts.initiatedByAdmin && row.requires_admin_review === true) {
+    return { ok: false, holdReason: 'admin_review_required', flagForAdminReview: false };
   }
   if (row.admin_hold === true) {
     return { ok: false, holdReason: 'admin_hold', flagForAdminReview: true };
@@ -1378,6 +1382,76 @@ export async function releasePayout(
   });
 
   return { ok: true, transferId };
+}
+
+/**
+ * Admin “approve & release payout”: audit snapshot, {@link releasePayout} with full server eligibility,
+ * then mark pending `payout_review_queue` rows for the booking approved.
+ */
+export async function runAdminApprovePayoutRelease(
+  admin: AdminClient,
+  input: { bookingId: string; actorUserId: string }
+): Promise<{ ok: boolean; code?: string; transferId?: string | null; amountTransferredCents?: number }> {
+  const id = input.bookingId;
+  const { data: snap } = await admin
+    .from('bookings')
+    .select(
+      'requires_admin_review, payout_hold_reason, suspicious_completion, suspicious_completion_reason, payment_lifecycle_status'
+    )
+    .eq('id', id)
+    .maybeSingle();
+  const snapRow = snap as Record<string, unknown> | null;
+  await logBookingPaymentEvent(admin, {
+    bookingId: id,
+    eventType: 'admin_payout_approve_attempted',
+    phase: 'payout',
+    status: 'attempted',
+    actorType: 'admin',
+    actorUserId: input.actorUserId,
+    metadata: {
+      requires_admin_review_before: snapRow?.requires_admin_review === true,
+      payout_hold_reason: snapRow?.payout_hold_reason ?? null,
+      suspicious_completion: snapRow?.suspicious_completion === true,
+      suspicious_completion_reason: snapRow?.suspicious_completion_reason ?? null,
+      payment_lifecycle_status: snapRow?.payment_lifecycle_status ?? null,
+    },
+  });
+
+  const out = await releasePayout(admin, { bookingId: id, initiatedByAdmin: true, actorUserId: input.actorUserId });
+  if (!out.ok) {
+    return { ok: false, code: out.code, transferId: out.transferId ?? null };
+  }
+  const now = new Date().toISOString();
+  await admin
+    .from('payout_review_queue')
+    .update({
+      status: 'approved',
+      reviewed_by: input.actorUserId,
+      reviewed_at: now,
+    })
+    .eq('booking_id', id)
+    .eq('status', 'pending');
+
+  const { data: bRow } = await admin.from('bookings').select('transferred_total_cents').eq('id', id).maybeSingle();
+  const amountCents = Number((bRow as { transferred_total_cents?: number } | null)?.transferred_total_cents ?? 0) || 0;
+  await logBookingPaymentEvent(admin, {
+    bookingId: id,
+    eventType: 'payout_released',
+    phase: 'payout',
+    status: 'released',
+    amountCents,
+    stripeTransferId: out.transferId ?? null,
+    actorType: 'admin',
+    actorUserId: input.actorUserId,
+    metadata: {
+      source: 'admin_override',
+      pre_review_snapshot: {
+        payout_hold_reason: snapRow?.payout_hold_reason ?? null,
+        suspicious_completion: snapRow?.suspicious_completion === true,
+      },
+    },
+  });
+  return { ok: true, transferId: out.transferId ?? null, amountTransferredCents: amountCents };
 }
 
 export async function openDispute(

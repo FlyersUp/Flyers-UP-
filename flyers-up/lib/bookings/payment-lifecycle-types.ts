@@ -55,7 +55,9 @@ export type PayoutHoldReason =
   | 'waiting_post_completion_review'
   | 'payout_blocked'
   | 'already_released'
-  | 'refund_pending';
+  | 'refund_pending'
+  /** Cron/safety: booking flagged for manual review — no auto-release until admin clears or approves payout. */
+  | 'admin_review_required';
 
 export type BookingPaymentEventType =
   | 'deposit_intent_created'
@@ -77,7 +79,9 @@ export type BookingPaymentEventType =
   | 'dispute_opened'
   | 'dispute_resolved'
   | 'admin_hold_applied'
-  | 'admin_hold_released';
+  | 'admin_hold_released'
+  /** Admin clicked approve payout; precedes Stripe transfer when successful. */
+  | 'admin_payout_approve_attempted';
 
 const PAYMENT_STATUSES: ReadonlySet<string> = new Set<BookingPaymentStatus>([
   'unpaid',
@@ -116,6 +120,7 @@ export function assertPayoutHoldReason(v: string): PayoutHoldReason {
     'payout_blocked',
     'already_released',
     'refund_pending',
+    'admin_review_required',
   ]);
   return (allowed.has(v) ? v : 'none') as PayoutHoldReason;
 }

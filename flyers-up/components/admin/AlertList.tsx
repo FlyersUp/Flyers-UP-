@@ -3,6 +3,8 @@
  * Shows: jobs waiting too long, failed payments, refund/dispute count, flagged pros/users.
  */
 
+import Link from 'next/link';
+
 export interface AlertItem {
   id: string;
   label: string;
@@ -30,15 +32,30 @@ export function AlertList({ alerts }: AlertListProps) {
         {alerts.length === 0 ? (
           <p className="text-sm text-muted">No alerts right now.</p>
         ) : (
-          alerts.map((a) => (
-            <div
-              key={a.id}
-              className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${severityStyles[a.severity]}`}
-            >
-              <span>{a.label}</span>
-              <span className="font-medium">{a.count}</span>
-            </div>
-          ))
+          alerts.map((a) => {
+            const inner = (
+              <>
+                <span>{a.label}</span>
+                <span className="font-medium">{a.count}</span>
+              </>
+            );
+            return a.href ? (
+              <Link
+                key={a.id}
+                href={a.href}
+                className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-opacity hover:opacity-90 ${severityStyles[a.severity]}`}
+              >
+                {inner}
+              </Link>
+            ) : (
+              <div
+                key={a.id}
+                className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${severityStyles[a.severity]}`}
+              >
+                {inner}
+              </div>
+            );
+          })
         )}
       </div>
     </div>

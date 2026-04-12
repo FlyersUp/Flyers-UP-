@@ -1,9 +1,10 @@
 /**
  * POST /api/admin/payout-review/[id]
- * Admin action: approve, deny, or escalate.
+ * Admin action: approve (releases payout via shared server path), deny, or escalate.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabaseServer';
+import { runAdminApprovePayoutRelease } from '@/lib/bookings/payment-lifecycle-service';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,7 +15,9 @@ export async function POST(
 ) {
   const { id } = await params;
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
@@ -41,7 +44,20 @@ export async function POST(
     return NextResponse.json({ error: 'Not found or already processed' }, { status: 404 });
   }
 
-  const newStatus = action === 'approve' ? 'approved' : action === 'deny' ? 'rejected' : 'pending';
+  const bookingId = String((row as { booking_id: string }).booking_id);
+
+  if (action === 'approve') {
+    const out = await runAdminApprovePayoutRelease(admin, { bookingId, actorUserId: user.id });
+    if (!out.ok) {
+      return NextResponse.json(
+        { ok: false, error: out.code ?? 'release_failed', transferId: out.transferId ?? null },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json({ ok: true, status: 'approved' });
+  }
+
+  const newStatus = action === 'deny' ? 'rejected' : 'pending';
   const detailsUpdate =
     action === 'escalate'
       ? { details: { escalated: true, escalated_at: new Date().toISOString(), notes: notes ?? '' } }
@@ -62,19 +78,8 @@ export async function POST(
     return NextResponse.json({ error: 'Update failed' }, { status: 500 });
   }
 
-  if (action === 'approve' || action === 'deny') {
-    await admin
-      .from('bookings')
-      .update({
-        ...(action === 'approve'
-          ? {
-              suspicious_completion: false,
-              suspicious_completion_reason: null,
-            }
-          : {}),
-        requires_admin_review: false,
-      })
-      .eq('id', row.booking_id);
+  if (action === 'deny') {
+    await admin.from('bookings').update({ requires_admin_review: false }).eq('id', bookingId);
   }
 
   return NextResponse.json({ ok: true, status: newStatus });
