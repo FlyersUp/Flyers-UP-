@@ -81,7 +81,9 @@ export type BookingPaymentEventType =
   | 'admin_hold_applied'
   | 'admin_hold_released'
   /** Admin clicked approve payout; precedes Stripe transfer when successful. */
-  | 'admin_payout_approve_attempted';
+  | 'admin_payout_approve_attempted'
+  /** Admin chose keep on hold — no transfer; booking stays in review. */
+  | 'admin_payout_keep_on_hold';
 
 const PAYMENT_STATUSES: ReadonlySet<string> = new Set<BookingPaymentStatus>([
   'unpaid',

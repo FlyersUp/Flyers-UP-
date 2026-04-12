@@ -1430,7 +1430,7 @@ export async function runAdminApprovePayoutRelease(
       reviewed_at: now,
     })
     .eq('booking_id', id)
-    .eq('status', 'pending');
+    .in('status', ['pending_review', 'held']);
 
   const { data: bRow } = await admin.from('bookings').select('transferred_total_cents').eq('id', id).maybeSingle();
   const amountCents = Number((bRow as { transferred_total_cents?: number } | null)?.transferred_total_cents ?? 0) || 0;
@@ -1452,6 +1452,90 @@ export async function runAdminApprovePayoutRelease(
     },
   });
   return { ok: true, transferId: out.transferId ?? null, amountTransferredCents: amountCents };
+}
+
+/**
+ * Admin “keep on hold”: no Stripe transfer, no refund; booking stays flagged for review.
+ * Updates or creates `payout_review_queue` row to status `held` with optional reason + internal note.
+ */
+export async function runAdminKeepPayoutOnHold(
+  admin: AdminClient,
+  input: {
+    bookingId: string;
+    actorUserId: string;
+    holdReason?: string | null;
+    internalNote?: string | null;
+  }
+): Promise<{ ok: boolean; message?: string; error?: string }> {
+  const now = new Date().toISOString();
+  const { data: b, error: bErr } = await admin
+    .from('bookings')
+    .select('id, payout_released')
+    .eq('id', input.bookingId)
+    .maybeSingle();
+  if (bErr || !b) return { ok: false, error: 'not_found' };
+  if ((b as { payout_released?: boolean }).payout_released === true) {
+    return { ok: false, error: 'already_released' };
+  }
+
+  await admin.from('bookings').update({ requires_admin_review: true }).eq('id', input.bookingId);
+
+  const { data: q } = await admin
+    .from('payout_review_queue')
+    .select('id, details, reason, status')
+    .eq('booking_id', input.bookingId)
+    .maybeSingle();
+
+  const prevDetails =
+    q?.details != null && typeof q.details === 'object' && !Array.isArray(q.details)
+      ? (q.details as Record<string, unknown>)
+      : {};
+  const nextDetails: Record<string, unknown> = {
+    ...prevDetails,
+    hold_reason: input.holdReason?.trim() || null,
+    internal_note: input.internalNote?.trim() || null,
+    keep_on_hold_at: now,
+    keep_on_hold_by: input.actorUserId,
+  };
+
+  if (q) {
+    const { error } = await admin
+      .from('payout_review_queue')
+      .update({
+        status: 'held',
+        reviewed_by: input.actorUserId,
+        reviewed_at: now,
+        details: nextDetails,
+      })
+      .eq('id', (q as { id: string }).id);
+    if (error) return { ok: false, error: error.message };
+  } else {
+    const { error } = await admin.from('payout_review_queue').insert({
+      booking_id: input.bookingId,
+      reason: 'payout_blocked',
+      details: { ...nextDetails, source: 'admin_keep_on_hold' },
+      status: 'held',
+      reviewed_by: input.actorUserId,
+      reviewed_at: now,
+    });
+    if (error) return { ok: false, error: error.message };
+  }
+
+  await logBookingPaymentEvent(admin, {
+    bookingId: input.bookingId,
+    eventType: 'admin_payout_keep_on_hold',
+    phase: 'payout',
+    status: 'held',
+    actorType: 'admin',
+    actorUserId: input.actorUserId,
+    metadata: {
+      hold_reason: input.holdReason ?? null,
+      internal_note: input.internalNote ?? null,
+      queue_row_existed: Boolean(q),
+    },
+  });
+
+  return { ok: true, message: 'Payout remains on hold pending further review.' };
 }
 
 export async function openDispute(

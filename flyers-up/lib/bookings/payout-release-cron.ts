@@ -65,12 +65,35 @@ async function flagForManualPayoutReview(
     console.warn('[payout-release-cron] requires_admin_review update failed', bookingId, e);
   }
   try {
+    const { data: existing } = await admin
+      .from('payout_review_queue')
+      .select('status, details')
+      .eq('booking_id', bookingId)
+      .maybeSingle();
+    const ex = existing as { status?: string; details?: Record<string, unknown> } | null;
+    const st = String(ex?.status ?? '');
+    if (st === 'held' || st === 'escalated') {
+      const prev = ex?.details != null && typeof ex.details === 'object' && !Array.isArray(ex.details) ? ex.details : {};
+      await admin
+        .from('payout_review_queue')
+        .update({
+          details: {
+            ...prev,
+            holdReason,
+            source: 'payout_release_cron',
+            flagged_at: now,
+            ...extra,
+          },
+        })
+        .eq('booking_id', bookingId);
+      return;
+    }
     await admin.from('payout_review_queue').upsert(
       {
         booking_id: bookingId,
         reason,
         details: { holdReason, source: 'payout_release_cron', flagged_at: now, ...extra },
-        status: 'pending',
+        status: 'pending_review',
       },
       { onConflict: 'booking_id' }
     );

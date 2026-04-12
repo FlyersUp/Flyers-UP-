@@ -216,15 +216,27 @@ export async function POST(
 
   if (suspiciousCompletion) {
     try {
-      await admin.from('payout_review_queue').upsert(
-        {
-          booking_id: id,
-          reason: 'suspicious_completion',
-          details: { reason: suspiciousCompletionReason, minDuration },
-          status: 'pending',
-        },
-        { onConflict: 'booking_id' }
-      );
+      const { data: prq } = await admin
+        .from('payout_review_queue')
+        .select('status, details')
+        .eq('booking_id', id)
+        .maybeSingle();
+      const row = prq as { status?: string; details?: Record<string, unknown> } | null;
+      const st = String(row?.status ?? '');
+      const nextDetails = { reason: suspiciousCompletionReason, minDuration, ...(row?.details ?? {}) };
+      if (st === 'held' || st === 'escalated') {
+        await admin.from('payout_review_queue').update({ details: nextDetails }).eq('booking_id', id);
+      } else {
+        await admin.from('payout_review_queue').upsert(
+          {
+            booking_id: id,
+            reason: 'suspicious_completion',
+            details: nextDetails,
+            status: 'pending_review',
+          },
+          { onConflict: 'booking_id' }
+        );
+      }
     } catch {
       // ignore; table may not exist yet
     }

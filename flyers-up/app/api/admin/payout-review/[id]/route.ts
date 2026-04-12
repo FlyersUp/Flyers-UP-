@@ -1,10 +1,14 @@
 /**
  * POST /api/admin/payout-review/[id]
- * Admin action: approve (releases payout via shared server path), deny, or escalate.
+ * Admin action: approve (releases payout), keep_on_hold, deny, or escalate.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabaseServer';
-import { runAdminApprovePayoutRelease } from '@/lib/bookings/payment-lifecycle-service';
+import {
+  runAdminApprovePayoutRelease,
+  runAdminKeepPayoutOnHold,
+} from '@/lib/bookings/payment-lifecycle-service';
+import { PAYOUT_REVIEW_QUEUE_OPEN_STATUSES } from '@/lib/admin/payout-review-queue-status';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,8 +30,10 @@ export async function POST(
   const body = await req.json().catch(() => ({}));
   const action = body.action as string;
   const notes = body.notes as string | undefined;
+  const holdReason = body.holdReason as string | undefined;
+  const internalNote = body.internalNote as string | undefined;
 
-  if (!['approve', 'deny', 'escalate'].includes(action)) {
+  if (!['approve', 'deny', 'escalate', 'keep_on_hold'].includes(action)) {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   }
 
@@ -37,11 +43,11 @@ export async function POST(
     .from('payout_review_queue')
     .select('id, booking_id, status')
     .eq('id', id)
-    .eq('status', 'pending')
+    .in('status', [...PAYOUT_REVIEW_QUEUE_OPEN_STATUSES])
     .maybeSingle();
 
   if (fetchErr || !row) {
-    return NextResponse.json({ error: 'Not found or already processed' }, { status: 404 });
+    return NextResponse.json({ error: 'Not found or not in an open review state' }, { status: 404 });
   }
 
   const bookingId = String((row as { booking_id: string }).booking_id);
@@ -57,7 +63,24 @@ export async function POST(
     return NextResponse.json({ ok: true, status: 'approved' });
   }
 
-  const newStatus = action === 'deny' ? 'rejected' : 'pending';
+  if (action === 'keep_on_hold') {
+    const out = await runAdminKeepPayoutOnHold(admin, {
+      bookingId,
+      actorUserId: user.id,
+      holdReason: holdReason ?? null,
+      internalNote: internalNote ?? notes ?? null,
+    });
+    if (!out.ok) {
+      return NextResponse.json({ ok: false, error: out.error ?? 'keep_on_hold_failed' }, { status: 400 });
+    }
+    return NextResponse.json({
+      ok: true,
+      status: 'held',
+      message: out.message ?? 'Payout remains on hold pending further review.',
+    });
+  }
+
+  const newStatus = action === 'deny' ? 'rejected' : 'escalated';
   const detailsUpdate =
     action === 'escalate'
       ? { details: { escalated: true, escalated_at: new Date().toISOString(), notes: notes ?? '' } }

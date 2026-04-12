@@ -18,6 +18,9 @@ export function PayoutReviewIsland({ bookingId, data }: Props) {
       onReleased={async () => {
         router.refresh();
       }}
+      onHeld={async () => {
+        router.refresh();
+      }}
     />
   );
 }

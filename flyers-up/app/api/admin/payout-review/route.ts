@@ -5,6 +5,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { PAYOUT_REVIEW_QUEUE_OPEN_STATUSES } from '@/lib/admin/payout-review-queue-status';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,7 @@ export async function GET() {
   const { data: queue, error } = await admin
     .from('payout_review_queue')
     .select('id, booking_id, reason, details, status, created_at')
-    .eq('status', 'pending')
+    .in('status', [...PAYOUT_REVIEW_QUEUE_OPEN_STATUSES])
     .order('created_at', { ascending: true });
 
   if (error) {

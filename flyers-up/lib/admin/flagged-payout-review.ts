@@ -36,6 +36,10 @@ export type FlaggedPayoutReviewItem = {
   proId: string;
   proName: string | null;
   categoryName: string | null;
+  /** Row in payout_review_queue when present */
+  queueStatus?: string | null;
+  queueHoldReason?: string | null;
+  queueInternalNote?: string | null;
 };
 
 function minutesBetween(startIso: string | null, endIso: string | null): number | null {
@@ -174,6 +178,42 @@ async function enrichBookingRowsToItems(
   });
 }
 
+async function attachPayoutReviewQueueMetadata(
+  admin: SupabaseClient,
+  items: FlaggedPayoutReviewItem[]
+): Promise<FlaggedPayoutReviewItem[]> {
+  if (items.length === 0) return items;
+  const { data: qrows } = await admin
+    .from('payout_review_queue')
+    .select('booking_id, status, details')
+    .in(
+      'booking_id',
+      items.map((i) => i.bookingId)
+    );
+  const qm = new Map<
+    string,
+    { queueStatus: string; queueHoldReason: string | null; queueInternalNote: string | null }
+  >();
+  for (const r of qrows ?? []) {
+    const row = r as { booking_id: string; status: string; details?: Record<string, unknown> | null };
+    const d = row.details ?? {};
+    qm.set(row.booking_id, {
+      queueStatus: row.status,
+      queueHoldReason: typeof d.hold_reason === 'string' ? d.hold_reason : null,
+      queueInternalNote: typeof d.internal_note === 'string' ? d.internal_note : null,
+    });
+  }
+  return items.map((item) => {
+    const q = qm.get(item.bookingId);
+    return {
+      ...item,
+      queueStatus: q?.queueStatus ?? null,
+      queueHoldReason: q?.queueHoldReason ?? null,
+      queueInternalNote: q?.queueInternalNote ?? null,
+    };
+  });
+}
+
 export async function loadFlaggedPayoutReviewsForAdmin(
   admin: SupabaseClient
 ): Promise<{ items: FlaggedPayoutReviewItem[]; count: number }> {
@@ -191,7 +231,8 @@ export async function loadFlaggedPayoutReviewsForAdmin(
 
   const list = (rows ?? []) as unknown as Record<string, unknown>[];
   const items = await enrichBookingRowsToItems(admin, list);
-  return { items, count: items.length };
+  const merged = await attachPayoutReviewQueueMetadata(admin, items);
+  return { items: merged, count: merged.length };
 }
 
 export async function countFlaggedPayoutReviewsForAdmin(admin: SupabaseClient): Promise<number> {
@@ -222,7 +263,10 @@ export async function loadBookingPayoutReviewSnapshot(
 
   if (error || !raw) return null;
   const items = await enrichBookingRowsToItems(admin, [raw as unknown as Record<string, unknown>]);
-  return items[0] ?? null;
+  const base = items[0];
+  if (!base) return null;
+  const merged = await attachPayoutReviewQueueMetadata(admin, [base]);
+  return merged[0] ?? null;
 }
 
 /**
@@ -240,5 +284,8 @@ export async function loadAdminBookingPayoutCardData(
 
   if (error || !raw) return null;
   const items = await enrichBookingRowsToItems(admin, [raw as unknown as Record<string, unknown>]);
-  return items[0] ?? null;
+  const base = items[0];
+  if (!base) return null;
+  const merged = await attachPayoutReviewQueueMetadata(admin, [base]);
+  return merged[0] ?? null;
 }

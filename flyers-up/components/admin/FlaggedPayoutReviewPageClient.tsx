@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { FlaggedPayoutReviewItem } from '@/lib/admin/flagged-payout-review';
 import { ApprovePayoutNowButton } from '@/components/admin/ApprovePayoutNowButton';
+import { KeepPayoutOnHoldButton } from '@/components/admin/KeepPayoutOnHoldButton';
 
 function formatMoney(cents: number | null) {
   if (cents == null || cents <= 0) return '—';
@@ -23,6 +24,34 @@ function Pill({ children, tone }: { children: ReactNode; tone: 'amber' | 'red' |
       {children}
     </span>
   );
+}
+
+function queueStatusLabel(status: string | null | undefined) {
+  const s = status ?? 'pending_review';
+  switch (s) {
+    case 'pending_review':
+      return 'Pending review';
+    case 'held':
+      return 'Held';
+    case 'approved':
+      return 'Approved';
+    case 'refunded':
+      return 'Refunded';
+    case 'rejected':
+      return 'Rejected';
+    case 'escalated':
+      return 'Escalated';
+    default:
+      return s;
+  }
+}
+
+function queueStatusPillTone(status: string | null | undefined): 'amber' | 'red' | 'emerald' | 'neutral' {
+  const s = status ?? 'pending_review';
+  if (s === 'pending_review' || s === 'held') return 'amber';
+  if (s === 'escalated') return 'red';
+  if (s === 'approved') return 'emerald';
+  return 'neutral';
 }
 
 export function FlaggedPayoutReviewPageClient() {
@@ -98,17 +127,26 @@ export function FlaggedPayoutReviewPageClient() {
                   {item.bookingId}
                 </Link>
                 <Pill tone="amber">Under review</Pill>
+                <Pill tone={queueStatusPillTone(item.queueStatus)}>{queueStatusLabel(item.queueStatus)}</Pill>
               </div>
               <p className="mt-1 text-xs text-muted">
                 {item.serviceDate ?? '—'} {item.serviceTime ?? ''} · {item.categoryName ?? 'Service'}
               </p>
             </div>
-            <ApprovePayoutNowButton
-              bookingId={item.bookingId}
-              onReleased={async () => {
-                await refetch();
-              }}
-            />
+            <div className="flex flex-shrink-0 flex-wrap items-start justify-end gap-2">
+              <KeepPayoutOnHoldButton
+                bookingId={item.bookingId}
+                onHeld={async () => {
+                  await refetch();
+                }}
+              />
+              <ApprovePayoutNowButton
+                bookingId={item.bookingId}
+                onReleased={async () => {
+                  await refetch();
+                }}
+              />
+            </div>
           </div>
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
@@ -129,8 +167,16 @@ export function FlaggedPayoutReviewPageClient() {
               <dd className="font-mono text-xs break-all">{item.paymentLifecycleStatus ?? '—'}</dd>
             </div>
             <div>
-              <dt className="text-muted text-xs">Hold reason</dt>
+              <dt className="text-muted text-xs">Booking hold reason</dt>
               <dd>{item.payoutHoldReason ?? '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-muted text-xs">Admin hold reason</dt>
+              <dd className="text-xs">{item.queueHoldReason ?? '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-muted text-xs">Internal note</dt>
+              <dd className="text-xs">{item.queueInternalNote ?? '—'}</dd>
             </div>
             <div>
               <dt className="text-muted text-xs">Completed</dt>

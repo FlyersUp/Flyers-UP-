@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { FlaggedPayoutReviewItem } from '@/lib/admin/flagged-payout-review';
 import { ApprovePayoutNowButton } from '@/components/admin/ApprovePayoutNowButton';
+import { KeepPayoutOnHoldButton } from '@/components/admin/KeepPayoutOnHoldButton';
 
 function formatMoney(cents: number | null) {
   if (cents == null || cents <= 0) return '—';
@@ -13,9 +14,30 @@ type Props = {
   bookingId: string;
   data: FlaggedPayoutReviewItem;
   onReleased?: () => void | Promise<void>;
+  onHeld?: () => void | Promise<void>;
 };
 
-export function AdminBookingPayoutReviewCard({ bookingId, data, onReleased }: Props) {
+function queueStatusLabel(status: string | null | undefined) {
+  const s = status ?? 'pending_review';
+  switch (s) {
+    case 'pending_review':
+      return 'Pending review';
+    case 'held':
+      return 'Held';
+    case 'approved':
+      return 'Approved';
+    case 'refunded':
+      return 'Refunded';
+    case 'rejected':
+      return 'Rejected';
+    case 'escalated':
+      return 'Escalated';
+    default:
+      return s;
+  }
+}
+
+export function AdminBookingPayoutReviewCard({ bookingId, data, onReleased, onHeld }: Props) {
   return (
     <section className="rounded-[18px] border border-amber-200/80 bg-amber-50/40 p-5 shadow-card dark:border-amber-900/40 dark:bg-amber-950/20">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -25,13 +47,28 @@ export function AdminBookingPayoutReviewCard({ bookingId, data, onReleased }: Pr
             This booking is held for admin review before funds can move to the pro.
           </p>
         </div>
-        <ApprovePayoutNowButton bookingId={bookingId} onReleased={onReleased} />
+        <div className="flex flex-shrink-0 flex-wrap items-start justify-end gap-2">
+          <KeepPayoutOnHoldButton bookingId={bookingId} onHeld={onHeld} />
+          <ApprovePayoutNowButton bookingId={bookingId} onReleased={onReleased} />
+        </div>
       </div>
 
       <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Hold reason</dt>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Queue status</dt>
+          <dd className="mt-0.5 font-medium">{queueStatusLabel(data.queueStatus)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Booking hold reason</dt>
           <dd className="mt-0.5">{data.payoutHoldReason ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Admin hold reason</dt>
+          <dd className="mt-0.5 text-xs">{data.queueHoldReason ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Internal note</dt>
+          <dd className="mt-0.5 text-xs">{data.queueInternalNote ?? '—'}</dd>
         </div>
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-muted">Completed at</dt>

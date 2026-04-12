@@ -4,6 +4,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { PAYOUT_REVIEW_QUEUE_OPEN_STATUSES } from '@/lib/admin/payout-review-queue-status';
 import { isBookingStatusTerminalForClosure, type ProClosureBookingRow } from '@/lib/pro/account-closure-service';
 import { isProfileActiveForOperations } from '@/lib/account/lifecycle';
 
@@ -100,7 +101,7 @@ export async function canDeactivateAccount(
     const { data: prq } = await admin
       .from('payout_review_queue')
       .select('booking_id')
-      .eq('status', 'pending')
+      .in('status', [...PAYOUT_REVIEW_QUEUE_OPEN_STATUSES])
       .in('booking_id', bookingIds);
     if ((prq ?? []).length > 0) reasons.push('PENDING_PAYOUT');
   }

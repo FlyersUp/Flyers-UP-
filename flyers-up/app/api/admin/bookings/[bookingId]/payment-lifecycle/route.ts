@@ -12,6 +12,7 @@ import {
   openDispute,
   resolveDispute,
   runAdminApprovePayoutRelease,
+  runAdminKeepPayoutOnHold,
   syncBookingPaymentSummary,
 } from '@/lib/bookings/payment-lifecycle-service';
 import { reconcileBookingForFinalAutoCharge } from '@/lib/bookings/final-charge-candidates';
@@ -32,6 +33,10 @@ type Body = {
   resolutionNotes?: string;
   adminHoldReason?: string;
   partialRefundCents?: number;
+  /** For keep_payout_on_hold — short reason category or free text. */
+  holdReason?: string;
+  /** For keep_payout_on_hold — admin-only context. */
+  internalNote?: string;
 };
 
 export async function POST(
@@ -249,6 +254,22 @@ export async function POST(
         ok: true,
         transferId: out.transferId ?? null,
         amountTransferredCents: out.amountTransferredCents ?? 0,
+      });
+    }
+    case 'keep_payout_on_hold': {
+      const out = await runAdminKeepPayoutOnHold(admin, {
+        bookingId: id,
+        actorUserId: user.id,
+        holdReason: body.holdReason ?? null,
+        internalNote: body.internalNote ?? null,
+      });
+      if (!out.ok) {
+        return NextResponse.json({ ok: false, error: out.error ?? 'keep_on_hold_failed' }, { status: 400 });
+      }
+      return NextResponse.json({
+        ok: true,
+        status: 'held',
+        message: out.message ?? 'Payout remains on hold pending further review.',
       });
     }
     case 'open_dispute': {
