@@ -199,6 +199,20 @@ export function getPayoutHoldExplanation(
     };
   }
 
+  if (r === 'customer_refunded') {
+    return {
+      code: 'payout_blocked_customer_refunded',
+      title: 'Customer refunded',
+      pro_message:
+        'This booking was fully refunded to the customer, so there is no payout for this job. If you believe this is a mistake, contact support.',
+      customer_message:
+        'You’ve been refunded for this booking. If you have questions about the amount or timing, contact support.',
+      severity: 'info',
+      action_required: 'contact_support',
+      can_admin_override: false,
+    };
+  }
+
   if (r === 'admin_hold') {
     return {
       code: 'payout_flagged_admin_hold',

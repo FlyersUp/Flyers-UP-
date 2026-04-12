@@ -9,4 +9,8 @@ describe('assertPayoutHoldReason', () => {
   it('accepts admin_review_required', () => {
     assert.strictEqual(assertPayoutHoldReason('admin_review_required'), 'admin_review_required');
   });
+
+  it('accepts customer_refunded', () => {
+    assert.strictEqual(assertPayoutHoldReason('customer_refunded'), 'customer_refunded');
+  });
 });

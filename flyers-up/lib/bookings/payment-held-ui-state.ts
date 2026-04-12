@@ -70,6 +70,7 @@ function isKnownPayoutHoldReason(v: string): v is PayoutHoldReason {
       'already_released',
       'refund_pending',
       'admin_review_required',
+      'customer_refunded',
     ] as const
   ).includes(v as PayoutHoldReason);
 }

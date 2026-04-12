@@ -29,6 +29,7 @@ import type {
   PayoutHoldReason,
 } from '@/lib/bookings/payment-lifecycle-types';
 import { assertPayoutHoldReason } from '@/lib/bookings/payment-lifecycle-types';
+import { PAYOUT_REVIEW_QUEUE_OPEN_STATUSES } from '@/lib/admin/payout-review-queue-status';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
@@ -968,6 +969,11 @@ export async function evaluatePayoutTransferEligibility(
   if (row.payout_released === true) {
     return { ok: false, holdReason: 'already_released', flagForAdminReview: false };
   }
+  const lifecycleEarly = String(row.payment_lifecycle_status ?? '');
+  const refundStatusLower = String(row.refund_status ?? '').toLowerCase();
+  if (lifecycleEarly === 'refunded' || refundStatusLower === 'succeeded') {
+    return { ok: false, holdReason: 'customer_refunded', flagForAdminReview: false };
+  }
   if (!opts.initiatedByAdmin && row.requires_admin_review === true) {
     return { ok: false, holdReason: 'admin_review_required', flagForAdminReview: false };
   }
@@ -1035,6 +1041,9 @@ export async function evaluatePayoutTransferEligibility(
     }
     if (r.includes('Payment not complete') || r.includes('deposit or remaining')) {
       return { ok: false, holdReason: 'missing_final_payment', flagForAdminReview: false };
+    }
+    if (r.includes('Refund already processed')) {
+      return { ok: false, holdReason: 'customer_refunded', flagForAdminReview: false };
     }
     if (r.includes('Refund')) return { ok: false, holdReason: 'refund_pending', flagForAdminReview: true };
     if (r.includes('not in')) return { ok: false, holdReason: 'insufficient_completion_evidence', flagForAdminReview: false };
@@ -1243,6 +1252,7 @@ export async function releasePayout(
     'admin_hold',
     'fraud_review',
     'no_show_review',
+    'customer_refunded',
   ]);
   if (
     !initiatedByAdmin &&
@@ -1536,6 +1546,136 @@ export async function runAdminKeepPayoutOnHold(
   });
 
   return { ok: true, message: 'Payout remains on hold pending further review.' };
+}
+
+/**
+ * Admin “refund customer” from payout review: full Stripe refund, booking lifecycle updated,
+ * clears manual review flag, marks open `payout_review_queue` rows refunded, blocks future payout.
+ */
+export async function runAdminRefundCustomer(
+  admin: AdminClient,
+  input: {
+    bookingId: string;
+    actorUserId: string;
+    refundReason?: string | null;
+    internalNote?: string | null;
+  }
+): Promise<{ ok: boolean; error?: string; message?: string }> {
+  const id = input.bookingId;
+  const stripe = stripeClient();
+  if (!stripe) {
+    return { ok: false, error: 'stripe_not_configured' };
+  }
+
+  const { data: b, error: bErr } = await admin
+    .from('bookings')
+    .select(
+      'id, payout_released, final_payment_intent_id, stripe_payment_intent_remaining_id, stripe_payment_intent_deposit_id, payment_intent_id, payment_lifecycle_status, refund_status'
+    )
+    .eq('id', id)
+    .maybeSingle();
+  if (bErr || !b) return { ok: false, error: 'not_found' };
+  const br = b as Record<string, string | boolean | null | undefined>;
+  if (br.payout_released === true) {
+    return { ok: false, error: 'already_released' };
+  }
+  const lc = String(br.payment_lifecycle_status ?? '');
+  const rs = String(br.refund_status ?? '').toLowerCase();
+  if (lc === 'refunded' || rs === 'succeeded') {
+    return { ok: false, error: 'already_refunded' };
+  }
+
+  const piFinal = (br.final_payment_intent_id as string) ?? (br.stripe_payment_intent_remaining_id as string) ?? null;
+  const piDep =
+    (br.stripe_payment_intent_deposit_id as string) ?? (br.payment_intent_id as string) ?? null;
+  if (!piFinal && !piDep) {
+    return { ok: false, error: 'no_payment_intent' };
+  }
+
+  try {
+    if (piFinal) {
+      await refundPaymentIntent(piFinal, { booking_id: id, payment_phase: 'refund', refund_scope: 'full' });
+    }
+    if (piDep && piDep !== piFinal) {
+      await refundPaymentIntent(piDep, { booking_id: id, payment_phase: 'refund', refund_scope: 'full' });
+    }
+  } catch (e) {
+    console.error('[runAdminRefundCustomer] stripe refund failed', id, e);
+    return { ok: false, error: 'stripe_refund_failed' };
+  }
+
+  const now = new Date().toISOString();
+  const reasonTrim = input.refundReason?.trim() || null;
+  const noteTrim = input.internalNote?.trim() || null;
+
+  await admin
+    .from('bookings')
+    .update({
+      payment_lifecycle_status: 'refunded',
+      refund_status: 'succeeded',
+      requires_admin_review: false,
+      payout_blocked: true,
+      payout_hold_reason: 'customer_refunded',
+    })
+    .eq('id', id);
+
+  const { data: openQueueRows } = await admin
+    .from('payout_review_queue')
+    .select('id, details')
+    .eq('booking_id', id)
+    .in('status', [...PAYOUT_REVIEW_QUEUE_OPEN_STATUSES]);
+
+  let hadOpenQueueRow = false;
+  for (const row of openQueueRows ?? []) {
+    hadOpenQueueRow = true;
+    const qid = String((row as { id: string }).id);
+    const prevDetails =
+      row.details != null && typeof row.details === 'object' && !Array.isArray(row.details)
+        ? (row.details as Record<string, unknown>)
+        : {};
+    const nextDetails: Record<string, unknown> = {
+      ...prevDetails,
+      refund_reason: reasonTrim,
+      internal_note: noteTrim ?? prevDetails.internal_note,
+      admin_refund_at: now,
+      admin_refund_by: input.actorUserId,
+      source: 'admin_refund_customer',
+    };
+    await admin
+      .from('payout_review_queue')
+      .update({
+        status: 'refunded',
+        reviewed_by: input.actorUserId,
+        reviewed_at: now,
+        details: nextDetails,
+      })
+      .eq('id', qid);
+  }
+
+  await syncBookingPaymentSummary(admin, id);
+  await logBookingPaymentEvent(admin, {
+    bookingId: id,
+    eventType: 'refund_succeeded',
+    phase: 'refund',
+    status: 'full',
+    actorType: 'admin',
+    actorUserId: input.actorUserId,
+  });
+  await logBookingPaymentEvent(admin, {
+    bookingId: id,
+    eventType: 'admin_refund_customer',
+    phase: 'refund',
+    status: 'full',
+    actorType: 'admin',
+    actorUserId: input.actorUserId,
+    metadata: {
+      refund_reason: reasonTrim,
+      internal_note: noteTrim,
+      had_open_queue_row: hadOpenQueueRow,
+    },
+  });
+
+  return { ok: true, message: 'Customer refund processed; payout review cleared.' };
 }
 
 export async function openDispute(

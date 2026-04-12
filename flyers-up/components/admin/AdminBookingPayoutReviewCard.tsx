@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { FlaggedPayoutReviewItem } from '@/lib/admin/flagged-payout-review';
 import { ApprovePayoutNowButton } from '@/components/admin/ApprovePayoutNowButton';
 import { KeepPayoutOnHoldButton } from '@/components/admin/KeepPayoutOnHoldButton';
+import { RefundCustomerButton } from '@/components/admin/RefundCustomerButton';
 
 function formatMoney(cents: number | null) {
   if (cents == null || cents <= 0) return '—';
@@ -15,6 +16,7 @@ type Props = {
   data: FlaggedPayoutReviewItem;
   onReleased?: () => void | Promise<void>;
   onHeld?: () => void | Promise<void>;
+  onRefunded?: () => void | Promise<void>;
 };
 
 function queueStatusLabel(status: string | null | undefined) {
@@ -37,38 +39,64 @@ function queueStatusLabel(status: string | null | undefined) {
   }
 }
 
-export function AdminBookingPayoutReviewCard({ bookingId, data, onReleased, onHeld }: Props) {
+function queueStatusBadgeClass(status: string | null | undefined): string {
+  const s = status ?? 'pending_review';
+  if (s === 'pending_review' || s === 'held') {
+    return 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200';
+  }
+  if (s === 'approved') {
+    return 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-200';
+  }
+  if (s === 'refunded' || s === 'rejected' || s === 'escalated') {
+    return 'bg-red-100 text-red-900 dark:bg-red-900/30 dark:text-red-200';
+  }
+  return 'bg-surface2 text-muted';
+}
+
+export function AdminBookingPayoutReviewCard({ bookingId, data, onReleased, onHeld, onRefunded }: Props) {
   return (
     <section className="rounded-[18px] border border-amber-200/80 bg-amber-50/40 p-5 shadow-card dark:border-amber-900/40 dark:bg-amber-950/20">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-text">Payout under review</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold text-text">Payout under review</h2>
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${queueStatusBadgeClass(data.queueStatus)}`}
+            >
+              {queueStatusLabel(data.queueStatus)}
+            </span>
+          </div>
           <p className="mt-1 text-sm text-muted">
             This booking is held for admin review before funds can move to the pro.
           </p>
         </div>
         <div className="flex flex-shrink-0 flex-wrap items-start justify-end gap-2">
           <KeepPayoutOnHoldButton bookingId={bookingId} onHeld={onHeld} />
+          <RefundCustomerButton bookingId={bookingId} onRefunded={onRefunded} />
           <ApprovePayoutNowButton bookingId={bookingId} onReleased={onReleased} />
         </div>
       </div>
 
       <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Queue status</dt>
-          <dd className="mt-0.5 font-medium">{queueStatusLabel(data.queueStatus)}</dd>
+        <div className="sm:col-span-2">
+          <dt className="text-xs font-semibold uppercase tracking-wide text-text">System flag</dt>
+          <dd className="mt-0.5 text-sm text-text">{data.payoutHoldReason ?? '—'}</dd>
+          <p className="mt-1 text-[11px] leading-snug text-muted">
+            Automated signal from completion, payments, or risk (not written by an admin).
+          </p>
         </div>
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Booking hold reason</dt>
-          <dd className="mt-0.5">{data.payoutHoldReason ?? '—'}</dd>
+        <div className="sm:col-span-2">
+          <dt className="text-xs font-semibold uppercase tracking-wide text-text">Admin note</dt>
+          <dd className="mt-0.5 text-sm text-text">{data.queueHoldReason ?? '—'}</dd>
+          <p className="mt-1 text-[11px] leading-snug text-muted">
+            From your last <span className="font-medium text-text/90">keep on hold</span> — why the payout is still
+            blocked for follow-up.
+          </p>
         </div>
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Admin hold reason</dt>
-          <dd className="mt-0.5 text-xs">{data.queueHoldReason ?? '—'}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Internal note</dt>
-          <dd className="mt-0.5 text-xs">{data.queueInternalNote ?? '—'}</dd>
+        <div className="sm:col-span-2">
+          <dt className="text-xs font-semibold uppercase tracking-wide text-text">Internal note (staff)</dt>
+          <dd className="mt-0.5 text-xs text-text">{data.queueInternalNote ?? '—'}</dd>
+          <p className="mt-1 text-[11px] leading-snug text-muted">Not shown to customers or pros.</p>
         </div>
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-muted">Completed at</dt>

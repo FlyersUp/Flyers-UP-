@@ -6,6 +6,7 @@ import Link from 'next/link';
 import type { FlaggedPayoutReviewItem } from '@/lib/admin/flagged-payout-review';
 import { ApprovePayoutNowButton } from '@/components/admin/ApprovePayoutNowButton';
 import { KeepPayoutOnHoldButton } from '@/components/admin/KeepPayoutOnHoldButton';
+import { RefundCustomerButton } from '@/components/admin/RefundCustomerButton';
 
 function formatMoney(cents: number | null) {
   if (cents == null || cents <= 0) return '—';
@@ -49,7 +50,7 @@ function queueStatusLabel(status: string | null | undefined) {
 function queueStatusPillTone(status: string | null | undefined): 'amber' | 'red' | 'emerald' | 'neutral' {
   const s = status ?? 'pending_review';
   if (s === 'pending_review' || s === 'held') return 'amber';
-  if (s === 'escalated') return 'red';
+  if (s === 'escalated' || s === 'refunded' || s === 'rejected') return 'red';
   if (s === 'approved') return 'emerald';
   return 'neutral';
 }
@@ -140,6 +141,12 @@ export function FlaggedPayoutReviewPageClient() {
                   await refetch();
                 }}
               />
+              <RefundCustomerButton
+                bookingId={item.bookingId}
+                onRefunded={async () => {
+                  await refetch();
+                }}
+              />
               <ApprovePayoutNowButton
                 bookingId={item.bookingId}
                 onReleased={async () => {
@@ -166,17 +173,25 @@ export function FlaggedPayoutReviewPageClient() {
               <dt className="text-muted text-xs">Lifecycle</dt>
               <dd className="font-mono text-xs break-all">{item.paymentLifecycleStatus ?? '—'}</dd>
             </div>
-            <div>
-              <dt className="text-muted text-xs">Booking hold reason</dt>
-              <dd>{item.payoutHoldReason ?? '—'}</dd>
+            <div className="sm:col-span-2">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-text">System flag</dt>
+              <dd className="mt-0.5 text-sm text-text">{item.payoutHoldReason ?? '—'}</dd>
+              <p className="mt-1 text-[11px] leading-snug text-muted">
+                Automated signal from completion, payments, or risk (not written by an admin).
+              </p>
             </div>
-            <div>
-              <dt className="text-muted text-xs">Admin hold reason</dt>
-              <dd className="text-xs">{item.queueHoldReason ?? '—'}</dd>
+            <div className="sm:col-span-2">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-text">Admin note</dt>
+              <dd className="mt-0.5 text-sm text-text">{item.queueHoldReason ?? '—'}</dd>
+              <p className="mt-1 text-[11px] leading-snug text-muted">
+                From your last <span className="font-medium text-text/90">keep on hold</span> — why the payout is
+                still blocked for follow-up.
+              </p>
             </div>
-            <div>
-              <dt className="text-muted text-xs">Internal note</dt>
-              <dd className="text-xs">{item.queueInternalNote ?? '—'}</dd>
+            <div className="sm:col-span-2">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-text">Internal note (staff)</dt>
+              <dd className="mt-0.5 text-xs text-text">{item.queueInternalNote ?? '—'}</dd>
+              <p className="mt-1 text-[11px] leading-snug text-muted">Not shown to customers or pros.</p>
             </div>
             <div>
               <dt className="text-muted text-xs">Completed</dt>

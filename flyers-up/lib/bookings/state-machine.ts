@@ -175,6 +175,9 @@ export function isPayoutEligible(input: PayoutEligibilityInput): { eligible: boo
   if (input.refund_status === 'pending') {
     return { eligible: false, reason: 'Refund is pending' };
   }
+  if (input.refund_status === 'succeeded') {
+    return { eligible: false, reason: 'Refund already processed (customer fully refunded)' };
+  }
 
   if (!input.adminTransferOverride) {
     const hours = input.autoReleaseAfterCompletionHours;

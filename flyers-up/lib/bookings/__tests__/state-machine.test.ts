@@ -92,6 +92,12 @@ describe('state-machine', () => {
       assert.ok(r.reason?.includes('Dispute'));
     });
 
+    it('blocked when refund_status is succeeded', () => {
+      const r = isPayoutEligible({ ...base, refund_status: 'succeeded' });
+      assert.ok(!r.eligible);
+      assert.ok(r.reason?.includes('Refund'));
+    });
+
     it('blocked when cancellation_reason pro_no_show', () => {
       const r = isPayoutEligible({ ...base, cancellation_reason: 'pro_no_show' });
       assert.ok(!r.eligible);

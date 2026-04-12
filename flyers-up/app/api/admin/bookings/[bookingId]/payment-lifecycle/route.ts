@@ -13,6 +13,7 @@ import {
   resolveDispute,
   runAdminApprovePayoutRelease,
   runAdminKeepPayoutOnHold,
+  runAdminRefundCustomer,
   syncBookingPaymentSummary,
 } from '@/lib/bookings/payment-lifecycle-service';
 import { reconcileBookingForFinalAutoCharge } from '@/lib/bookings/final-charge-candidates';
@@ -37,6 +38,10 @@ type Body = {
   holdReason?: string;
   /** For keep_payout_on_hold — admin-only context. */
   internalNote?: string;
+  /** For refund_customer — audit trail (recommended). */
+  refundReason?: string;
+  /** For refund_customer — admin-only context. */
+  refundInternalNote?: string;
 };
 
 export async function POST(
@@ -270,6 +275,30 @@ export async function POST(
         ok: true,
         status: 'held',
         message: out.message ?? 'Payout remains on hold pending further review.',
+      });
+    }
+    case 'refund_customer': {
+      const out = await runAdminRefundCustomer(admin, {
+        bookingId: id,
+        actorUserId: user.id,
+        refundReason: body.refundReason ?? null,
+        internalNote: body.refundInternalNote ?? body.internalNote ?? null,
+      });
+      if (!out.ok) {
+        const status =
+          out.error === 'not_found'
+            ? 404
+            : out.error === 'already_released' || out.error === 'already_refunded'
+              ? 409
+              : out.error === 'stripe_not_configured'
+                ? 500
+                : 400;
+        return NextResponse.json({ ok: false, error: out.error ?? 'refund_failed' }, { status });
+      }
+      return NextResponse.json({
+        ok: true,
+        status: 'refunded',
+        message: out.message ?? 'Customer refund processed; payout review cleared.',
       });
     }
     case 'open_dispute': {
