@@ -41,8 +41,8 @@ export type PaymentHeldUiState = {
 const BADGE = 'Under review';
 
 const DEFAULT_WHY: PaymentHeldWhyCallout = {
-  headline: 'Why is this happening?',
-  body: 'Reviews are usually completed within 4–12 hours during business days. Our team manually verifies high-speed service completions to ensure quality and safety.',
+  headline: 'Timing',
+  body: 'Most reviews are completed within 4–12 business hours. Some cases may take longer if we need to verify booking details.',
 };
 
 const PRO_TITLE_DEFAULT = 'Payout temporarily held';
@@ -198,7 +198,14 @@ export type PaymentHeldBookingSignals = {
   suspiciousCompletion?: boolean | null;
   suspiciousCompletionReason?: string | null;
   adminHold?: boolean | null;
+  /** Bookings.payout_status — failed indicates a transfer/setup issue surfaced on the row */
+  payoutStatus?: string | null;
 };
+
+/** Pro UI: transfer or DB payout row failed while booking may still be under review */
+export function isProPayoutTransferFailureSignal(signals: PaymentHeldBookingSignals): boolean {
+  return String(signals.payoutStatus ?? '').trim().toLowerCase() === 'failed';
+}
 
 /**
  * Whether to show the payment-held / under-review experience (Pro or Customer).
@@ -239,24 +246,54 @@ export function resolvePaymentHoldReasonAndContext(signals: PaymentHeldBookingSi
   return { reason: 'fraud_review', context };
 }
 
+const PRO_MANUAL_REVIEW_HELD_COPY = {
+  badge: 'Under review',
+  title: 'Payout under review',
+  subtitle:
+    'This job was completed much faster than expected for this service, so payout is being checked before release.',
+  infoPanelBody:
+    'Most reviews are completed within 4–12 business hours. Some cases may take longer if we need to verify booking details. You do not need to do anything right now unless support contacts you for more information.',
+  whyCallout: {
+    headline: 'Timing',
+    body: 'Most reviews are completed within 4–12 business hours. Some cases may take longer if we need to verify booking details.',
+  } satisfies PaymentHeldWhyCallout,
+};
+
 export type BuildPaymentHeldUiStateInput = {
   view: PaymentHeldView;
   holdReason: PayoutHoldReason | string;
   context?: PayoutHoldExplanationContext;
   /** Optional timestamps for timeline steps (e.g. paid_deposit_at, completed_at) */
   timelineTimestamps?: Partial<Record<PaymentHeldTimelineKey, string | null>>;
+  /**
+   * When true (pro view only), use explicit manual-review copy instead of generic hold explanations.
+   */
+  useProManualReviewPayoutCopy?: boolean;
 };
 
 /**
  * Build UI state used inside `getMoneyPresentation` for payout_held; held cards consume `MoneyUiPresentation`.
  */
 export function buildPaymentHeldUiState(input: BuildPaymentHeldUiStateInput): PaymentHeldUiState {
-  const { view, holdReason, context = {}, timelineTimestamps } = input;
+  const { view, holdReason, context = {}, timelineTimestamps, useProManualReviewPayoutCopy } = input;
   const reason = normalizeHoldReason(String(holdReason));
   const exp = getPayoutHoldExplanation(reason, context);
 
   const heldHelper = heldHelperForExplanationCode(exp.code);
   const timeline = buildTimeline(heldHelper, timelineTimestamps);
+
+  if (view === 'pro' && useProManualReviewPayoutCopy) {
+    return {
+      variant: 'pro',
+      badge: PRO_MANUAL_REVIEW_HELD_COPY.badge,
+      title: PRO_MANUAL_REVIEW_HELD_COPY.title,
+      subtitle: PRO_MANUAL_REVIEW_HELD_COPY.subtitle,
+      timeline,
+      infoPanelBody: PRO_MANUAL_REVIEW_HELD_COPY.infoPanelBody,
+      explanationCode: 'pro_manual_payout_review_held',
+      whyCallout: PRO_MANUAL_REVIEW_HELD_COPY.whyCallout,
+    };
+  }
 
   if (view === 'customer') {
     return {
@@ -296,5 +333,13 @@ export function buildPaymentHeldUiStateFromBooking(
 ): PaymentHeldUiState | null {
   if (!shouldShowPaymentHeldUi(signals)) return null;
   const { reason, context } = resolvePaymentHoldReasonAndContext(signals);
-  return buildPaymentHeldUiState({ view, holdReason: reason, context, timelineTimestamps });
+  const useProManualReviewPayoutCopy =
+    view === 'pro' && signals.requiresAdminReview === true && !isProPayoutTransferFailureSignal(signals);
+  return buildPaymentHeldUiState({
+    view,
+    holdReason: reason,
+    context,
+    timelineTimestamps,
+    useProManualReviewPayoutCopy,
+  });
 }

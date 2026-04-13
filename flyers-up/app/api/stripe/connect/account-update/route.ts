@@ -1,17 +1,21 @@
 /**
  * GET /api/stripe/connect/account-update
- * Redirect pros with an existing Connect account to Stripe (account_update link).
+ * Redirect pros with an existing Connect account to Stripe (login link or account link).
+ * Prefer POST /api/pro/stripe/payout-update-link from the app UI (JSON URL + client redirect).
  */
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
 
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
+import { createProPayoutManagementUrl, normalizeProStripeReturnPath } from '@/lib/stripe/createProPayoutManagementUrl';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
-  const nextParam = req.nextUrl.searchParams.get('next') || '/pro/settings/payments-payouts';
+  const nextParam = normalizeProStripeReturnPath(
+    req.nextUrl.searchParams.get('next') || '/pro/settings/payments-payouts'
+  );
 
   if (!stripe) {
     const d = new URL(nextParam, origin);
@@ -43,26 +47,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL(`${nextParam}?connect=no_account`, origin));
   }
 
-  const returnUrl = new URL('/api/stripe/connect/return', origin);
-  returnUrl.searchParams.set('next', nextParam);
-
-  try {
-    const link = await stripe.accountLinks.create({
-      account: accountId,
-      type: 'account_update',
-      refresh_url: `${origin}/api/stripe/connect/account-update?next=${encodeURIComponent(nextParam)}`,
-      return_url: returnUrl.toString(),
-    });
-    if (!link?.url) {
-      const d = new URL(nextParam, origin);
-      d.searchParams.set('connect', 'error');
-      return NextResponse.redirect(d);
-    }
-    return NextResponse.redirect(link.url);
-  } catch (err) {
-    console.error('Stripe account_update link:', err);
+  const result = await createProPayoutManagementUrl(stripe, { accountId, origin, returnPath: nextParam });
+  if (!result.ok) {
+    console.error('Stripe payout management link (GET account-update):', result.error);
     const d = new URL(nextParam, origin);
     d.searchParams.set('connect', 'error');
     return NextResponse.redirect(d);
   }
+  return NextResponse.redirect(result.url);
 }

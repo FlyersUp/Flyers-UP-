@@ -10,6 +10,11 @@ export type FlaggedPayoutReviewItem = {
   bookingId: string;
   status: string | null;
   paymentLifecycleStatus: string | null;
+  /** Bookings.payout_status — e.g. failed after a transfer attempt */
+  payoutStatus?: string | null;
+  payoutReleased?: boolean | null;
+  payoutTransferId?: string | null;
+  stripeTransferId?: string | null;
   payoutHoldReason: string | null;
   completedAt: string | null;
   startedAt: string | null;
@@ -40,6 +45,12 @@ export type FlaggedPayoutReviewItem = {
   queueStatus?: string | null;
   queueHoldReason?: string | null;
   queueInternalNote?: string | null;
+  /** From queue.details (e.g. cron after releasePayout failure) */
+  queueReleaseError?: string | null;
+  queueReleaseNote?: string | null;
+  /** booking_payouts.status when joined */
+  bookingPayoutRowStatus?: string | null;
+  bookingPayoutBlockReason?: string | null;
 };
 
 function minutesBetween(startIso: string | null, endIso: string | null): number | null {
@@ -67,6 +78,10 @@ const BOOKING_PAYOUT_REVIEW_SELECT = [
   'refund_status',
   'suspicious_completion',
   'suspicious_completion_reason',
+  'payout_status',
+  'payout_released',
+  'payout_transfer_id',
+  'stripe_transfer_id',
   'minimum_expected_duration_minutes',
   'stripe_destination_account_id',
   'total_amount_cents',
@@ -147,6 +162,10 @@ async function enrichBookingRowsToItems(
       bookingId: id,
       status: (b.status as string) ?? null,
       paymentLifecycleStatus: (b.payment_lifecycle_status as string) ?? null,
+      payoutStatus: (b.payout_status as string) ?? null,
+      payoutReleased: b.payout_released === true,
+      payoutTransferId: (b.payout_transfer_id as string) ?? null,
+      stripeTransferId: (b.stripe_transfer_id as string) ?? null,
       payoutHoldReason: (b.payout_hold_reason as string) ?? null,
       completedAt: completed,
       startedAt: started,
@@ -183,33 +202,57 @@ async function attachPayoutReviewQueueMetadata(
   items: FlaggedPayoutReviewItem[]
 ): Promise<FlaggedPayoutReviewItem[]> {
   if (items.length === 0) return items;
-  const { data: qrows } = await admin
-    .from('payout_review_queue')
-    .select('booking_id, status, details')
-    .in(
-      'booking_id',
-      items.map((i) => i.bookingId)
-    );
+  const ids = items.map((i) => i.bookingId);
+  const [{ data: qrows }, { data: bpRows }] = await Promise.all([
+    admin.from('payout_review_queue').select('booking_id, status, details').in('booking_id', ids),
+    admin.from('booking_payouts').select('booking_id, status, payout_block_reason').in('booking_id', ids),
+  ]);
+
+  const bpMap = new Map<string, { status: string; payout_block_reason: string | null }>();
+  for (const r of bpRows ?? []) {
+    const row = r as { booking_id: string; status: string; payout_block_reason?: string | null };
+    bpMap.set(row.booking_id, {
+      status: row.status,
+      payout_block_reason:
+        typeof row.payout_block_reason === 'string' ? row.payout_block_reason : null,
+    });
+  }
+
   const qm = new Map<
     string,
-    { queueStatus: string; queueHoldReason: string | null; queueInternalNote: string | null }
+    {
+      queueStatus: string;
+      queueHoldReason: string | null;
+      queueInternalNote: string | null;
+      queueReleaseError: string | null;
+      queueReleaseNote: string | null;
+    }
   >();
   for (const r of qrows ?? []) {
     const row = r as { booking_id: string; status: string; details?: Record<string, unknown> | null };
     const d = row.details ?? {};
+    const releaseErr = d.release_error;
+    const note = d.note;
     qm.set(row.booking_id, {
       queueStatus: row.status,
       queueHoldReason: typeof d.hold_reason === 'string' ? d.hold_reason : null,
       queueInternalNote: typeof d.internal_note === 'string' ? d.internal_note : null,
+      queueReleaseError: typeof releaseErr === 'string' ? releaseErr : null,
+      queueReleaseNote: typeof note === 'string' ? note : null,
     });
   }
   return items.map((item) => {
     const q = qm.get(item.bookingId);
+    const bp = bpMap.get(item.bookingId);
     return {
       ...item,
       queueStatus: q?.queueStatus ?? null,
       queueHoldReason: q?.queueHoldReason ?? null,
       queueInternalNote: q?.queueInternalNote ?? null,
+      queueReleaseError: q?.queueReleaseError ?? null,
+      queueReleaseNote: q?.queueReleaseNote ?? null,
+      bookingPayoutRowStatus: bp?.status ?? null,
+      bookingPayoutBlockReason: bp?.payout_block_reason ?? null,
     };
   });
 }

@@ -5,6 +5,13 @@ import type { FlaggedPayoutReviewItem } from '@/lib/admin/flagged-payout-review'
 import { ApprovePayoutNowButton } from '@/components/admin/ApprovePayoutNowButton';
 import { KeepPayoutOnHoldButton } from '@/components/admin/KeepPayoutOnHoldButton';
 import { RefundCustomerButton } from '@/components/admin/RefundCustomerButton';
+import {
+  flaggedPayoutReviewNeedsTransferRetry,
+  getAdminPayoutReleaseCtaMode,
+  getAdminPayoutReviewScanPill,
+  getAdminPayoutTransferFailureHelper,
+  isBookingRefundedForAdminPayoutActions,
+} from '@/lib/admin/admin-payout-review-ui';
 
 function formatMoney(cents: number | null) {
   if (cents == null || cents <= 0) return '—';
@@ -19,41 +26,25 @@ type Props = {
   onRefunded?: () => void | Promise<void>;
 };
 
-function queueStatusLabel(status: string | null | undefined) {
-  const s = status ?? 'pending_review';
-  switch (s) {
-    case 'pending_review':
-      return 'Pending review';
-    case 'held':
-      return 'Held';
-    case 'approved':
-      return 'Approved';
-    case 'refunded':
-      return 'Refunded';
-    case 'rejected':
-      return 'Rejected';
-    case 'escalated':
-      return 'Escalated';
+function scanBadgeClass(tone: 'amber' | 'red' | 'emerald' | 'neutral'): string {
+  switch (tone) {
+    case 'amber':
+      return 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200';
+    case 'red':
+      return 'bg-red-100 text-red-900 dark:bg-red-900/30 dark:text-red-200';
+    case 'emerald':
+      return 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-200';
     default:
-      return s;
+      return 'bg-surface2 text-muted';
   }
-}
-
-function queueStatusBadgeClass(status: string | null | undefined): string {
-  const s = status ?? 'pending_review';
-  if (s === 'pending_review' || s === 'held') {
-    return 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200';
-  }
-  if (s === 'approved') {
-    return 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-200';
-  }
-  if (s === 'refunded' || s === 'rejected' || s === 'escalated') {
-    return 'bg-red-100 text-red-900 dark:bg-red-900/30 dark:text-red-200';
-  }
-  return 'bg-surface2 text-muted';
 }
 
 export function AdminBookingPayoutReviewCard({ bookingId, data, onReleased, onHeld, onRefunded }: Props) {
+  const scan = getAdminPayoutReviewScanPill(data);
+  const refunded = isBookingRefundedForAdminPayoutActions(data);
+  const releaseMode = getAdminPayoutReleaseCtaMode(data);
+  const transferRetry = flaggedPayoutReviewNeedsTransferRetry(data);
+
   return (
     <section className="rounded-[18px] border border-amber-200/80 bg-amber-50/40 p-5 shadow-card dark:border-amber-900/40 dark:bg-amber-950/20">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -61,21 +52,36 @@ export function AdminBookingPayoutReviewCard({ bookingId, data, onReleased, onHe
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold text-text">Payout under review</h2>
             <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${queueStatusBadgeClass(data.queueStatus)}`}
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${scanBadgeClass(scan.tone)}`}
             >
-              {queueStatusLabel(data.queueStatus)}
+              {scan.label}
             </span>
           </div>
           <p className="mt-1 text-sm text-muted">
             This booking is held for admin review before funds can move to the pro.
           </p>
         </div>
-        <div className="flex flex-shrink-0 flex-wrap items-start justify-end gap-2">
-          <KeepPayoutOnHoldButton bookingId={bookingId} onHeld={onHeld} />
-          <RefundCustomerButton bookingId={bookingId} onRefunded={onRefunded} />
-          <ApprovePayoutNowButton bookingId={bookingId} onReleased={onReleased} />
-        </div>
+        {!refunded ? (
+          <div className="flex flex-shrink-0 flex-wrap items-start justify-end gap-2">
+            <KeepPayoutOnHoldButton bookingId={bookingId} onHeld={onHeld} />
+            <RefundCustomerButton bookingId={bookingId} onRefunded={onRefunded} />
+            {releaseMode !== 'hidden' ? (
+              <ApprovePayoutNowButton
+                bookingId={bookingId}
+                mode={releaseMode === 'retry' ? 'retry' : 'approve'}
+                onReleased={onReleased}
+              />
+            ) : null}
+          </div>
+        ) : null}
       </div>
+
+      {transferRetry ? (
+        <div className="mt-3 rounded-xl border border-red-200 bg-red-50/90 p-3 text-sm text-red-950 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-100">
+          <p className="font-semibold">Transfer attempt failed</p>
+          <p className="mt-1 text-xs leading-relaxed opacity-95">{getAdminPayoutTransferFailureHelper(data)}</p>
+        </div>
+      ) : null}
 
       <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
         <div className="sm:col-span-2">
@@ -97,6 +103,14 @@ export function AdminBookingPayoutReviewCard({ bookingId, data, onReleased, onHe
           <dt className="text-xs font-semibold uppercase tracking-wide text-text">Internal note (staff)</dt>
           <dd className="mt-0.5 text-xs text-text">{data.queueInternalNote ?? '—'}</dd>
           <p className="mt-1 text-[11px] leading-snug text-muted">Not shown to customers or pros.</p>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Payout status (DB)</dt>
+          <dd className="mt-0.5 font-mono text-xs">{data.payoutStatus ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Queue row status</dt>
+          <dd className="mt-0.5 font-mono text-xs">{data.queueStatus ?? '—'}</dd>
         </div>
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-muted">Completed at</dt>
@@ -139,6 +153,11 @@ export function AdminBookingPayoutReviewCard({ bookingId, data, onReleased, onHe
                 : data.stripeChargesEnabled === false
                   ? 'Charges not enabled'
                   : 'Unknown'}
+            {data.bookingPayoutRowStatus ? (
+              <span className="mt-1 block text-[11px] text-muted">
+                booking_payouts status: {data.bookingPayoutRowStatus}
+              </span>
+            ) : null}
           </dd>
         </div>
         <div>

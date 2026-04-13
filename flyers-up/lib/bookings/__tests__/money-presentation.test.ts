@@ -94,17 +94,32 @@ describe('getMoneyPresentation — pro', () => {
     assert.strictEqual(p.timelineStep, 'paid');
   });
 
+  it('payout_failed with admin review uses delayed copy (not generic action-needed)', () => {
+    const p = getMoneyPresentation(
+      state({ final: 'final_paid', payout: 'payout_failed', raw: { kind: 'success' } }),
+      'pro',
+      { holdSignals: { requiresAdminReview: true } }
+    );
+    assert.strictEqual(p.title, 'Payout delayed');
+    assert.strictEqual(p.badge, 'Delayed');
+  });
+
   it('payout_held: pro held card + vertical timeline', () => {
     const m = state({ final: 'final_paid', payout: 'payout_held', raw: { kind: 'success' } });
     const p = getMoneyPresentation(m, 'pro', {
       holdSignals: {
         payoutReleased: false,
         paymentLifecycleStatus: 'payout_on_hold',
+        requiresAdminReview: true,
+        payoutStatus: 'pending',
       },
       heldTimelineTimestamps: { deposit: '2024-01-01', completed: '2024-01-02' },
     });
-    assert.strictEqual(p.title, 'Payout temporarily held');
-    assert.strictEqual(p.subtitle, 'Under review before release');
+    assert.strictEqual(p.title, 'Payout under review');
+    assert.ok(
+      String(p.subtitle).includes('faster than expected'),
+      `subtitle: ${p.subtitle}`
+    );
     assert.strictEqual(p.timelineStep, 'held');
     assert.ok(p.heldProTimeline && p.heldProTimeline.length >= 3);
     const current = p.heldProTimeline!.filter((i) => i.state === 'current');

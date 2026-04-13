@@ -7,6 +7,13 @@ import type { FlaggedPayoutReviewItem } from '@/lib/admin/flagged-payout-review'
 import { ApprovePayoutNowButton } from '@/components/admin/ApprovePayoutNowButton';
 import { KeepPayoutOnHoldButton } from '@/components/admin/KeepPayoutOnHoldButton';
 import { RefundCustomerButton } from '@/components/admin/RefundCustomerButton';
+import {
+  flaggedPayoutReviewNeedsTransferRetry,
+  getAdminPayoutReleaseCtaMode,
+  getAdminPayoutReviewScanPill,
+  getAdminPayoutTransferFailureHelper,
+  isBookingRefundedForAdminPayoutActions,
+} from '@/lib/admin/admin-payout-review-ui';
 
 function formatMoney(cents: number | null) {
   if (cents == null || cents <= 0) return '—';
@@ -25,34 +32,6 @@ function Pill({ children, tone }: { children: ReactNode; tone: 'amber' | 'red' |
       {children}
     </span>
   );
-}
-
-function queueStatusLabel(status: string | null | undefined) {
-  const s = status ?? 'pending_review';
-  switch (s) {
-    case 'pending_review':
-      return 'Pending review';
-    case 'held':
-      return 'Held';
-    case 'approved':
-      return 'Approved';
-    case 'refunded':
-      return 'Refunded';
-    case 'rejected':
-      return 'Rejected';
-    case 'escalated':
-      return 'Escalated';
-    default:
-      return s;
-  }
-}
-
-function queueStatusPillTone(status: string | null | undefined): 'amber' | 'red' | 'emerald' | 'neutral' {
-  const s = status ?? 'pending_review';
-  if (s === 'pending_review' || s === 'held') return 'amber';
-  if (s === 'escalated' || s === 'refunded' || s === 'rejected') return 'red';
-  if (s === 'approved') return 'emerald';
-  return 'neutral';
 }
 
 export function FlaggedPayoutReviewPageClient() {
@@ -113,7 +92,12 @@ export function FlaggedPayoutReviewPageClient() {
         <span className="font-semibold text-text">{count}</span> booking{count === 1 ? '' : 's'} flagged (
         <code className="text-xs">requires_admin_review</code>).
       </p>
-      {items.map((item) => (
+      {items.map((item) => {
+        const scan = getAdminPayoutReviewScanPill(item);
+        const refunded = isBookingRefundedForAdminPayoutActions(item);
+        const releaseMode = getAdminPayoutReleaseCtaMode(item);
+        const transferRetry = flaggedPayoutReviewNeedsTransferRetry(item);
+        return (
         <article
           key={item.bookingId}
           className="rounded-[18px] border border-hairline bg-surface p-5 shadow-card space-y-4"
@@ -128,12 +112,13 @@ export function FlaggedPayoutReviewPageClient() {
                   {item.bookingId}
                 </Link>
                 <Pill tone="amber">Under review</Pill>
-                <Pill tone={queueStatusPillTone(item.queueStatus)}>{queueStatusLabel(item.queueStatus)}</Pill>
+                <Pill tone={scan.tone}>{scan.label}</Pill>
               </div>
               <p className="mt-1 text-xs text-muted">
                 {item.serviceDate ?? '—'} {item.serviceTime ?? ''} · {item.categoryName ?? 'Service'}
               </p>
             </div>
+            {!refunded ? (
             <div className="flex flex-shrink-0 flex-wrap items-start justify-end gap-2">
               <KeepPayoutOnHoldButton
                 bookingId={item.bookingId}
@@ -147,14 +132,25 @@ export function FlaggedPayoutReviewPageClient() {
                   await refetch();
                 }}
               />
+              {releaseMode !== 'hidden' ? (
               <ApprovePayoutNowButton
                 bookingId={item.bookingId}
+                mode={releaseMode === 'retry' ? 'retry' : 'approve'}
                 onReleased={async () => {
                   await refetch();
                 }}
               />
+              ) : null}
             </div>
+            ) : null}
           </div>
+
+          {transferRetry ? (
+            <div className="rounded-xl border border-red-200 bg-red-50/90 p-3 text-sm text-red-950 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-100">
+              <p className="font-semibold">Transfer attempt failed</p>
+              <p className="mt-1 text-xs leading-relaxed opacity-95">{getAdminPayoutTransferFailureHelper(item)}</p>
+            </div>
+          ) : null}
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
             <div>
@@ -172,6 +168,14 @@ export function FlaggedPayoutReviewPageClient() {
             <div>
               <dt className="text-muted text-xs">Lifecycle</dt>
               <dd className="font-mono text-xs break-all">{item.paymentLifecycleStatus ?? '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-muted text-xs">Payout status (DB)</dt>
+              <dd className="font-mono text-xs">{item.payoutStatus ?? '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-muted text-xs">Queue row status</dt>
+              <dd className="font-mono text-xs">{item.queueStatus ?? '—'}</dd>
             </div>
             <div className="sm:col-span-2">
               <dt className="text-xs font-semibold uppercase tracking-wide text-text">System flag</dt>
@@ -226,7 +230,7 @@ export function FlaggedPayoutReviewPageClient() {
               <dd>{item.refundStatus ?? '—'}</dd>
             </div>
             <div>
-              <dt className="text-muted text-xs">Connect</dt>
+              <dt className="text-muted text-xs">Connect / Stripe</dt>
               <dd>
                 {!item.connectDestinationPresent ? (
                   <Pill tone="red">No destination</Pill>
@@ -237,6 +241,11 @@ export function FlaggedPayoutReviewPageClient() {
                 ) : (
                   <Pill tone="neutral">Unknown</Pill>
                 )}
+                {item.bookingPayoutRowStatus ? (
+                  <span className="mt-1 block text-[11px] text-muted">
+                    booking_payouts status: {item.bookingPayoutRowStatus}
+                  </span>
+                ) : null}
               </dd>
             </div>
           </dl>
@@ -267,7 +276,8 @@ export function FlaggedPayoutReviewPageClient() {
             </Link>
           </div>
         </article>
-      ))}
+        );
+      })}
     </div>
   );
 }

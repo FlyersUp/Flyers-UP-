@@ -7,6 +7,7 @@ import type { MoneyFinalPhase, MoneyPayoutPhase, MoneyState } from '@/lib/bookin
 import type { PaymentHeldTimelineItem, PaymentHeldTimelineKey } from '@/lib/bookings/payment-held-ui-state';
 import {
   buildPaymentHeldUiState,
+  buildPaymentHeldUiStateFromBooking,
   resolvePaymentHoldReasonAndContext,
   type PaymentHeldBookingSignals,
 } from '@/lib/bookings/payment-held-ui-state';
@@ -414,13 +415,17 @@ function buildProPresentation(
 
   if (payout === 'payout_held') {
     const signals: PaymentHeldBookingSignals = options?.holdSignals ?? {};
-    const { reason, context } = resolvePaymentHoldReasonAndContext(signals);
-    const heldUi = buildPaymentHeldUiState({
-      view: 'pro',
-      holdReason: reason,
-      context,
-      timelineTimestamps: options?.heldTimelineTimestamps,
-    });
+    const heldUi =
+      buildPaymentHeldUiStateFromBooking('pro', signals, options?.heldTimelineTimestamps) ??
+      (() => {
+        const { reason, context } = resolvePaymentHoldReasonAndContext(signals);
+        return buildPaymentHeldUiState({
+          view: 'pro',
+          holdReason: reason,
+          context,
+          timelineTimestamps: options?.heldTimelineTimestamps,
+        });
+      })();
 
     return {
       badge: heldUi.badge,
@@ -499,7 +504,27 @@ function buildProPresentation(
         heldProTimeline: null,
         whyCallout: null,
       };
-    case 'payout_failed':
+    case 'payout_failed': {
+      const adminReview = options?.holdSignals?.requiresAdminReview === true;
+      if (adminReview) {
+        return {
+          badge: 'Delayed',
+          title: 'Payout delayed',
+          subtitle: 'We tried to send your payout but it did not go through yet.',
+          body: 'This is usually related to payout setup or account verification on Stripe. Once the issue is resolved, payout is usually retried shortly. If it has been more than 1 business day, contact support.',
+          ctaPrimary: 'View booking details',
+          ctaSecondary: 'Contact support',
+          timelineStep: 'released',
+          timelineVariant: 'pro_payout',
+          tone: 'warning',
+          badgeTone: 'pending',
+          heldProTimeline: null,
+          whyCallout: {
+            headline: 'Timing',
+            body: 'Once the issue is resolved, payout is usually retried shortly. If it has been more than 1 business day, contact support.',
+          },
+        };
+      }
       return {
         badge: 'Action needed',
         title: 'Payout transfer did not complete',
@@ -514,6 +539,7 @@ function buildProPresentation(
         heldProTimeline: null,
         whyCallout: null,
       };
+    }
   }
 }
 

@@ -82,7 +82,7 @@ describe('payment-held-ui-state', () => {
     assert.strictEqual(s.timeline[2].key, 'held');
     assert.strictEqual(s.timeline[3].state, 'upcoming');
     assert.strictEqual(s.explanationCode, 'payout_flagged_suspicious_completion');
-    assert.ok(s.whyCallout?.headline.includes('Why'));
+    assert.ok(s.whyCallout?.headline.includes('Timing'));
   });
 
   it('buildPaymentHeldUiState (customer) uses calm titles and customer_message in panel', () => {
@@ -116,5 +116,18 @@ describe('payment-held-ui-state', () => {
     });
     assert.ok(s);
     assert.strictEqual(s!.variant, 'pro');
+  });
+
+  it('buildPaymentHeldUiStateFromBooking uses manual review copy when requiresAdminReview without payout failure', () => {
+    const s = buildPaymentHeldUiStateFromBooking('pro', {
+      payoutReleased: false,
+      paymentLifecycleStatus: 'payout_ready',
+      requiresAdminReview: true,
+      payoutHoldReason: 'none',
+      payoutStatus: 'pending',
+    });
+    assert.ok(s);
+    assert.strictEqual(s!.title, 'Payout under review');
+    assert.strictEqual(s!.explanationCode, 'pro_manual_payout_review_held');
   });
 });

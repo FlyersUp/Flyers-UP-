@@ -44,6 +44,8 @@ export type MoneyStateBookingInput = {
   customerReviewDeadlineAt?: string | null;
   requiresAdminReview?: boolean | null;
   payoutReleased?: boolean | null;
+  /** Bookings.payout_status (pending | in_transit | paid | failed, etc.) */
+  payoutStatus?: string | null;
   /** `stripe_transfer_id` / `payout_transfer_id` */
   stripeTransferId?: string | null;
   payoutTransferId?: string | null;
@@ -242,13 +244,23 @@ function computePayoutPhase(
   customerFinalPaid: boolean
 ): MoneyPayoutPhase {
   if (!customerFinalPaid) return 'inactive';
+
+  const released = booking.payoutReleased === true;
+  const ts = String(stripe.transferStatus ?? '').trim().toLowerCase();
+  const transferChecked = stripe.transferStatus !== undefined;
+  const stripeTransferFailed =
+    transferChecked && ['failed', 'canceled', 'cancelled', 'reversed'].includes(ts);
+  const dbPayoutFailed = String(booking.payoutStatus ?? '').trim().toLowerCase() === 'failed';
+
+  /** Prior release attempt failed — show pro/admin failed-transfer path even when manual review is still on. */
+  if (!released && (stripeTransferFailed || dbPayoutFailed)) {
+    return 'payout_failed';
+  }
+
   const lc = String(booking.paymentLifecycleStatus ?? '').trim().toLowerCase();
   if (booking.payoutReleased !== true && lc === 'payout_on_hold') return 'payout_held';
   if (booking.requiresAdminReview === true) return 'payout_held';
   if (booking.payoutReleased !== true) return 'payout_scheduled';
-
-  const transferChecked = stripe.transferStatus !== undefined;
-  const ts = String(stripe.transferStatus ?? '').trim().toLowerCase();
 
   if (transferChecked && isStripeTransferPaid(ts)) return 'payout_paid';
   if (transferChecked && ['failed', 'canceled', 'cancelled', 'reversed'].includes(ts)) {
@@ -430,6 +442,7 @@ export function bookingDetailsToMoneyStateInput(b: BookingDetails): MoneyStateBo
     customerReviewDeadlineAt: b.customerReviewDeadlineAt,
     requiresAdminReview: b.requiresAdminReview,
     payoutReleased: b.payoutReleased,
+    payoutStatus: b.payoutStatus ?? null,
     payoutTransferId: b.payoutTransferId,
     finalPaymentIntentId: b.finalPaymentIntentId,
   };

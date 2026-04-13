@@ -19,6 +19,8 @@ type StatusPayload = {
   bankLast4?: string | null;
   bankName?: string | null;
   disabledReason?: string | null;
+  /** Stripe requirements.currently_due / past_due (live retrieve). */
+  outstandingRequirements?: boolean;
   error?: string;
 };
 
@@ -37,6 +39,8 @@ export function ProStripeConnectPayoutsSection({
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<StatusPayload | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const [stripeLinkLoading, setStripeLinkLoading] = useState(false);
+  const [stripeLinkError, setStripeLinkError] = useState<string | null>(null);
 
   /** Live Connect state from API — source of truth; URL ?connect= is only hints after redirects. */
   const isStripeConnected = useCallback((d: StatusPayload | null) => {
@@ -145,7 +149,29 @@ export function ProStripeConnectPayoutsSection({
 
   const nextEncoded = encodeURIComponent(returnPath);
   const onboardHref = `/api/stripe/connect/onboard?next=${nextEncoded}`;
-  const updateHref = `/api/stripe/connect/account-update?next=${nextEncoded}`;
+
+  const openStripePayoutManagement = useCallback(async () => {
+    setStripeLinkError(null);
+    setStripeLinkLoading(true);
+    try {
+      const res = await fetch('/api/pro/stripe/payout-update-link', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnPath }),
+      });
+      const json = (await res.json()) as { ok?: boolean; url?: string; error?: string };
+      if (!res.ok || !json.ok || !json.url) {
+        setStripeLinkError(json.error || 'Could not open Stripe. Try again or contact support.');
+        return;
+      }
+      window.location.href = json.url;
+    } catch {
+      setStripeLinkError('Could not open Stripe. Check your connection and try again.');
+    } finally {
+      setStripeLinkLoading(false);
+    }
+  }, [returnPath]);
 
   const uiState: StripeConnectUiState = data?.uiState ?? 'not_started';
   const stripeReady = data?.stripeConfigured !== false;
@@ -173,6 +199,10 @@ export function ProStripeConnectPayoutsSection({
 
       {banner ? (
         <div className="p-4 rounded-lg border border-border bg-surface2 text-sm text-text">{banner}</div>
+      ) : null}
+
+      {stripeLinkError ? (
+        <div className="p-4 rounded-lg border border-danger/30 bg-danger/10 text-sm text-text">{stripeLinkError}</div>
       ) : null}
 
       {loading ? (
@@ -255,12 +285,14 @@ export function ProStripeConnectPayoutsSection({
             )}
             {uiState === 'needs_action' && (
               <>
-                <a
-                  href={updateHref}
-                  className="inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold text-[hsl(var(--accent-contrast))] bg-red-600 hover:bg-red-700 transition-colors text-center"
+                <button
+                  type="button"
+                  disabled={stripeLinkLoading}
+                  onClick={() => void openStripePayoutManagement()}
+                  className="inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold text-[hsl(var(--accent-contrast))] bg-red-600 hover:bg-red-700 transition-colors text-center disabled:opacity-60 disabled:pointer-events-none"
                 >
-                  Fix in Stripe
-                </a>
+                  {stripeLinkLoading ? 'Opening Stripe…' : 'Fix in Stripe'}
+                </button>
                 <a
                   href={`/pro/connect?next=${nextEncoded}`}
                   className="inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold border-2 border-border text-text hover:bg-hover transition-colors text-center"
@@ -270,12 +302,18 @@ export function ProStripeConnectPayoutsSection({
               </>
             )}
             {uiState === 'connected' && (
-              <a
-                href={updateHref}
-                className="inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold border-2 border-border text-text hover:bg-hover transition-colors text-center"
+              <button
+                type="button"
+                disabled={stripeLinkLoading}
+                onClick={() => void openStripePayoutManagement()}
+                className="inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold border-2 border-border text-text hover:bg-hover transition-colors text-center disabled:opacity-60 disabled:pointer-events-none"
               >
-                Update payout details
-              </a>
+                {stripeLinkLoading
+                  ? 'Opening Stripe…'
+                  : data?.outstandingRequirements
+                    ? 'Complete payout setup'
+                    : 'Update payout details'}
+              </button>
             )}
           </div>
 

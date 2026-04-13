@@ -58,6 +58,7 @@ export async function GET() {
         bankLast4: null as string | null,
         bankName: null as string | null,
         disabledReason: null as string | null,
+        outstandingRequirements: false,
       });
     }
 
@@ -67,6 +68,7 @@ export async function GET() {
     let bankLast4: string | null = null;
     let bankName: string | null = null;
     let disabledReason: string | null = null;
+    let outstandingRequirements = false;
 
     if (stripe) {
       try {
@@ -78,6 +80,10 @@ export async function GET() {
         if (reqs?.disabled_reason) {
           disabledReason = reqs.disabled_reason;
         }
+        const due =
+          (Array.isArray(reqs?.currently_due) ? reqs.currently_due.length : 0) +
+          (Array.isArray(reqs?.past_due) ? reqs.past_due.length : 0);
+        outstandingRequirements = due > 0;
         const ext = acct.external_accounts?.data ?? [];
         const bank = ext.find((x) => x.object === 'bank_account');
         if (bank && bank.object === 'bank_account') {
@@ -123,6 +129,7 @@ export async function GET() {
         bankLast4,
         bankName,
         disabledReason,
+        outstandingRequirements,
       },
       { status: 200, headers: { 'Cache-Control': 'no-store' } }
     );

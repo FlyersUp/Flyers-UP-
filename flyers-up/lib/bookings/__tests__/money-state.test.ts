@@ -128,6 +128,34 @@ describe('getMoneyState — payout', () => {
     assert.strictEqual(m.payout, 'payout_held');
   });
 
+  it('payout_failed when requires_admin_review but DB payout_status is failed (retry path)', () => {
+    const m = getMoneyState(
+      {
+        ...paidCustomer,
+        requiresAdminReview: true,
+        payoutReleased: false,
+        payoutStatus: 'failed',
+      },
+      {},
+      Date.now()
+    );
+    assert.strictEqual(m.payout, 'payout_failed');
+  });
+
+  it('payout_failed when Stripe transfer failed even under admin review', () => {
+    const m = getMoneyState(
+      {
+        ...paidCustomer,
+        requiresAdminReview: true,
+        payoutReleased: false,
+        payoutTransferId: 'tr_1',
+      },
+      { transferStatus: 'failed' },
+      Date.now()
+    );
+    assert.strictEqual(m.payout, 'payout_failed');
+  });
+
   it('payout_scheduled when not released and not admin held', () => {
     const m = getMoneyState(
       {

@@ -114,15 +114,19 @@ export function ProBookingDetailRealtimePane({
     suspiciousCompletion: booking.suspiciousCompletion ?? null,
     suspiciousCompletionReason: booking.suspiciousCompletionReason ?? null,
     adminHold: booking.adminHold ?? null,
+    payoutStatus: booking.payoutStatus ?? null,
   };
   const heldTimelineTimestamps = {
     deposit: booking.paidDepositAt ?? booking.paidAt ?? null,
     completed: booking.completedAt ?? null,
   };
-  const paymentHeldProPresentation =
-    shouldShowPaymentHeldFromMoneyState(moneyState) && moneyState.final === 'final_paid'
-      ? getMoneyPresentation(moneyState, 'pro', { holdSignals, heldTimelineTimestamps })
-      : null;
+  const showProPaymentHeldOrDelayedCard =
+    moneyState.final === 'final_paid' &&
+    (shouldShowPaymentHeldFromMoneyState(moneyState) ||
+      (moneyState.payout === 'payout_failed' && booking.requiresAdminReview === true));
+  const paymentHeldProPresentation = showProPaymentHeldOrDelayedCard
+    ? getMoneyPresentation(moneyState, 'pro', { holdSignals, heldTimelineTimestamps })
+    : null;
 
   return (
     <>
@@ -233,7 +237,7 @@ export function ProBookingDetailRealtimePane({
             />
           </div>
         ) : null}
-        {!shouldShowPaymentHeldFromMoneyState(moneyState) ? (
+        {!showProPaymentHeldOrDelayedCard ? (
           <div className="mb-4">
             <PayoutTimeline
               activeStepIndex={getProPayoutTimelineActiveIndex(moneyState)}
