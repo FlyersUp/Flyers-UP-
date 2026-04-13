@@ -19,6 +19,7 @@ import {
 import { reconcileBookingForFinalAutoCharge } from '@/lib/bookings/final-charge-candidates';
 import { refundPaymentIntent, refundPaymentIntentPartial } from '@/lib/stripe/server';
 import { stripe as stripeClient } from '@/lib/stripe';
+import { isAdminUser } from '@/lib/admin/server-admin-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -58,8 +59,7 @@ export async function POST(
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-  if (!profile || profile.role !== 'admin') {
+  if (!(await isAdminUser(supabase, user))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

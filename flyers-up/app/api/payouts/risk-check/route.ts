@@ -11,14 +11,14 @@ export const preferredRegion = ['cle1'];
 import { NextRequest } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { evaluatePayoutRiskForPro } from '@/lib/payoutRisk';
+import { isAdminUser } from '@/lib/admin/server-admin-access';
 
 export async function GET(req: NextRequest) {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ ok: false, error: 'Not authenticated' }, { status: 401 });
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-  if (!profile || profile.role !== 'admin') {
+  if (!(await isAdminUser(supabase, user))) {
     return Response.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   }
 

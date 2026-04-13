@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
+import { isAdminUser } from '@/lib/admin/server-admin-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,8 +40,7 @@ export async function POST(
     .maybeSingle();
 
   const isPro = pro?.user_id === user.id;
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-  const isAdmin = profile?.role === 'admin';
+  const isAdmin = await isAdminUser(supabase, user);
 
   if (!isPro && !isAdmin) {
     const { data: b } = await admin

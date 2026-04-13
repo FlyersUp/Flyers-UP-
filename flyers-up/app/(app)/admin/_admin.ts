@@ -1,47 +1,13 @@
 /**
  * Admin access helpers. SERVER-ONLY: do not import from "use client" components.
- * process.env.ADMIN_EMAILS is read only here (and in admin page); keep it out of client bundle.
+ * Env-based allowlist lives in lib/admin/server-admin-access.ts (keep out of client bundle).
  */
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import type { User } from '@supabase/supabase-js';
+import { isAdminUser } from '@/lib/admin/server-admin-access';
 
-export function getAdminEmails(): string[] {
-  const raw = process.env.ADMIN_EMAILS ?? '';
-  return raw
-    .split(/[,\n]/g)
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-/** Canonical admin account that always has access (no env or DB required). */
-const CANONICAL_ADMIN_EMAIL = 'hello.flyersup@gmail.com';
-
-export function isAdminEmail(email?: string | null): boolean {
-  if (!email) return false;
-  const normalized = email.trim().toLowerCase();
-  if (normalized === CANONICAL_ADMIN_EMAIL) return true;
-  const admins = getAdminEmails();
-  return admins.includes(normalized);
-}
-
-/**
- * Returns true if the user is an admin: listed in ADMIN_EMAILS OR profile.role === 'admin'.
- * Use this when you already have the user and can run a DB query (server-only).
- */
-export async function isAdminUser(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  user: User | null
-): Promise<boolean> {
-  if (!user) return false;
-  if (isAdminEmail(user.email)) return true;
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle();
-  return profile?.role === 'admin';
-}
+export { getAdminEmails, isAdminEmail, isAdminUser } from '@/lib/admin/server-admin-access';
 
 export async function requireAdminUser(nextPath: string): Promise<User> {
   const supabase = await createServerSupabaseClient();
@@ -59,4 +25,3 @@ export async function requireAdminUser(nextPath: string): Promise<User> {
 
   return user;
 }
-
