@@ -188,7 +188,21 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
+  /** Overrides default BookingLoadErrorPage title for payment / infra errors. */
+  const [errorTitle, setErrorTitle] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  /** Final-phase server outcome when pay/final returns 200 without a new client secret. */
+  const [finalPhaseNotice, setFinalPhaseNotice] = useState<{
+    kind:
+      | 'already_paid'
+      | 'processing'
+      | 'no_balance'
+      | 'not_eligible'
+      | 'not_found'
+      | 'forbidden';
+    message: string;
+    code?: string;
+  } | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -197,6 +211,8 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
       setError(null);
       setPaymentError(null);
       setErrorStatus(null);
+      setErrorTitle(null);
+      setFinalPhaseNotice(null);
 
       try {
         if (isFinalPayment) {
@@ -264,18 +280,94 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
           });
-          const payJson = await payRes.json();
+          const payJson = (await payRes.json()) as Record<string, unknown>;
           if (!mounted) return;
+
+          const checkoutState = typeof payJson.checkoutState === 'string' ? payJson.checkoutState : null;
+
+          if (payRes.status === 404) {
+            setFinalPhaseNotice({
+              kind: 'not_found',
+              message: String(payJson.error ?? payJson.message ?? 'This booking could not be found.'),
+              code: typeof payJson.code === 'string' ? payJson.code : undefined,
+            });
+            setLoading(false);
+            return;
+          }
+
+          if (payRes.status === 403) {
+            setFinalPhaseNotice({
+              kind: 'forbidden',
+              message: String(payJson.error ?? payJson.message ?? 'You do not have access to pay for this booking.'),
+              code: typeof payJson.code === 'string' ? payJson.code : undefined,
+            });
+            setLoading(false);
+            return;
+          }
+
+          if (payRes.status === 409) {
+            setFinalPhaseNotice({
+              kind: 'not_eligible',
+              message: String(
+                payJson.message ??
+                  payJson.error ??
+                  'Final payment is not available for this booking in its current state.'
+              ),
+              code: typeof payJson.code === 'string' ? payJson.code : undefined,
+            });
+            setLoading(false);
+            return;
+          }
+
           if (!payRes.ok) {
-            setError(payJson.error ?? 'Could not start payment');
+            const errMsg = String(payJson.error ?? 'Could not start payment');
+            setError(errMsg);
+            setErrorStatus(payRes.status);
+            if (payRes.status === 401) {
+              setErrorTitle('Sign in required');
+            } else if (payRes.status === 502 || payRes.status === 503) {
+              setErrorTitle('Payment could not start');
+            } else {
+              setErrorTitle(null);
+            }
+            setLoading(false);
+            return;
+          }
+
+          if (checkoutState === 'already_paid' || checkoutState === 'no_remaining_balance') {
+            setFinalPhaseNotice({
+              kind: checkoutState === 'no_remaining_balance' ? 'no_balance' : 'already_paid',
+              message: String(
+                payJson.message ??
+                  (checkoutState === 'no_remaining_balance'
+                    ? 'There is no remaining balance on this booking.'
+                    : 'This booking is already fully paid.')
+              ),
+            });
+            setLoading(false);
+            return;
+          }
+
+          if (checkoutState === 'processing') {
+            setFinalPhaseNotice({
+              kind: 'processing',
+              message: String(payJson.message ?? 'Your payment is processing.'),
+            });
+            setLoading(false);
+            return;
+          }
+
+          if (checkoutState !== 'ready' || typeof payJson.clientSecret !== 'string' || !payJson.clientSecret) {
+            setError('Could not start payment (unexpected response).');
             setErrorStatus(payRes.status);
             setLoading(false);
             return;
           }
-          setClientSecret(payJson.clientSecret ?? null);
+
+          setClientSecret(payJson.clientSecret);
           if (typeof payJson.minimumBookingNotice === 'string' && payJson.minimumBookingNotice.trim()) {
             setQuoteData((prev) =>
-              prev ? { ...prev, minimumBookingNotice: payJson.minimumBookingNotice } : prev
+              prev ? { ...prev, minimumBookingNotice: payJson.minimumBookingNotice as string } : prev
             );
           }
           const pa = payJson.paymentAmounts as Partial<CheckoutPaymentAmounts> | undefined;
@@ -470,7 +562,7 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
           {/* ERROR STATE — premium Apple/Uber/Airbnb style */}
           {!loading && error && (
             <BookingLoadErrorPage
-              title="Couldn't load this booking"
+              title={errorTitle ?? "Couldn't load this booking"}
               message={error}
               errorStatus={errorStatus}
               primaryHref={`/customer/bookings/${bookingId}`}
@@ -479,12 +571,13 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
               secondaryLabel="View all bookings"
               signInHref={
                 errorStatus === 401
-                  ? `/auth?next=${encodeURIComponent(`/bookings/${bookingId}/checkout`)}`
+                  ? `/auth?next=${encodeURIComponent(`/bookings/${bookingId}/checkout?phase=final`)}`
                   : undefined
               }
               onRetry={() => {
                 setError(null);
                 setErrorStatus(null);
+                setErrorTitle(null);
                 setLoading(true);
                 setRetryKey((k) => k + 1);
               }}
@@ -492,9 +585,124 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
             />
           )}
 
+          {!loading && finalPhaseNotice && !error && (
+            <div
+              className="min-h-[50vh] flex flex-col items-center justify-center px-2 py-8"
+              role="status"
+            >
+              <div className="shrink-0 rounded-full bg-[#f5f5f5] dark:bg-white/10 flex items-center justify-center h-20 w-20 mb-6">
+                {finalPhaseNotice.kind === 'already_paid' || finalPhaseNotice.kind === 'no_balance' ? (
+                  <svg width={40} height={40} viewBox="0 0 24 24" fill="none" className="text-[#058954]">
+                    <path
+                      d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    />
+                    <path
+                      d="M8.5 12.5l2.5 2.5 5-5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ) : finalPhaseNotice.kind === 'processing' ? (
+                  <svg
+                    width={40}
+                    height={40}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className="text-[#4A69BD] dark:text-white/70"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 6v6l4 2" strokeLinecap="round" />
+                  </svg>
+                ) : (
+                  <svg
+                    width={40}
+                    height={40}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className="text-[#8e8e93] dark:text-white/50"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 8v4M12 16h.01" strokeLinecap="round" />
+                  </svg>
+                )}
+              </div>
+              <h2 className="font-semibold text-[#1d1d1f] dark:text-white text-center text-xl md:text-2xl mb-2">
+                {finalPhaseNotice.kind === 'already_paid'
+                  ? 'Already paid'
+                  : finalPhaseNotice.kind === 'no_balance'
+                    ? 'No balance due'
+                    : finalPhaseNotice.kind === 'processing'
+                      ? 'Payment processing'
+                      : finalPhaseNotice.kind === 'not_found'
+                        ? 'Booking not found'
+                        : finalPhaseNotice.kind === 'forbidden'
+                          ? 'Access restricted'
+                          : 'Final payment unavailable'}
+              </h2>
+              <p className="text-[#6e6e73] dark:text-white/60 text-center max-w-sm text-base mb-6">
+                {finalPhaseNotice.message}
+              </p>
+              {finalPhaseNotice.code && (
+                <p className="text-xs text-[#8e8e93] dark:text-white/40 mb-6 font-mono">{finalPhaseNotice.code}</p>
+              )}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full max-w-xs flex-wrap justify-center">
+                {(finalPhaseNotice.kind === 'already_paid' || finalPhaseNotice.kind === 'no_balance') && (
+                  <Link
+                    href={bookingConfirmedPath(bookingId, { phase: 'final' })}
+                    className="inline-flex h-12 items-center justify-center rounded-xl text-base font-semibold text-white bg-[#058954] hover:bg-[#047a48] active:scale-[0.99] transition-all"
+                  >
+                    View confirmation
+                  </Link>
+                )}
+                <Link
+                  href={`/customer/bookings/${bookingId}`}
+                  className={`inline-flex h-12 items-center justify-center rounded-xl text-base font-semibold transition-all ${
+                    finalPhaseNotice.kind === 'already_paid' || finalPhaseNotice.kind === 'no_balance'
+                      ? 'border-2 border-[#d1d1d6] dark:border-white/20 text-[#222] dark:text-white hover:bg-black/5 dark:hover:bg-white/5'
+                      : 'text-white bg-[#058954] hover:bg-[#047a48] active:scale-[0.99]'
+                  }`}
+                >
+                  Return to booking
+                </Link>
+                {(finalPhaseNotice.kind === 'processing' || finalPhaseNotice.kind === 'not_eligible') && (
+                  <button
+                    type="button"
+                    className="inline-flex h-12 items-center justify-center rounded-xl text-base font-semibold border-2 border-[#d1d1d6] dark:border-white/20 text-[#222] dark:text-white hover:bg-black/5 dark:hover:bg-white/5"
+                    onClick={() => setRetryKey((k) => k + 1)}
+                  >
+                    Refresh status
+                  </button>
+                )}
+                <Link
+                  href="/customer/bookings"
+                  className="inline-flex h-12 items-center justify-center rounded-xl text-base font-medium text-[#6e6e73] dark:text-white/60 hover:text-[#222] dark:hover:text-white transition-colors"
+                >
+                  View all bookings
+                </Link>
+              </div>
+              <p className="mt-8 text-xs text-[#8e8e93] dark:text-white/40 text-center max-w-xs">
+                Need help?{' '}
+                <Link
+                  href="/customer/settings/help-support"
+                  className="underline hover:text-[#222] dark:hover:text-white"
+                >
+                  Contact support
+                </Link>
+              </p>
+            </div>
+          )}
+
           {/* SUCCESS STATE — redirect happens via Stripe return_url; this is fallback */}
           {/* DEFAULT STATE — summary + payment form */}
-          {!loading && !error && quoteData && clientSecret && stripePromise && (
+          {!loading && !error && !finalPhaseNotice && quoteData && clientSecret && stripePromise && (
             <BookingSummaryDeposit
               proName={quoteData.proName}
               proPhotoUrl={quoteData.proPhotoUrl ?? null}
@@ -546,7 +754,7 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
             </BookingSummaryDeposit>
           )}
 
-          {!loading && !error && !quoteData && !clientSecret && stripePromise === null && (
+          {!loading && !error && !finalPhaseNotice && !quoteData && !clientSecret && stripePromise === null && (
             <p className="text-sm text-[#6B7280] dark:text-white/55">
               Payment is not configured. Please contact support.
             </p>

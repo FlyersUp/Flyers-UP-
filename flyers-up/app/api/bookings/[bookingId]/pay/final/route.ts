@@ -27,6 +27,11 @@ import {
   buildBookingPaymentIntentStripeFields,
   capStripeBookingPaymentMetadata,
 } from '@/lib/stripe/booking-payment-intent-metadata';
+import {
+  buildBookingPaymentIntentPricingMetadata,
+  quoteBreakdownStubFromPricing,
+  trustOccupationProfileForStripeMetadata,
+} from '@/lib/stripe/booking-payment-pricing-metadata';
 import { appendLifecyclePaymentIntentMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
 import {
   logBookingPaymentEvent,
@@ -34,10 +39,80 @@ import {
 } from '@/lib/bookings/payment-lifecycle-service';
 import { minimumBookingNoticeFromBookingRow } from '@/lib/pricing/config';
 import { getUnifiedBookingPaymentAmountsForBooking } from '@/lib/bookings/booking-receipt-service';
+import {
+  bookingRowToFinalPaymentIntentRow,
+  buildMoneyStateInputForFinalRoute,
+  finalCheckoutPayable,
+  logCustomerFinalPaymentRoute,
+  logCustomerFinalPaymentRouteError,
+  safeDepositPercentFromAmounts,
+} from '@/lib/bookings/customer-final-payment-route';
+import { coalesceBookingFinalPaymentIntentId, getMoneyState } from '@/lib/bookings/money-state';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
 export const dynamic = 'force-dynamic';
+
+/** Columns that must exist on `bookings` (avoid optional migrations in SELECT to prevent 42703 in prod). */
+const BOOKING_SELECT_COLUMNS = [
+  'id',
+  'customer_id',
+  'pro_id',
+  'status',
+  'payment_status',
+  'payment_lifecycle_status',
+  'final_payment_intent_id',
+  'stripe_payment_intent_remaining_id',
+  'final_payment_status',
+  'amount_remaining',
+  'remaining_amount_cents',
+  'amount_total',
+  'total_amount_cents',
+  'amount_platform_fee',
+  'amount_deposit',
+  'currency',
+  'price',
+  'service_date',
+  'service_time',
+  'address',
+  'urgency',
+  'created_at',
+  'completed_at',
+  'paid_at',
+  'fee_profile',
+  'pricing_occupation_slug',
+  'pricing_category_slug',
+  'paid_deposit_at',
+  'paid_remaining_at',
+  'fully_paid_at',
+  'remaining_due_at',
+  'customer_review_deadline_at',
+  'pricing_version',
+  'pricing_band',
+  'service_fee_cents',
+  'convenience_fee_cents',
+  'protection_fee_cents',
+  'original_subtotal_cents',
+  'subtotal_cents',
+  'fee_total_cents',
+  'customer_total_cents',
+  'pro_earnings_cents',
+  'platform_revenue_cents',
+  'charge_model',
+  'stripe_payment_intent_deposit_id',
+  'payment_intent_id',
+  'deposit_payment_intent_id',
+  'duration_hours',
+  'miles_distance',
+  'flat_fee_selected',
+  'hourly_selected',
+  'requires_admin_review',
+  'payout_released',
+  'payout_status',
+  'payout_transfer_id',
+  'refunded_total_cents',
+  'amount_paid_cents',
+].join(', ');
 
 // Remaining payment only after pro has completed (with evidence). Prevents paying before job done.
 const ELIGIBLE_STATUSES = [
@@ -47,521 +122,768 @@ const ELIGIBLE_STATUSES = [
   'awaiting_customer_confirmation',
 ];
 
+function jsonBody(data: Record<string, unknown>, status: number) {
+  return NextResponse.json(data, { status });
+}
+
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ bookingId: string }> }
 ) {
-  if (!stripe) {
-    return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
-  }
-
   const { bookingId } = await params;
   const id = normalizeUuidOrNull(bookingId);
   if (!id) {
-    return NextResponse.json({ error: 'Invalid booking ID' }, { status: 400 });
+    return jsonBody({ error: 'Invalid booking ID', checkoutState: 'not_eligible' }, 400);
   }
 
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return jsonBody({ error: 'Unauthorized', checkoutState: 'not_eligible' }, 401);
+  }
+
+  if (!stripe) {
+    logCustomerFinalPaymentRouteError('stripe_not_configured', { bookingId: id, userId: user.id });
+    return jsonBody({ error: 'Stripe not configured', checkoutState: 'server_error' }, 503);
   }
 
   const admin = createAdminSupabaseClient();
 
-  // Same as deposit: pros who are the customer on a booking must be able to pay remaining balance.
-  const { data: booking, error: bErr } = await admin
-    .from('bookings')
-    .select(
-      'id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, paid_deposit_at, paid_remaining_at, fully_paid_at, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents, demand_fee_cents, fee_total_cents, customer_total_cents, pro_earnings_cents, platform_revenue_cents, charge_model, stripe_payment_intent_deposit_id, payment_intent_id, deposit_payment_intent_id, customer_review_deadline_at, duration_hours, miles_distance, flat_fee_selected, hourly_selected'
-    )
-    .eq('id', id)
-    .eq('customer_id', user.id)
-    .maybeSingle();
-
-  if (bErr) {
-    console.error('[pay/final] booking query error', { bookingId: id, code: bErr.code, message: bErr.message });
-    return NextResponse.json({ error: 'Failed to load booking' }, { status: 500 });
-  }
-  if (!booking) {
-    return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
-  }
-
-  const bFinal = booking as {
-    fee_profile?: string | null;
-    pricing_occupation_slug?: string | null;
-    pricing_category_slug?: string | null;
-  };
-  let serviceName = 'Service';
-  {
-    const { data: proCtx } = await admin
-      .from('service_pros')
-      .select('category_id')
-      .eq('id', booking.pro_id)
+  try {
+    const { data: bookingRow, error: bErr } = await admin
+      .from('bookings')
+      .select(BOOKING_SELECT_COLUMNS)
+      .eq('id', id)
       .maybeSingle();
-    const cid = (proCtx as { category_id?: string | null } | null)?.category_id;
-    if (cid) {
-      const { data: catRow } = await admin
-        .from('service_categories')
-        .select('name')
-        .eq('id', cid)
+
+    if (bErr) {
+      logCustomerFinalPaymentRouteError('booking_select_failed', {
+        bookingId: id,
+        userId: user.id,
+        code: bErr.code,
+        message: bErr.message,
+        details: (bErr as { details?: string }).details,
+      });
+      return jsonBody(
+        {
+          error: 'Failed to load booking',
+          checkoutState: 'server_error',
+          code: 'BOOKING_QUERY_ERROR',
+        },
+        500
+      );
+    }
+
+    if (!bookingRow) {
+      logCustomerFinalPaymentRoute('booking_not_found', { bookingId: id, userId: user.id });
+      return jsonBody({ error: 'Booking not found', checkoutState: 'not_eligible', code: 'NOT_FOUND' }, 404);
+    }
+
+    const booking = bookingRow as unknown as Record<string, unknown>;
+    if (String(booking.customer_id ?? '') !== user.id) {
+      logCustomerFinalPaymentRoute('forbidden_wrong_customer', { bookingId: id, userId: user.id });
+      return jsonBody({ error: 'Forbidden', checkoutState: 'not_eligible', code: 'FORBIDDEN' }, 403);
+    }
+
+    logCustomerFinalPaymentRoute('booking_loaded', {
+      bookingId: id,
+      userId: user.id,
+      status: booking.status,
+      paymentLifecycleStatus: booking.payment_lifecycle_status,
+      finalPaymentStatus: booking.final_payment_status,
+    });
+
+    const paymentAmounts = await getUnifiedBookingPaymentAmountsForBooking(admin, id);
+    if (!paymentAmounts) {
+      logCustomerFinalPaymentRouteError('payment_amounts_null', { bookingId: id, userId: user.id });
+      return jsonBody(
+        {
+          error: 'Unable to resolve payment totals for this booking.',
+          checkoutState: 'not_eligible',
+          code: 'PAYMENT_TOTALS_UNAVAILABLE',
+        },
+        409
+      );
+    }
+
+    const coalescedFinalPiId = coalesceBookingFinalPaymentIntentId(
+      bookingRowToFinalPaymentIntentRow(booking)
+    );
+
+    let stripePiStatus: string | null = null;
+    if (coalescedFinalPiId) {
+      try {
+        const piLive = await stripe.paymentIntents.retrieve(coalescedFinalPiId);
+        stripePiStatus = piLive.status;
+        logCustomerFinalPaymentRoute('stripe_pi_retrieved', {
+          bookingId: id,
+          paymentIntentId: coalescedFinalPiId,
+          stripeStatus: stripePiStatus,
+        });
+      } catch (e) {
+        logCustomerFinalPaymentRouteError('stripe_pi_retrieve_failed', {
+          bookingId: id,
+          paymentIntentId: coalescedFinalPiId,
+          message: e instanceof Error ? e.message : String(e),
+        });
+        stripePiStatus = null;
+      }
+    } else {
+      logCustomerFinalPaymentRoute('no_coalesced_final_pi', { bookingId: id });
+    }
+
+    const moneyInput = buildMoneyStateInputForFinalRoute({
+      booking,
+      paymentAmounts,
+      coalescedFinalPaymentIntentId: coalescedFinalPiId,
+    });
+    const money = getMoneyState(moneyInput, {
+      finalPaymentIntentStatus: stripePiStatus ?? undefined,
+    });
+
+    logCustomerFinalPaymentRoute('money_state', {
+      bookingId: id,
+      finalPhase: money.final,
+      payoutPhase: money.payout,
+      remainingCents: money.remainingCents,
+      coalescedFinalPiId: coalescedFinalPiId ?? '',
+    });
+
+    const paidLike =
+      money.final === 'final_paid' ||
+      paymentAmounts.remainingAmountCents <= 0 ||
+      String(booking.final_payment_status ?? '').toUpperCase() === 'PAID';
+
+    if (paidLike) {
+      return jsonBody(
+        {
+          checkoutState: 'already_paid',
+          message: 'This booking is already fully paid.',
+          paymentAmounts: {
+            totalAmountCents: paymentAmounts.totalAmountCents,
+            paidAmountCents: paymentAmounts.paidAmountCents,
+            remainingAmountCents: paymentAmounts.remainingAmountCents,
+          },
+        },
+        200
+      );
+    }
+
+    if (money.final === 'final_processing') {
+      return jsonBody(
+        {
+          checkoutState: 'processing',
+          message: 'Your final payment is processing. This can take a minute.',
+          paymentIntentId: coalescedFinalPiId,
+          paymentAmounts: {
+            totalAmountCents: paymentAmounts.totalAmountCents,
+            paidAmountCents: paymentAmounts.paidAmountCents,
+            remainingAmountCents: paymentAmounts.remainingAmountCents,
+          },
+        },
+        200
+      );
+    }
+
+    if (money.payout === 'payout_held' && money.final !== 'final_due' && money.final !== 'final_failed') {
+      return jsonBody(
+        {
+          checkoutState: 'not_eligible',
+          code: 'PAYOUT_HELD',
+          message: 'This booking is under review. Final checkout is not available right now.',
+          paymentAmounts: {
+            totalAmountCents: paymentAmounts.totalAmountCents,
+            paidAmountCents: paymentAmounts.paidAmountCents,
+            remainingAmountCents: paymentAmounts.remainingAmountCents,
+          },
+        },
+        409
+      );
+    }
+
+    const status = String(booking.status ?? '');
+    if (!ELIGIBLE_STATUSES.includes(status)) {
+      return jsonBody(
+        {
+          checkoutState: 'not_eligible',
+          code: 'BOOKING_STATUS',
+          message: `Booking is not ready for final payment (status: ${status}).`,
+        },
+        409
+      );
+    }
+
+    const amountDeposit = Number(booking.amount_deposit ?? 0);
+    const hadDeposit = amountDeposit > 0;
+    if (hadDeposit && String(booking.payment_status ?? '').toUpperCase() !== 'PAID') {
+      return jsonBody(
+        {
+          checkoutState: 'not_eligible',
+          code: 'DEPOSIT_UNPAID',
+          message: 'Deposit must be paid before the remaining balance.',
+        },
+        409
+      );
+    }
+
+    if (!finalCheckoutPayable(money)) {
+      return jsonBody(
+        {
+          checkoutState: 'not_eligible',
+          code: 'NOT_PAYABLE',
+          message: 'Final payment is not available for this booking in its current state.',
+          finalPhase: money.final,
+        },
+        409
+      );
+    }
+
+    let amountTotal = paymentAmounts.totalAmountCents;
+    let amountRemaining = paymentAmounts.remainingAmountCents;
+    let pricing: ReturnType<typeof computeBookingPricing> | null = null;
+    let lastDynamicPricingReasons: string[] = [];
+
+    const bFinal = booking as {
+      fee_profile?: string | null;
+      pricing_occupation_slug?: string | null;
+      pricing_category_slug?: string | null;
+    };
+
+    let serviceName = 'Service';
+    {
+      const { data: proCtx } = await admin
+        .from('service_pros')
+        .select('category_id')
+        .eq('id', booking.pro_id as string)
         .maybeSingle();
-      if (catRow && typeof (catRow as { name?: string }).name === 'string') {
-        serviceName = String((catRow as { name: string }).name).trim() || 'Service';
+      const cid = (proCtx as { category_id?: string | null } | null)?.category_id;
+      if (cid) {
+        const { data: catRow } = await admin.from('service_categories').select('name').eq('id', cid).maybeSingle();
+        if (catRow && typeof (catRow as { name?: string }).name === 'string') {
+          serviceName = String((catRow as { name: string }).name).trim() || 'Service';
+        }
       }
     }
-  }
 
-  const { count: completedPaidCount } = await admin
-    .from('bookings')
-    .select('id', { count: 'exact', head: true })
-    .eq('customer_id', booking.customer_id)
-    .in('status', ['fully_paid', 'completed', 'customer_confirmed', 'auto_confirmed', 'payout_released']);
-  const historyFlags = resolveCustomerBookingHistoryFlags({
-    completedOrPaidBookingCount: completedPaidCount ?? 0,
-  });
-  const urgency = resolveUrgencyFromBooking({
-    urgency: (booking as { urgency?: string | null }).urgency ?? null,
-    serviceDate: booking.service_date,
-    serviceTime: booking.service_time,
-    requestedAt: (booking as { created_at?: string | null }).created_at ?? null,
-  });
-  const areaDemandScore = resolveAreaDemandScoreFromBooking();
-  const supplyTightnessScore = resolveSupplyTightnessScoreFromBooking();
+    const { count: completedPaidCount } = await admin
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('customer_id', booking.customer_id as string)
+      .in('status', ['fully_paid', 'completed', 'customer_confirmed', 'auto_confirmed', 'payout_released']);
+    const historyFlags = resolveCustomerBookingHistoryFlags({
+      completedOrPaidBookingCount: completedPaidCount ?? 0,
+    });
+    const urgency = resolveUrgencyFromBooking({
+      urgency: (booking.urgency as string | null) ?? null,
+      serviceDate: booking.service_date as string,
+      serviceTime: booking.service_time as string,
+      requestedAt: (booking.created_at as string | null) ?? null,
+    });
+    const areaDemandScore = resolveAreaDemandScoreFromBooking();
+    const supplyTightnessScore = resolveSupplyTightnessScoreFromBooking();
 
-  const status = String(booking.status);
-  const finalStatus = String(booking.final_payment_status ?? 'UNPAID');
+    if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
+      const { data: proRowForQuote } = await admin
+        .from('service_pros')
+        .select('user_id, display_name, category_id, occupation_id, occupations(slug)')
+        .eq('id', booking.pro_id as string)
+        .maybeSingle();
+      const { data: proPricing } = await admin
+        .from('pro_profiles')
+        .select(
+          'pricing_model, starting_price, starting_rate, hourly_rate, min_hours, travel_fee_enabled, travel_fee_base, travel_free_within_miles, travel_extra_per_mile, deposit_percent_default'
+        )
+        .eq('user_id', (proRowForQuote as { user_id?: string })?.user_id ?? '')
+        .maybeSingle();
+      const proName = ((proRowForQuote as { display_name?: string })?.display_name ?? 'Pro').trim();
+      const occSlugFromPro =
+        (proRowForQuote as { occupations?: { slug?: string } | null })?.occupations?.slug?.trim() || null;
+      const bFin = booking as {
+        pricing_version?: string | null;
+        service_fee_cents?: number | null;
+        convenience_fee_cents?: number | null;
+        protection_fee_cents?: number | null;
+        pricing_occupation_slug?: string | null;
+        pricing_category_slug?: string | null;
+        duration_hours?: number | null;
+        miles_distance?: number | null;
+        flat_fee_selected?: boolean | null;
+        hourly_selected?: boolean | null;
+        subtotal_cents?: number | null;
+        demand_fee_cents?: number | null;
+        fee_total_cents?: number | null;
+        customer_total_cents?: number | null;
+        pro_earnings_cents?: number | null;
+        platform_revenue_cents?: number | null;
+        charge_model?: string | null;
+      };
+      const quoteResult = computeQuote(
+        {
+          id: booking.id as string,
+          customer_id: booking.customer_id as string,
+          pro_id: booking.pro_id as string,
+          service_date: booking.service_date as string,
+          service_time: booking.service_time as string,
+          address: booking.address as string,
+          price: booking.price as number | null,
+          status: booking.status as string,
+          duration_hours: bFin.duration_hours ?? null,
+          miles_distance: bFin.miles_distance ?? null,
+          flat_fee_selected: bFin.flat_fee_selected ?? null,
+          hourly_selected: bFin.hourly_selected ?? null,
+          urgency: (booking.urgency as string | null) ?? null,
+          created_at: (booking.created_at as string | null) ?? null,
+          pricing_occupation_slug: bFin.pricing_occupation_slug ?? null,
+          pricing_category_slug: bFin.pricing_category_slug ?? null,
+          pricing_version: bFin.pricing_version ?? null,
+          service_fee_cents: bFin.service_fee_cents ?? null,
+          convenience_fee_cents: bFin.convenience_fee_cents ?? null,
+          protection_fee_cents: bFin.protection_fee_cents ?? null,
+          subtotal_cents: bFin.subtotal_cents ?? null,
+          demand_fee_cents: bFin.demand_fee_cents ?? null,
+          fee_total_cents: bFin.fee_total_cents ?? null,
+          customer_total_cents: bFin.customer_total_cents ?? null,
+          pro_earnings_cents: bFin.pro_earnings_cents ?? null,
+          platform_revenue_cents: bFin.platform_revenue_cents ?? null,
+          charge_model: bFin.charge_model ?? null,
+        },
+        proPricing,
+        serviceName,
+        proName,
+        {
+          occupationSlug: bFin.pricing_occupation_slug ?? occSlugFromPro,
+          completedOrPaidBookingCount: completedPaidCount ?? 0,
+        }
+      );
+      lastDynamicPricingReasons = quoteResult.quote.dynamicPricingReasons ?? [];
+      pricing = quoteResult.pricing;
+      amountRemaining = pricing.finalChargeCents;
+      if (amountTotal <= 0) amountTotal = pricing.customerTotalCents;
+    }
 
-  if (!ELIGIBLE_STATUSES.includes(status)) {
-    return NextResponse.json(
-      { error: `Booking is not ready for final payment (status: ${status})` },
-      { status: 409 }
-    );
-  }
+    if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
+      return jsonBody(
+        {
+          checkoutState: 'no_remaining_balance',
+          message: 'There is no remaining balance to pay.',
+          paymentAmounts: {
+            totalAmountCents: paymentAmounts.totalAmountCents,
+            paidAmountCents: paymentAmounts.paidAmountCents,
+            remainingAmountCents: paymentAmounts.remainingAmountCents,
+          },
+        },
+        200
+      );
+    }
 
-  const amountDeposit = Number(booking.amount_deposit ?? 0);
-  const hadDeposit = amountDeposit > 0;
-  if (hadDeposit && booking.payment_status !== 'PAID') {
-    return NextResponse.json(
-      { error: 'Deposit must be paid first' },
-      { status: 409 }
-    );
-  }
+    if (!pricing) {
+      const subtotalGuessFromStored = Math.max(0, amountTotal - Number(booking.amount_platform_fee ?? 0));
+      const bFall = booking as {
+        pricing_version?: string | null;
+        service_fee_cents?: number | null;
+        convenience_fee_cents?: number | null;
+        protection_fee_cents?: number | null;
+      };
+      const useSnap =
+        typeof bFall.pricing_version === 'string' &&
+        bFall.pricing_version.trim().length > 0 &&
+        typeof bFall.service_fee_cents === 'number' &&
+        typeof bFall.convenience_fee_cents === 'number' &&
+        typeof bFall.protection_fee_cents === 'number';
+      const feeRule = getFeeRuleForBooking({
+        serviceSubtotalCents: subtotalGuessFromStored,
+        categoryName: serviceName,
+      });
+      const conversionRiskScore = resolveConversionRiskScore({
+        serviceSubtotalCents: subtotalGuessFromStored,
+        isFirstBooking: historyFlags.isFirstBooking,
+      });
+      const trustRiskScore = resolveTrustRiskScore({ occupationProfile: feeRule.profile });
+      const dynamicPricing = resolveDynamicPricing({
+        baseServiceFeePercent: feeRule.serviceFeePercent,
+        baseConvenienceFeeCents: feeRule.convenienceFeeCents,
+        baseProtectionFeeCents: feeRule.protectionFeeCents,
+        input: {
+          occupationProfile: feeRule.profile,
+          serviceSubtotalCents: subtotalGuessFromStored,
+          urgency,
+          areaDemandScore,
+          supplyTightnessScore,
+          conversionRiskScore,
+          trustRiskScore,
+          isFirstBooking: historyFlags.isFirstBooking,
+          isRepeatCustomer: historyFlags.isRepeatCustomer,
+        },
+      });
+      lastDynamicPricingReasons = dynamicPricing.reasons;
+      const depPct = safeDepositPercentFromAmounts(amountDeposit, amountTotal);
+      try {
+        pricing = useSnap
+          ? computeBookingPricing({
+              serviceSubtotalCents: subtotalGuessFromStored,
+              depositPercent: depPct,
+              frozenCoreFeesCents: {
+                serviceFeeCents: bFall.service_fee_cents!,
+                convenienceFeeCents: bFall.convenience_fee_cents!,
+                protectionFeeCents: bFall.protection_fee_cents!,
+              },
+              demandFeeCents:
+                feeRule.demandFeeMode === 'supported_if_applicable' ? dynamicPricing.demandFeeCents : 0,
+              promoDiscountCents: dynamicPricing.promoDiscountCents,
+            })
+          : computeBookingPricing({
+              serviceSubtotalCents: subtotalGuessFromStored,
+              depositPercent: depPct,
+              serviceFeePercent: dynamicPricing.serviceFeePercent,
+              convenienceFeeCents: dynamicPricing.convenienceFeeCents,
+              protectionFeeCents: dynamicPricing.protectionFeeCents,
+              demandFeeCents:
+                feeRule.demandFeeMode === 'supported_if_applicable' ? dynamicPricing.demandFeeCents : 0,
+              promoDiscountCents: dynamicPricing.promoDiscountCents,
+            });
+      } catch (e) {
+        logCustomerFinalPaymentRouteError('compute_booking_pricing_failed', {
+          bookingId: id,
+          message: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined,
+        });
+        return jsonBody(
+          {
+            error: 'Unable to compute pricing for this payment.',
+            checkoutState: 'server_error',
+            code: 'PRICING_COMPUTE_ERROR',
+          },
+          500
+        );
+      }
+      if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
+        amountRemaining = pricing.finalChargeCents;
+      } else {
+        const adjustedFinal = Math.round(amountRemaining);
+        const adjustedDeposit = Math.max(0, pricing.customerTotalCents - adjustedFinal);
+        pricing = {
+          ...pricing,
+          depositChargeCents: adjustedDeposit,
+          finalChargeCents: adjustedFinal,
+        };
+      }
+    }
 
-  if (finalStatus === 'PAID') {
-    return NextResponse.json(
-      { error: 'Booking is already fully paid' },
-      { status: 409 }
-    );
-  }
+    if (!pricing) {
+      logCustomerFinalPaymentRouteError('pricing_still_null', { bookingId: id });
+      return jsonBody(
+        {
+          error: 'Unable to load pricing for payment intent.',
+          checkoutState: 'not_eligible',
+          code: 'PRICING_UNAVAILABLE',
+        },
+        409
+      );
+    }
 
-  const paymentAmounts = await getUnifiedBookingPaymentAmountsForBooking(admin, id);
-  if (!paymentAmounts) {
-    return NextResponse.json({ error: 'Failed to load payment totals' }, { status: 500 });
-  }
-  let amountTotal = paymentAmounts.totalAmountCents;
-  let amountRemaining = paymentAmounts.remainingAmountCents;
-  let pricing:
-    | ReturnType<typeof computeBookingPricing>
-    | null = null;
-  let lastDynamicPricingReasons: string[] = [];
-
-  // Fallback: compute from quote when DB columns are empty
-  if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
-    const { data: proRowForQuote } = await admin
+    const { data: proRow } = await admin
       .from('service_pros')
-      .select('user_id, display_name, category_id, occupation_id, occupations(slug)')
-      .eq('id', booking.pro_id)
+      .select('stripe_account_id, stripe_charges_enabled')
+      .eq('id', booking.pro_id as string)
       .maybeSingle();
-    const { data: proPricing } = await admin
-      .from('pro_profiles')
-      .select('pricing_model, starting_price, starting_rate, hourly_rate, min_hours, travel_fee_enabled, travel_fee_base, travel_free_within_miles, travel_extra_per_mile, deposit_percent_default')
-      .eq('user_id', proRowForQuote?.user_id ?? '')
-      .maybeSingle();
-    const proName = ((proRowForQuote as { display_name?: string })?.display_name ?? 'Pro').trim();
-    const occSlugFromPro =
-      (proRowForQuote as { occupations?: { slug?: string } | null })?.occupations?.slug?.trim() || null;
-    const bFin = booking as {
+
+    const connectedAccountId =
+      proRow?.stripe_account_id && proRow?.stripe_charges_enabled === true ? proRow.stripe_account_id : null;
+
+    if (!connectedAccountId) {
+      return jsonBody(
+        {
+          checkoutState: 'not_eligible',
+          code: 'PRO_NOT_PAYABLE',
+          message: 'Pro is not ready to receive payments yet.',
+        },
+        409
+      );
+    }
+
+    const customerResult = await getOrCreateStripeCustomer(user.id, user.email ?? null);
+    if ('error' in customerResult) {
+      logCustomerFinalPaymentRouteError('stripe_customer_failed', {
+        bookingId: id,
+        error: customerResult.error,
+      });
+      return jsonBody(
+        { error: customerResult.error, checkoutState: 'server_error', code: 'STRIPE_CUSTOMER_ERROR' },
+        502
+      );
+    }
+
+    const amountRemainingRounded = Math.round(amountRemaining);
+
+    if (coalescedFinalPiId && String(booking.final_payment_status ?? '').toUpperCase() !== 'PAID') {
+      try {
+        const pi = await stripe.paymentIntents.retrieve(coalescedFinalPiId);
+        if (pi.status === 'succeeded') {
+          return jsonBody(
+            {
+              checkoutState: 'already_paid',
+              message: 'This booking is already fully paid.',
+              paymentAmounts: {
+                totalAmountCents: amountTotal,
+                paidAmountCents: Math.max(0, amountTotal - amountRemainingRounded),
+                remainingAmountCents: amountRemainingRounded,
+              },
+            },
+            200
+          );
+        }
+        const reusableStatuses = new Set([
+          'requires_payment_method',
+          'requires_confirmation',
+          'requires_action',
+          'processing',
+        ]);
+        if (reusableStatuses.has(pi.status) && pi.client_secret) {
+          if (pi.amount === amountRemainingRounded || pi.amount === amountRemaining) {
+            return jsonBody(
+              {
+                checkoutState: 'ready',
+                clientSecret: pi.client_secret,
+                paymentIntentId: pi.id,
+                amountRemaining: amountRemainingRounded,
+                paymentAmounts: {
+                  totalAmountCents: amountTotal,
+                  paidAmountCents: Math.max(0, amountTotal - amountRemainingRounded),
+                  remainingAmountCents: amountRemainingRounded,
+                },
+              },
+              200
+            );
+          }
+          logCustomerFinalPaymentRoute('existing_pi_amount_mismatch', {
+            bookingId: id,
+            piAmount: pi.amount,
+            expectedRemaining: amountRemainingRounded,
+          });
+        }
+      } catch (e) {
+        logCustomerFinalPaymentRouteError('existing_pi_retrieve_failed', {
+          bookingId: id,
+          paymentIntentId: coalescedFinalPiId,
+          message: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+
+    const bStripe = booking as {
       pricing_version?: string | null;
+      pricing_band?: string | null;
+      subtotal_cents?: number | null;
       service_fee_cents?: number | null;
       convenience_fee_cents?: number | null;
       protection_fee_cents?: number | null;
-      pricing_occupation_slug?: string | null;
-      pricing_category_slug?: string | null;
-      duration_hours?: number | null;
-      miles_distance?: number | null;
-      flat_fee_selected?: boolean | null;
-      hourly_selected?: boolean | null;
-      subtotal_cents?: number | null;
       demand_fee_cents?: number | null;
       fee_total_cents?: number | null;
       customer_total_cents?: number | null;
-      pro_earnings_cents?: number | null;
-      platform_revenue_cents?: number | null;
-      charge_model?: string | null;
     };
-    const quoteResult = computeQuote(
-      {
-        id: booking.id,
-        customer_id: booking.customer_id,
-        pro_id: booking.pro_id,
-        service_date: booking.service_date,
-        service_time: booking.service_time,
-        address: booking.address,
-        price: booking.price,
-        status: booking.status,
-        duration_hours: bFin.duration_hours ?? null,
-        miles_distance: bFin.miles_distance ?? null,
-        flat_fee_selected: bFin.flat_fee_selected ?? null,
-        hourly_selected: bFin.hourly_selected ?? null,
-        urgency: (booking as { urgency?: string | null }).urgency ?? null,
-        created_at: (booking as { created_at?: string | null }).created_at ?? null,
-        pricing_occupation_slug: bFin.pricing_occupation_slug ?? null,
-        pricing_category_slug: bFin.pricing_category_slug ?? null,
-        pricing_version: bFin.pricing_version ?? null,
-        service_fee_cents: bFin.service_fee_cents ?? null,
-        convenience_fee_cents: bFin.convenience_fee_cents ?? null,
-        protection_fee_cents: bFin.protection_fee_cents ?? null,
-        subtotal_cents: bFin.subtotal_cents ?? null,
-        demand_fee_cents: bFin.demand_fee_cents ?? null,
-        fee_total_cents: bFin.fee_total_cents ?? null,
-        customer_total_cents: bFin.customer_total_cents ?? null,
-        pro_earnings_cents: bFin.pro_earnings_cents ?? null,
-        platform_revenue_cents: bFin.platform_revenue_cents ?? null,
-        charge_model: bFin.charge_model ?? null,
-      },
-      proPricing,
-      serviceName,
-      proName,
-      {
-        occupationSlug: bFin.pricing_occupation_slug ?? occSlugFromPro,
-        completedOrPaidBookingCount: completedPaidCount ?? 0,
-      }
-    );
-    lastDynamicPricingReasons = quoteResult.quote.dynamicPricingReasons ?? [];
-    pricing = quoteResult.pricing;
-    amountRemaining = pricing.finalChargeCents;
-    if (amountTotal <= 0) amountTotal = pricing.customerTotalCents;
-  } else {
-    const { data: proRowTitle } = await admin
-      .from('service_pros')
-      .select('category_id')
-      .eq('id', booking.pro_id)
-      .maybeSingle();
-    const tCat = (proRowTitle as { category_id?: string | null } | null)?.category_id;
-    if (tCat) {
-      const { data: catRow } = await admin
-        .from('service_categories')
-        .select('name')
-        .eq('id', tCat)
-        .maybeSingle();
-      if (catRow && typeof (catRow as { name?: string }).name === 'string') {
-        serviceName = String((catRow as { name: string }).name).trim() || 'Service';
-      }
-    }
-  }
-
-  if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
-    return NextResponse.json(
-      { error: 'No remaining balance to pay' },
-      { status: 400 }
-    );
-  }
-
-  if (!pricing) {
-    const subtotalGuessFromStored = Math.max(0, amountTotal - Number(booking.amount_platform_fee ?? 0));
-    const bFall = booking as {
-      pricing_version?: string | null;
-      service_fee_cents?: number | null;
-      convenience_fee_cents?: number | null;
-      protection_fee_cents?: number | null;
+    const stripeBookingFrozenCtx = {
+      fee_profile: bFinal.fee_profile,
+      pricing_version: bStripe.pricing_version,
+      pricing_band: bStripe.pricing_band,
+      pricing_occupation_slug: bFinal.pricing_occupation_slug,
+      pricing_category_slug: bFinal.pricing_category_slug,
+      subtotal_cents: bStripe.subtotal_cents,
+      service_fee_cents: bStripe.service_fee_cents,
+      convenience_fee_cents: bStripe.convenience_fee_cents,
+      protection_fee_cents: bStripe.protection_fee_cents,
+      demand_fee_cents: bStripe.demand_fee_cents,
+      fee_total_cents: bStripe.fee_total_cents,
+      customer_total_cents: bStripe.customer_total_cents,
     };
-    const useSnap =
-      typeof bFall.pricing_version === 'string' &&
-      bFall.pricing_version.trim().length > 0 &&
-      typeof bFall.service_fee_cents === 'number' &&
-      typeof bFall.convenience_fee_cents === 'number' &&
-      typeof bFall.protection_fee_cents === 'number';
-    const feeRule = getFeeRuleForBooking({
-      serviceSubtotalCents: subtotalGuessFromStored,
+    const feeRuleStripe = getFeeRuleForBooking({
+      serviceSubtotalCents: pricing.serviceSubtotalCents,
       categoryName: serviceName,
+      occupationSlug: bFinal.pricing_occupation_slug ?? undefined,
+      categorySlug: bFinal.pricing_category_slug ?? undefined,
     });
-    const conversionRiskScore = resolveConversionRiskScore({
-      serviceSubtotalCents: subtotalGuessFromStored,
+    const conversionForStripe = resolveConversionRiskScore({
+      serviceSubtotalCents: pricing.serviceSubtotalCents,
       isFirstBooking: historyFlags.isFirstBooking,
     });
-    const trustRiskScore = resolveTrustRiskScore({ occupationProfile: feeRule.profile });
-    const dynamicPricing = resolveDynamicPricing({
-      baseServiceFeePercent: feeRule.serviceFeePercent,
-      baseConvenienceFeeCents: feeRule.convenienceFeeCents,
-      baseProtectionFeeCents: feeRule.protectionFeeCents,
-      input: {
-        occupationProfile: feeRule.profile,
-        serviceSubtotalCents: subtotalGuessFromStored,
-        urgency,
-        areaDemandScore,
-        supplyTightnessScore,
-        conversionRiskScore,
-        trustRiskScore,
-        isFirstBooking: historyFlags.isFirstBooking,
-        isRepeatCustomer: historyFlags.isRepeatCustomer,
-      },
+    const trustForStripe = resolveTrustRiskScore({
+      occupationProfile: trustOccupationProfileForStripeMetadata(
+        id,
+        stripeBookingFrozenCtx,
+        feeRuleStripe.profile
+      ),
     });
-    lastDynamicPricingReasons = dynamicPricing.reasons;
-    pricing = useSnap
-      ? computeBookingPricing({
-          serviceSubtotalCents: subtotalGuessFromStored,
-          depositPercent: amountTotal > 0 ? Math.max(0, Math.min(1, amountDeposit / amountTotal)) : 0,
-          frozenCoreFeesCents: {
-            serviceFeeCents: bFall.service_fee_cents!,
-            convenienceFeeCents: bFall.convenience_fee_cents!,
-            protectionFeeCents: bFall.protection_fee_cents!,
-          },
-          demandFeeCents:
-            feeRule.demandFeeMode === 'supported_if_applicable' ? dynamicPricing.demandFeeCents : 0,
-          promoDiscountCents: dynamicPricing.promoDiscountCents,
-        })
-      : computeBookingPricing({
-          serviceSubtotalCents: subtotalGuessFromStored,
-          depositPercent: amountTotal > 0 ? Math.max(0, Math.min(1, amountDeposit / amountTotal)) : 0,
-          serviceFeePercent: dynamicPricing.serviceFeePercent,
-          convenienceFeeCents: dynamicPricing.convenienceFeeCents,
-          protectionFeeCents: dynamicPricing.protectionFeeCents,
-          demandFeeCents: feeRule.demandFeeMode === 'supported_if_applicable' ? dynamicPricing.demandFeeCents : 0,
-          promoDiscountCents: dynamicPricing.promoDiscountCents,
-        });
-    if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
-      amountRemaining = pricing.finalChargeCents;
-    } else {
-      const adjustedFinal = Math.round(amountRemaining);
-      const adjustedDeposit = Math.max(0, pricing.customerTotalCents - adjustedFinal);
-      pricing = {
-        ...pricing,
-        depositChargeCents: adjustedDeposit,
-        finalChargeCents: adjustedFinal,
-      };
+    const quoteForStripe = quoteBreakdownStubFromPricing(pricing, {
+      dynamicPricingReasons: lastDynamicPricingReasons,
+    });
+
+    const stripeFields = buildBookingPaymentIntentStripeFields({
+      bookingId: id,
+      customerId: booking.customer_id as string,
+      proId: booking.pro_id as string,
+      paymentPhase: 'remaining',
+      serviceTitle: serviceName,
+      pricing: buildBookingPaymentIntentPricingMetadata({
+        bookingId: id,
+        booking: stripeBookingFrozenCtx,
+        liveFeeRule: feeRuleStripe,
+        quote: quoteForStripe,
+        pricing,
+        dynamic: {
+          dynamicReasonsCsv: lastDynamicPricingReasons.join(','),
+          urgency,
+          areaDemandScore,
+          supplyTightnessScore,
+          conversionRiskScore: conversionForStripe,
+          trustRiskScore: trustForStripe,
+          isFirstBooking: historyFlags.isFirstBooking,
+          isRepeatCustomer: historyFlags.isRepeatCustomer,
+        },
+      }),
+    });
+
+    const depositPiId =
+      String(booking.deposit_payment_intent_id ?? '').trim() ||
+      String(booking.stripe_payment_intent_deposit_id ?? '').trim() ||
+      String(booking.payment_intent_id ?? '').trim() ||
+      '';
+
+    Object.assign(
+      stripeFields.metadata,
+      appendLifecyclePaymentIntentMetadata(
+        {
+          booking_id: id,
+          customer_id: booking.customer_id as string,
+          pro_id: booking.pro_id as string,
+          booking_service_status: status,
+          pricing_version:
+            typeof booking.pricing_version === 'string' ? booking.pricing_version.trim() : '',
+          subtotal_cents: pricing.serviceSubtotalCents,
+          platform_fee_cents: pricing.feeTotalCents,
+          deposit_amount_cents: pricing.depositChargeCents,
+          final_amount_cents: pricing.finalChargeCents,
+          total_amount_cents: pricing.customerTotalCents,
+          linked_deposit_payment_intent_id: depositPiId,
+          review_deadline_at: String(booking.customer_review_deadline_at ?? ''),
+        },
+        'final'
+      )
+    );
+    stripeFields.metadata = capStripeBookingPaymentMetadata(stripeFields.metadata);
+
+    const currency = (typeof booking.currency === 'string' && booking.currency.trim()
+      ? booking.currency.trim().toLowerCase()
+      : 'usd') as string;
+
+    let paymentIntent;
+    try {
+      paymentIntent = await stripe.paymentIntents.create(
+        {
+          amount: amountRemainingRounded,
+          currency,
+          automatic_payment_methods: { enabled: true },
+          customer: customerResult.stripeCustomerId,
+          metadata: stripeFields.metadata,
+          description: stripeFields.description,
+          statement_descriptor_suffix: stripeFields.statement_descriptor_suffix,
+        },
+        { idempotencyKey: `final-${id}` }
+      );
+    } catch (e) {
+      logCustomerFinalPaymentRouteError('stripe_payment_intent_create_failed', {
+        bookingId: id,
+        message: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+      });
+      return jsonBody(
+        {
+          error: 'Unable to start payment with Stripe. Please try again shortly.',
+          checkoutState: 'server_error',
+          code: 'STRIPE_PI_CREATE_FAILED',
+        },
+        502
+      );
     }
-  }
 
-  const { data: proRow } = await admin
-    .from('service_pros')
-    .select('stripe_account_id, stripe_charges_enabled')
-    .eq('id', booking.pro_id)
-    .maybeSingle();
+    const piStatus = paymentIntent.status;
+    const newFinalStatus =
+      piStatus === 'succeeded' ? 'PAID' : piStatus === 'requires_action' ? 'REQUIRES_ACTION' : 'UNPAID';
 
-  const connectedAccountId =
-    proRow?.stripe_account_id && proRow?.stripe_charges_enabled === true
-      ? proRow.stripe_account_id
-      : null;
+    await admin
+      .from('bookings')
+      .update({
+        final_payment_intent_id: paymentIntent.id,
+        stripe_payment_intent_remaining_id: paymentIntent.id,
+        stripe_destination_account_id: connectedAccountId,
+        final_payment_status: newFinalStatus,
+        payment_lifecycle_status:
+          newFinalStatus === 'PAID'
+            ? 'final_paid'
+            : newFinalStatus === 'REQUIRES_ACTION'
+              ? 'requires_customer_action'
+              : 'final_pending',
+      })
+      .eq('id', id);
 
-  if (!connectedAccountId) {
-    return NextResponse.json(
-      { error: 'Pro is not ready to receive payments yet.' },
-      { status: 409 }
+    try {
+      await syncBookingPaymentSummary(admin, id);
+      await logBookingPaymentEvent(admin, {
+        bookingId: id,
+        eventType: 'final_intent_created',
+        phase: 'final',
+        status: piStatus,
+        amountCents: amountRemainingRounded,
+        currency,
+        stripePaymentIntentId: paymentIntent.id,
+        metadata: { via: 'pay_final_route' },
+      });
+    } catch (e) {
+      logCustomerFinalPaymentRouteError('lifecycle_ledger_failed', {
+        bookingId: id,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+
+    logCustomerFinalPaymentRoute('final_intent_created', {
+      bookingId: id,
+      amountRemaining: amountRemainingRounded,
+      paymentIntentStatus: piStatus,
+    });
+
+    const minNotice = minimumBookingNoticeFromBookingRow(
+      booking as { original_subtotal_cents?: number | null; subtotal_cents?: number | null }
+    );
+
+    return jsonBody(
+      {
+        checkoutState: 'ready',
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        amountRemaining: amountRemainingRounded,
+        minimumBookingNotice: minNotice,
+        paymentAmounts: {
+          totalAmountCents: amountTotal,
+          paidAmountCents: Math.max(0, amountTotal - amountRemainingRounded),
+          remainingAmountCents: amountRemainingRounded,
+        },
+      },
+      200
+    );
+  } catch (e) {
+    logCustomerFinalPaymentRouteError('unhandled_exception', {
+      bookingId: id,
+      userId: user.id,
+      message: e instanceof Error ? e.message : String(e),
+      stack: e instanceof Error ? e.stack : undefined,
+    });
+    return jsonBody(
+      {
+        error: 'Unexpected server error',
+        checkoutState: 'server_error',
+        code: 'UNHANDLED',
+      },
+      500
     );
   }
-
-  const customerResult = await getOrCreateStripeCustomer(user.id, user.email ?? null);
-  if ('error' in customerResult) {
-    return NextResponse.json({ error: customerResult.error }, { status: 500 });
-  }
-
-  const existingPiId =
-    booking.final_payment_intent_id && typeof booking.final_payment_intent_id === 'string'
-      ? booking.final_payment_intent_id.trim()
-      : null;
-
-  if (existingPiId && finalStatus !== 'PAID') {
-    try {
-      const pi = await stripe.paymentIntents.retrieve(existingPiId);
-      if (pi.status === 'succeeded') {
-        return NextResponse.json({ error: 'Already fully paid' }, { status: 409 });
-      }
-      if (pi.amount === amountRemaining && pi.client_secret) {
-        return NextResponse.json({
-          clientSecret: pi.client_secret,
-          paymentIntentId: pi.id,
-          amountRemaining,
-          paymentAmounts: {
-            totalAmountCents: amountTotal,
-            paidAmountCents: Math.max(0, amountTotal - amountRemaining),
-            remainingAmountCents: amountRemaining,
-          },
-        });
-      }
-    } catch {
-      // Fall through
-    }
-  }
-
-  const feeRuleStripe = getFeeRuleForBooking({
-    serviceSubtotalCents: pricing.serviceSubtotalCents,
-    categoryName: serviceName,
-  });
-  const conversionForStripe = resolveConversionRiskScore({
-    serviceSubtotalCents: pricing.serviceSubtotalCents,
-    isFirstBooking: historyFlags.isFirstBooking,
-  });
-  const trustForStripe = resolveTrustRiskScore({ occupationProfile: feeRuleStripe.profile });
-
-  const stripeFields = buildBookingPaymentIntentStripeFields({
-    bookingId: id,
-    customerId: booking.customer_id,
-    proId: booking.pro_id,
-    paymentPhase: 'remaining',
-    serviceTitle: serviceName,
-    pricing: {
-      fee_profile: feeRuleStripe.profile,
-      subtotal_tier: feeRuleStripe.tier,
-      booking_fee_profile_stamped: bFinal.fee_profile ?? undefined,
-      booking_pricing_occupation_slug: bFinal.pricing_occupation_slug ?? undefined,
-      booking_pricing_category_slug: bFinal.pricing_category_slug ?? undefined,
-      pricing_version:
-        ((booking as { pricing_version?: string | null }).pricing_version &&
-          String((booking as { pricing_version?: string | null }).pricing_version).trim()) ||
-        undefined,
-      subtotal_cents: pricing.serviceSubtotalCents,
-      service_subtotal_cents: pricing.serviceSubtotalCents,
-      service_fee_cents: pricing.serviceFeeCents,
-      convenience_fee_cents: pricing.convenienceFeeCents,
-      protection_fee_cents: pricing.protectionFeeCents,
-      demand_fee_cents: pricing.demandFeeCents,
-      promo_discount_cents: pricing.promoDiscountCents,
-      fee_total_cents: pricing.feeTotalCents,
-      platform_fee_total_cents: pricing.feeTotalCents,
-      customer_total_cents: pricing.customerTotalCents,
-      deposit_base_cents: pricing.depositBaseCents,
-      deposit_service_fee_cents: pricing.depositServiceFeeCents,
-      final_service_fee_cents: pricing.finalServiceFeeCents,
-      deposit_convenience_fee_cents: pricing.depositConvenienceFeeCents,
-      final_convenience_fee_cents: pricing.finalConvenienceFeeCents,
-      deposit_protection_fee_cents: pricing.depositProtectionFeeCents,
-      final_protection_fee_cents: pricing.finalProtectionFeeCents,
-      deposit_demand_fee_cents: pricing.depositDemandFeeCents,
-      final_demand_fee_cents: pricing.finalDemandFeeCents,
-      deposit_fee_total_cents: pricing.depositFeeTotalCents,
-      final_fee_total_cents: pricing.finalFeeTotalCents,
-      deposit_promo_discount_cents: pricing.depositPromoDiscountCents,
-      final_promo_discount_cents: pricing.finalPromoDiscountCents,
-      dynamic_pricing_reasons: lastDynamicPricingReasons.join(','),
-      urgency,
-      area_demand_score: areaDemandScore,
-      supply_tightness_score: supplyTightnessScore,
-      conversion_risk_score: conversionForStripe,
-      trust_risk_score: trustForStripe,
-      is_first_booking: String(historyFlags.isFirstBooking),
-      is_repeat_customer: String(historyFlags.isRepeatCustomer),
-      deposit_platform_fee_cents: pricing.depositFeeTotalCents,
-      deposit_charge_cents: pricing.depositChargeCents,
-      final_base_cents: pricing.finalBaseCents,
-      final_platform_fee_cents: pricing.finalFeeTotalCents,
-      final_charge_cents: pricing.finalChargeCents,
-    },
-  });
-
-  const depositPiId =
-    (booking as { deposit_payment_intent_id?: string | null }).deposit_payment_intent_id?.trim() ||
-    (booking as { stripe_payment_intent_deposit_id?: string | null }).stripe_payment_intent_deposit_id?.trim() ||
-    (booking as { payment_intent_id?: string | null }).payment_intent_id?.trim() ||
-    '';
-
-  Object.assign(
-    stripeFields.metadata,
-    appendLifecyclePaymentIntentMetadata(
-      {
-        booking_id: id,
-        customer_id: booking.customer_id,
-        pro_id: booking.pro_id,
-        booking_service_status: status,
-        pricing_version:
-          ((booking as { pricing_version?: string | null }).pricing_version &&
-            String((booking as { pricing_version?: string | null }).pricing_version).trim()) ||
-          '',
-        subtotal_cents: pricing.serviceSubtotalCents,
-        platform_fee_cents: pricing.feeTotalCents,
-        deposit_amount_cents: pricing.depositChargeCents,
-        final_amount_cents: pricing.finalChargeCents,
-        total_amount_cents: pricing.customerTotalCents,
-        linked_deposit_payment_intent_id: depositPiId,
-        review_deadline_at:
-          (booking as { customer_review_deadline_at?: string | null }).customer_review_deadline_at ?? '',
-      },
-      'final'
-    )
-  );
-  stripeFields.metadata = capStripeBookingPaymentMetadata(stripeFields.metadata);
-
-  // Platform holds remaining — NO transfer_data. Pro paid via release-payouts.
-  const paymentIntent = await stripe.paymentIntents.create(
-    {
-      amount: amountRemaining,
-      currency: (booking.currency as string) || 'usd',
-      automatic_payment_methods: { enabled: true },
-      customer: customerResult.stripeCustomerId,
-      metadata: stripeFields.metadata,
-      description: stripeFields.description,
-      statement_descriptor_suffix: stripeFields.statement_descriptor_suffix,
-    },
-    { idempotencyKey: `final-${id}` }
-  );
-
-  const piStatus = paymentIntent.status;
-  const newFinalStatus =
-    piStatus === 'succeeded' ? 'PAID'
-    : piStatus === 'requires_action' ? 'REQUIRES_ACTION'
-    : 'UNPAID';
-
-  await admin
-    .from('bookings')
-    .update({
-      final_payment_intent_id: paymentIntent.id,
-      stripe_payment_intent_remaining_id: paymentIntent.id,
-      stripe_destination_account_id: connectedAccountId,
-      final_payment_status: newFinalStatus,
-      payment_lifecycle_status:
-        newFinalStatus === 'PAID'
-          ? 'final_paid'
-          : newFinalStatus === 'REQUIRES_ACTION'
-            ? 'requires_customer_action'
-            : 'final_pending',
-    })
-    .eq('id', id);
-
-  try {
-    await syncBookingPaymentSummary(admin, id);
-    await logBookingPaymentEvent(admin, {
-      bookingId: id,
-      eventType: 'final_intent_created',
-      phase: 'final',
-      status: piStatus,
-      amountCents: amountRemaining,
-      currency: (booking.currency as string) || 'usd',
-      stripePaymentIntentId: paymentIntent.id,
-      metadata: { via: 'pay_final_route' },
-    });
-  } catch (e) {
-    console.warn('[pay/final] lifecycle ledger failed', e);
-  }
-
-  console.info('[booking] final_intent_created', {
-    bookingId: id,
-    amountRemaining,
-    paymentIntentStatus: piStatus,
-  });
-
-  const minNotice = minimumBookingNoticeFromBookingRow(
-    booking as { original_subtotal_cents?: number | null; subtotal_cents?: number | null }
-  );
-
-  return NextResponse.json({
-    clientSecret: paymentIntent.client_secret,
-    paymentIntentId: paymentIntent.id,
-    amountRemaining,
-    minimumBookingNotice: minNotice,
-    paymentAmounts: {
-      totalAmountCents: amountTotal,
-      paidAmountCents: Math.max(0, amountTotal - amountRemaining),
-      remainingAmountCents: amountRemaining,
-    },
-  });
 }
