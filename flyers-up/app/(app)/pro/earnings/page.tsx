@@ -194,12 +194,15 @@ export default function Earnings() {
             <div className="space-y-4">
               {recent.map((e) => (
                 <Card key={e.id}>
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
                       <div className="font-semibold text-text">{formatDate(e.createdAt)}</div>
-                      <div className="text-sm text-muted">Paid</div>
+                      <div className="text-sm text-muted">{e.statusLabel}</div>
+                      {e.statusDetail ? (
+                        <div className="mt-1 text-xs text-muted leading-snug">{e.statusDetail}</div>
+                      ) : null}
                     </div>
-                    <div className="text-xl font-bold text-accent">{formatMoney(e.amount)}</div>
+                    <div className="shrink-0 text-right text-xl font-bold text-accent">{formatMoney(e.amount)}</div>
                   </div>
                 </Card>
               ))}

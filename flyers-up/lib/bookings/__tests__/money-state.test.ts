@@ -383,3 +383,49 @@ describe('coalesceBookingFinalPaymentIntentId', () => {
     );
   });
 });
+
+describe('getMoneyState — customerRefund', () => {
+  it('uses payment_lifecycle_status refunded', () => {
+    const m = getMoneyState(
+      {
+        status: 'completed',
+        paymentLifecycleStatus: 'refunded',
+        payoutReleased: false,
+      },
+      {},
+      Date.now()
+    );
+    assert.strictEqual(m.customerRefund, 'full');
+    assert.strictEqual(m.refundAfterProPayout, false);
+  });
+
+  it('sets refundAfterProPayout when refunded and payout released', () => {
+    const m = getMoneyState(
+      {
+        status: 'completed',
+        paymentLifecycleStatus: 'refunded',
+        payoutReleased: true,
+      },
+      {},
+      Date.now()
+    );
+    assert.strictEqual(m.customerRefund, 'full');
+    assert.strictEqual(m.refundAfterProPayout, true);
+  });
+
+  it('infers partial from refunded cents vs paid when lifecycle lags', () => {
+    const m = getMoneyState(
+      {
+        status: 'completed',
+        paymentLifecycleStatus: 'payout_sent',
+        refundedTotalCents: 500,
+        amountPaidCents: 2000,
+        payoutReleased: true,
+      },
+      {},
+      Date.now()
+    );
+    assert.strictEqual(m.customerRefund, 'partial');
+    assert.strictEqual(m.refundAfterProPayout, true);
+  });
+});

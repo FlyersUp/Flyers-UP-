@@ -20,6 +20,8 @@ function state(partial: Partial<MoneyState>): MoneyState {
     remainingCents: 0,
     reviewDeadlineIso: null,
     raw: { kind: 'post_review_auto_pending', remainingCents: 0 },
+    customerRefund: 'none',
+    refundAfterProPayout: false,
     ...partial,
   };
 }
@@ -92,6 +94,21 @@ describe('getMoneyPresentation — pro', () => {
     const p = getMoneyPresentation(state({ final: 'final_paid', payout: 'payout_paid' }), 'pro');
     assert.strictEqual(p.title, 'You got paid');
     assert.strictEqual(p.timelineStep, 'paid');
+  });
+
+  it('payout_paid + customer refund: badge becomes Updated and copy mentions refund', () => {
+    const p = getMoneyPresentation(
+      state({
+        final: 'final_paid',
+        payout: 'payout_paid',
+        raw: { kind: 'success' },
+        customerRefund: 'full',
+        refundAfterProPayout: true,
+      }),
+      'pro'
+    );
+    assert.strictEqual(p.badge, 'Updated');
+    assert.ok(String(p.subtitle).toLowerCase().includes('refund'));
   });
 
   it('payout_failed with admin review uses delayed copy (not generic action-needed)', () => {

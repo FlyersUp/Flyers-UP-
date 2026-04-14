@@ -60,7 +60,23 @@ export async function logBookingPaymentEvent(
   admin: AdminClient,
   input: LogBookingPaymentEventInput
 ): Promise<void> {
-  if (input.stripePaymentIntentId) {
+  // Incremental refunds fire many `charge.refunded` events for the same PI; dedupe on Stripe event id.
+  if (input.eventType === 'webhook_charge_refunded') {
+    const se =
+      input.metadata && typeof input.metadata.stripe_event_id === 'string'
+        ? input.metadata.stripe_event_id.trim()
+        : '';
+    if (se) {
+      const { data: dup } = await admin
+        .from('booking_payment_events')
+        .select('id')
+        .eq('booking_id', input.bookingId)
+        .eq('event_type', 'webhook_charge_refunded')
+        .filter('metadata->>stripe_event_id', 'eq', se)
+        .maybeSingle();
+      if (dup) return;
+    }
+  } else if (input.stripePaymentIntentId) {
     const { data: existingPi } = await admin
       .from('booking_payment_events')
       .select('id')
@@ -1823,6 +1839,166 @@ export async function resolveDispute(
       refund_amount_cents: input.refundAmountCents ?? 0,
     },
   });
+}
+
+function bookingRowHasPaymentIntentId(row: Record<string, unknown>, paymentIntentId: string): boolean {
+  const pi = String(paymentIntentId ?? '').trim();
+  if (!pi) return false;
+  const ids = [
+    row.final_payment_intent_id,
+    row.stripe_payment_intent_remaining_id,
+    row.payment_intent_id,
+    row.stripe_payment_intent_deposit_id,
+    row.deposit_payment_intent_id,
+  ];
+  return ids.some((v) => String(v ?? '').trim() === pi);
+}
+
+export async function resolveBookingIdFromStripePaymentIntentId(
+  admin: AdminClient,
+  paymentIntentId: string
+): Promise<string | null> {
+  const pid = String(paymentIntentId ?? '').trim();
+  if (!pid) return null;
+  const { data, error } = await admin
+    .from('bookings')
+    .select('id')
+    .or(
+      `final_payment_intent_id.eq.${pid},stripe_payment_intent_remaining_id.eq.${pid},payment_intent_id.eq.${pid},stripe_payment_intent_deposit_id.eq.${pid},deposit_payment_intent_id.eq.${pid}`
+    )
+    .limit(2);
+  if (error || !data?.length) return null;
+  if (data.length > 1) {
+    console.warn('[resolveBookingIdFromStripePaymentIntentId] ambiguous PI', pid);
+    return null;
+  }
+  return String((data[0] as { id: string }).id);
+}
+
+function estimateCustomerPaidCentsFromBookingRow(row: Record<string, unknown>): number {
+  const explicit = Number(row.amount_paid_cents ?? 0);
+  if (Number.isFinite(explicit) && explicit > 0) return Math.max(0, Math.round(explicit));
+  const depositCents = Number(row.deposit_amount_cents ?? row.amount_deposit ?? 0) || 0;
+  const finalCents = Number(row.final_amount_cents ?? row.remaining_amount_cents ?? 0) || 0;
+  const depositPaid = String(row.payment_status ?? '').toUpperCase() === 'PAID';
+  const finalPaid = String(row.final_payment_status ?? '').toUpperCase() === 'PAID';
+  return Math.max(0, (depositPaid ? depositCents : 0) + (finalPaid ? finalCents : 0));
+}
+
+/**
+ * Apply Stripe `charge.refunded` delta to the booking ledger, lifecycle, and payment summary.
+ * Idempotent per Stripe event via {@link logBookingPaymentEvent} + `stripe_events` in the webhook route.
+ */
+export async function applyStripeChargeRefundedWebhook(
+  admin: AdminClient,
+  input: {
+    paymentIntentId: string;
+    chargeId: string;
+    deltaRefundedCents: number;
+    stripeEventId: string;
+    bookingIdFromMetadata?: string | null;
+  }
+): Promise<{ ok: boolean; bookingId?: string; reason?: string }> {
+  const delta = Math.max(0, Math.round(input.deltaRefundedCents || 0));
+  if (delta <= 0) return { ok: false, reason: 'zero_delta' };
+
+  const piId = String(input.paymentIntentId ?? '').trim();
+  const metaBid = String(input.bookingIdFromMetadata ?? '').trim();
+
+  let bookingId: string | null = null;
+  if (metaBid) {
+    const { data: byMeta } = await admin
+      .from('bookings')
+      .select(
+        'id, final_payment_intent_id, stripe_payment_intent_remaining_id, payment_intent_id, stripe_payment_intent_deposit_id, deposit_payment_intent_id'
+      )
+      .eq('id', metaBid)
+      .maybeSingle();
+    const br = byMeta as Record<string, unknown> | null;
+    if (br && bookingRowHasPaymentIntentId(br, piId)) {
+      bookingId = metaBid;
+    }
+  }
+  if (!bookingId) {
+    bookingId = await resolveBookingIdFromStripePaymentIntentId(admin, piId);
+  }
+  if (!bookingId) return { ok: false, reason: 'booking_not_found' };
+
+  const { data: row, error } = await admin
+    .from('bookings')
+    .select(
+      [
+        'id',
+        'payout_released',
+        'payment_status',
+        'final_payment_status',
+        'amount_paid_cents',
+        'amount_refunded_cents',
+        'refunded_total_cents',
+        'refunded_at',
+        'payment_lifecycle_status',
+        'deposit_amount_cents',
+        'amount_deposit',
+        'final_amount_cents',
+        'remaining_amount_cents',
+      ].join(', ')
+    )
+    .eq('id', bookingId)
+    .maybeSingle();
+
+  if (error || !row) return { ok: false, reason: 'booking_load_failed' };
+
+  const r = row as unknown as Record<string, unknown>;
+  const prevRefunded = Math.max(
+    Number(r.amount_refunded_cents ?? 0) || 0,
+    Number(r.refunded_total_cents ?? 0) || 0
+  );
+  const nextRefunded = prevRefunded + delta;
+  const paidCents = estimateCustomerPaidCentsFromBookingRow(r);
+  const nowIso = new Date().toISOString();
+
+  const update: Record<string, unknown> = {
+    amount_refunded_cents: nextRefunded,
+    refunded_total_cents: nextRefunded,
+    refund_status: 'succeeded',
+    refunded_at: (r.refunded_at as string | null) ?? nowIso,
+  };
+
+  const curLc = String(r.payment_lifecycle_status ?? '').toLowerCase();
+
+  if (paidCents > 0 && nextRefunded >= paidCents) {
+    update.payment_lifecycle_status = 'refunded';
+    if (r.payout_released !== true) {
+      update.payout_blocked = true;
+      update.payout_hold_reason = 'customer_refunded';
+    }
+  } else if (nextRefunded > 0 && curLc !== 'refunded') {
+    update.payment_lifecycle_status = 'partially_refunded';
+  }
+
+  const { error: upErr } = await admin.from('bookings').update(update).eq('id', bookingId);
+  if (upErr) {
+    console.warn('[applyStripeChargeRefundedWebhook] update failed', upErr);
+    return { ok: false, reason: 'update_failed' };
+  }
+
+  await logBookingPaymentEvent(admin, {
+    bookingId,
+    eventType: 'webhook_charge_refunded',
+    phase: 'refund',
+    status: paidCents > 0 && nextRefunded >= paidCents ? 'refunded' : 'partially_refunded',
+    amountCents: delta,
+    stripePaymentIntentId: piId,
+    stripeChargeId: input.chargeId,
+    metadata: {
+      stripe_event_id: input.stripeEventId,
+      cumulative_refunded_cents: nextRefunded,
+    },
+  });
+
+  await syncBookingPaymentSummary(admin, bookingId);
+
+  return { ok: true, bookingId };
 }
 
 /** Server/admin replay: creates a deposit PaymentIntent using frozen booking amounts (narrow path). */

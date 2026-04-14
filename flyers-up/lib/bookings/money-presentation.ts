@@ -386,6 +386,29 @@ function buildCustomerPresentation(state: MoneyState): MoneyUiPresentation {
   }
 }
 
+function applyCustomerRefundOverlayToProPayoutCard(
+  state: MoneyState,
+  pres: MoneyUiPresentation
+): MoneyUiPresentation {
+  if (state.customerRefund === 'none') return pres;
+  const partial = state.customerRefund === 'partial';
+  const lead = partial
+    ? 'A partial refund was issued to the customer for this booking.'
+    : 'A refund was issued to the customer for this booking.';
+  const payoutNote =
+    state.refundAfterProPayout && state.customerRefund === 'full'
+      ? ' If you were already paid out, a follow-up payout adjustment may still be processing — we will follow up if anything is needed on your side.'
+      : state.refundAfterProPayout && partial
+        ? ' If you were already paid out, your next payout may be adjusted to reflect this — we will follow up if anything is needed on your side.'
+        : '';
+  return {
+    ...pres,
+    badge: 'Updated',
+    subtitle: `${lead} ${pres.subtitle}`.trim(),
+    body: `${lead}${payoutNote}\n\n${pres.body}`.trim(),
+  };
+}
+
 function buildProPresentation(
   state: MoneyState,
   options?: GetMoneyPresentationOptions
@@ -427,7 +450,7 @@ function buildProPresentation(
         });
       })();
 
-    return {
+    return applyCustomerRefundOverlayToProPayoutCard(state, {
       badge: heldUi.badge,
       title: heldUi.title,
       subtitle: heldUi.subtitle,
@@ -440,12 +463,13 @@ function buildProPresentation(
       badgeTone: 'pending',
       heldProTimeline: heldUi.timeline,
       whyCallout: heldUi.whyCallout,
-    };
+    });
   }
 
+  let pres: MoneyUiPresentation;
   switch (payout) {
     case 'inactive':
-      return {
+      pres = {
         badge: 'Update',
         title: 'Payout',
         subtitle: 'Payout status is updating.',
@@ -459,8 +483,9 @@ function buildProPresentation(
         heldProTimeline: null,
         whyCallout: null,
       };
+      break;
     case 'payout_scheduled':
-      return {
+      pres = {
         badge: 'Scheduled',
         title: 'Payout scheduled',
         subtitle: 'Your payout will be released automatically once this booking clears the review process.',
@@ -474,8 +499,9 @@ function buildProPresentation(
         heldProTimeline: null,
         whyCallout: null,
       };
+      break;
     case 'payout_processing':
-      return {
+      pres = {
         badge: 'In progress',
         title: 'Payout processing',
         subtitle: 'Funds are on the way to your bank.',
@@ -489,8 +515,9 @@ function buildProPresentation(
         heldProTimeline: null,
         whyCallout: null,
       };
+      break;
     case 'payout_paid':
-      return {
+      pres = {
         badge: 'Paid',
         title: 'You got paid',
         subtitle: 'Funds were sent to your bank successfully.',
@@ -504,10 +531,11 @@ function buildProPresentation(
         heldProTimeline: null,
         whyCallout: null,
       };
+      break;
     case 'payout_failed': {
       const adminReview = options?.holdSignals?.requiresAdminReview === true;
       if (adminReview) {
-        return {
+        pres = {
           badge: 'Delayed',
           title: 'Payout delayed',
           subtitle: 'We tried to send your payout but it did not go through yet.',
@@ -524,23 +552,26 @@ function buildProPresentation(
             body: 'Once the issue is resolved, payout is usually retried shortly. If it has been more than 1 business day, contact support.',
           },
         };
+      } else {
+        pres = {
+          badge: 'Action needed',
+          title: 'Payout transfer did not complete',
+          subtitle: 'Contact support if this persists.',
+          body: 'The payout transfer did not finish. Our team can help if this continues.',
+          ctaPrimary: 'View booking details',
+          ctaSecondary: 'Contact support',
+          timelineStep: 'released',
+          timelineVariant: 'pro_payout',
+          tone: 'danger',
+          badgeTone: 'action',
+          heldProTimeline: null,
+          whyCallout: null,
+        };
       }
-      return {
-        badge: 'Action needed',
-        title: 'Payout transfer did not complete',
-        subtitle: 'Contact support if this persists.',
-        body: 'The payout transfer did not finish. Our team can help if this continues.',
-        ctaPrimary: 'View booking details',
-        ctaSecondary: 'Contact support',
-        timelineStep: 'released',
-        timelineVariant: 'pro_payout',
-        tone: 'danger',
-        badgeTone: 'action',
-        heldProTimeline: null,
-        whyCallout: null,
-      };
+      break;
     }
   }
+  return applyCustomerRefundOverlayToProPayoutCard(state, pres);
 }
 
 function buildCustomerHeldPresentation(

@@ -26,6 +26,7 @@ import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { applyDisputeHold } from '@/lib/payoutRisk';
 import {
+  applyStripeChargeRefundedWebhook,
   handleDepositPaymentFailed,
   handleFinalPaymentFailed,
 } from '@/lib/bookings/payment-lifecycle-service';
@@ -383,39 +384,44 @@ export async function POST(req: NextRequest) {
         try {
           const pi = await stripe!.paymentIntents.retrieve(piId);
           const pmeta = (pi.metadata || {}) as Record<string, string | undefined>;
-          const bookingId = pmeta.booking_id ?? pmeta.bookingId;
-          if (bookingId) {
-            const admin = createSupabaseAdmin();
-            const { data: b } = await admin
-              .from('bookings')
-              .select('refunded_total_cents')
-              .eq('id', bookingId)
-              .maybeSingle();
-            const prevRef = Number((b as { refunded_total_cents?: number } | null)?.refunded_total_cents ?? 0);
-            await admin
-              .from('bookings')
-              .update({
-                refunded_total_cents: prevRef + delta,
-                refund_status: 'succeeded',
-              })
-              .eq('id', bookingId);
+          const bookingIdFromMetadata = pmeta.booking_id ?? pmeta.bookingId ?? null;
+          const admin = createSupabaseAdmin();
+          const applied = await applyStripeChargeRefundedWebhook(admin, {
+            paymentIntentId: piId,
+            chargeId: charge.id,
+            deltaRefundedCents: delta,
+            stripeEventId: eventId,
+            bookingIdFromMetadata,
+          });
+          if (applied.ok && applied.bookingId) {
             await admin.from('booking_events').insert({
-              booking_id: bookingId,
+              booking_id: applied.bookingId,
               type: 'CHARGE_REFUNDED',
               data: {
                 stripe_event_id: eventId,
                 charge_id: charge.id,
                 delta_cents: delta,
+                payment_intent_id: piId,
               },
             });
             logWebhookReceiptEvent({
-              bookingId,
+              bookingId: applied.bookingId,
               paymentPhase: 'refund',
               paymentIntentId: piId,
               chargeId: charge.id,
               stripeEventId: eventId,
               emailResult: 'noop',
               detail: `refund_delta_cents_${delta}`,
+            });
+          } else {
+            logWebhookReceiptEvent({
+              bookingId: '—',
+              paymentPhase: 'refund',
+              paymentIntentId: piId,
+              chargeId: charge.id,
+              stripeEventId: eventId,
+              emailResult: 'noop',
+              detail: `charge_refunded_${applied.reason ?? 'noop'}`,
             });
           }
         } catch (e) {

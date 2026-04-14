@@ -50,6 +50,10 @@ export type MoneyStateBookingInput = {
   stripeTransferId?: string | null;
   payoutTransferId?: string | null;
   finalPaymentIntentId?: string | null;
+  /** Customer-side refunds (Stripe) in cents; used with lifecycle for honest UI. */
+  refundedTotalCents?: number | null;
+  /** When set, compared to {@link refundedTotalCents} for legacy rows missing lifecycle refund states. */
+  amountPaidCents?: number | null;
 };
 
 /** Row slice for resolving which Stripe PaymentIntent id represents the final/remaining charge. */
@@ -107,6 +111,9 @@ export type MoneyPayoutPhase =
 /** Customer payment-card edge cases (legacy rows / ambiguous derive). */
 export type MoneyCustomerCardVariant = 'unknown_balance' | 'legacy_pending_manual';
 
+/** Customer refund recorded on the booking (does not assert Stripe transfer reversal to the Pro). */
+export type MoneyCustomerRefundPhase = 'none' | 'partial' | 'full';
+
 export type MoneyState = {
   final: MoneyFinalPhase;
   payout: MoneyPayoutPhase;
@@ -119,6 +126,13 @@ export type MoneyState = {
    * Derived only from booking + derive output — not from Stripe.
    */
   customerCardVariant?: MoneyCustomerCardVariant;
+  /** Customer received money back (partial or full); independent of whether a Connect payout already happened. */
+  customerRefund: MoneyCustomerRefundPhase;
+  /**
+   * True when a refund is known and `payoutReleased` is true — we do not infer whether Stripe reversed
+   * an outbound transfer; UI should use calm “adjustment may be pending” language when applicable.
+   */
+  refundAfterProPayout: boolean;
 };
 
 function depositPaid(input: CustomerRemainingPaymentUiInput): boolean {
@@ -320,6 +334,31 @@ function computeCustomerCardVariant(
   return undefined;
 }
 
+function deriveCustomerRefund(booking: MoneyStateBookingInput): {
+  phase: MoneyCustomerRefundPhase;
+  afterPayout: boolean;
+} {
+  const released = booking.payoutReleased === true;
+  const lc = String(booking.paymentLifecycleStatus ?? '').toLowerCase();
+  if (lc === 'refunded') {
+    return { phase: 'full', afterPayout: released };
+  }
+  if (lc === 'partially_refunded') {
+    return { phase: 'partial', afterPayout: released };
+  }
+
+  const ref = Math.max(0, Math.round(Number(booking.refundedTotalCents ?? 0) || 0));
+  if (ref <= 0) {
+    return { phase: 'none', afterPayout: false };
+  }
+
+  const paid = Math.max(0, Math.round(Number(booking.amountPaidCents ?? 0) || 0));
+  if (paid > 0 && ref >= paid) {
+    return { phase: 'full', afterPayout: released };
+  }
+  return { phase: 'partial', afterPayout: released };
+}
+
 function logMoneyStateAnomalies(
   booking: MoneyStateBookingInput,
   stripe: MoneyStripeSnapshot,
@@ -367,6 +406,7 @@ export function getMoneyState(
   const final = mapRawToFinalPhase(raw, input, remainingCents, stripe);
   const customerFinalPaid = isCustomerFinalPaidForPayout(booking, final);
   const payout = computePayoutPhase(booking, stripe, customerFinalPaid);
+  const { phase: customerRefund, afterPayout: refundAfterProPayout } = deriveCustomerRefund(booking);
 
   logMoneyStateAnomalies(booking, stripe, final, payout);
 
@@ -377,6 +417,8 @@ export function getMoneyState(
     reviewDeadlineIso: reviewDeadlineIso(raw, input),
     raw,
     customerCardVariant: computeCustomerCardVariant(booking, input, raw, final, remainingCents),
+    customerRefund,
+    refundAfterProPayout,
   };
 }
 
@@ -405,6 +447,8 @@ export function customerRemainingUiToMoneyStateBooking(
     payoutReleased: input.payoutReleased,
     payoutTransferId: input.payoutTransferId,
     finalPaymentIntentId: input.finalPaymentIntentId,
+    refundedTotalCents: undefined,
+    amountPaidCents: undefined,
   };
 }
 
@@ -445,5 +489,7 @@ export function bookingDetailsToMoneyStateInput(b: BookingDetails): MoneyStateBo
     payoutStatus: b.payoutStatus ?? null,
     payoutTransferId: b.payoutTransferId,
     finalPaymentIntentId: b.finalPaymentIntentId,
+    refundedTotalCents: b.refundedTotalCents ?? null,
+    amountPaidCents: b.amountPaidCents ?? null,
   };
 }

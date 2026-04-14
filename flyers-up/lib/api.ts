@@ -26,6 +26,7 @@ import {
   resolveTotalBookingCentsFromRow,
   type BookingMoneySnapshot,
 } from '@/lib/bookings/remaining-balance-cents';
+import { netProEarningDollars, resolveProEarningListRefundUi } from '@/lib/bookings/pro-earnings-refund-math';
 import { perfLog, perfLoggingEnabled, perfNoteGetCurrentUser } from '@/lib/perfBoot';
 import { resolveSameDayEnabledFromServicePro } from '@/lib/operations/availabilityValidation';
 import type { UserRole, BookingStatus } from '@/types/database';
@@ -33,6 +34,12 @@ import type { UserRole, BookingStatus } from '@/types/database';
 const SUPABASE_CONFIGURED = Boolean(
   process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
+
+/** PostgREST may return an embedded FK row as an object or a single-element array. */
+function unwrapSupabaseEmbeddedRow<T>(rel: T | T[] | null | undefined): T | null {
+  if (rel == null) return null;
+  return Array.isArray(rel) ? (rel[0] ?? null) : rel;
+}
 
 function isLikelyNetworkError(err: unknown): boolean {
   // Browser fetch failures often surface as TypeError("Failed to fetch").
@@ -175,6 +182,8 @@ export interface BookingDetails {
   /** Maps to DB customer_fees_retained_cents (full customer-facing fee bucket, not legacy 15% only). */
   platformFeeCents?: number | null;
   refundedTotalCents?: number | null;
+  /** Bookings.amount_paid_cents when present; improves refund vs paid inference for legacy rows. */
+  amountPaidCents?: number | null;
   amountDeposit?: number | null;
   amountRemaining?: number | null;
   amountTotal?: number | null;
@@ -1152,6 +1161,7 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       refundStatus: d.refund_status as string | null | undefined,
       platformFeeCents: d.customer_fees_retained_cents as number | null | undefined,
       refundedTotalCents: d.refunded_total_cents as number | null | undefined,
+      amountPaidCents: (d.amount_paid_cents as number | null | undefined) ?? null,
       amountDeposit: d.amount_deposit as number | null | undefined,
       amountRemaining: amountRemainingComputed,
       amountTotal:
@@ -1543,22 +1553,29 @@ export async function getProEarnings(proUserId: string): Promise<EarningsSummary
     weekStart.setHours(0, 0, 0, 0);
     const weekStartIso = weekStart.toISOString();
 
-    // Prefer pro_earnings if available.
+    // Prefer pro_earnings if available; net customer refunds using booking.refunded_total_cents.
+    const earningSelect = 'amount, bookings!inner(refunded_total_cents)';
     const [totalEarningsRes, thisMonthRes, thisWeekRes] = await Promise.all([
-      supabase.from('pro_earnings').select('amount').eq('pro_id', proId),
-      supabase.from('pro_earnings').select('amount').eq('pro_id', proId).gte('created_at', monthStartIso),
-      supabase.from('pro_earnings').select('amount').eq('pro_id', proId).gte('created_at', weekStartIso),
+      supabase.from('pro_earnings').select(earningSelect).eq('pro_id', proId),
+      supabase.from('pro_earnings').select(earningSelect).eq('pro_id', proId).gte('created_at', monthStartIso),
+      supabase.from('pro_earnings').select(earningSelect).eq('pro_id', proId).gte('created_at', weekStartIso),
     ]);
 
-    const totalEarnings = Array.isArray(totalEarningsRes.data)
-      ? totalEarningsRes.data.reduce((sum, row: any) => sum + Number(row.amount ?? 0), 0)
-      : 0;
-    const thisMonth = Array.isArray(thisMonthRes.data)
-      ? thisMonthRes.data.reduce((sum, row: any) => sum + Number(row.amount ?? 0), 0)
-      : 0;
-    const thisWeek = Array.isArray(thisWeekRes.data)
-      ? thisWeekRes.data.reduce((sum, row: any) => sum + Number(row.amount ?? 0), 0)
-      : 0;
+    const sumNet = (rows: unknown[] | null | undefined): number => {
+      if (!Array.isArray(rows)) return 0;
+      return rows.reduce((sum: number, raw: unknown) => {
+        const row = raw as {
+          amount?: number;
+          bookings?: { refunded_total_cents?: number | null } | Array<{ refunded_total_cents?: number | null }>;
+        };
+        const b = unwrapSupabaseEmbeddedRow(row.bookings);
+        return sum + netProEarningDollars(Number(row.amount ?? 0), b?.refunded_total_cents);
+      }, 0);
+    };
+
+    const totalEarnings = sumNet(totalEarningsRes.data as unknown[]);
+    const thisMonth = sumNet(thisMonthRes.data as unknown[]);
+    const thisWeek = sumNet(thisWeekRes.data as unknown[]);
 
     // Completed jobs, pending payments, and avg rating from bookings/service_pros.
     const [completedBookingsRes, pendingBookingsRes, proRatingRes] = await Promise.all([
@@ -1583,9 +1600,14 @@ export async function getProEarnings(proUserId: string): Promise<EarningsSummary
 
 export interface RecentEarning {
   id: string;
+  /** Net dollars to show after customer refunds (same units as historical `pro_earnings.amount`). */
   amount: number;
   createdAt: string;
   bookingId: string;
+  /** Short status under the date (e.g. Paid, Refunded). */
+  statusLabel: string;
+  /** Optional second line for refund-after-payout / partial nuance. */
+  statusDetail?: string | null;
 }
 
 /**
@@ -1605,19 +1627,47 @@ export async function getRecentProEarnings(proUserId: string, limit = 10): Promi
 
     const { data, error } = await supabase
       .from('pro_earnings')
-      .select('id, amount, created_at, booking_id')
+      .select(
+        'id, amount, created_at, booking_id, bookings!inner(refunded_total_cents, payment_lifecycle_status, payout_released)'
+      )
       .eq('pro_id', proRow.id)
       .order('created_at', { ascending: false })
       .limit(limit);
 
     if (error || !data) return [];
 
-    return (data as Array<{ id: string; amount: number; created_at: string; booking_id: string }>).map((row) => ({
-      id: row.id,
-      amount: Number(row.amount ?? 0),
-      createdAt: row.created_at,
-      bookingId: row.booking_id,
-    }));
+    type BookingSlice = {
+      refunded_total_cents: number | null;
+      payment_lifecycle_status: string | null;
+      payout_released: boolean | null;
+    };
+    type Row = {
+      id: string;
+      amount: number;
+      created_at: string;
+      booking_id: string;
+      bookings: BookingSlice | BookingSlice[] | null;
+    };
+
+    return (data as unknown as Row[]).map((row) => {
+      const gross = Number(row.amount ?? 0);
+      const b = unwrapSupabaseEmbeddedRow(row.bookings);
+      const net = netProEarningDollars(gross, b?.refunded_total_cents);
+      const { statusLabel, detail } = resolveProEarningListRefundUi({
+        grossAmountDollars: gross,
+        bookingRefundedTotalCents: b?.refunded_total_cents,
+        paymentLifecycleStatus: b?.payment_lifecycle_status,
+        payoutReleased: b?.payout_released,
+      });
+      return {
+        id: row.id,
+        amount: net,
+        createdAt: row.created_at,
+        bookingId: row.booking_id,
+        statusLabel,
+        statusDetail: detail,
+      };
+    });
   } catch {
     return [];
   }

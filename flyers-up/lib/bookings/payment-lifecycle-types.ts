@@ -77,6 +77,8 @@ export type BookingPaymentEventType =
   | 'payout_sent'
   | 'payout_released'
   | 'refund_created'
+  /** Stripe `charge.refunded` (delta) — deduped per Stripe event id in metadata. */
+  | 'webhook_charge_refunded'
   | 'refund_succeeded'
   | 'dispute_opened'
   | 'dispute_resolved'
