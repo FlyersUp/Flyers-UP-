@@ -73,7 +73,7 @@ export async function POST(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, paid_deposit_at, paid_remaining_at, fully_paid_at, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents, stripe_payment_intent_deposit_id, payment_intent_id, deposit_payment_intent_id, customer_review_deadline_at, duration_hours, miles_distance, flat_fee_selected, hourly_selected'
+      'id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, paid_deposit_at, paid_remaining_at, fully_paid_at, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents, demand_fee_cents, fee_total_cents, customer_total_cents, pro_earnings_cents, platform_revenue_cents, charge_model, stripe_payment_intent_deposit_id, payment_intent_id, deposit_payment_intent_id, customer_review_deadline_at, duration_hours, miles_distance, flat_fee_selected, hourly_selected'
     )
     .eq('id', id)
     .eq('customer_id', user.id)
@@ -192,6 +192,13 @@ export async function POST(
       miles_distance?: number | null;
       flat_fee_selected?: boolean | null;
       hourly_selected?: boolean | null;
+      subtotal_cents?: number | null;
+      demand_fee_cents?: number | null;
+      fee_total_cents?: number | null;
+      customer_total_cents?: number | null;
+      pro_earnings_cents?: number | null;
+      platform_revenue_cents?: number | null;
+      charge_model?: string | null;
     };
     const quoteResult = computeQuote(
       {
@@ -215,6 +222,13 @@ export async function POST(
         service_fee_cents: bFin.service_fee_cents ?? null,
         convenience_fee_cents: bFin.convenience_fee_cents ?? null,
         protection_fee_cents: bFin.protection_fee_cents ?? null,
+        subtotal_cents: bFin.subtotal_cents ?? null,
+        demand_fee_cents: bFin.demand_fee_cents ?? null,
+        fee_total_cents: bFin.fee_total_cents ?? null,
+        customer_total_cents: bFin.customer_total_cents ?? null,
+        pro_earnings_cents: bFin.pro_earnings_cents ?? null,
+        platform_revenue_cents: bFin.platform_revenue_cents ?? null,
+        charge_model: bFin.charge_model ?? null,
       },
       proPricing,
       serviceName,

@@ -30,7 +30,7 @@ export async function GET(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, status, price, payment_due_at, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents, duration_hours, miles_distance, flat_fee_selected, hourly_selected'
+      'id, customer_id, pro_id, status, price, payment_due_at, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents, demand_fee_cents, fee_total_cents, customer_total_cents, pro_earnings_cents, platform_revenue_cents, charge_model, duration_hours, miles_distance, flat_fee_selected, hourly_selected'
     )
     .eq('id', id)
     .eq('customer_id', user.id)
@@ -104,6 +104,13 @@ export async function GET(
     service_fee_cents?: number | null;
     convenience_fee_cents?: number | null;
     protection_fee_cents?: number | null;
+    subtotal_cents?: number | null;
+    demand_fee_cents?: number | null;
+    fee_total_cents?: number | null;
+    customer_total_cents?: number | null;
+    pro_earnings_cents?: number | null;
+    platform_revenue_cents?: number | null;
+    charge_model?: string | null;
   };
   const bRow = booking as {
     pricing_occupation_slug?: string | null;
@@ -134,6 +141,13 @@ export async function GET(
       service_fee_cents: bQ.service_fee_cents ?? null,
       convenience_fee_cents: bQ.convenience_fee_cents ?? null,
       protection_fee_cents: bQ.protection_fee_cents ?? null,
+      subtotal_cents: bQ.subtotal_cents ?? null,
+      demand_fee_cents: bQ.demand_fee_cents ?? null,
+      fee_total_cents: bQ.fee_total_cents ?? null,
+      customer_total_cents: bQ.customer_total_cents ?? null,
+      pro_earnings_cents: bQ.pro_earnings_cents ?? null,
+      platform_revenue_cents: bQ.platform_revenue_cents ?? null,
+      charge_model: bQ.charge_model ?? null,
     },
     proPricing,
     serviceName,

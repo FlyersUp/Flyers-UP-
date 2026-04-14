@@ -1,4 +1,6 @@
 import type { ChargeModel } from '@/lib/pricing/fees';
+import type { MultiFeeBookingPricing } from '@/lib/bookings/pricing';
+import type { MarketplaceFeeBreakdown } from '@/lib/pricing/fees';
 
 /** Frozen at booking time; matches `bookings.charge_model` CHECK / app usage. */
 export type BookingChargeModel = ChargeModel;
@@ -81,5 +83,58 @@ export function bookingPricingSnapshotToDbRow(
     overage_hourly_rate_cents: s.overage_hourly_rate_cents,
     minimum_job_cents: s.minimum_job_cents,
     demand_multiplier: s.demand_multiplier,
+  };
+}
+
+/**
+ * DB `UPDATE` fragment for marketplace snapshot after a live quote (e.g. accept-quote).
+ * `mf` supplies version/band/Stripe estimates aligned with tiered engine for the frozen subtotal.
+ */
+export function buildBookingPricingSnapshotPatchFromMultiFeePricing(args: {
+  pricing: MultiFeeBookingPricing;
+  mf: MarketplaceFeeBreakdown;
+  chargeModel: BookingChargeModel | null;
+  feeProfile: string;
+  flatFeeCents: number | null;
+  hourlyRateCents: number | null;
+  baseFeeCents: number | null;
+  includedHours: number | null;
+  actualHoursEstimate: number | null;
+  overageHourlyRateCents: number | null;
+  minimumJobCents: number | null;
+  demandMultiplier: number | null;
+}): Record<string, unknown> {
+  const p = args.pricing;
+  const row = bookingPricingSnapshotToDbRow(
+    {
+      charge_model: args.chargeModel,
+      subtotal_cents: p.serviceSubtotalCents,
+      service_fee_cents: p.serviceFeeCents,
+      convenience_fee_cents: p.convenienceFeeCents,
+      protection_fee_cents: p.protectionFeeCents,
+      demand_fee_cents: p.demandFeeCents,
+      total_cents: p.customerTotalCents,
+      pro_earnings_cents: p.serviceSubtotalCents,
+      platform_revenue_cents: p.feeTotalCents,
+      flat_fee_cents: args.flatFeeCents,
+      hourly_rate_cents: args.hourlyRateCents,
+      base_fee_cents: args.baseFeeCents,
+      included_hours: args.includedHours,
+      actual_hours_estimate: args.actualHoursEstimate,
+      overage_hourly_rate_cents: args.overageHourlyRateCents,
+      minimum_job_cents: args.minimumJobCents,
+      demand_multiplier: args.demandMultiplier,
+    },
+    { feeTotalCents: p.feeTotalCents }
+  );
+
+  return {
+    ...row,
+    pricing_version: args.mf.pricingVersion,
+    pricing_band: args.mf.pricingBand,
+    stripe_estimated_fee_cents: args.mf.stripeEstimatedFeeCents,
+    platform_gross_margin_cents: args.mf.platformGrossMarginCents,
+    effective_take_rate: Number(args.mf.effectiveTakeRate.toFixed(4)),
+    fee_profile: args.feeProfile,
   };
 }

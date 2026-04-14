@@ -25,6 +25,11 @@ import {
   getCategoryPricingConfigForOccupationSlug,
   getFeeProfileForOccupationSlug,
 } from '@/lib/pricing/category-config';
+import {
+  coerceCompleteFrozenPricingRow,
+  logMissingFrozenPricingFields,
+  tryBuildQuoteFromFrozenBookingRow,
+} from '@/lib/bookings/frozen-booking-pricing';
 
 /**
  * Maps pro pricing + booking selections to {@link FeeInputs} so subtotal matches work + travel split.
@@ -99,6 +104,8 @@ export interface QuoteResult {
   quote: QuoteBreakdown;
   /** Full multi-fee split used for Stripe metadata and deposit/final amounts (single source of truth). */
   pricing: MultiFeeBookingPricing;
+  /** When set, totals came from DB snapshot (no live demand/category recompute). */
+  pricingSource?: 'frozen' | 'computed';
   serviceName: string;
   proName: string;
   serviceDate: string;
@@ -133,6 +140,14 @@ export interface BookingForQuote {
   service_fee_cents?: number | null;
   convenience_fee_cents?: number | null;
   protection_fee_cents?: number | null;
+  /** Full frozen snapshot (see {@link bookingRowHasCompleteFrozenPricing}). */
+  subtotal_cents?: number | null;
+  demand_fee_cents?: number | null;
+  fee_total_cents?: number | null;
+  customer_total_cents?: number | null;
+  pro_earnings_cents?: number | null;
+  platform_revenue_cents?: number | null;
+  charge_model?: string | null;
 }
 
 export interface ProPricingForQuote {
@@ -186,7 +201,7 @@ export function computeQuote(
     occupationSlug?: string | null;
   }
 ): QuoteResult {
-  const { quote, pricing } = computeQuoteBreakdown(
+  const { quote, pricing, pricingSource } = computeQuoteBreakdown(
     booking,
     proPricing,
     options?.depositPercentOverride,
@@ -197,6 +212,7 @@ export function computeQuote(
     bookingId: booking.id,
     quote,
     pricing,
+    pricingSource,
     serviceName,
     proName,
     serviceDate: booking.service_date,
@@ -218,19 +234,37 @@ function computeQuoteBreakdown(
     completedOrPaidBookingCount?: number | null;
     occupationSlug?: string | null;
   }
-): { quote: QuoteBreakdown; pricing: MultiFeeBookingPricing } {
+): { quote: QuoteBreakdown; pricing: MultiFeeBookingPricing; pricingSource: 'frozen' | 'computed' } {
   const currency = 'usd';
+
+  const frozen = tryBuildQuoteFromFrozenBookingRow(booking, proPricing, depositPercentOverride);
+  if (frozen) {
+    return { ...frozen, pricingSource: 'frozen' };
+  }
+  if (booking.pricing_version?.trim() && !coerceCompleteFrozenPricingRow(booking)) {
+    logMissingFrozenPricingFields(booking.id, booking);
+  }
 
   const addDepositToBreakdown = (
     base: Omit<QuoteBreakdown, 'amountDeposit' | 'amountRemaining' | 'depositPercent'>,
     feeInputs?: FeeInputs
-  ): { quote: QuoteBreakdown; pricing: MultiFeeBookingPricing } => {
+  ): { quote: QuoteBreakdown; pricing: MultiFeeBookingPricing; pricingSource: 'computed' } => {
     const occupationSlug =
       (options?.occupationSlug?.trim() || booking.pricing_occupation_slug?.trim() || null) ?? null;
     const categoryCfg = getCategoryPricingConfigForOccupationSlug(occupationSlug);
-    const effectiveSubtotal = categoryCfg
-      ? Math.max(base.amountSubtotal, categoryCfg.minPriceCents)
-      : base.amountSubtotal;
+    const stampedSubtotal =
+      booking.pricing_version?.trim() &&
+      typeof booking.subtotal_cents === 'number' &&
+      Number.isFinite(booking.subtotal_cents) &&
+      booking.subtotal_cents >= 0
+        ? Math.round(booking.subtotal_cents)
+        : null;
+    const effectiveSubtotal =
+      stampedSubtotal != null
+        ? stampedSubtotal
+        : categoryCfg
+          ? Math.max(base.amountSubtotal, categoryCfg.minPriceCents)
+          : base.amountSubtotal;
     const baseForFees = { ...base, amountSubtotal: effectiveSubtotal, amountTotal: effectiveSubtotal };
 
     const depositPercent = depositPercentOverride != null
@@ -335,6 +369,7 @@ function computeQuoteBreakdown(
     const amountRemaining = pricing.finalChargeCents;
     return {
       pricing,
+      pricingSource: 'computed' as const,
       quote: {
         ...baseForFees,
         amountPlatformFee: pricing.feeTotalCents,
@@ -357,7 +392,7 @@ function computeQuoteBreakdown(
   const bookingPriceDollars = Number(booking.price ?? 0);
   if (Number.isFinite(bookingPriceDollars) && bookingPriceDollars > 0) {
     const subtotalCents = Math.round(bookingPriceDollars * 100);
-    return addDepositToBreakdown(
+    const r = addDepositToBreakdown(
       {
         amountSubtotal: subtotalCents,
         amountPlatformFee: 0,
@@ -373,6 +408,7 @@ function computeQuoteBreakdown(
       },
       { chargeModel: 'flat', flatFeeCents: subtotalCents }
     );
+    return { quote: r.quote, pricing: r.pricing, pricingSource: 'computed' };
   }
 
   // Compute from pro pricing
@@ -418,7 +454,7 @@ function computeQuoteBreakdown(
   const amountSubtotal = baseCents + travelCents;
   const feeInputs = buildFeeInputsForQuote(booking, proPricing, baseCents, travelCents);
 
-  return addDepositToBreakdown(
+  const r = addDepositToBreakdown(
     {
       amountSubtotal,
       amountPlatformFee: 0,
@@ -434,4 +470,19 @@ function computeQuoteBreakdown(
     },
     feeInputs
   );
+  return { quote: r.quote, pricing: r.pricing, pricingSource: 'computed' };
+}
+
+/**
+ * Prefer frozen DB snapshot; otherwise same as {@link computeQuote}.
+ * Logs missing snapshot fields when `pricing_version` is set but the row is incomplete.
+ */
+export function getFrozenOrComputedBookingPricing(
+  booking: BookingForQuote,
+  proPricing: ProPricingForQuote | null,
+  serviceName: string,
+  proName: string,
+  options?: Parameters<typeof computeQuote>[4]
+): QuoteResult {
+  return computeQuote(booking, proPricing, serviceName, proName, options);
 }

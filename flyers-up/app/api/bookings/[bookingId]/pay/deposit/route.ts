@@ -136,7 +136,7 @@ export async function POST(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, paid_deposit_at, service_date, service_time, booking_timezone, address, job_request_id, scope_confirmed_at, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents, duration_hours, miles_distance, flat_fee_selected, hourly_selected'
+      'id, customer_id, pro_id, status, price, payment_intent_id, payment_status, payment_due_at, paid_deposit_at, service_date, service_time, booking_timezone, address, job_request_id, scope_confirmed_at, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents, demand_fee_cents, fee_total_cents, customer_total_cents, pro_earnings_cents, platform_revenue_cents, charge_model, duration_hours, miles_distance, flat_fee_selected, hourly_selected'
     )
     .eq('id', id)
     .eq('customer_id', user.id)
@@ -335,6 +335,13 @@ export async function POST(
     miles_distance?: number | null;
     flat_fee_selected?: boolean | null;
     hourly_selected?: boolean | null;
+    subtotal_cents?: number | null;
+    demand_fee_cents?: number | null;
+    fee_total_cents?: number | null;
+    customer_total_cents?: number | null;
+    pro_earnings_cents?: number | null;
+    platform_revenue_cents?: number | null;
+    charge_model?: string | null;
   };
   const quoteResult = computeQuote(
     {
@@ -358,6 +365,13 @@ export async function POST(
       service_fee_cents: bSnap.service_fee_cents ?? null,
       convenience_fee_cents: bSnap.convenience_fee_cents ?? null,
       protection_fee_cents: bSnap.protection_fee_cents ?? null,
+      subtotal_cents: bSnap.subtotal_cents ?? null,
+      demand_fee_cents: bSnap.demand_fee_cents ?? null,
+      fee_total_cents: bSnap.fee_total_cents ?? null,
+      customer_total_cents: bSnap.customer_total_cents ?? null,
+      pro_earnings_cents: bSnap.pro_earnings_cents ?? null,
+      platform_revenue_cents: bSnap.platform_revenue_cents ?? null,
+      charge_model: bSnap.charge_model ?? null,
     },
     proPricing,
     serviceName,
