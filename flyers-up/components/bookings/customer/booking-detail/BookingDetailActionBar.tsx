@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { mapDbStatusToTimeline } from '@/components/jobs/jobStatus';
 import { isCustomerBookingEligibleForReview } from '@/lib/bookings/customer-review-eligibility';
+import { trackProductAnalyticsEvent } from '@/lib/analytics/productEvents';
 
 const NO_RESCHEDULE_STATUSES = [
   'pro_en_route',
@@ -29,6 +30,8 @@ export interface BookingDetailActionBarProps {
   status: string;
   hasCustomerReview?: boolean;
   primaryAction?: ReactNode;
+  /** Completed / paid jobs — deep link to rebook same pro */
+  bookAgainHref?: string | null;
   onRescheduleClick?: () => void;
   onCancelClick?: () => void;
   className?: string;
@@ -39,6 +42,7 @@ export function BookingDetailActionBar({
   status,
   hasCustomerReview = false,
   primaryAction,
+  bookAgainHref = null,
   onRescheduleClick,
   onCancelClick,
   className = '',
@@ -54,7 +58,23 @@ export function BookingDetailActionBar({
     <div className={`space-y-3 ${className}`}>
       {primaryAction ? <div className="w-full">{primaryAction}</div> : null}
 
-      <div className="flex gap-2 min-w-0">
+      <div className="flex flex-col gap-2 min-w-0">
+        {bookAgainHref ? (
+          <Link
+            href={bookAgainHref}
+            prefetch={false}
+            onClick={() =>
+              trackProductAnalyticsEvent('book_again_clicked', {
+                booking_id: bookingId,
+                surface: 'booking_action_bar',
+              })
+            }
+            className="w-full flex h-12 items-center justify-center rounded-full text-sm font-semibold text-white bg-[#058954] hover:bg-[#047a48] transition-colors shadow-sm"
+          >
+            Book again
+          </Link>
+        ) : null}
+        <div className="flex gap-2 min-w-0">
         <Link
           href={`/customer/chat/${bookingId}`}
           className="flex-1 min-w-0 flex h-12 items-center justify-center rounded-full text-sm font-semibold text-white bg-[#4A69BD] hover:bg-[#3d5a9e] transition-colors shadow-sm"
@@ -70,6 +90,7 @@ export function BookingDetailActionBar({
             Reschedule
           </button>
         ) : null}
+        </div>
       </div>
 
       {canCancel && onCancelClick ? (

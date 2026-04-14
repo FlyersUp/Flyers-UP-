@@ -8,6 +8,7 @@ import type { BookingFrozenPricingRow } from '@/lib/bookings/frozen-booking-pric
 import {
   bookingRowHasCompleteFrozenPricing,
   coerceCompleteFrozenPricingRow,
+  isCompleteFrozenPricingSnapshot,
   tryBuildQuoteFromFrozenBookingRow,
 } from '@/lib/bookings/frozen-booking-pricing';
 import { buildBookingPaymentIntentStripeFields } from '@/lib/stripe/booking-payment-intent-metadata';
@@ -21,6 +22,23 @@ const baseBooking: BookingForQuote = {
   status: 'awaiting_deposit_payment',
   price: 100,
 };
+
+describe('isCompleteFrozenPricingSnapshot', () => {
+  it('matches bookingRowHasCompleteFrozenPricing', () => {
+    const row = {
+      id: 'x',
+      pricing_version: 'tiered_v1',
+      subtotal_cents: 100,
+      service_fee_cents: 10,
+      convenience_fee_cents: 1,
+      protection_fee_cents: 1,
+      demand_fee_cents: 0,
+      fee_total_cents: 12,
+      customer_total_cents: 112,
+    };
+    assert.equal(isCompleteFrozenPricingSnapshot(row), bookingRowHasCompleteFrozenPricing(row));
+  });
+});
 
 describe('bookingRowHasCompleteFrozenPricing', () => {
   it('false when pricing_version missing', () => {

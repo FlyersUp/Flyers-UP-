@@ -9,6 +9,7 @@ import {
 } from '@/lib/bookings/unified-receipt';
 import { DEFAULT_BOOKING_TIMEZONE, formatBookingDateTimeInZone } from '@/lib/datetime';
 import { labelDynamicPricingReason } from '@/lib/bookings/dynamic-pricing-reason-labels';
+import { StayOnPlatformTrustCallout } from '@/components/retention/StayOnPlatformTrustCallout';
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -85,6 +86,8 @@ export interface TrackBookingPaymentSummaryProps {
   finalPaymentCustomerNote?: string | null;
   /** Compact "Payment summary" layout for booking detail (fewer line items). */
   layoutVariant?: 'full' | 'compact';
+  /** Completed jobs — informational on-platform trust copy near receipt. */
+  showOnPlatformReceiptTrust?: boolean;
   className?: string;
 }
 
@@ -123,6 +126,7 @@ export function TrackBookingPaymentSummary({
   primaryAction,
   finalPaymentCustomerNote = null,
   layoutVariant = 'full',
+  showOnPlatformReceiptTrust = false,
   className = '',
 }: TrackBookingPaymentSummaryProps) {
   const tz = bookingTimezone?.trim() || DEFAULT_BOOKING_TIMEZONE;
@@ -580,6 +584,12 @@ export function TrackBookingPaymentSummary({
               booking is paid in full.
             </p>
           )}
+
+        {showOnPlatformReceiptTrust ? (
+          <div className="pt-1">
+            <StayOnPlatformTrustCallout variant="compact" />
+          </div>
+        ) : null}
 
         <p className="pt-2">
           <a

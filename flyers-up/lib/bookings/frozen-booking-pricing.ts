@@ -42,6 +42,7 @@ function resolveDepositPercentForFrozen(
     : clampDepositPercent(proPricing?.deposit_percent_default ?? DEPOSIT_PERCENT_DEFAULT, proPricing);
 }
 
+/** True when the row has every marketplace cents field needed to skip live recompute. */
 export function bookingRowHasCompleteFrozenPricing(row: BookingFrozenPricingRow): boolean {
   const v = row.pricing_version?.trim();
   if (!v) return false;
@@ -63,6 +64,9 @@ export function bookingRowHasCompleteFrozenPricing(row: BookingFrozenPricingRow)
   }
   return true;
 }
+
+/** @alias {@link bookingRowHasCompleteFrozenPricing} */
+export const isCompleteFrozenPricingSnapshot = bookingRowHasCompleteFrozenPricing;
 
 /**
  * When `demand_fee_cents` was not persisted (legacy), infer it from stamped line items so we never

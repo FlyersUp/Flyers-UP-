@@ -17,6 +17,8 @@ import {
   CHAT_SEND_DEFAULT_ERROR_HINT,
   hintFromChatMessageApiError,
 } from '@/lib/messaging/chat-message-send-hint';
+import { ChatStayOnPlatformNudge } from '@/components/retention/ChatStayOnPlatformNudge';
+import { trackProductAnalyticsEvent } from '@/lib/analytics/productEvents';
 
 /**
  * Customer Chat - messages + quote cards for price negotiation.
@@ -39,6 +41,7 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
   const [isInquiry, setIsInquiry] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendHint, setSendHint] = useState<string | null>(null);
+  const [stayOnPlatformNudge, setStayOnPlatformNudge] = useState(false);
   const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
   const { youBlocked, loading: blockLoading, unblock } = useYouBlockedOtherUser(proUserId);
 
@@ -190,11 +193,19 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
         body: JSON.stringify({ message: text }),
         credentials: 'same-origin',
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         setMessage(text);
         setSendHint(hintFromChatMessageApiError(data));
         return;
+      }
+      if (data?.trustNudge) {
+        setStayOnPlatformNudge(true);
+        trackProductAnalyticsEvent('off_platform_signal_detected', {
+          booking_id: bookingId,
+          signal: String(data.trustNudge.signalCategory ?? 'unknown'),
+        });
+        trackProductAnalyticsEvent('off_platform_prompt_shown', { booking_id: bookingId });
       }
       await load();
     } catch {
@@ -282,6 +293,19 @@ export default function CustomerChat({ params }: { params: Promise<{ bookingId: 
         {sendHint ? (
           <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-200">
             {sendHint}
+          </div>
+        ) : null}
+
+        {stayOnPlatformNudge ? (
+          <div className="px-4 pt-2 space-y-2 border-t border-black/5 dark:border-white/10 bg-[#F7F6F4] dark:bg-[#111318]">
+            <ChatStayOnPlatformNudge />
+            <button
+              type="button"
+              className="text-xs font-medium text-[#6A6A6A] dark:text-[#A1A8B3] hover:underline"
+              onClick={() => setStayOnPlatformNudge(false)}
+            >
+              Dismiss
+            </button>
           </div>
         ) : null}
 

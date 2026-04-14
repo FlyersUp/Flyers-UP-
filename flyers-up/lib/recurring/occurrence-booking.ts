@@ -1,10 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { DateTime } from 'luxon';
-import { getOccupationFeeProfile } from '@/lib/bookings/fee-rules';
+import { getFeeRuleForBooking } from '@/lib/bookings/fee-rules';
 import { resolveUrgency } from '@/lib/bookings/urgency';
 import { findScheduleConflict } from '@/lib/recurring/conflicts';
 import { applyMinimumBookingSubtotal } from '@/lib/pricing/config';
-import { bookingPricingSnapshotToDbRow } from '@/lib/bookings/booking-pricing-snapshot';
+import {
+  buildCanonicalBookingPricingSnapshotPatchFromMarketplaceFees,
+  logIfBookingPricingSnapshotPatchIncomplete,
+} from '@/lib/bookings/booking-pricing-snapshot';
 import { getFeeProfileForOccupationSlug } from '@/lib/pricing/category-config';
 import { computeMarketplaceFees, resolveMarketplacePricingVersionForBooking } from '@/lib/pricing/fees';
 import { getSuggestedPriceCents } from '@/lib/pricing/suggestions';
@@ -128,11 +131,6 @@ export async function generateBookingFromOccurrence(
   }
 
   const occupationSlug = String(series.occupation_slug ?? '').trim() || undefined;
-  const feeProfile = getOccupationFeeProfile({
-    occupationSlug,
-    categorySlug,
-    categoryName: categoryDisplayName,
-  });
 
   const zone = String(series.timezone ?? 'America/New_York');
   const startLocal = DateTime.fromISO(startUtc, { zone: 'utc' }).setZone(zone);
@@ -189,28 +187,37 @@ export async function generateBookingFromOccurrence(
   );
   const totalDollars = marketplaceFees.subtotalCents / 100;
 
-  const pricingSnapshotRow = bookingPricingSnapshotToDbRow(
-    {
-      charge_model: 'flat',
-      subtotal_cents: marketplaceFees.subtotalCents,
-      service_fee_cents: marketplaceFees.serviceFeeCents,
-      convenience_fee_cents: marketplaceFees.convenienceFeeCents,
-      protection_fee_cents: marketplaceFees.protectionFeeCents,
-      demand_fee_cents: marketplaceFees.demandFeeCents,
-      total_cents: marketplaceFees.customerTotalCents,
-      pro_earnings_cents: marketplaceFees.subtotalCents,
-      platform_revenue_cents: marketplaceFees.feeTotalCents,
-      flat_fee_cents: minApply.enforcedSubtotalCents,
-      hourly_rate_cents: null,
-      base_fee_cents: null,
-      included_hours: null,
-      actual_hours_estimate: durationMinutes / 60,
-      overage_hourly_rate_cents: null,
-      minimum_job_cents: null,
-      demand_multiplier: null,
-    },
-    { feeTotalCents: marketplaceFees.feeTotalCents }
-  );
+  const { data: proDepositRow } = await admin
+    .from('pro_profiles')
+    .select('deposit_percent_default, deposit_percent_min, deposit_percent_max')
+    .eq('user_id', proUserId)
+    .maybeSingle();
+
+  const feeRuleForStamp = getFeeRuleForBooking({
+    serviceSubtotalCents: minApply.enforcedSubtotalCents,
+    categoryName: categoryDisplayName,
+    occupationSlug,
+    categorySlug,
+  });
+
+  const pricingSnapshotPatch = buildCanonicalBookingPricingSnapshotPatchFromMarketplaceFees({
+    marketplaceFees,
+    chargeModel: 'flat',
+    feeProfile: feeRuleForStamp.profile,
+    proDepositPercents: proDepositRow as {
+      deposit_percent_default?: number | null;
+      deposit_percent_min?: number | null;
+      deposit_percent_max?: number | null;
+    } | null,
+    flatFeeCents: minApply.originalSubtotalCents,
+    hourlyRateCents: null,
+    baseFeeCents: null,
+    includedHours: null,
+    actualHoursEstimate: durationMinutes / 60,
+    overageHourlyRateCents: null,
+    minimumJobCents: null,
+    demandMultiplier: null,
+  });
 
   const insertRow = {
     customer_id: customerUserId,
@@ -228,16 +235,10 @@ export async function generateBookingFromOccurrence(
     status_history: [{ status: 'requested', at: requestedAt }],
     price: totalDollars,
     urgency,
-    fee_profile: feeProfile,
     pricing_occupation_slug: occupationSlug ?? null,
     pricing_category_slug: categorySlug ?? null,
     original_subtotal_cents: minApply.originalSubtotalCents,
-    ...pricingSnapshotRow,
-    stripe_estimated_fee_cents: marketplaceFees.stripeEstimatedFeeCents,
-    platform_gross_margin_cents: marketplaceFees.platformGrossMarginCents,
-    effective_take_rate: Number(marketplaceFees.effectiveTakeRate.toFixed(4)),
-    pricing_version: marketplaceFees.pricingVersion,
-    pricing_band: marketplaceFees.pricingBand,
+    ...pricingSnapshotPatch,
     is_recurring: true,
     recurring_series_id: String(series.id),
     recurring_occurrence_id: occurrenceId,
@@ -263,6 +264,12 @@ export async function generateBookingFromOccurrence(
   if (!bookingId) {
     return { ok: false, code: 'no_id', message: 'Insert did not return id' };
   }
+
+  logIfBookingPricingSnapshotPatchIncomplete(
+    'generateBookingFromOccurrence',
+    bookingId,
+    pricingSnapshotPatch
+  );
 
   await admin.from('recurring_occurrences').update({ booking_id: bookingId, updated_at: requestedAt }).eq('id', occurrenceId);
 

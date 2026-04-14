@@ -4,7 +4,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { computeContributionMarginCents } from '@/lib/pricing/fees';
-import { parseBookingPaymentIntentMetadata } from '@/lib/stripe/booking-payment-intent-metadata';
+import { normalizeBookingPaymentMetadata } from '@/lib/stripe/booking-payment-intent-metadata';
 import { retrieveStripeBalancePartsForPaymentIntent } from '@/lib/stripe/server';
 
 export type RecordBookingStripeFeeSnapshotParams = {
@@ -113,8 +113,8 @@ export async function recordBookingStripeFeeSnapshot(
         Number(b.amount_platform_fee ?? 0) || 0,
         Number(b.fee_total_cents ?? 0) || 0
       );
-      const parsed = parseBookingPaymentIntentMetadata(metadata);
-      const promoCreditsCents = Math.max(0, parsed.promoDiscountCents ?? 0);
+      const { financial } = normalizeBookingPaymentMetadata(metadata);
+      const promoCreditsCents = Math.max(0, financial.promoDiscountCents ?? 0);
       const refundsCents = Math.max(0, Number(b.refunded_total_cents ?? 0) || 0);
 
       bookingPatch.contribution_margin_cents = computeContributionMarginCents({

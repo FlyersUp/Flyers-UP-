@@ -16,7 +16,7 @@ import { DEFAULT_BOOKING_TIMEZONE } from '@/lib/datetime';
 import { loadComputeContextForProRange } from '@/lib/availability/load-context';
 import { assertSlotBookable, proposedBookingUtcWindow } from '@/lib/availability/engine';
 import { resolveUrgency } from '@/lib/bookings/urgency';
-import { getOccupationFeeProfile } from '@/lib/bookings/fee-rules';
+import { getFeeRuleForBooking } from '@/lib/bookings/fee-rules';
 import {
   bookingAddonsInsertRows,
   buildNotesAndPackageSnapshotForRequest,
@@ -24,7 +24,10 @@ import {
 } from '@/lib/bookings/booking-request-scope';
 import { isServiceProBookableByCustomers } from '@/lib/pro/pro-bookability';
 import { applyMinimumBookingSubtotal } from '@/lib/pricing/config';
-import { bookingPricingSnapshotToDbRow } from '@/lib/bookings/booking-pricing-snapshot';
+import {
+  buildCanonicalBookingPricingSnapshotPatchFromMarketplaceFees,
+  logIfBookingPricingSnapshotPatchIncomplete,
+} from '@/lib/bookings/booking-pricing-snapshot';
 import { getFeeProfileForOccupationSlug } from '@/lib/pricing/category-config';
 import { computeMarketplaceFees, resolveMarketplacePricingVersionForBooking } from '@/lib/pricing/fees';
 import { getSuggestedPriceCents } from '@/lib/pricing/suggestions';
@@ -154,11 +157,6 @@ export async function createBookingWithPayment(
       }
     }
 
-    const feeProfile = getOccupationFeeProfile({
-      occupationSlug,
-      categorySlug,
-      categoryName: categoryDisplayName,
-    });
     const proUserId = String((proRow as { user_id: string }).user_id);
     const startingPriceCents = Math.round(Number((proRow as any).starting_price ?? 0) * 100);
 
@@ -252,9 +250,18 @@ export async function createBookingWithPayment(
     );
     const totalDollars = marketplaceFees.subtotalCents / 100;
 
+    const feeRuleForStamp = getFeeRuleForBooking({
+      serviceSubtotalCents: minApply.enforcedSubtotalCents,
+      categoryName: categoryDisplayName,
+      occupationSlug,
+      categorySlug,
+    });
+
     const { data: proProfileSnap } = await adminClient
       .from('pro_profiles')
-      .select('pricing_model, hourly_rate, min_hours')
+      .select(
+        'pricing_model, hourly_rate, min_hours, deposit_percent_default, deposit_percent_min, deposit_percent_max'
+      )
       .eq('user_id', proUserId)
       .maybeSingle();
     const pm = String((proProfileSnap as { pricing_model?: string } | null)?.pricing_model ?? 'flat');
@@ -274,28 +281,24 @@ export async function createBookingWithPayment(
     const includedHoursSnap = chargeModelSnapshot === 'flat_hourly' ? 2 : null;
     const actualHoursEstimate = durationMinutes / 60;
 
-    const pricingSnapshotRow = bookingPricingSnapshotToDbRow(
-      {
-        charge_model: chargeModelSnapshot,
-        subtotal_cents: marketplaceFees.subtotalCents,
-        service_fee_cents: marketplaceFees.serviceFeeCents,
-        convenience_fee_cents: marketplaceFees.convenienceFeeCents,
-        protection_fee_cents: marketplaceFees.protectionFeeCents,
-        demand_fee_cents: marketplaceFees.demandFeeCents,
-        total_cents: marketplaceFees.customerTotalCents,
-        pro_earnings_cents: marketplaceFees.subtotalCents,
-        platform_revenue_cents: marketplaceFees.feeTotalCents,
-        flat_fee_cents: rawSubtotalCents,
-        hourly_rate_cents: hourlyRateCentsSnap,
-        base_fee_cents: baseFeeCentsSnap,
-        included_hours: includedHoursSnap,
-        actual_hours_estimate: actualHoursEstimate,
-        overage_hourly_rate_cents: hourlyRateCentsSnap,
-        minimum_job_cents: minimumJobCentsSnap,
-        demand_multiplier: null,
-      },
-      { feeTotalCents: marketplaceFees.feeTotalCents }
-    );
+    const pricingSnapshotPatch = buildCanonicalBookingPricingSnapshotPatchFromMarketplaceFees({
+      marketplaceFees,
+      chargeModel: chargeModelSnapshot,
+      feeProfile: feeRuleForStamp.profile,
+      proDepositPercents: proProfileSnap as {
+        deposit_percent_default?: number | null;
+        deposit_percent_min?: number | null;
+        deposit_percent_max?: number | null;
+      } | null,
+      flatFeeCents: rawSubtotalCents,
+      hourlyRateCents: hourlyRateCentsSnap,
+      baseFeeCents: baseFeeCentsSnap,
+      includedHours: includedHoursSnap,
+      actualHoursEstimate,
+      overageHourlyRateCents: hourlyRateCentsSnap,
+      minimumJobCents: minimumJobCentsSnap,
+      demandMultiplier: null,
+    });
 
     // 4b) Geocode address for arrival verification (best-effort)
     let addressLat: number | null = null;
@@ -386,16 +389,10 @@ export async function createBookingWithPayment(
         status_history: initialStatusHistory,
         price: totalDollars,
         urgency,
-        fee_profile: feeProfile,
         pricing_occupation_slug: occupationSlug ?? null,
         pricing_category_slug: categorySlug ?? null,
         original_subtotal_cents: minApply.originalSubtotalCents,
-        ...pricingSnapshotRow,
-        stripe_estimated_fee_cents: marketplaceFees.stripeEstimatedFeeCents,
-        platform_gross_margin_cents: marketplaceFees.platformGrossMarginCents,
-        effective_take_rate: Number(marketplaceFees.effectiveTakeRate.toFixed(4)),
-        pricing_version: marketplaceFees.pricingVersion,
-        pricing_band: marketplaceFees.pricingBand,
+        ...pricingSnapshotPatch,
         subcategory_id: validatedSubcategoryId,
         address_lat: addressLat,
         address_lng: addressLng,
@@ -408,6 +405,14 @@ export async function createBookingWithPayment(
       })
       .select('id')
       .single();
+
+    if (booking && !bookingErr) {
+      logIfBookingPricingSnapshotPatchIncomplete(
+        'createBookingWithPayment',
+        booking.id as string,
+        pricingSnapshotPatch
+      );
+    }
 
     if (bookingErr || !booking) {
       void recordServerErrorEvent({

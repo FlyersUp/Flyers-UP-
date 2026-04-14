@@ -19,6 +19,7 @@ import { useRouter } from 'next/navigation';
 import { getCurrentUser, getActiveAddonsForPro, type ServicePro, type ServiceAddon } from '@/lib/api';
 import { createBookingWithPayment } from '@/app/actions/bookings';
 import { trackGaEvent } from '@/lib/analytics/trackGa';
+import { trackProductAnalyticsEvent } from '@/lib/analytics/productEvents';
 import { QuickRulesSheet, hasSeenQuickRules } from '@/components/booking/QuickRulesSheet';
 import { DEFAULT_BOOKING_TIMEZONE, earliestCustomerBookableDateIso } from '@/lib/datetime';
 import { CustomerProAvailabilityCalendar } from '@/components/booking/CustomerProAvailabilityCalendar';
@@ -48,6 +49,8 @@ interface BookingFormProps {
   forceQuickRules?: boolean;
   /** Pre-select a service package (e.g. from pro profile link) */
   initialPackageId?: string;
+  /** From ?recurring=1 — surfaces recurring entry without changing pricing */
+  recurringFromUrl?: boolean;
 }
 
 export default function BookingForm({
@@ -59,6 +62,7 @@ export default function BookingForm({
   previousBookingId,
   forceQuickRules,
   initialPackageId,
+  recurringFromUrl = false,
 }: BookingFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -192,6 +196,13 @@ export default function BookingForm({
         return;
       }
 
+      if (previousBookingId?.trim()) {
+        trackProductAnalyticsEvent('repeat_booking_started', {
+          from_booking_id: previousBookingId.trim(),
+          pro_id: pro.id,
+        });
+      }
+
       trackGaEvent('job_posted');
 
       if (typeof window !== 'undefined') {
@@ -246,6 +257,22 @@ export default function BookingForm({
 
   return (
     <form onSubmit={handleSubmit} className="min-w-0 max-w-full space-y-6 pb-2">
+      {recurringFromUrl ? (
+        <div className="rounded-2xl border border-sky-200/50 bg-sky-50/80 dark:border-sky-800/40 dark:bg-sky-950/25 px-4 py-3 text-sm text-[#1e3a5f] dark:text-sky-100/90">
+          <p className="font-medium">Interested in a regular schedule?</p>
+          <p className="text-xs mt-1 text-[#4b5563] dark:text-sky-100/75 leading-relaxed">
+            Submit this visit first, or start a dedicated recurring plan when it fits your needs.
+          </p>
+          <Link
+            href={`/customer/recurring/new?proId=${encodeURIComponent(pro.id)}`}
+            onClick={() => trackProductAnalyticsEvent('recurring_booking_started', { pro_id: pro.id, surface: 'booking_form_banner' })}
+            className="inline-block mt-2 text-sm font-semibold text-[#4A69BD] dark:text-[#7BA3E8] hover:underline"
+          >
+            Open recurring setup
+          </Link>
+        </div>
+      ) : null}
+
       {/* Error message */}
       {error && (
         <div className="rounded-2xl border border-red-200/80 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">

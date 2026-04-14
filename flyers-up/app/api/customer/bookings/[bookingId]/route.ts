@@ -168,6 +168,7 @@ export async function GET(
     let serviceName = 'Service';
     let proName = 'Pro';
     let categoryName: string | undefined;
+    let serviceCategorySlug: string | undefined;
     let proPhotoUrl: string | null = null;
     let proUserId: string | null = null;
     if (booking.pro_id) {
@@ -184,12 +185,13 @@ export async function GET(
         if (catId) {
           const { data: cat } = await admin
             .from('service_categories')
-            .select('name')
+            .select('name, slug')
             .eq('id', catId)
             .maybeSingle();
           if (cat) {
             serviceName = (cat as { name?: string }).name || 'Service';
             categoryName = (cat as { name?: string }).name;
+            serviceCategorySlug = (cat as { slug?: string }).slug ?? undefined;
           }
         }
       }
@@ -330,6 +332,7 @@ export async function GET(
           serviceName,
           proName,
           categoryName,
+          serviceCategorySlug,
           proPhotoUrl,
           job_request_id: booking.job_request_id ?? null,
           scope_confirmed_at: booking.scope_confirmed_at ?? null,

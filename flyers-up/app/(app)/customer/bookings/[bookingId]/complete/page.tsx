@@ -48,6 +48,8 @@ import {
   moneyStripeSnapshotFromCustomerFinalIntent,
 } from '@/lib/bookings/money-state';
 import { CustomerRemainingPaymentCallout } from '@/components/bookings/customer/CustomerRemainingPaymentCallout';
+import { StayOnPlatformTrustCallout } from '@/components/retention/StayOnPlatformTrustCallout';
+import { trackProductAnalyticsEvent } from '@/lib/analytics/productEvents';
 
 type PageState =
   | 'loading'
@@ -357,6 +359,7 @@ export default function JobCompletePage({
               </div>
               <div className="space-y-4">
                 <BookingRecapCard booking={booking} />
+                <StayOnPlatformTrustCallout variant="compact" className="text-left" />
                 <div className="flex flex-col gap-3">
                   <Link
                     href="/customer/settings/payments"
@@ -373,6 +376,13 @@ export default function JobCompletePage({
                   {booking.proId && (
                     <Link
                       href={`/book/${booking.proId}?rebook=${bookingId}`}
+                      prefetch={false}
+                      onClick={() =>
+                        trackProductAnalyticsEvent('book_again_clicked', {
+                          booking_id: bookingId,
+                          surface: 'complete_payment_success',
+                        })
+                      }
                       className="flex h-11 items-center justify-center rounded-full border border-border bg-surface text-sm font-medium text-text transition-colors hover:bg-hover"
                     >
                       Book again

@@ -27,13 +27,18 @@ export default function BookingPage() {
   const notes = searchParams.get('notes')?.trim() ?? undefined;
   const service = searchParams.get('service')?.trim() ?? undefined;
   const rebookBookingId = searchParams.get('rebook')?.trim() ?? undefined;
+  const recurringFromUrl = searchParams.get('recurring') === '1';
   const packageId = searchParams.get('packageId')?.trim() ?? undefined;
   /** Owner preview iframe on /pro/profile — allow pro to see customer UI without redirect */
   const customerPreview = searchParams.get('customerPreview') === '1';
   
   const [pro, setPro] = useState<ServicePro | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [rebookPrefill, setRebookPrefill] = useState<{ address?: string; notes?: string } | null>(null);
+  const [rebookPrefill, setRebookPrefill] = useState<{
+    address?: string;
+    notes?: string;
+    serviceSlug?: string;
+  } | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -64,10 +69,15 @@ export default function BookingPage() {
           const res = await fetch(`/api/customer/bookings/${rebookBookingId}`, { cache: 'no-store', credentials: 'include' });
           const json = await res.json();
           if (res.ok && json.booking?.proId === proId) {
-            const b = json.booking;
+            const b = json.booking as {
+              address?: string;
+              notes?: string;
+              serviceCategorySlug?: string;
+            };
             setRebookPrefill({
               address: b.address ?? undefined,
               notes: b.notes ?? undefined,
+              serviceSlug: b.serviceCategorySlug ?? undefined,
             });
           }
         } catch {
@@ -148,11 +158,12 @@ export default function BookingPage() {
           <BookingForm
             pro={pro}
             initialSubcategorySlug={subcategorySlug}
-            serviceSlug={serviceSlug}
+            serviceSlug={rebookPrefill?.serviceSlug ?? serviceSlug}
             initialAddress={rebookPrefill?.address ?? address}
             initialNotes={rebookPrefill?.notes ?? notes}
             previousBookingId={rebookBookingId}
             initialPackageId={packageId}
+            recurringFromUrl={recurringFromUrl}
           />
         </div>
 

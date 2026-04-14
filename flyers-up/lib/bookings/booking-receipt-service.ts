@@ -13,7 +13,8 @@ import { loadBookingPaymentLedger } from '@/lib/bookings/booking-payment-ledger'
 import { stripe } from '@/lib/stripe';
 import {
   mergeDynamicPricingReasonsCsv,
-  parseBookingPaymentIntentMetadata,
+  normalizeBookingPaymentMetadata,
+  receiptMoneyFieldsFromNormalizedPaymentMetadata,
 } from '@/lib/stripe/booking-payment-intent-metadata';
 import {
   computeReceiptQuoteOverlay,
@@ -67,22 +68,11 @@ async function loadPricingFromPaymentIntentMetadata(
   }
   try {
     const pi = await stripe.paymentIntents.retrieve(id);
-    const parsed = parseBookingPaymentIntentMetadata(
-      pi.metadata as Record<string, string | undefined>
-    );
+    const norm = normalizeBookingPaymentMetadata(pi.metadata as Record<string, string | undefined>);
+    const money = receiptMoneyFieldsFromNormalizedPaymentMetadata(norm);
     return {
-      serviceSubtotalCents: parsed.serviceSubtotalCents,
-      serviceFeeCents: parsed.serviceFeeCents,
-      convenienceFeeCents: parsed.convenienceFeeCents,
-      protectionFeeCents: parsed.protectionFeeCents,
-      demandFeeCents: parsed.demandFeeCents,
-      feeTotalCents: parsed.feeTotalCents,
-      promoDiscountCents: parsed.promoDiscountCents,
-      platformFeeTotalCents: parsed.platformFeeTotalCents,
-      customerTotalCents: parsed.customerTotalCents,
-      depositChargeCents: parsed.depositChargeCents,
-      finalChargeCents: parsed.finalChargeCents,
-      dynamicPricingReasons: parsed.dynamicPricingReasons,
+      ...money,
+      dynamicPricingReasons: norm.analyticsOnly.dynamicPricingReasons,
     };
   } catch {
     return {

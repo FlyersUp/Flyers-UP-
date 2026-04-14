@@ -15,7 +15,10 @@ import {
 } from '@/lib/messaging/blockEnforcement';
 import { computeQuote, type BookingForQuote } from '@/lib/bookingQuote';
 import { getFeeRuleForBooking } from '@/lib/bookings/fee-rules';
-import { buildBookingPricingSnapshotPatchFromMultiFeePricing } from '@/lib/bookings/booking-pricing-snapshot';
+import {
+  buildCanonicalBookingPricingSnapshotPatch,
+  logIfBookingPricingSnapshotPatchIncomplete,
+} from '@/lib/bookings/booking-pricing-snapshot';
 import { computeMarketplaceFees, resolveMarketplacePricingVersionForBooking } from '@/lib/pricing/fees';
 import { getFeeProfileForOccupationSlug } from '@/lib/pricing/category-config';
 
@@ -190,7 +193,7 @@ export async function POST(
   const durationMinutes = Math.max(1, Math.round(Number(bRow.duration_hours ?? 1) * 60));
   const actualHoursEstimate = durationMinutes / 60;
 
-  const snapshotPatch = buildBookingPricingSnapshotPatchFromMultiFeePricing({
+  const snapshotPatch = buildCanonicalBookingPricingSnapshotPatch({
     pricing: quoteResult.pricing,
     mf,
     chargeModel: chargeModelSnapshot,
@@ -241,6 +244,8 @@ export async function POST(
       { status: 409 }
     );
   }
+
+  logIfBookingPricingSnapshotPatchIncomplete('accept-quote', id, snapshotPatch);
 
   await admin.from('booking_quotes').insert({
     booking_id: id,

@@ -42,6 +42,7 @@ import { BookingProviderCard } from '@/components/bookings/customer/booking-deta
 import { BookingCompletionHighlightCard } from '@/components/bookings/customer/booking-detail/BookingCompletionHighlightCard';
 import { BookingTimelineCard } from '@/components/bookings/customer/booking-detail/BookingTimelineCard';
 import { BookingProtectionCard } from '@/components/bookings/customer/booking-detail/BookingProtectionCard';
+import { StayOnPlatformTrustCallout } from '@/components/retention/StayOnPlatformTrustCallout';
 import { BookingRebookCard } from '@/components/bookings/customer/booking-detail/BookingRebookCard';
 import { BookingSafetyLinks } from '@/components/bookings/customer/booking-detail/BookingSafetyLinks';
 import { BookingDetailActionBar } from '@/components/bookings/customer/booking-detail/BookingDetailActionBar';
@@ -80,6 +81,8 @@ export interface BookingDetailData {
   serviceName?: string;
   proName?: string;
   categoryName?: string;
+  /** Marketplace service slug for rebook / similar-pro links */
+  serviceCategorySlug?: string | null;
   proPhotoUrl?: string | null;
   serviceDate?: string;
   serviceTime?: string;
@@ -327,10 +330,11 @@ export function BookingDetailContent({
         const showCompletionHighlight =
           !!fullBooking.completion && (timelineKey === 'COMPLETED' || timelineKey === 'PAID');
 
-        const showRebookStrip =
+        const showRebookStrip = Boolean(
           (timelineKey === 'COMPLETED' || timelineKey === 'PAID') &&
-          fullBooking.proId &&
-          fullBooking.proName;
+            fullBooking.proId &&
+            fullBooking.proName
+        );
 
         const firstAfterPhoto = fullBooking.completion?.afterPhotoUrls?.[0] ?? null;
 
@@ -355,12 +359,18 @@ export function BookingDetailContent({
               })
             : null;
 
+        const bookAgainHref =
+          showRebookStrip && fullBooking.proId
+            ? `/book/${encodeURIComponent(fullBooking.proId)}?rebook=${encodeURIComponent(bookingId)}`
+            : null;
+
         const actionBar = (
           <BookingDetailActionBar
             bookingId={bookingId}
             status={booking.status}
             hasCustomerReview={fullBooking.hasCustomerReview ?? false}
             primaryAction={primaryAction}
+            bookAgainHref={bookAgainHref}
             onRescheduleClick={() => setRescheduleOpen(true)}
             onCancelClick={() => setCancelOpen(true)}
           />
@@ -545,6 +555,7 @@ export function BookingDetailContent({
                 serviceTime={booking.serviceTime}
                 finalPaymentCustomerNote={finalPaymentNote}
                 layoutVariant="compact"
+                showOnPlatformReceiptTrust={showRebookStrip}
               />
             </section>
 
@@ -558,9 +569,15 @@ export function BookingDetailContent({
               </section>
             ) : null}
 
-            <section className="mb-4">
-              <BookingProtectionCard />
-            </section>
+            {showRebookStrip ? (
+              <section className="mb-4">
+                <StayOnPlatformTrustCallout variant="comfortable" />
+              </section>
+            ) : (
+              <section className="mb-4">
+                <BookingProtectionCard />
+              </section>
+            )}
 
             {showRebookStrip && fullBooking.proId && fullBooking.proName && (
               <section className="mb-4">
@@ -568,6 +585,7 @@ export function BookingDetailContent({
                   proName={fullBooking.proName}
                   proId={fullBooking.proId}
                   bookingId={bookingId}
+                  serviceCategorySlug={fullBooking.serviceCategorySlug ?? null}
                 />
               </section>
             )}

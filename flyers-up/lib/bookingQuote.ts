@@ -140,7 +140,7 @@ export interface BookingForQuote {
   service_fee_cents?: number | null;
   convenience_fee_cents?: number | null;
   protection_fee_cents?: number | null;
-  /** Full frozen snapshot (see {@link bookingRowHasCompleteFrozenPricing}). */
+  /** Full frozen snapshot (see `isCompleteFrozenPricingSnapshot` / `bookingRowHasCompleteFrozenPricing`). */
   subtotal_cents?: number | null;
   demand_fee_cents?: number | null;
   fee_total_cents?: number | null;

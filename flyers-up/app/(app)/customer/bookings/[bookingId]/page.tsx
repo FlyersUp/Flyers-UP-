@@ -163,6 +163,7 @@ async function getCustomerBooking(bookingId: string) {
   let serviceName = 'Service';
   let proName = 'Pro';
   let categoryName: string | undefined;
+  let serviceCategorySlug: string | undefined;
   let proPhotoUrl: string | null = null;
   let proUserId: string | null = null;
 
@@ -180,12 +181,13 @@ async function getCustomerBooking(bookingId: string) {
       if (catId) {
         const { data: cat } = await admin
           .from('service_categories')
-          .select('name')
+          .select('name, slug')
           .eq('id', catId)
           .maybeSingle();
         if (cat) {
           serviceName = (cat as { name?: string }).name || 'Service';
           categoryName = (cat as { name?: string }).name;
+          serviceCategorySlug = (cat as { slug?: string }).slug ?? undefined;
         }
       }
     }
@@ -259,6 +261,7 @@ async function getCustomerBooking(bookingId: string) {
     serviceName,
     proName,
     categoryName,
+    serviceCategorySlug,
     proPhotoUrl,
     job_request_id: (booking as { job_request_id?: string | null }).job_request_id ?? null,
     scope_confirmed_at: (booking as { scope_confirmed_at?: string | null }).scope_confirmed_at ?? null,

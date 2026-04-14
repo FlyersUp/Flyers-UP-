@@ -2,6 +2,11 @@ import { inferPaymentPhaseFromBookingIds } from '@/lib/bookings/unified-receipt'
 
 export type WebhookPaymentKind = 'deposit' | 'remaining' | 'legacy_full';
 
+/**
+ * Routes a succeeded PI to deposit vs final vs legacy — uses **phase / id routing keys only**,
+ * not fee analytics. Financial cents for reconciliation come from
+ * {@link normalizeBookingPaymentMetadata} + `bookings` frozen columns in apply handlers.
+ */
 export function resolveWebhookPaymentKind(
   meta: Record<string, string | undefined>,
   paymentIntentId: string,

@@ -7,7 +7,7 @@ import type Stripe from 'stripe';
 import { revalidatePath } from 'next/cache';
 import { isCancelled } from '@/lib/bookings/booking-status';
 import { resolveWebhookPaymentKind } from '@/lib/stripe/webhook-payment-phase';
-import { parseBookingPaymentIntentMetadata } from '@/lib/stripe/booking-payment-intent-metadata';
+import { normalizeBookingPaymentMetadata } from '@/lib/stripe/booking-payment-intent-metadata';
 import { recordBookingStripeFeeSnapshot } from '@/lib/stripe/booking-stripe-fee-snapshot';
 import { refundPaymentIntent } from '@/lib/stripe/server';
 import { createNotificationEvent } from '@/lib/notifications';
@@ -26,6 +26,41 @@ export type ApplySucceededPaymentIntentResult =
       paymentKind: 'deposit' | 'remaining' | 'legacy_full';
       lateAutoRefund: boolean;
     };
+
+/** Prefer frozen `bookings` cents, then canonical metadata ({@link normalizeBookingPaymentMetadata}), then legacy parse. */
+function pickNonNegativeCents(
+  dbVal: unknown,
+  metaVal: number | null | undefined,
+  legacyVal: number | null | undefined
+): number {
+  if (typeof dbVal === 'number' && Number.isFinite(dbVal) && dbVal >= 0) return Math.round(dbVal);
+  if (typeof metaVal === 'number' && Number.isFinite(metaVal) && metaVal >= 0) return Math.round(metaVal);
+  if (typeof legacyVal === 'number' && Number.isFinite(legacyVal) && legacyVal >= 0) return Math.round(legacyVal);
+  return 0;
+}
+
+function proEarningsDollarsFromFrozenRowAndMetadata(
+  booking: Record<string, unknown>,
+  financial: ReturnType<typeof normalizeBookingPaymentMetadata>['financial'],
+  rawServiceSub: number | null,
+  rawPlatformFee: number | null
+): number {
+  const totalCents = Number(booking.total_amount_cents ?? booking.amount_total ?? 0);
+  const platformFeeCents = pickNonNegativeCents(
+    booking.fee_total_cents ?? booking.amount_platform_fee,
+    financial.feeTotalCents,
+    rawPlatformFee
+  );
+  const impliedSub =
+    totalCents > 0 && platformFeeCents >= 0 ? Math.max(0, Math.round(totalCents - platformFeeCents)) : 0;
+  const serviceSubtotalCents = pickNonNegativeCents(
+    booking.subtotal_cents,
+    financial.subtotalCents ?? financial.serviceSubtotalCents,
+    rawServiceSub ?? (impliedSub > 0 ? impliedSub : null)
+  );
+  const amountDollars = serviceSubtotalCents > 0 ? serviceSubtotalCents / 100 : Number(booking.price ?? 0);
+  return amountDollars > 0 ? amountDollars : 0;
+}
 
 async function bookingEventExistsForPi(
   admin: SupabaseClient,
@@ -60,7 +95,7 @@ export async function applySucceededPaymentIntent(
   paymentIntent: Stripe.PaymentIntent
 ): Promise<ApplySucceededPaymentIntentResult> {
   const meta = paymentIntent.metadata as Record<string, string | undefined>;
-  const parsedMeta = parseBookingPaymentIntentMetadata(meta);
+  const normalized = normalizeBookingPaymentMetadata(meta);
   const bookingId = meta?.booking_id ?? meta?.bookingId;
   if (!bookingId) {
     return { handled: false };
@@ -69,7 +104,7 @@ export async function applySucceededPaymentIntent(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, status, status_history, pro_id, customer_id, price, amount_total, amount_platform_fee, total_amount_cents, refunded_total_cents, payment_status, final_payment_status, stripe_payment_intent_deposit_id, stripe_payment_intent_remaining_id, payment_intent_id, final_payment_intent_id, service_pros(user_id)'
+      'id, status, status_history, pro_id, customer_id, price, amount_total, amount_platform_fee, total_amount_cents, refunded_total_cents, payment_status, final_payment_status, stripe_payment_intent_deposit_id, stripe_payment_intent_remaining_id, payment_intent_id, final_payment_intent_id, subtotal_cents, customer_total_cents, fee_total_cents, service_pros(user_id)'
     )
     .eq('id', bookingId)
     .maybeSingle();
@@ -289,19 +324,12 @@ export async function applySucceededPaymentIntent(
       .maybeSingle();
 
     if (!existing) {
-      const totalCents = Number(booking.total_amount_cents ?? booking.amount_total ?? 0);
-      const platformFeeCents = Math.max(
-        0,
-        Number(parsedMeta.platformFeeTotalCents ?? booking.amount_platform_fee ?? 0)
+      const amount = proEarningsDollarsFromFrozenRowAndMetadata(
+        booking as Record<string, unknown>,
+        normalized.financial,
+        normalized.raw.serviceSubtotalCents,
+        normalized.raw.platformFeeTotalCents
       );
-      const serviceSubtotalCents = Math.max(
-        0,
-        Number(parsedMeta.serviceSubtotalCents ?? (totalCents > 0 ? totalCents - platformFeeCents : 0))
-      );
-      const amountDollars = serviceSubtotalCents > 0
-        ? serviceSubtotalCents / 100
-        : Number(booking.price ?? 0);
-      const amount = amountDollars > 0 ? amountDollars : 0;
       await admin.from('pro_earnings').insert({
         pro_id: booking.pro_id,
         booking_id: bookingId,
@@ -386,19 +414,12 @@ export async function applySucceededPaymentIntent(
     .maybeSingle();
 
   if (shouldFinalize && !existing) {
-    const totalCents = Number(booking.total_amount_cents ?? booking.amount_total ?? 0);
-    const platformFeeCents = Math.max(
-      0,
-      Number(parsedMeta.platformFeeTotalCents ?? booking.amount_platform_fee ?? 0)
+    const amount = proEarningsDollarsFromFrozenRowAndMetadata(
+      booking as Record<string, unknown>,
+      normalized.financial,
+      normalized.raw.serviceSubtotalCents,
+      normalized.raw.platformFeeTotalCents
     );
-    const serviceSubtotalCents = Math.max(
-      0,
-      Number(parsedMeta.serviceSubtotalCents ?? (totalCents > 0 ? totalCents - platformFeeCents : 0))
-    );
-    const amountDollars = serviceSubtotalCents > 0
-      ? serviceSubtotalCents / 100
-      : Number(booking.price ?? 0);
-    const amount = amountDollars > 0 ? amountDollars : 0;
     await admin.from('pro_earnings').insert({
       pro_id: booking.pro_id,
       booking_id: bookingId,

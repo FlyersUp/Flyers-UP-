@@ -26,6 +26,10 @@ import {
   buildLegacyFullPaymentIntentStripeFields,
   capStripeBookingPaymentMetadata,
 } from '@/lib/stripe/booking-payment-intent-metadata';
+import {
+  buildBookingPaymentIntentPricingMetadata,
+  trustOccupationProfileForStripeMetadata,
+} from '@/lib/stripe/booking-payment-pricing-metadata';
 import { computeMoneyBreakdown } from '@/lib/bookings/money';
 
 export const runtime = 'nodejs';
@@ -72,7 +76,7 @@ export async function POST(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, status, price, payment_intent_id, payment_status, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, subtotal_cents, demand_fee_cents, fee_total_cents, customer_total_cents, pro_earnings_cents, platform_revenue_cents, charge_model, duration_hours, miles_distance, flat_fee_selected, hourly_selected'
+      'id, customer_id, pro_id, status, price, payment_intent_id, payment_status, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, pricing_band, service_fee_cents, convenience_fee_cents, protection_fee_cents, subtotal_cents, demand_fee_cents, fee_total_cents, customer_total_cents, pro_earnings_cents, platform_revenue_cents, charge_model, duration_hours, miles_distance, flat_fee_selected, hourly_selected'
     )
     .eq('id', id)
     .eq('customer_id', user.id)
@@ -150,6 +154,7 @@ export async function POST(
 
   const bLeg = booking as {
     pricing_version?: string | null;
+    pricing_band?: string | null;
     service_fee_cents?: number | null;
     convenience_fee_cents?: number | null;
     protection_fee_cents?: number | null;
@@ -221,8 +226,22 @@ export async function POST(
     serviceSubtotalCents: quote.amountSubtotal,
     categoryName: serviceName,
     occupationSlug: bPay.pricing_occupation_slug ?? occSlugFromPro,
-    categorySlug: bPay.pricing_category_slug,
+    categorySlug: bPay.pricing_category_slug ?? undefined,
   });
+  const stripeBookingFrozenCtx = {
+    fee_profile: bPay.fee_profile,
+    pricing_version: bLeg.pricing_version,
+    pricing_band: bLeg.pricing_band,
+    pricing_occupation_slug: bPay.pricing_occupation_slug,
+    pricing_category_slug: bPay.pricing_category_slug,
+    subtotal_cents: bLeg.subtotal_cents,
+    service_fee_cents: bLeg.service_fee_cents,
+    convenience_fee_cents: bLeg.convenience_fee_cents,
+    protection_fee_cents: bLeg.protection_fee_cents,
+    demand_fee_cents: bLeg.demand_fee_cents,
+    fee_total_cents: bLeg.fee_total_cents,
+    customer_total_cents: bLeg.customer_total_cents,
+  };
   const urgency = resolveUrgencyFromBooking({
     urgency: (booking as { urgency?: string | null }).urgency ?? null,
     serviceDate: booking.service_date,
@@ -235,7 +254,13 @@ export async function POST(
     serviceSubtotalCents: quote.amountSubtotal,
     isFirstBooking: historyFlags.isFirstBooking,
   });
-  const trustRiskScore = resolveTrustRiskScore({ occupationProfile: feeRule.profile });
+  const trustRiskScore = resolveTrustRiskScore({
+    occupationProfile: trustOccupationProfileForStripeMetadata(
+      id,
+      stripeBookingFrozenCtx,
+      feeRule.profile
+    ),
+  });
   const amountCents = pricing.customerTotalCents;
   if (!Number.isFinite(amountCents) || amountCents <= 0) {
     return NextResponse.json({ error: 'Booking total is not set' }, { status: 400 });
@@ -276,50 +301,23 @@ export async function POST(
     customerId: booking.customer_id,
     proId: booking.pro_id,
     serviceTitle: serviceName,
-    pricing: {
-      fee_profile: feeRule.profile,
-      subtotal_tier: feeRule.tier,
-      booking_fee_profile_stamped: bPay.fee_profile ?? undefined,
-      booking_pricing_occupation_slug: bPay.pricing_occupation_slug ?? undefined,
-      booking_pricing_category_slug: bPay.pricing_category_slug ?? undefined,
-      pricing_version: (bLeg.pricing_version && String(bLeg.pricing_version).trim()) || undefined,
-      subtotal_cents: quote.amountSubtotal,
-      service_subtotal_cents: pricing.serviceSubtotalCents,
-      service_fee_cents: pricing.serviceFeeCents,
-      convenience_fee_cents: pricing.convenienceFeeCents,
-      protection_fee_cents: pricing.protectionFeeCents,
-      demand_fee_cents: pricing.demandFeeCents,
-      promo_discount_cents: pricing.promoDiscountCents,
-      fee_total_cents: pricing.feeTotalCents,
-      platform_fee_total_cents: pricing.feeTotalCents,
-      customer_total_cents: pricing.customerTotalCents,
-      deposit_base_cents: pricing.depositBaseCents,
-      deposit_service_fee_cents: pricing.depositServiceFeeCents,
-      final_service_fee_cents: pricing.finalServiceFeeCents,
-      deposit_convenience_fee_cents: pricing.depositConvenienceFeeCents,
-      final_convenience_fee_cents: pricing.finalConvenienceFeeCents,
-      deposit_protection_fee_cents: pricing.depositProtectionFeeCents,
-      final_protection_fee_cents: pricing.finalProtectionFeeCents,
-      deposit_demand_fee_cents: pricing.depositDemandFeeCents,
-      final_demand_fee_cents: pricing.finalDemandFeeCents,
-      deposit_fee_total_cents: pricing.depositFeeTotalCents,
-      final_fee_total_cents: pricing.finalFeeTotalCents,
-      deposit_promo_discount_cents: pricing.depositPromoDiscountCents,
-      final_promo_discount_cents: pricing.finalPromoDiscountCents,
-      dynamic_pricing_reasons: (quote.dynamicPricingReasons ?? []).join(','),
-      urgency,
-      area_demand_score: areaDemandScore,
-      supply_tightness_score: supplyTightnessScore,
-      conversion_risk_score: conversionRiskScore,
-      trust_risk_score: trustRiskScore,
-      is_first_booking: String(historyFlags.isFirstBooking),
-      is_repeat_customer: String(historyFlags.isRepeatCustomer),
-      deposit_platform_fee_cents: pricing.depositFeeTotalCents,
-      deposit_charge_cents: pricing.depositChargeCents,
-      final_base_cents: pricing.finalBaseCents,
-      final_platform_fee_cents: pricing.finalFeeTotalCents,
-      final_charge_cents: pricing.finalChargeCents,
-    },
+    pricing: buildBookingPaymentIntentPricingMetadata({
+      bookingId: id,
+      booking: stripeBookingFrozenCtx,
+      liveFeeRule: feeRule,
+      quote,
+      pricing,
+      dynamic: {
+        dynamicReasonsCsv: (quote.dynamicPricingReasons ?? []).join(','),
+        urgency,
+        areaDemandScore,
+        supplyTightnessScore,
+        conversionRiskScore,
+        trustRiskScore,
+        isFirstBooking: historyFlags.isFirstBooking,
+        isRepeatCustomer: historyFlags.isRepeatCustomer,
+      },
+    }),
   });
 
   const paymentIntentData: {

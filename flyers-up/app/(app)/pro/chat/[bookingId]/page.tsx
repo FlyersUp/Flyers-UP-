@@ -17,6 +17,8 @@ import {
   CHAT_SEND_DEFAULT_ERROR_HINT,
   hintFromChatMessageApiError,
 } from '@/lib/messaging/chat-message-send-hint';
+import { ChatStayOnPlatformNudge } from '@/components/retention/ChatStayOnPlatformNudge';
+import { trackProductAnalyticsEvent } from '@/lib/analytics/productEvents';
 
 /**
  * Pro Chat - messages + quote cards, send quote / accept budget
@@ -37,6 +39,7 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
   const [quoteMessage, setQuoteMessage] = useState('');
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [sendHint, setSendHint] = useState<string | null>(null);
+  const [stayOnPlatformNudge, setStayOnPlatformNudge] = useState(false);
   const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
   const { youBlocked, loading: blockLoading, unblock } = useYouBlockedOtherUser(customerUserId);
 
@@ -116,6 +119,30 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
   useEffect(() => {
     void load();
   }, [bookingId]);
+
+  const postBookingThreadMessage = async (text: string): Promise<boolean> => {
+    const res = await fetch(`/api/bookings/${bookingId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+      credentials: 'same-origin',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setSendHint(hintFromChatMessageApiError(data));
+      return false;
+    }
+    if (data?.trustNudge) {
+      setStayOnPlatformNudge(true);
+      trackProductAnalyticsEvent('off_platform_signal_detected', {
+        booking_id: bookingId,
+        signal: String(data.trustNudge.signalCategory ?? 'unknown'),
+      });
+      trackProductAnalyticsEvent('off_platform_prompt_shown', { booking_id: bookingId });
+    }
+    await load();
+    return true;
+  };
 
   const handleSendQuote = async (amount: number, msg?: string) => {
     if (youBlocked) return;
@@ -306,18 +333,8 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
                   if (youBlocked) return;
                   setSendHint(null);
                   try {
-                    const res = await fetch(`/api/bookings/${bookingId}/messages`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ message: preset }),
-                      credentials: 'same-origin',
-                    });
-                    if (!res.ok) {
-                      const data = await res.json().catch(() => ({}));
-                      setSendHint(hintFromChatMessageApiError(data));
-                      return;
-                    }
-                    await load();
+                    const ok = await postBookingThreadMessage(preset);
+                    if (!ok) return;
                   } catch {
                     setSendHint(CHAT_SEND_DEFAULT_ERROR_HINT);
                   }
@@ -329,6 +346,19 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
             ))}
           </div>
         )}
+
+        {stayOnPlatformNudge ? (
+          <div className="px-4 pt-2 space-y-2 border-t border-[var(--surface-border)] bg-surface">
+            <ChatStayOnPlatformNudge />
+            <button
+              type="button"
+              className="text-xs font-medium text-muted hover:underline pb-2"
+              onClick={() => setStayOnPlatformNudge(false)}
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
 
         <div className="bg-surface border-t border-[var(--surface-border)] px-4 py-4">
           <div className="flex gap-2">
@@ -345,19 +375,8 @@ export default function ProChat({ params }: { params: Promise<{ bookingId: strin
                 if (!text || youBlocked) return;
                 setSendHint(null);
                 try {
-                  const res = await fetch(`/api/bookings/${bookingId}/messages`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text }),
-                    credentials: 'same-origin',
-                  });
-                  if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    setSendHint(hintFromChatMessageApiError(data));
-                    return;
-                  }
-                  setMessage('');
-                  await load();
+                  const ok = await postBookingThreadMessage(text);
+                  if (ok) setMessage('');
                 } catch {
                   setSendHint(CHAT_SEND_DEFAULT_ERROR_HINT);
                 }

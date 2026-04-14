@@ -3,6 +3,29 @@
  * Stripe allows at most 50 metadata keys per object; we use snake_case only for ids
  * (booking_id, customer_id, pro_id). Webhooks and parsers still accept legacy camelCase
  * on older PaymentIntents via `meta.booking_id ?? meta.bookingId`, etc.
+ *
+ * ## Metadata classification (read by {@link normalizeBookingPaymentMetadata})
+ *
+ * **Financial truth** — may be used when the `bookings` row lacks frozen cents (never use
+ * analytics-only keys for money):
+ * - Identity: `booking_id`, `customer_id`, `pro_id`, `payment_phase` / `phase`, `pricing_version`
+ * - Totals: `customer_total_cents`, `total_amount_cents` (lifecycle duplicate)
+ * - Split charges: `deposit_charge_cents`, `deposit_amount_cents`, `final_charge_cents`, `final_amount_cents`
+ * - Pro subtotal: `service_subtotal_cents`, then `subtotal_cents` (lifecycle line)
+ * - Per-line fees (aggregate preferred; else sum of `deposit_*` + `final_*`):
+ *   `service_fee_cents`, `convenience_fee_cents`, `protection_fee_cents`, `demand_fee_cents`
+ * - Fees: `fee_total_cents`, `platform_fee_total_cents`, `platform_fee_cents`; or
+ *   `deposit_fee_total_cents` + `final_fee_total_cents` when aggregates absent
+ * - Promo: `promo_discount_cents` (affects net when applied); or per-phase promo lines
+ *
+ * **Analytics-only** — observability at payment time; must not drive charged amounts, receipt
+ * totals, payout amounts, or booking pricing state:
+ * - `fee_profile`, `subtotal_tier`, `dynamic_pricing_reasons`, `urgency`, `area_demand_score`,
+ *   `supply_tightness_score`, `conversion_risk_score`, `trust_risk_score`, `is_first_booking`,
+ *   `is_repeat_customer`, `booking_fee_profile_stamped`, `booking_pricing_*_slug`
+ *
+ * **Legacy compatibility** — alternate spellings / older PIs: camelCase ids, `paymentType`,
+ *   granular `deposit_*_fee_cents` lines (still exposed on `raw` parse).
  */
 
 /** Stripe hard limit — never exceed on PaymentIntent.metadata */
@@ -35,8 +58,8 @@ const PROTECTED_METADATA_KEYS = new Set([
 ]);
 
 /**
- * Prefer dropping these first when over limit (analytics, duplicate totals, granular fee lines).
- * Full breakdowns remain on the booking row; metadata is for Stripe + webhook hints only.
+ * Prefer dropping these first when over limit — **analytics-only and non-critical** keys
+ * (never drop financial truth keys in {@link PROTECTED_METADATA_KEYS} first).
  */
 const DEFERRED_METADATA_KEY_ORDER: string[] = [
   'trust_risk_score',
@@ -358,6 +381,254 @@ export type ParsedBookingPaymentIntentMetadata = {
   finalChargeCents: number | null;
 };
 
+export type BookingPaymentMetadataFinancialTruth = {
+  bookingId: string | null;
+  customerId: string | null;
+  proId: string | null;
+  phase: StripeBookingLegacyPhase | null;
+  pricingVersion: string | null;
+  /** Expected customer total for the booking (frozen quote), not necessarily this PI’s amount. */
+  customerTotalCents: number | null;
+  /** Expected deposit charge (canonical `deposit_charge_cents`, else lifecycle `deposit_amount_cents`). */
+  depositChargeCents: number | null;
+  /** Expected final charge (`final_charge_cents`, else `final_amount_cents`). */
+  finalChargeCents: number | null;
+  /**
+   * Pro work subtotal: prefer `service_subtotal_cents`, else `subtotal_cents`.
+   * {@link subtotalCents} is the same resolved value for naming parity with DB / quote.
+   */
+  serviceSubtotalCents: number | null;
+  /** Same resolution as {@link serviceSubtotalCents} (canonical + lifecycle aliases). */
+  subtotalCents: number | null;
+  /** Customer-paid marketplace fees total. */
+  feeTotalCents: number | null;
+  /** Aggregate or split-combined service fee in cents. */
+  serviceFeeCents: number | null;
+  convenienceFeeCents: number | null;
+  protectionFeeCents: number | null;
+  demandFeeCents: number | null;
+  promoDiscountCents: number | null;
+};
+
+/** Observability fields only — do not use for money, receipts, or payout math. */
+export type BookingPaymentMetadataAnalyticsOnly = {
+  feeProfile: string | null;
+  subtotalTier: string | null;
+  dynamicPricingReasons: string | null;
+  urgency: string | null;
+  areaDemandScore: number | null;
+  supplyTightnessScore: number | null;
+  conversionRiskScore: number | null;
+  trustRiskScore: number | null;
+  isFirstBooking: string | null;
+  isRepeatCustomer: string | null;
+  bookingFeeProfileStamped: string | null;
+  bookingPricingOccupationSlug: string | null;
+  bookingPricingCategorySlug: string | null;
+};
+
+export type NormalizedBookingPaymentMetadata = {
+  financial: BookingPaymentMetadataFinancialTruth;
+  analyticsOnly: BookingPaymentMetadataAnalyticsOnly;
+  /** Low-level parse; use {@link financial} for money decisions. */
+  raw: ParsedBookingPaymentIntentMetadata;
+};
+
+function readIntFirst(meta: Record<string, string | undefined>, keys: string[]): number | null {
+  for (const k of keys) {
+    const v = readInt(meta, k);
+    if (v != null) return v;
+  }
+  return null;
+}
+
+/**
+ * Canonical aggregate metadata keys first, then deposit+final split lines, then `raw` parse
+ * fields (same Stripe keys, snake_case only — never prefer camelCase money on `raw` over meta).
+ */
+function readAggregateOrSplitLineCents(
+  meta: Record<string, string | undefined>,
+  aggregateKeys: string[],
+  depositKey: string,
+  finalKey: string,
+  rawAggregate: number | null,
+  rawDeposit: number | null,
+  rawFinal: number | null
+): number | null {
+  const direct = readIntFirst(meta, aggregateKeys);
+  if (direct != null) return direct;
+  const d = readInt(meta, depositKey);
+  const f = readInt(meta, finalKey);
+  if (d != null && f != null) return d + f;
+  if (d != null) return d;
+  if (f != null) return f;
+  if (rawDeposit != null && rawFinal != null) return rawDeposit + rawFinal;
+  if (rawDeposit != null) return rawDeposit;
+  if (rawFinal != null) return rawFinal;
+  return rawAggregate;
+}
+
+function readFeeTotalCentsNormalized(
+  meta: Record<string, string | undefined>,
+  raw: ParsedBookingPaymentIntentMetadata
+): number | null {
+  const direct = readIntFirst(meta, [
+    'fee_total_cents',
+    'platform_fee_total_cents',
+    'platform_fee_cents',
+  ]);
+  if (direct != null) return direct;
+  const d = readInt(meta, 'deposit_fee_total_cents');
+  const f = readInt(meta, 'final_fee_total_cents');
+  if (d != null && f != null) return d + f;
+  if (d != null) return d;
+  if (f != null) return f;
+  if (raw.depositFeeTotalCents != null && raw.finalFeeTotalCents != null) {
+    return raw.depositFeeTotalCents + raw.finalFeeTotalCents;
+  }
+  if (raw.depositFeeTotalCents != null) return raw.depositFeeTotalCents;
+  if (raw.finalFeeTotalCents != null) return raw.finalFeeTotalCents;
+  return raw.feeTotalCents;
+}
+
+/**
+ * Money fields for receipts / overlays: prefer {@link NormalizedBookingPaymentMetadata.financial},
+ * then legacy `raw` parse when a financial field is absent.
+ */
+export function receiptMoneyFieldsFromNormalizedPaymentMetadata(
+  norm: NormalizedBookingPaymentMetadata
+): {
+  serviceSubtotalCents: number | null;
+  serviceFeeCents: number | null;
+  convenienceFeeCents: number | null;
+  protectionFeeCents: number | null;
+  demandFeeCents: number | null;
+  feeTotalCents: number | null;
+  promoDiscountCents: number | null;
+  platformFeeTotalCents: number | null;
+  customerTotalCents: number | null;
+  depositChargeCents: number | null;
+  finalChargeCents: number | null;
+} {
+  const { financial: f, raw: p } = norm;
+  const subtotal = f.subtotalCents ?? f.serviceSubtotalCents ?? p.serviceSubtotalCents;
+  return {
+    serviceSubtotalCents: subtotal,
+    serviceFeeCents: f.serviceFeeCents ?? p.serviceFeeCents,
+    convenienceFeeCents: f.convenienceFeeCents ?? p.convenienceFeeCents,
+    protectionFeeCents: f.protectionFeeCents ?? p.protectionFeeCents,
+    demandFeeCents: f.demandFeeCents ?? p.demandFeeCents,
+    feeTotalCents: f.feeTotalCents ?? p.feeTotalCents,
+    promoDiscountCents: f.promoDiscountCents ?? p.promoDiscountCents,
+    platformFeeTotalCents: f.feeTotalCents ?? p.platformFeeTotalCents,
+    customerTotalCents: f.customerTotalCents ?? p.customerTotalCents,
+    depositChargeCents: f.depositChargeCents ?? p.depositChargeCents,
+    finalChargeCents: f.finalChargeCents ?? p.finalChargeCents,
+  };
+}
+
+/**
+ * Single entry point for webhook / lifecycle / receipt code reading Stripe PI metadata.
+ * Resolves canonical frozen-pricing keys first, then lifecycle aliases, then `raw` parse.
+ */
+export function normalizeBookingPaymentMetadata(
+  meta: Record<string, string | undefined>
+): NormalizedBookingPaymentMetadata {
+  const raw = parseBookingPaymentIntentMetadata(meta);
+  const customerTotalCents =
+    readIntFirst(meta, ['customer_total_cents', 'total_amount_cents']) ?? raw.customerTotalCents;
+  const depositChargeCents =
+    readIntFirst(meta, ['deposit_charge_cents', 'deposit_amount_cents']) ?? raw.depositChargeCents;
+  const finalChargeCents =
+    readIntFirst(meta, ['final_charge_cents', 'final_amount_cents']) ?? raw.finalChargeCents;
+  const serviceSubtotalCents =
+    readIntFirst(meta, ['service_subtotal_cents', 'subtotal_cents']) ?? raw.serviceSubtotalCents;
+  const feeTotalCents = readFeeTotalCentsNormalized(meta, raw);
+
+  const serviceFeeCents = readAggregateOrSplitLineCents(
+    meta,
+    ['service_fee_cents'],
+    'deposit_service_fee_cents',
+    'final_service_fee_cents',
+    raw.serviceFeeCents,
+    raw.depositServiceFeeCents,
+    raw.finalServiceFeeCents
+  );
+  const convenienceFeeCents = readAggregateOrSplitLineCents(
+    meta,
+    ['convenience_fee_cents'],
+    'deposit_convenience_fee_cents',
+    'final_convenience_fee_cents',
+    raw.convenienceFeeCents,
+    raw.depositConvenienceFeeCents,
+    raw.finalConvenienceFeeCents
+  );
+  const protectionFeeCents = readAggregateOrSplitLineCents(
+    meta,
+    ['protection_fee_cents'],
+    'deposit_protection_fee_cents',
+    'final_protection_fee_cents',
+    raw.protectionFeeCents,
+    raw.depositProtectionFeeCents,
+    raw.finalProtectionFeeCents
+  );
+  const demandFeeCents = readAggregateOrSplitLineCents(
+    meta,
+    ['demand_fee_cents'],
+    'deposit_demand_fee_cents',
+    'final_demand_fee_cents',
+    raw.demandFeeCents,
+    raw.depositDemandFeeCents,
+    raw.finalDemandFeeCents
+  );
+  const promoDiscountCents = readAggregateOrSplitLineCents(
+    meta,
+    ['promo_discount_cents'],
+    'deposit_promo_discount_cents',
+    'final_promo_discount_cents',
+    raw.promoDiscountCents,
+    raw.depositPromoDiscountCents,
+    raw.finalPromoDiscountCents
+  );
+
+  return {
+    financial: {
+      bookingId: raw.bookingId,
+      customerId: meta.customer_id ?? meta.customerId ?? null,
+      proId: meta.pro_id ?? meta.proId ?? null,
+      phase: raw.phase,
+      pricingVersion: meta.pricing_version?.trim() ? String(meta.pricing_version).trim() : null,
+      customerTotalCents,
+      depositChargeCents,
+      finalChargeCents,
+      serviceSubtotalCents,
+      subtotalCents: serviceSubtotalCents,
+      feeTotalCents,
+      serviceFeeCents,
+      convenienceFeeCents,
+      protectionFeeCents,
+      demandFeeCents,
+      promoDiscountCents,
+    },
+    analyticsOnly: {
+      feeProfile: raw.feeProfile,
+      subtotalTier: raw.subtotalTier,
+      dynamicPricingReasons: raw.dynamicPricingReasons,
+      urgency: raw.urgency,
+      areaDemandScore: raw.areaDemandScore,
+      supplyTightnessScore: raw.supplyTightnessScore,
+      conversionRiskScore: raw.conversionRiskScore,
+      trustRiskScore: raw.trustRiskScore,
+      isFirstBooking: raw.isFirstBooking,
+      isRepeatCustomer: raw.isRepeatCustomer,
+      bookingFeeProfileStamped: meta.booking_fee_profile_stamped ?? null,
+      bookingPricingOccupationSlug: meta.booking_pricing_occupation_slug ?? null,
+      bookingPricingCategorySlug: meta.booking_pricing_category_slug ?? null,
+    },
+    raw,
+  };
+}
+
 export function parseBookingPaymentIntentMetadata(
   meta: Record<string, string | undefined>
 ): ParsedBookingPaymentIntentMetadata {
@@ -380,7 +651,8 @@ export function parseBookingPaymentIntentMetadata(
     protectionFeeCents: readInt(meta, 'protection_fee_cents'),
     demandFeeCents: readInt(meta, 'demand_fee_cents'),
     feeTotalCents: readInt(meta, 'fee_total_cents') ?? readInt(meta, 'platform_fee_total_cents'),
-    serviceSubtotalCents: readInt(meta, 'service_subtotal_cents'),
+    serviceSubtotalCents:
+      readInt(meta, 'service_subtotal_cents') ?? readInt(meta, 'subtotal_cents'),
     platformFeeTotalCents: readInt(meta, 'platform_fee_total_cents') ?? readInt(meta, 'fee_total_cents'),
     customerTotalCents: readInt(meta, 'customer_total_cents'),
     depositServiceFeeCents: readInt(meta, 'deposit_service_fee_cents'),

@@ -2,6 +2,7 @@
  * POST /api/bookings/[bookingId]/messages
  * Booking-thread chat messages (customer ↔ assigned pro). Single choke point: auth, participant, block, rate limit, notify.
  */
+import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
@@ -19,6 +20,8 @@ import {
   normalizeChatMessageBody,
 } from '@/lib/messaging/chat-message-errors';
 import { isProfileActiveForOperations } from '@/lib/account/lifecycle';
+import { appendTrustSafetyAudit } from '@/lib/trust-safety/auditLog';
+import { scanMessageForOffPlatformSignals } from '@/lib/retention/offPlatformMessageSignals';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -149,7 +152,36 @@ export async function POST(
       });
     }
 
-    return NextResponse.json({ ok: true, message: msg });
+    const { signal } = scanMessageForOffPlatformSignals(message);
+    let trustNudge: { kind: 'stay_on_platform_info'; signalCategory: string } | undefined;
+    if (signal) {
+      const normalized = message.toLowerCase().trim().slice(0, 500);
+      const messageFingerprint = createHash('sha256').update(normalized).digest('hex').slice(0, 24);
+      void appendTrustSafetyAudit(admin, {
+        resource_type: 'booking',
+        resource_id: id,
+        action: 'off_platform_chat_signal_detected',
+        actor_user_id: user.id,
+        details: {
+          signal_category: signal,
+          sender_role: actualSenderRole,
+          message_fingerprint: messageFingerprint,
+        },
+      });
+      const { error: sigErr } = await admin.from('messaging_trust_signals').insert({
+        booking_id: id,
+        actor_user_id: user.id,
+        signal_category: signal,
+        intervention_kind: 'inline_reminder',
+        message_fingerprint: messageFingerprint,
+      });
+      if (sigErr) {
+        console.warn('[bookings/messages] messaging_trust_signals insert failed', sigErr);
+      }
+      trustNudge = { kind: 'stay_on_platform_info', signalCategory: signal };
+    }
+
+    return NextResponse.json({ ok: true, message: msg, trustNudge });
   } catch (err) {
     console.error('[bookings/messages] error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
