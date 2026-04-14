@@ -123,6 +123,19 @@ describe('buildMoneyStateInputForFinalRoute', () => {
 
 describe('finalCheckoutPayable + getMoneyState', () => {
   const pastReviewMs = Date.parse('2026-01-02T12:00:00.000Z');
+  const duringReviewMs = Date.parse('2026-01-01T11:00:00.000Z');
+
+  it('is true during customer review window when balance remains (early final pay)', () => {
+    const booking = row({});
+    const input = buildMoneyStateInputForFinalRoute({
+      booking,
+      paymentAmounts: amountsDue5k,
+      coalescedFinalPaymentIntentId: null,
+    });
+    const m = getMoneyState(input, {}, duringReviewMs);
+    assert.strictEqual(m.final, 'final_review_window');
+    assert.strictEqual(finalCheckoutPayable(m), true);
+  });
 
   it('is true for final_due after review window with balance due', () => {
     const booking = row({});

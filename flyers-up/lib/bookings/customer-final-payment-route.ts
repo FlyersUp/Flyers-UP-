@@ -80,12 +80,19 @@ export function buildMoneyStateInputForFinalRoute(params: {
   };
 }
 
+/**
+ * Phases where POST /pay/final may create or confirm a remaining-balance PaymentIntent.
+ * Includes {@link MoneyFinalPhase} `final_review_window` so customers can pay early during the
+ * post-completion review countdown (otherwise UI showed NOT_PAYABLE until the deadline passed).
+ */
 const PAYABLE_FINAL: ReadonlySet<MoneyFinalPhase> = new Set([
   'final_due',
   'final_failed',
   'final_requires_action',
+  'final_review_window',
 ]);
 
 export function finalCheckoutPayable(money: MoneyState): boolean {
+  if (money.remainingCents <= 0) return false;
   return PAYABLE_FINAL.has(money.final);
 }
