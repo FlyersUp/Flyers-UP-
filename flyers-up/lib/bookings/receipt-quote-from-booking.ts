@@ -28,7 +28,7 @@ export async function computeReceiptQuoteOverlay(
 
   const { data: proRow, error: proErr } = await admin
     .from('service_pros')
-    .select('id, user_id, display_name, category_id')
+    .select('id, user_id, display_name, category_id, occupations(slug)')
     .eq('id', proId)
     .maybeSingle();
 
@@ -58,6 +58,8 @@ export async function computeReceiptQuoteOverlay(
   }
 
   const proName = ((proRow as { display_name?: string }).display_name ?? 'Pro').trim();
+  const occSlugFromPro =
+    (proRow as { occupations?: { slug?: string } | null }).occupations?.slug?.trim() || null;
 
   const { count } = await admin
     .from('bookings')
@@ -93,6 +95,7 @@ export async function computeReceiptQuoteOverlay(
     {
       paymentDueAt: (bookingRow.payment_due_at as string | null) ?? null,
       completedOrPaidBookingCount: count ?? 0,
+      occupationSlug: (bookingRow.pricing_occupation_slug as string | null)?.trim() || occSlugFromPro || null,
     }
   );
 

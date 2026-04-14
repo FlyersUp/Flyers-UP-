@@ -15,6 +15,7 @@ import {
   type RatesFormValues,
   type RatesPricingHints,
 } from '@/components/pricing/RatesForm';
+import { getSuggestedPriceRange } from '@/lib/pricing/category-config';
 import { getMinimumBookingCents } from '@/lib/pricing/minimums';
 import { getSuggestedPriceCents, isFarBelowSuggestedPriceCents } from '@/lib/pricing/suggestions';
 import {
@@ -263,7 +264,12 @@ export default function ProPricingAvailabilitySettingsPage() {
     });
     const minCents = getMinimumBookingCents(occupationSlug ?? undefined);
     const listedCents = Math.round((safeNum(rates.startingPrice) ?? 0) * 100);
-    const suggestedLine = `Suggested: ${formatUsdFromCents(suggestedCents)} based on job type and duration (${estimatedDurationMinutes} min typical).`;
+    const range = getSuggestedPriceRange(occForPricing);
+    const rangeHint =
+      range != null
+        ? ` Typical range for your occupation: ${formatUsdFromCents(range[0])}–${formatUsdFromCents(range[1])}.`
+        : '';
+    const suggestedLine = `Suggested: ${formatUsdFromCents(suggestedCents)} based on job type and duration (${estimatedDurationMinutes} min typical).${rangeHint}`;
     const belowMinimumWarning =
       listedCents > 0 && listedCents < minCents
         ? `Flyers Up applies a ${formatUsdFromCents(minCents)} minimum for this service when customers book.`
@@ -284,7 +290,12 @@ export default function ProPricingAvailabilitySettingsPage() {
     const minCents = getMinimumBookingCents(occupationSlug ?? undefined);
     const hr = safeNum(rates.hourlyRate);
     const listedJobCents = Math.round((hr ?? 0) * 100 * (estimatedDurationMinutes / 60));
-    const suggestedLine = `Suggested total for ~${estimatedDurationMinutes} min: ${formatUsdFromCents(suggestedCents)} (based on job type and duration).`;
+    const range = getSuggestedPriceRange(occForPricing);
+    const rangeHint =
+      range != null
+        ? ` Typical range for your occupation: ${formatUsdFromCents(range[0])}–${formatUsdFromCents(range[1])}.`
+        : '';
+    const suggestedLine = `Suggested total for ~${estimatedDurationMinutes} min: ${formatUsdFromCents(suggestedCents)} (based on job type and duration).${rangeHint}`;
     const belowMinimumWarning =
       listedJobCents > 0 && listedJobCents < minCents
         ? `At this rate, a ${estimatedDurationMinutes}-minute job is under the ${formatUsdFromCents(minCents)} platform minimum for your service.`

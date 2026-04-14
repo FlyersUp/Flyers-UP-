@@ -73,7 +73,7 @@ export async function POST(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, paid_deposit_at, paid_remaining_at, fully_paid_at, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents, stripe_payment_intent_deposit_id, payment_intent_id, deposit_payment_intent_id, customer_review_deadline_at'
+      'id, customer_id, pro_id, status, payment_status, final_payment_intent_id, final_payment_status, amount_remaining, remaining_amount_cents, amount_total, total_amount_cents, amount_platform_fee, amount_deposit, currency, price, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, paid_deposit_at, paid_remaining_at, fully_paid_at, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents, stripe_payment_intent_deposit_id, payment_intent_id, deposit_payment_intent_id, customer_review_deadline_at, duration_hours, miles_distance, flat_fee_selected, hourly_selected'
     )
     .eq('id', id)
     .eq('customer_id', user.id)
@@ -170,7 +170,7 @@ export async function POST(
   if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
     const { data: proRowForQuote } = await admin
       .from('service_pros')
-      .select('user_id, display_name, category_id')
+      .select('user_id, display_name, category_id, occupation_id, occupations(slug)')
       .eq('id', booking.pro_id)
       .maybeSingle();
     const { data: proPricing } = await admin
@@ -179,11 +179,19 @@ export async function POST(
       .eq('user_id', proRowForQuote?.user_id ?? '')
       .maybeSingle();
     const proName = ((proRowForQuote as { display_name?: string })?.display_name ?? 'Pro').trim();
+    const occSlugFromPro =
+      (proRowForQuote as { occupations?: { slug?: string } | null })?.occupations?.slug?.trim() || null;
     const bFin = booking as {
       pricing_version?: string | null;
       service_fee_cents?: number | null;
       convenience_fee_cents?: number | null;
       protection_fee_cents?: number | null;
+      pricing_occupation_slug?: string | null;
+      pricing_category_slug?: string | null;
+      duration_hours?: number | null;
+      miles_distance?: number | null;
+      flat_fee_selected?: boolean | null;
+      hourly_selected?: boolean | null;
     };
     const quoteResult = computeQuote(
       {
@@ -195,8 +203,14 @@ export async function POST(
         address: booking.address,
         price: booking.price,
         status: booking.status,
+        duration_hours: bFin.duration_hours ?? null,
+        miles_distance: bFin.miles_distance ?? null,
+        flat_fee_selected: bFin.flat_fee_selected ?? null,
+        hourly_selected: bFin.hourly_selected ?? null,
         urgency: (booking as { urgency?: string | null }).urgency ?? null,
         created_at: (booking as { created_at?: string | null }).created_at ?? null,
+        pricing_occupation_slug: bFin.pricing_occupation_slug ?? null,
+        pricing_category_slug: bFin.pricing_category_slug ?? null,
         pricing_version: bFin.pricing_version ?? null,
         service_fee_cents: bFin.service_fee_cents ?? null,
         convenience_fee_cents: bFin.convenience_fee_cents ?? null,
@@ -204,7 +218,11 @@ export async function POST(
       },
       proPricing,
       serviceName,
-      proName
+      proName,
+      {
+        occupationSlug: bFin.pricing_occupation_slug ?? occSlugFromPro,
+        completedOrPaidBookingCount: completedPaidCount ?? 0,
+      }
     );
     lastDynamicPricingReasons = quoteResult.quote.dynamicPricingReasons ?? [];
     pricing = quoteResult.pricing;

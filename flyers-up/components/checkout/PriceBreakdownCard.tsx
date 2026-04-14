@@ -40,14 +40,14 @@ export function PriceBreakdownCard({ quote, showDeposit = true }: { quote: Quote
     <Card className="shadow-[var(--shadow-md)]" padding="lg">
       <h3 className="mb-3 text-sm font-semibold text-primary">Checkout summary</h3>
       <div className="space-y-2">
-        <PriceRow label="Subtotal (your rate)" value={formatCents(baseAmount)} />
+        <PriceRow label="Subtotal (pro rate)" value={formatCents(baseAmount)} />
         {quote.amountTravelFee > 0 && (
           <PriceRow label="Travel fee" value={formatCents(quote.amountTravelFee)} />
         )}
         {(quote.serviceFeeCents ?? 0) > 0 && <PriceRow label="Service fee" value={formatCents(quote.serviceFeeCents ?? 0)} />}
         {(quote.convenienceFeeCents ?? 0) > 0 && <PriceRow label="Convenience fee" value={formatCents(quote.convenienceFeeCents ?? 0)} />}
-        {(quote.protectionFeeCents ?? 0) > 0 && <PriceRow label="Protection & guarantee" value={formatCents(quote.protectionFeeCents ?? 0)} />}
-        {(quote.demandFeeCents ?? 0) > 0 && <PriceRow label="High-demand fee" value={formatCents(quote.demandFeeCents ?? 0)} />}
+        {(quote.protectionFeeCents ?? 0) > 0 && <PriceRow label="Protection" value={formatCents(quote.protectionFeeCents ?? 0)} />}
+        {(quote.demandFeeCents ?? 0) > 0 && <PriceRow label="Busy-time fee" value={formatCents(quote.demandFeeCents ?? 0)} />}
         {(quote.promoDiscountCents ?? 0) > 0 && <PriceRow label="Discount" value={`-${formatCents(quote.promoDiscountCents ?? 0)}`} />}
         {(quote.feeTotalCents == null && quote.amountPlatformFee > 0) && <PriceRow label="Fees" value={formatCents(quote.amountPlatformFee)} />}
         <PriceRow

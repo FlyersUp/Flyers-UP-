@@ -3,6 +3,7 @@
  * Occupation minimums live in {@link ./minimums}.
  */
 
+import { getCategoryPricingConfigForOccupationSlug } from '@/lib/pricing/category-config';
 import { DEFAULT_MIN_BOOKING_CENTS, getMinimumBookingCents } from '@/lib/pricing/minimums';
 
 /** @deprecated Use DEFAULT_MIN_BOOKING_CENTS from ./minimums */
@@ -43,7 +44,9 @@ export function applyMinimumBookingSubtotal(options: {
   occupationSlug?: string | null;
 }): ApplyMinimumSubtotalResult {
   const raw = Math.max(0, Math.round(options.rawSubtotalCents));
-  const minimumCents = getMinimumBookingCents(options.occupationSlug);
+  const legacyMin = getMinimumBookingCents(options.occupationSlug);
+  const categoryMin = getCategoryPricingConfigForOccupationSlug(options.occupationSlug)?.minPriceCents ?? 0;
+  const minimumCents = Math.max(legacyMin, categoryMin);
   const mode = resolveMinBookingSubtotalMode();
 
   if (raw >= minimumCents) {

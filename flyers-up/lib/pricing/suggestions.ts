@@ -1,6 +1,7 @@
 /**
  * Suggested list prices for pros (cents). Server- or client-safe pure functions.
  */
+import { getCategoryPricingConfigForOccupationSlug } from '@/lib/pricing/category-config';
 import { getMinimumBookingCents, normalizeOccupationSlugForPricing } from '@/lib/pricing/minimums';
 
 export type PricingDemandLevel = 'low' | 'medium' | 'high';
@@ -53,9 +54,16 @@ export function getSuggestedPriceCents(input: {
   timeBand?: PricingTimeBand;
   urgency?: BookingUrgencyTier;
 }): number {
-  const hourly = baseHourlyCentsForOccupation(input.occupationSlug);
   const hours = Math.max(1 / 60, (input.estimatedDurationMinutes ?? 60) / 60);
-  let suggested = hourly * hours;
+  const cat = getCategoryPricingConfigForOccupationSlug(input.occupationSlug);
+  let suggested: number;
+  if (cat) {
+    const [lo, hi] = cat.typicalRangeCents;
+    suggested = ((lo + hi) / 2) * hours;
+  } else {
+    const hourly = baseHourlyCentsForOccupation(input.occupationSlug);
+    suggested = hourly * hours;
+  }
 
   const demand = input.demandLevel ?? 'medium';
   if (demand === 'high') suggested *= 1.18;
@@ -68,8 +76,9 @@ export function getSuggestedPriceCents(input: {
   if (input.urgency === 'asap') suggested *= 1.15;
   else if (input.urgency === 'same_day') suggested *= 1.06;
 
-  const minimum = getMinimumBookingCents(input.occupationSlug);
-  suggested = Math.max(suggested, minimum);
+  const categoryMin = cat?.minPriceCents ?? 0;
+  const platformMin = getMinimumBookingCents(input.occupationSlug);
+  suggested = Math.max(suggested, platformMin, categoryMin);
   return Math.round(suggested);
 }
 

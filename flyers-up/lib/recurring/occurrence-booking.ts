@@ -4,6 +4,8 @@ import { getOccupationFeeProfile } from '@/lib/bookings/fee-rules';
 import { resolveUrgency } from '@/lib/bookings/urgency';
 import { findScheduleConflict } from '@/lib/recurring/conflicts';
 import { applyMinimumBookingSubtotal } from '@/lib/pricing/config';
+import { bookingPricingSnapshotToDbRow } from '@/lib/bookings/booking-pricing-snapshot';
+import { getFeeProfileForOccupationSlug } from '@/lib/pricing/category-config';
 import { computeMarketplaceFees, resolveMarketplacePricingVersionForBooking } from '@/lib/pricing/fees';
 import { getSuggestedPriceCents } from '@/lib/pricing/suggestions';
 
@@ -182,9 +184,33 @@ export async function generateBookingFromOccurrence(
 
   const marketplaceFees = computeMarketplaceFees(
     minApply.enforcedSubtotalCents,
-    resolveMarketplacePricingVersionForBooking({ customerId: customerUserId })
+    resolveMarketplacePricingVersionForBooking({ customerId: customerUserId }),
+    getFeeProfileForOccupationSlug(occupationSlug)
   );
   const totalDollars = marketplaceFees.subtotalCents / 100;
+
+  const pricingSnapshotRow = bookingPricingSnapshotToDbRow(
+    {
+      charge_model: 'flat',
+      subtotal_cents: marketplaceFees.subtotalCents,
+      service_fee_cents: marketplaceFees.serviceFeeCents,
+      convenience_fee_cents: marketplaceFees.convenienceFeeCents,
+      protection_fee_cents: marketplaceFees.protectionFeeCents,
+      demand_fee_cents: marketplaceFees.demandFeeCents,
+      total_cents: marketplaceFees.customerTotalCents,
+      pro_earnings_cents: marketplaceFees.subtotalCents,
+      platform_revenue_cents: marketplaceFees.feeTotalCents,
+      flat_fee_cents: minApply.enforcedSubtotalCents,
+      hourly_rate_cents: null,
+      base_fee_cents: null,
+      included_hours: null,
+      actual_hours_estimate: durationMinutes / 60,
+      overage_hourly_rate_cents: null,
+      minimum_job_cents: null,
+      demand_multiplier: null,
+    },
+    { feeTotalCents: marketplaceFees.feeTotalCents }
+  );
 
   const insertRow = {
     customer_id: customerUserId,
@@ -206,12 +232,7 @@ export async function generateBookingFromOccurrence(
     pricing_occupation_slug: occupationSlug ?? null,
     pricing_category_slug: categorySlug ?? null,
     original_subtotal_cents: minApply.originalSubtotalCents,
-    subtotal_cents: marketplaceFees.subtotalCents,
-    service_fee_cents: marketplaceFees.serviceFeeCents,
-    convenience_fee_cents: marketplaceFees.convenienceFeeCents,
-    protection_fee_cents: marketplaceFees.protectionFeeCents,
-    fee_total_cents: marketplaceFees.feeTotalCents,
-    customer_total_cents: marketplaceFees.customerTotalCents,
+    ...pricingSnapshotRow,
     stripe_estimated_fee_cents: marketplaceFees.stripeEstimatedFeeCents,
     platform_gross_margin_cents: marketplaceFees.platformGrossMarginCents,
     effective_take_rate: Number(marketplaceFees.effectiveTakeRate.toFixed(4)),

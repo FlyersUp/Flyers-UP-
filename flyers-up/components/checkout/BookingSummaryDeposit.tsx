@@ -147,7 +147,7 @@ function PriceDetailsBlock({
       </button>
       {expanded && (
         <div className="space-y-3 border-t border-[#EEF0F2] px-5 pb-5 pt-4 dark:border-white/10">
-          <PriceRow label="Subtotal (your rate)" value={formatCents(baseAmount)} />
+          <PriceRow label="Subtotal (pro rate)" value={formatCents(baseAmount)} />
           {(quote.amountTravelFee ?? 0) > 0 && (
             <PriceRow label="Travel fee" value={formatCents(quote.amountTravelFee!)} />
           )}
@@ -158,10 +158,10 @@ function PriceDetailsBlock({
             <PriceRow label="Convenience fee" value={formatCents(quote.convenienceFeeCents ?? 0)} />
           )}
           {(quote.protectionFeeCents ?? 0) > 0 && (
-            <PriceRow label="Protection & guarantee" value={formatCents(quote.protectionFeeCents ?? 0)} />
+            <PriceRow label="Protection" value={formatCents(quote.protectionFeeCents ?? 0)} />
           )}
           {(quote.demandFeeCents ?? 0) > 0 && (
-            <PriceRow label="High-demand fee" value={formatCents(quote.demandFeeCents ?? 0)} />
+            <PriceRow label="Busy-time fee" value={formatCents(quote.demandFeeCents ?? 0)} />
           )}
           {(quote.promoDiscountCents ?? 0) > 0 && (
             <PriceRow label="Discount" value={`-${formatCents(quote.promoDiscountCents ?? 0)}`} />

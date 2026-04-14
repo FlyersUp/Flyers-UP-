@@ -1,3 +1,9 @@
+import {
+  calculateMarketplaceFees,
+  type FeeInputs,
+  type MarketplaceFeeOverrides,
+} from '@/lib/pricing/fees';
+
 export type MultiFeeBookingPricing = {
   serviceSubtotalCents: number;
 
@@ -32,6 +38,79 @@ export type MultiFeeBookingPricing = {
   depositChargeCents: number;
   finalChargeCents: number;
 };
+
+/** Flat quote from {@link calculateMarketplaceFees} (no deposit split, no promo). */
+export type BookingQuoteSummary = {
+  subtotalCents: number;
+  serviceFeeCents: number;
+  convenienceFeeCents: number;
+  protectionFeeCents: number;
+  demandFeeCents: number;
+  totalCents: number;
+  proReceivesCents: number;
+  platformRevenueCents: number;
+};
+
+/** One row for checkout / receipt UI lists. */
+export type BookingQuoteBreakdownLine = {
+  label: string;
+  amountCents: number;
+};
+
+/**
+ * Marketplace line items + customer total from tiered engine.
+ * Pro keeps {@link BookingQuoteSummary.proReceivesCents}; platform revenue is customer-paid fees.
+ */
+export function buildBookingQuote(
+  input: FeeInputs,
+  overrides?: MarketplaceFeeOverrides
+): BookingQuoteSummary {
+  const fees = calculateMarketplaceFees(input, overrides);
+
+  return {
+    subtotalCents: fees.subtotalCents,
+    serviceFeeCents: fees.serviceFeeCents,
+    convenienceFeeCents: fees.convenienceFeeCents,
+    protectionFeeCents: fees.protectionFeeCents,
+    demandFeeCents: fees.demandFeeCents,
+    totalCents: fees.totalCustomerCents,
+    proReceivesCents: fees.proEarningsCents,
+    platformRevenueCents: fees.platformRevenueCents,
+  };
+}
+
+/**
+ * Customer-facing line order for a {@link BookingQuoteSummary} (labels match checkout copy).
+ */
+export function buildBookingQuoteBreakdown(
+  quote: Pick<
+    BookingQuoteSummary,
+    | 'subtotalCents'
+    | 'serviceFeeCents'
+    | 'convenienceFeeCents'
+    | 'protectionFeeCents'
+    | 'demandFeeCents'
+    | 'totalCents'
+  >
+): BookingQuoteBreakdownLine[] {
+  const {
+    subtotalCents,
+    serviceFeeCents,
+    convenienceFeeCents,
+    protectionFeeCents,
+    demandFeeCents,
+    totalCents,
+  } = quote;
+
+  return [
+    { label: 'Subtotal (pro rate)', amountCents: subtotalCents },
+    { label: 'Service fee', amountCents: serviceFeeCents },
+    { label: 'Convenience fee', amountCents: convenienceFeeCents },
+    { label: 'Protection', amountCents: protectionFeeCents },
+    ...(demandFeeCents > 0 ? [{ label: 'Busy-time fee', amountCents: demandFeeCents }] : []),
+    { label: 'Total', amountCents: totalCents },
+  ];
+}
 
 export function computeBookingPricing(params: {
   serviceSubtotalCents: number;

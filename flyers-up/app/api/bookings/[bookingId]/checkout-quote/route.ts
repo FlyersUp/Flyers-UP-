@@ -30,7 +30,7 @@ export async function GET(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, status, price, payment_due_at, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents'
+      'id, customer_id, pro_id, status, price, payment_due_at, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, original_subtotal_cents, subtotal_cents, duration_hours, miles_distance, flat_fee_selected, hourly_selected'
     )
     .eq('id', id)
     .eq('customer_id', user.id)
@@ -45,7 +45,7 @@ export async function GET(
 
   const { data: proRow, error: proErr } = await admin
     .from('service_pros')
-    .select('id, user_id, display_name, category_id')
+    .select('id, user_id, display_name, category_id, occupation_id, occupations(slug)')
     .eq('id', booking.pro_id)
     .maybeSingle();
 
@@ -85,6 +85,8 @@ export async function GET(
 
   const proName = ((proRow as { display_name?: string }).display_name ?? 'Pro').trim();
 
+  const occSlugFromPro =
+    (proRow as { occupations?: { slug?: string } | null }).occupations?.slug?.trim() || null;
   const proUserId = (proRow as { user_id: string }).user_id;
   const { data: profileRow } = await admin
     .from('profiles')
@@ -103,6 +105,13 @@ export async function GET(
     convenience_fee_cents?: number | null;
     protection_fee_cents?: number | null;
   };
+  const bRow = booking as {
+    pricing_occupation_slug?: string | null;
+    pricing_category_slug?: string | null;
+    flat_fee_selected?: boolean | null;
+    hourly_selected?: boolean | null;
+  };
+
   const quoteResult = computeQuote(
     {
       id: booking.id,
@@ -115,8 +124,12 @@ export async function GET(
       status: booking.status,
       duration_hours: (booking as { duration_hours?: number | null }).duration_hours,
       miles_distance: (booking as { miles_distance?: number | null }).miles_distance,
+      flat_fee_selected: bRow.flat_fee_selected ?? null,
+      hourly_selected: bRow.hourly_selected ?? null,
       urgency: (booking as { urgency?: string | null }).urgency ?? null,
       created_at: (booking as { created_at?: string | null }).created_at ?? null,
+      pricing_occupation_slug: bRow.pricing_occupation_slug ?? null,
+      pricing_category_slug: bRow.pricing_category_slug ?? null,
       pricing_version: bQ.pricing_version ?? null,
       service_fee_cents: bQ.service_fee_cents ?? null,
       convenience_fee_cents: bQ.convenience_fee_cents ?? null,
@@ -127,6 +140,7 @@ export async function GET(
     proName,
     {
       paymentDueAt: (booking as { payment_due_at?: string | null }).payment_due_at,
+      occupationSlug: bRow.pricing_occupation_slug ?? occSlugFromPro ?? null,
       completedOrPaidBookingCount: (
         await admin
           .from('bookings')

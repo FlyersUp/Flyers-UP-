@@ -177,6 +177,29 @@ describe('buildUnifiedBookingReceipt', () => {
     assert.strictEqual(r.paidDepositAt, null);
   });
 
+  it('splits fee total into tiered line items when per-fee cents omitted', () => {
+    const r = buildUnifiedBookingReceipt({
+      bookingId: BID,
+      status: 'payment_required',
+      paymentStatus: 'UNPAID',
+      finalPaymentStatus: 'UNPAID',
+      amountDeposit: 0,
+      amountRemaining: 0,
+      amountTotal: 0,
+      totalAmountCents: 0,
+      serviceSubtotalCents: 10_000,
+      customerTotalCents: 10_000 + 1_999,
+      feeTotalCents: 1_999,
+      platformFeeTotalCents: 1_999,
+      serviceTitle: 'Cleaning',
+      proName: 'Alex',
+    });
+    assert.strictEqual(r.serviceFeeCents, 1_500);
+    assert.strictEqual(r.convenienceFeeCents, 299);
+    assert.strictEqual(r.protectionFeeCents, 200);
+    assert.strictEqual(r.demandFeeCents, 0);
+  });
+
   it('derives service subtotal from customer total and fee total when subtotal omitted', () => {
     const r = buildUnifiedBookingReceipt({
       bookingId: BID,

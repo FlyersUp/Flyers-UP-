@@ -24,6 +24,8 @@ import {
 } from '@/lib/bookings/booking-request-scope';
 import { isServiceProBookableByCustomers } from '@/lib/pro/pro-bookability';
 import { applyMinimumBookingSubtotal } from '@/lib/pricing/config';
+import { bookingPricingSnapshotToDbRow } from '@/lib/bookings/booking-pricing-snapshot';
+import { getFeeProfileForOccupationSlug } from '@/lib/pricing/category-config';
 import { computeMarketplaceFees, resolveMarketplacePricingVersionForBooking } from '@/lib/pricing/fees';
 import { getSuggestedPriceCents } from '@/lib/pricing/suggestions';
 import { bookingLimiter } from '@/lib/rate-limit';
@@ -245,9 +247,55 @@ export async function createBookingWithPayment(
 
     const marketplaceFees = computeMarketplaceFees(
       minApply.enforcedSubtotalCents,
-      resolveMarketplacePricingVersionForBooking({ customerId: user.id })
+      resolveMarketplacePricingVersionForBooking({ customerId: user.id }),
+      getFeeProfileForOccupationSlug(occupationSlug)
     );
     const totalDollars = marketplaceFees.subtotalCents / 100;
+
+    const { data: proProfileSnap } = await adminClient
+      .from('pro_profiles')
+      .select('pricing_model, hourly_rate, min_hours')
+      .eq('user_id', proUserId)
+      .maybeSingle();
+    const pm = String((proProfileSnap as { pricing_model?: string } | null)?.pricing_model ?? 'flat');
+    const chargeModelSnapshot =
+      pm === 'hourly' ? 'hourly' : pm === 'hybrid' ? 'flat_hourly' : 'flat';
+    const hourlySnap = Number((proProfileSnap as { hourly_rate?: number })?.hourly_rate ?? 0);
+    const minHoursSnap = Number((proProfileSnap as { min_hours?: number })?.min_hours ?? 0);
+    const hourlyRateCentsSnap = hourlySnap > 0 ? Math.round(hourlySnap * 100) : null;
+    const minimumJobCentsSnap =
+      (chargeModelSnapshot === 'hourly' || chargeModelSnapshot === 'flat_hourly') &&
+      minHoursSnap > 0 &&
+      hourlyRateCentsSnap != null &&
+      hourlyRateCentsSnap > 0
+        ? Math.round(minHoursSnap * hourlyRateCentsSnap)
+        : null;
+    const baseFeeCentsSnap = chargeModelSnapshot === 'flat_hourly' ? startingPriceCents : null;
+    const includedHoursSnap = chargeModelSnapshot === 'flat_hourly' ? 2 : null;
+    const actualHoursEstimate = durationMinutes / 60;
+
+    const pricingSnapshotRow = bookingPricingSnapshotToDbRow(
+      {
+        charge_model: chargeModelSnapshot,
+        subtotal_cents: marketplaceFees.subtotalCents,
+        service_fee_cents: marketplaceFees.serviceFeeCents,
+        convenience_fee_cents: marketplaceFees.convenienceFeeCents,
+        protection_fee_cents: marketplaceFees.protectionFeeCents,
+        demand_fee_cents: marketplaceFees.demandFeeCents,
+        total_cents: marketplaceFees.customerTotalCents,
+        pro_earnings_cents: marketplaceFees.subtotalCents,
+        platform_revenue_cents: marketplaceFees.feeTotalCents,
+        flat_fee_cents: rawSubtotalCents,
+        hourly_rate_cents: hourlyRateCentsSnap,
+        base_fee_cents: baseFeeCentsSnap,
+        included_hours: includedHoursSnap,
+        actual_hours_estimate: actualHoursEstimate,
+        overage_hourly_rate_cents: hourlyRateCentsSnap,
+        minimum_job_cents: minimumJobCentsSnap,
+        demand_multiplier: null,
+      },
+      { feeTotalCents: marketplaceFees.feeTotalCents }
+    );
 
     // 4b) Geocode address for arrival verification (best-effort)
     let addressLat: number | null = null;
@@ -342,12 +390,7 @@ export async function createBookingWithPayment(
         pricing_occupation_slug: occupationSlug ?? null,
         pricing_category_slug: categorySlug ?? null,
         original_subtotal_cents: minApply.originalSubtotalCents,
-        subtotal_cents: marketplaceFees.subtotalCents,
-        service_fee_cents: marketplaceFees.serviceFeeCents,
-        convenience_fee_cents: marketplaceFees.convenienceFeeCents,
-        protection_fee_cents: marketplaceFees.protectionFeeCents,
-        fee_total_cents: marketplaceFees.feeTotalCents,
-        customer_total_cents: marketplaceFees.customerTotalCents,
+        ...pricingSnapshotRow,
         stripe_estimated_fee_cents: marketplaceFees.stripeEstimatedFeeCents,
         platform_gross_margin_cents: marketplaceFees.platformGrossMarginCents,
         effective_take_rate: Number(marketplaceFees.effectiveTakeRate.toFixed(4)),

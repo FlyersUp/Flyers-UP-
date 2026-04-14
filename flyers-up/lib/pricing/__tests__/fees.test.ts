@@ -1,93 +1,252 @@
-import assert from 'node:assert/strict';
+/**
+ * Run: npx tsx --test lib/pricing/__tests__/fees.test.ts
+ */
 import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import {
-  computeContributionMarginCents,
+  adjustFeeRateByProfile,
+  calculateBaseTieredServiceFeeCents,
+  calculateConvenienceFeeCents,
+  calculateDemandFeeCents,
+  calculateMarketplaceFees,
+  calculateProtectionFeeCents,
+  calculateServiceFeeCents,
+  calculateSubtotalCents,
   computeMarketplaceFees,
-  hashStringForPricingAb,
   resolveMarketplacePricingVersionForBooking,
 } from '@/lib/pricing/fees';
 
-describe('computeMarketplaceFees', () => {
-  it('LOW tier: $20 job uses 12% vs $1.50 max and fixed convenience/protection', () => {
-    const r = computeMarketplaceFees(2000, 'v1_2026_04');
-    assert.equal(r.pricingBand, 'low');
-    assert.equal(r.serviceFeeCents, 240); // 12% of 2000
-    assert.equal(r.convenienceFeeCents, 249);
-    assert.equal(r.protectionFeeCents, 79);
-    assert.ok(r.feeTotalCents >= 499 || r.subtotalCents >= 7500); // floor or high tier
-    assert.equal(r.subtotalCents, 2000);
-    assert.equal(r.customerTotalCents, r.subtotalCents + r.feeTotalCents);
-    assert.ok(r.feeTotalCents >= r.stripeEstimatedFeeCents);
-    assert.equal(r.pricingVersion, 'v1_2026_04');
-  });
-
-  it('MID tier at $50', () => {
-    const r = computeMarketplaceFees(5000, 'v1_2026_04');
-    assert.equal(r.pricingBand, 'mid');
-    assert.equal(r.serviceFeeCents, 600);
-    assert.equal(r.convenienceFeeCents, 199);
-    assert.ok(r.protectionFeeCents >= 99);
-  });
-
-  it('HIGH tier at $100', () => {
-    const r = computeMarketplaceFees(10000, 'v1_2026_04');
-    assert.equal(r.pricingBand, 'high');
-    assert.equal(r.serviceFeeCents, 1350);
-    assert.equal(r.convenienceFeeCents, 0);
-    assert.equal(r.protectionFeeCents, 300);
-  });
-
-  it('v2_low_ticket_push lowers low-tier friction vs v1 at same subtotal', () => {
-    const v1 = computeMarketplaceFees(1000, 'v1_2026_04');
-    const v2 = computeMarketplaceFees(1000, 'v2_low_ticket_push');
-    assert.equal(v1.pricingVersion, 'v1_2026_04');
-    assert.equal(v2.pricingVersion, 'v2_low_ticket_push');
-    assert.ok(v2.customerTotalCents <= v1.customerTotalCents);
-  });
-
-  it('v3_higher_protection raises protection vs v1 at $50', () => {
-    const v1 = computeMarketplaceFees(5000, 'v1_2026_04');
-    const v3 = computeMarketplaceFees(5000, 'v3_higher_protection');
-    assert.ok(v3.protectionFeeCents >= v1.protectionFeeCents);
-    assert.equal(v3.pricingVersion, 'v3_higher_protection');
-  });
-});
-
-describe('computeContributionMarginCents', () => {
-  it('subtracts all buckets', () => {
-    const m = computeContributionMarginCents({
-      feeTotalCents: 1000,
-      stripeFeeCents: 300,
-      refundsCents: 50,
-      promoCreditsCents: 25,
-      supportReserveCents: 10,
-      riskReserveCents: 15,
-    });
-    assert.equal(m, 600);
-  });
-
-  it('treats omitted optional buckets as zero', () => {
+describe('calculateSubtotalCents', () => {
+  it('flat + travel', () => {
     assert.equal(
-      computeContributionMarginCents({ feeTotalCents: 500, stripeFeeCents: 100 }),
-      400
+      calculateSubtotalCents({ chargeModel: 'flat', flatFeeCents: 8000, travelFeeCents: 1500 }),
+      9500
+    );
+  });
+
+  it('hourly with minimum job', () => {
+    assert.equal(
+      calculateSubtotalCents({
+        chargeModel: 'hourly',
+        hourlyRateCents: 5000,
+        hours: 2,
+        minimumJobCents: 15000,
+        travelFeeCents: 0,
+      }),
+      15000
+    );
+  });
+
+  it('flat_hourly with overage after included hours', () => {
+    assert.equal(
+      calculateSubtotalCents({
+        chargeModel: 'flat_hourly',
+        baseFeeCents: 10000,
+        includedHours: 2,
+        actualHours: 4,
+        overageHourlyRateCents: 3000,
+        travelFeeCents: 0,
+      }),
+      16000
+    );
+  });
+
+  it('hourly + travelFeeCents', () => {
+    assert.equal(
+      calculateSubtotalCents({
+        chargeModel: 'hourly',
+        hourlyRateCents: 4_000,
+        hours: 3,
+        minimumJobCents: 8_000,
+        travelFeeCents: 1_500,
+      }),
+      13_500
+    );
+  });
+
+  it('flat_hourly + travelFeeCents', () => {
+    assert.equal(
+      calculateSubtotalCents({
+        chargeModel: 'flat_hourly',
+        baseFeeCents: 8_000,
+        includedHours: 2,
+        actualHours: 3.5,
+        overageHourlyRateCents: 3_000,
+        minimumJobCents: 10_000,
+        travelFeeCents: 2_000,
+      }),
+      14_500
     );
   });
 });
 
-describe('resolveMarketplacePricingVersionForBooking', () => {
-  it('hashStringForPricingAb is stable for deterministic A/B', () => {
-    assert.equal(hashStringForPricingAb('user-uuid-1'), hashStringForPricingAb('user-uuid-1'));
-    assert.notEqual(hashStringForPricingAb('user-a'), hashStringForPricingAb('user-b'));
+describe('calculateServiceFeeCents — tiers', () => {
+  it('under $50: 22% with $6 floor', () => {
+    assert.equal(calculateServiceFeeCents(2000), 600);
+    assert.equal(calculateServiceFeeCents(4900), 1078);
   });
 
-  it('returns a known arm when MARKETPLACE_PRICING_EXPERIMENT is set (smoke)', () => {
-    const prev = process.env.MARKETPLACE_PRICING_EXPERIMENT;
-    process.env.MARKETPLACE_PRICING_EXPERIMENT = 'v2_low_ticket_push';
+  it('under $150: 15%', () => {
+    assert.equal(calculateServiceFeeCents(10000), 1500);
+  });
+
+  it('under $500: 10%', () => {
+    assert.equal(calculateServiceFeeCents(20000), 2000);
+  });
+
+  it('large job: 7% capped at $50', () => {
+    assert.equal(calculateServiceFeeCents(100_000), 5000);
+    assert.equal(calculateServiceFeeCents(60_000), 4200);
+  });
+
+  it('fee profile scales tiered service fee (low / high)', () => {
+    const base = calculateBaseTieredServiceFeeCents(10_000);
+    assert.equal(base, 1500);
+    assert.equal(calculateServiceFeeCents(10_000, 'low'), 1275);
+    assert.equal(calculateServiceFeeCents(10_000, 'high'), 1725);
+  });
+
+  it('large-job cap applies to base tier before profile multiplier', () => {
+    assert.equal(calculateBaseTieredServiceFeeCents(100_000), 5000);
+    assert.equal(calculateServiceFeeCents(100_000, 'high'), 5750);
+  });
+});
+
+describe('adjustFeeRateByProfile', () => {
+  it('multiplies by 0.85 / 1 / 1.15', () => {
+    assert.equal(adjustFeeRateByProfile(1000, 'low'), 850);
+    assert.equal(adjustFeeRateByProfile(1000, 'medium'), 1000);
+    assert.equal(adjustFeeRateByProfile(1000, 'high'), 1150);
+  });
+});
+
+describe('calculateConvenienceFeeCents', () => {
+  it('tier buckets', () => {
+    assert.equal(calculateConvenienceFeeCents(5000), 199);
+    assert.equal(calculateConvenienceFeeCents(10000), 299);
+    assert.equal(calculateConvenienceFeeCents(25_000), 399);
+  });
+});
+
+describe('calculateProtectionFeeCents', () => {
+  it('2% with min $1 max $9.99', () => {
+    assert.equal(calculateProtectionFeeCents(3000), 100);
+    assert.equal(calculateProtectionFeeCents(10_000), 200);
+    assert.equal(calculateProtectionFeeCents(1_000_000), 999);
+  });
+});
+
+describe('calculateDemandFeeCents', () => {
+  it('applies multiplier to subtotal', () => {
+    assert.equal(calculateDemandFeeCents(10_000, 0.05), 500);
+    assert.equal(calculateDemandFeeCents(10_000, 0), 0);
+  });
+});
+
+describe('calculateMarketplaceFees — charge model examples', () => {
+  it('flat: $100 work → subtotal 10_000 cents', () => {
+    const r = calculateMarketplaceFees({ chargeModel: 'flat', flatFeeCents: 10_000 });
+    assert.equal(r.subtotalCents, 10_000);
+    assert.equal(r.proEarningsCents, 10_000);
+  });
+
+  it('hourly: $40/hr × 3h with $80 minimum → subtotal 12_000', () => {
+    const r = calculateMarketplaceFees({
+      chargeModel: 'hourly',
+      hourlyRateCents: 4_000,
+      hours: 3,
+      minimumJobCents: 8_000,
+    });
+    assert.equal(r.subtotalCents, 12_000);
+  });
+
+  it('flat_hourly: $80 base, 2h included, 3.5h actual, $30/hr overage, $100 min → subtotal 12_500', () => {
+    const input = {
+      chargeModel: 'flat_hourly' as const,
+      baseFeeCents: 8_000,
+      includedHours: 2,
+      actualHours: 3.5,
+      overageHourlyRateCents: 3_000,
+      minimumJobCents: 10_000,
+    };
+    assert.equal(calculateSubtotalCents(input), 12_500);
+    const r = calculateMarketplaceFees(input);
+    assert.equal(r.subtotalCents, 12_500);
+  });
+
+  it('hourly with travel: fees scale to work + travel subtotal', () => {
+    const withoutTravel = calculateMarketplaceFees({
+      chargeModel: 'hourly',
+      hourlyRateCents: 4_000,
+      hours: 3,
+      minimumJobCents: 8_000,
+    });
+    const withTravel = calculateMarketplaceFees({
+      chargeModel: 'hourly',
+      hourlyRateCents: 4_000,
+      hours: 3,
+      minimumJobCents: 8_000,
+      travelFeeCents: 1_500,
+    });
+    assert.equal(withoutTravel.subtotalCents, 12_000);
+    assert.equal(withTravel.subtotalCents, 13_500);
+    assert.ok(withTravel.totalCustomerCents > withoutTravel.totalCustomerCents);
+    assert.equal(withTravel.proEarningsCents, 13_500);
+  });
+});
+
+describe('calculateMarketplaceFees', () => {
+  it('pro payout equals subtotal', () => {
+    const r = calculateMarketplaceFees({ chargeModel: 'flat', flatFeeCents: 15_000 });
+    assert.equal(r.proEarningsCents, r.subtotalCents);
+    assert.equal(r.proReceivesCents, r.subtotalCents);
+    assert.equal(r.subtotalCents, 15_000);
+  });
+
+  it('customer total equals subtotal + all fees', () => {
+    const r = calculateMarketplaceFees({ chargeModel: 'flat', flatFeeCents: 10_000 }, { demandFeeCents: 250 });
+    const sumLines =
+      r.serviceFeeCents + r.convenienceFeeCents + r.protectionFeeCents + r.demandFeeCents;
+    assert.equal(r.totalFeeCents, sumLines);
+    assert.equal(r.feeTotalCents, sumLines);
+    assert.equal(r.totalCustomerCents, r.subtotalCents + r.totalFeeCents);
+    assert.equal(r.totalCents, r.subtotalCents + r.feeTotalCents);
+    assert.equal(r.platformRevenueCents, r.totalFeeCents);
+  });
+
+  it('demand fee from multiplier when override omitted', () => {
+    const r = calculateMarketplaceFees({
+      chargeModel: 'flat',
+      flatFeeCents: 20_000,
+      demandMultiplier: 0.02,
+    });
+    assert.equal(r.demandFeeCents, 400);
+  });
+});
+
+describe('computeMarketplaceFees (compat)', () => {
+  it('returns customerTotalCents alias', () => {
+    const r = computeMarketplaceFees(10_000, 'tiered_v1');
+    assert.equal(r.customerTotalCents, r.subtotalCents + r.totalFeeCents);
+  });
+});
+
+describe('resolveMarketplacePricingVersionForBooking', () => {
+  it('deterministic_ab picks an arm from env list', () => {
+    const prevExp = process.env.MARKETPLACE_PRICING_EXPERIMENT;
+    const prevArms = process.env.MARKETPLACE_PRICING_AB_ARMS;
+    process.env.MARKETPLACE_PRICING_EXPERIMENT = 'deterministic_ab';
+    process.env.MARKETPLACE_PRICING_AB_ARMS = 'tiered_v1,v1_2026_04';
     try {
-      assert.equal(resolveMarketplacePricingVersionForBooking({ customerId: 'x' }), 'v2_low_ticket_push');
+      const a = resolveMarketplacePricingVersionForBooking({ customerId: 'cust-a' });
+      const b = resolveMarketplacePricingVersionForBooking({ customerId: 'cust-b' });
+      assert.ok(['tiered_v1', 'v1_2026_04'].includes(a));
+      assert.ok(['tiered_v1', 'v1_2026_04'].includes(b));
     } finally {
-      if (prev === undefined) delete process.env.MARKETPLACE_PRICING_EXPERIMENT;
-      else process.env.MARKETPLACE_PRICING_EXPERIMENT = prev;
+      if (prevExp === undefined) delete process.env.MARKETPLACE_PRICING_EXPERIMENT;
+      else process.env.MARKETPLACE_PRICING_EXPERIMENT = prevExp;
+      if (prevArms === undefined) delete process.env.MARKETPLACE_PRICING_AB_ARMS;
+      else process.env.MARKETPLACE_PRICING_AB_ARMS = prevArms;
     }
   });
 });

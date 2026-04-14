@@ -72,7 +72,7 @@ export async function POST(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, customer_id, pro_id, status, price, payment_intent_id, payment_status, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents'
+      'id, customer_id, pro_id, status, price, payment_intent_id, payment_status, service_date, service_time, address, urgency, created_at, fee_profile, pricing_occupation_slug, pricing_category_slug, pricing_version, service_fee_cents, convenience_fee_cents, protection_fee_cents, duration_hours, miles_distance, flat_fee_selected, hourly_selected'
     )
     .eq('id', id)
     .eq('customer_id', user.id)
@@ -101,7 +101,7 @@ export async function POST(
 
   const { data: proRow, error: proErr } = await admin
     .from('service_pros')
-    .select('id, user_id, display_name, category_id, stripe_account_id, stripe_charges_enabled')
+    .select('id, user_id, display_name, category_id, occupation_id, occupations(slug), stripe_account_id, stripe_charges_enabled')
     .eq('id', booking.pro_id)
     .maybeSingle();
 
@@ -145,12 +145,23 @@ export async function POST(
     .maybeSingle();
 
   const proName = (proRow.display_name ?? 'Pro').trim();
+  const occSlugFromPro =
+    (proRow as { occupations?: { slug?: string } | null }).occupations?.slug?.trim() || null;
 
   const bLeg = booking as {
     pricing_version?: string | null;
     service_fee_cents?: number | null;
     convenience_fee_cents?: number | null;
     protection_fee_cents?: number | null;
+  };
+  const bPay = booking as {
+    fee_profile?: string | null;
+    pricing_occupation_slug?: string | null;
+    pricing_category_slug?: string | null;
+    duration_hours?: number | null;
+    miles_distance?: number | null;
+    flat_fee_selected?: boolean | null;
+    hourly_selected?: boolean | null;
   };
   const quoteResult = computeQuote(
     {
@@ -162,8 +173,14 @@ export async function POST(
       address: booking.address,
       price: booking.price,
       status: booking.status,
+      duration_hours: bPay.duration_hours ?? null,
+      miles_distance: bPay.miles_distance ?? null,
+      flat_fee_selected: bPay.flat_fee_selected ?? null,
+      hourly_selected: bPay.hourly_selected ?? null,
       urgency: (booking as { urgency?: string | null }).urgency ?? null,
       created_at: (booking as { created_at?: string | null }).created_at ?? null,
+      pricing_occupation_slug: bPay.pricing_occupation_slug ?? null,
+      pricing_category_slug: bPay.pricing_category_slug ?? null,
       pricing_version: bLeg.pricing_version ?? null,
       service_fee_cents: bLeg.service_fee_cents ?? null,
       convenience_fee_cents: bLeg.convenience_fee_cents ?? null,
@@ -171,7 +188,10 @@ export async function POST(
     },
     proPricing,
     serviceName,
-    proName
+    proName,
+    {
+      occupationSlug: bPay.pricing_occupation_slug ?? occSlugFromPro,
+    }
   );
 
   const { quote, pricing } = quoteResult;
@@ -186,12 +206,9 @@ export async function POST(
   const feeRule = getFeeRuleForBooking({
     serviceSubtotalCents: quote.amountSubtotal,
     categoryName: serviceName,
+    occupationSlug: bPay.pricing_occupation_slug ?? occSlugFromPro,
+    categorySlug: bPay.pricing_category_slug,
   });
-  const bPay = booking as {
-    fee_profile?: string | null;
-    pricing_occupation_slug?: string | null;
-    pricing_category_slug?: string | null;
-  };
   const urgency = resolveUrgencyFromBooking({
     urgency: (booking as { urgency?: string | null }).urgency ?? null,
     serviceDate: booking.service_date,

@@ -12,7 +12,7 @@ const LABELS: Record<string, string> = {
   service_fee_softening_conversion_risk: 'Reduced service fee on smaller first-time bookings',
   first_booking_low_ticket_fee_softening: 'First-booking considerations applied',
   repeat_customer_neutral_pricing: 'Repeat customer pricing baseline',
-  demand_fee_cap_applied: 'High-demand fee capped for fairness',
+  demand_fee_cap_applied: 'Busy-time fee capped for fairness',
   fee_cap_applied_under_25: 'Total fees capped for smaller bookings',
   fee_cap_applied_mid_tier: 'Total fees capped for this booking size',
   fee_cap_applied_high_tier: 'Total fees capped for this booking size',

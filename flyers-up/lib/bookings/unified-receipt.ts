@@ -4,6 +4,7 @@ import {
   DEFAULT_PROTECTION_FEE_CENTS,
   DEFAULT_SERVICE_FEE_PERCENT,
 } from '@/lib/bookings/fee-config';
+import { calculateMarketplaceFees } from '@/lib/pricing/fees';
 
 export type UnifiedReceiptOverallStatus =
   | 'unpaid'
@@ -242,13 +243,26 @@ export function buildUnifiedBookingReceipt(
     );
   }
   if (serviceSubtotalCents > 0 && serviceFeeCents <= 0 && feeTotalCents > 0) {
-    const derivedService = Math.round(serviceSubtotalCents * DEFAULT_SERVICE_FEE_PERCENT);
-    const fixedDefaults = DEFAULT_CONVENIENCE_FEE_CENTS + DEFAULT_PROTECTION_FEE_CENTS;
-    if (feeTotalCents >= fixedDefaults) {
-      serviceFeeCents = derivedService;
-      convenienceFeeCents = DEFAULT_CONVENIENCE_FEE_CENTS;
-      protectionFeeCents = DEFAULT_PROTECTION_FEE_CENTS;
-      demandFeeCents = Math.max(0, feeTotalCents - serviceFeeCents - convenienceFeeCents - protectionFeeCents);
+    const tiered = calculateMarketplaceFees({
+      chargeModel: 'flat',
+      flatFeeCents: serviceSubtotalCents,
+    });
+    const tieredCore =
+      tiered.serviceFeeCents + tiered.convenienceFeeCents + tiered.protectionFeeCents;
+    if (feeTotalCents + 1 >= tieredCore) {
+      serviceFeeCents = tiered.serviceFeeCents;
+      convenienceFeeCents = tiered.convenienceFeeCents;
+      protectionFeeCents = tiered.protectionFeeCents;
+      demandFeeCents = Math.max(0, feeTotalCents - tieredCore);
+    } else {
+      const derivedService = Math.round(serviceSubtotalCents * DEFAULT_SERVICE_FEE_PERCENT);
+      const fixedDefaults = DEFAULT_CONVENIENCE_FEE_CENTS + DEFAULT_PROTECTION_FEE_CENTS;
+      if (feeTotalCents >= fixedDefaults) {
+        serviceFeeCents = derivedService;
+        convenienceFeeCents = DEFAULT_CONVENIENCE_FEE_CENTS;
+        protectionFeeCents = DEFAULT_PROTECTION_FEE_CENTS;
+        demandFeeCents = Math.max(0, feeTotalCents - serviceFeeCents - convenienceFeeCents - protectionFeeCents);
+      }
     }
   }
   if (customerTotalCents <= 0 && serviceSubtotalCents > 0) {

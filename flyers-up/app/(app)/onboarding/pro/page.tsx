@@ -28,6 +28,7 @@ import {
 } from '@/lib/utils/businessHours';
 import type { OccupationRow } from '@/lib/occupationData';
 import type { OccupationServiceRow } from '@/lib/occupationData';
+import { getSuggestedPriceRange } from '@/lib/pricing/category-config';
 
 function isInvalidRefreshToken(err: unknown): boolean {
   const msg = (err as { message?: string } | null)?.message ?? '';
@@ -80,6 +81,16 @@ function ProInner() {
 
   const selectedOccupation = selectedOccupationSlug ? occupations.find((o) => o.slug === selectedOccupationSlug) : null;
   const selectedOccupationId = selectedOccupation?.id ?? null;
+
+  const suggestedPriceRangeLabel = useMemo(() => {
+    const slug = selectedOccupationSlug.trim();
+    if (!slug) return null;
+    const range = getSuggestedPriceRange(slug);
+    if (!range) return null;
+    const lo = (range[0] / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+    const hi = (range[1] / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+    return `Typical local job range for your occupation: ${lo}–${hi} (before platform fees).`;
+  }, [selectedOccupationSlug]);
 
   const filteredOccupations = useMemo(() => {
     const q = occupationSearch.trim().toLowerCase();
@@ -659,6 +670,11 @@ function ProInner() {
                   <div className="mt-4 rounded-xl border border-red-100 bg-danger/10 px-4 py-3 text-sm text-text">{error}</div>
                 )}
                 <div className="mt-6 space-y-4">
+                  {suggestedPriceRangeLabel ? (
+                    <p className="text-sm text-muted rounded-xl border border-border bg-surface2 px-4 py-3">
+                      {suggestedPriceRangeLabel}
+                    </p>
+                  ) : null}
                   <div>
                     <label className="block text-sm font-medium text-muted mb-1">Starting price ($)</label>
                     <input

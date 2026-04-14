@@ -49,6 +49,15 @@ describe('applyMinimumBookingSubtotal', () => {
     assert.equal(r.adjusted, true);
   });
 
+  it('cleaner uses max of legacy and category-config minimum', () => {
+    process.env.MIN_BOOKING_SUBTOTAL_MODE = 'adjust';
+    const r = applyMinimumBookingSubtotal({ rawSubtotalCents: 1000, occupationSlug: 'cleaner' });
+    assert.equal(r.ok, true);
+    if (!r.ok) return;
+    assert.equal(r.enforcedSubtotalCents, 8000);
+    assert.equal(r.adjusted, true);
+  });
+
   it('subtotal exactly minimum unchanged', () => {
     process.env.MIN_BOOKING_SUBTOTAL_MODE = 'adjust';
     const r = applyMinimumBookingSubtotal({ rawSubtotalCents: MIN_BOOKING_SUBTOTAL_CENTS });

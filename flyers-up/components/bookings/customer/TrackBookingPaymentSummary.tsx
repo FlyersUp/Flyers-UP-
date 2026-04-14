@@ -298,13 +298,13 @@ export function TrackBookingPaymentSummary({
 
         <div className="space-y-3 text-sm">
           <div className="flex justify-between gap-3 min-w-0">
-            <span className="text-[#6A6A6A] dark:text-[#A1A8B3] shrink-0">Subtotal</span>
+            <span className="text-[#6A6A6A] dark:text-[#A1A8B3] shrink-0">Subtotal (pro rate)</span>
             <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums text-right">
               {lineMoney(receipt.serviceSubtotalCents)}
             </span>
           </div>
           <div className="flex justify-between gap-3 min-w-0">
-            <span className="text-[#6A6A6A] dark:text-[#A1A8B3] shrink-0">Service fees</span>
+            <span className="text-[#6A6A6A] dark:text-[#A1A8B3] shrink-0">Marketplace fees</span>
             <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums text-right">
               {feesShown > 0 ? formatCents(feesShown) : '—'}
             </span>
@@ -411,7 +411,7 @@ export function TrackBookingPaymentSummary({
 
       <div className="space-y-3 text-sm">
         <div className="flex justify-between gap-4">
-          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Service subtotal</span>
+          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Subtotal (pro rate)</span>
           <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
             {lineMoney(receipt.serviceSubtotalCents)}
           </span>
@@ -432,7 +432,7 @@ export function TrackBookingPaymentSummary({
         </div>
 
         <div className="flex justify-between gap-4">
-          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Protection & guarantee</span>
+          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Protection</span>
           <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
             {lineMoney(receipt.protectionFeeCents)}
           </span>
@@ -440,7 +440,7 @@ export function TrackBookingPaymentSummary({
 
         {receipt.demandFeeCents > 0 && (
           <div className="flex justify-between gap-4">
-            <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">High-demand fee</span>
+            <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Busy-time fee</span>
             <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
               {formatCents(receipt.demandFeeCents)}
             </span>
@@ -485,7 +485,7 @@ export function TrackBookingPaymentSummary({
         )}
 
         <div className="flex justify-between gap-4">
-          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Customer total</span>
+          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Total</span>
           <span className="font-semibold text-[#111111] dark:text-[#F5F7FA] tabular-nums">
             {showFullFeeBreakdown
               ? formatCents(receipt.customerTotalCents)

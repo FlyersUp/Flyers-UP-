@@ -1,202 +1,316 @@
 /**
- * Versioned marketplace fee engine (server-side only).
- * All amounts are integer cents. Do not trust client-submitted fees.
+ * Centralized marketplace pricing (integer cents).
+ * Pro keeps 100% of the service subtotal; customer pays tiered marketplace fees on top.
  */
 
-export const DEFAULT_MARKETPLACE_PRICING_VERSION = 'v1_2026_04';
+export const TIERED_PRICING_VERSION_ID = 'tiered_v1';
 
-/** Known engine versions (immutable snapshot on booking). */
-export const MARKETPLACE_PRICING_VERSIONS = [
-  'v1_2026_04',
-  'v2_low_ticket_push',
-  'v3_higher_protection',
-] as const;
+/** @deprecated Legacy IDs; fee math uses {@link TIERED_PRICING_VERSION_ID}. Kept for migrations / env compatibility. */
+export const DEFAULT_MARKETPLACE_PRICING_VERSION = TIERED_PRICING_VERSION_ID;
+
+export const MARKETPLACE_PRICING_VERSIONS = ['tiered_v1', 'v1_2026_04', 'v2_low_ticket_push', 'v3_higher_protection'] as const;
 
 export type MarketplacePricingVersionId = (typeof MARKETPLACE_PRICING_VERSIONS)[number];
 
 export type MarketplacePricingBand = 'low' | 'mid' | 'high';
 
-export type MarketplaceFeeBreakdown = {
+export type ChargeModel = 'flat' | 'hourly' | 'flat_hourly';
+
+/**
+ * Optional travel add-on (cents), same on every {@link FeeInputs} variant.
+ * Subtotal before marketplace fees is always **work (by charge model) + travel**.
+ */
+type TravelAugment = { travelFeeCents?: number };
+
+export type FeeInputs =
+  | ({
+      chargeModel: 'flat';
+      flatFeeCents: number;
+      demandMultiplier?: number;
+    } & TravelAugment)
+  | ({
+      chargeModel: 'hourly';
+      hourlyRateCents: number;
+      hours: number;
+      minimumJobCents?: number;
+      demandMultiplier?: number;
+    } & TravelAugment)
+  | ({
+      chargeModel: 'flat_hourly';
+      baseFeeCents: number;
+      includedHours: number;
+      actualHours: number;
+      overageHourlyRateCents: number;
+      minimumJobCents?: number;
+      demandMultiplier?: number;
+    } & TravelAugment);
+
+export type FeeBreakdown = {
   subtotalCents: number;
   serviceFeeCents: number;
   convenienceFeeCents: number;
   protectionFeeCents: number;
+  demandFeeCents: number;
+  totalFeeCents: number;
+  totalCustomerCents: number;
+  proEarningsCents: number;
+  platformRevenueCents: number;
+};
+
+/** DB / Stripe snapshot: canonical {@link FeeBreakdown} plus legacy aliases and engine metadata. */
+export type MarketplaceFeeBreakdown = FeeBreakdown & {
+  /** @deprecated Use {@link FeeBreakdown.totalFeeCents} */
   feeTotalCents: number;
+  /** @deprecated Use {@link FeeBreakdown.totalCustomerCents} */
+  totalCents: number;
+  /** @deprecated Use {@link FeeBreakdown.proEarningsCents} */
+  proReceivesCents: number;
+  /** @deprecated Use {@link FeeBreakdown.totalCustomerCents} */
   customerTotalCents: number;
   stripeEstimatedFeeCents: number;
   platformGrossMarginCents: number;
-  /** feeTotal / subtotal when subtotal > 0; else 0 */
   effectiveTakeRate: number;
   pricingVersion: string;
   pricingBand: MarketplacePricingBand;
 };
 
-type CentProfile = Readonly<{
-  lowServiceRate: number;
-  lowServiceMinCents: number;
-  lowConvenienceCents: number;
-  lowProtectionCents: number;
-  midServiceRate: number;
-  midConvenienceCents: number;
-  midProtectionRate: number;
-  midProtectionMinCents: number;
-  highServiceRate: number;
-  highProtectionRate: number;
-  feeFloorUnder75Cents: number;
-}>;
+export type MarketplaceFeeProfile = 'low' | 'medium' | 'high';
 
-const PROFILE_V1: CentProfile = {
-  lowServiceRate: 0.12,
-  lowServiceMinCents: 150,
-  lowConvenienceCents: 249,
-  lowProtectionCents: 79,
-  midServiceRate: 0.12,
-  midConvenienceCents: 199,
-  midProtectionRate: 0.025,
-  midProtectionMinCents: 99,
-  highServiceRate: 0.135,
-  highProtectionRate: 0.03,
-  feeFloorUnder75Cents: 499,
+export type MarketplaceFeeOverrides = {
+  /** Absolute demand in cents; when positive, overrides {@link FeeInputs} `demandMultiplier`. */
+  demandFeeCents?: number;
+  /** Scales tiered service fee after bracket math (default medium = 1×). */
+  feeProfile?: MarketplaceFeeProfile;
 };
 
-/** v2: lower friction on small jobs (conversion push). */
-const PROFILE_V2: CentProfile = {
-  ...PROFILE_V1,
-  lowServiceMinCents: 120,
-  lowConvenienceCents: 199,
-  feeFloorUnder75Cents: 449,
-};
-
-/** v3: higher protection / guarantee take. */
-const PROFILE_V3: CentProfile = {
-  ...PROFILE_V1,
-  lowProtectionCents: 129,
-  midProtectionRate: 0.03,
-  midProtectionMinCents: 149,
-  highProtectionRate: 0.035,
-};
-
-function bandForSubtotal(subtotalCents: number): MarketplacePricingBand {
-  if (subtotalCents < 2500) return 'low';
-  if (subtotalCents < 7500) return 'mid';
+function bandForSubtotalTier(subtotalCents: number): MarketplacePricingBand {
+  const s = Math.max(0, Math.round(subtotalCents));
+  if (s < 5000) return 'low';
+  if (s < 50000) return 'mid';
   return 'high';
 }
 
 function stripeFeeEstimateCents(customerTotalCents: number): number {
-  return Math.round(customerTotalCents * 0.029 + 30);
+  return Math.round(Math.max(0, customerTotalCents) * 0.029 + 30);
 }
 
-function enforceFeeCoversStripe(
-  subtotalCents: number,
-  serviceFeeCents: number,
-  convenienceFeeCents: number,
-  protectionFeeCents: number
-): {
-  serviceFeeCents: number;
-  convenienceFeeCents: number;
-  protectionFeeCents: number;
-  feeTotalCents: number;
-  customerTotalCents: number;
-  stripeEstimatedFeeCents: number;
-} {
-  let conv = convenienceFeeCents;
-  const serv = serviceFeeCents;
-  const prot = protectionFeeCents;
-  const maxIterations = 12;
-  for (let i = 0; i < maxIterations; i++) {
-    const feeTotal = serv + conv + prot;
-    const customerTotal = subtotalCents + feeTotal;
-    const stripe = stripeFeeEstimateCents(customerTotal);
-    if (feeTotal >= stripe) break;
-    const bump = stripe - feeTotal + 1;
-    conv += bump;
-  }
-  const feeTotalCents = serv + conv + prot;
-  const customerTotalCents = subtotalCents + feeTotalCents;
-  return {
-    serviceFeeCents: serv,
-    convenienceFeeCents: conv,
-    protectionFeeCents: prot,
-    feeTotalCents,
-    customerTotalCents,
-    stripeEstimatedFeeCents: stripeFeeEstimateCents(customerTotalCents),
-  };
+function roundCents(value: number): number {
+  return Math.round(value);
 }
 
-function computeWithProfile(
+function clampNonNegative(value: number): number {
+  return Math.max(0, roundCents(value));
+}
+
+function travelFromInput(input: FeeInputs): number {
+  return clampNonNegative(input.travelFeeCents ?? 0);
+}
+
+function demandMultiplierFromInput(input: FeeInputs): number {
+  const m = Number(input.demandMultiplier ?? 0);
+  return Number.isFinite(m) ? m : 0;
+}
+
+export function adjustFeeRateByProfile(
+  baseRate: number,
+  profile: MarketplaceFeeProfile
+): number {
+  if (profile === 'low') return baseRate * 0.85;
+  if (profile === 'high') return baseRate * 1.15;
+  return baseRate;
+}
+
+/**
+ * Tiered service fee (1× / “medium” bracket math) before {@link adjustFeeRateByProfile}.
+ * - <$50  => 22%, minimum $6
+ * - <$150 => 15%
+ * - <$500 => 10%
+ * - $500+ => 7%, capped at $50
+ *
+ * Charged to the customer, not deducted from the pro.
+ */
+export function calculateBaseTieredServiceFeeCents(subtotalCents: number): number {
+  const s = clampNonNegative(subtotalCents);
+  if (s <= 0) return 0;
+  if (s < 5_000) {
+    return Math.max(roundCents(s * 0.22), 600);
+  }
+  if (s < 15_000) {
+    return roundCents(s * 0.15);
+  }
+  if (s < 50_000) {
+    return roundCents(s * 0.1);
+  }
+  return Math.min(roundCents(s * 0.07), 5_000);
+}
+
+export function calculateServiceFeeCents(
   subtotalCents: number,
-  profile: CentProfile
-): Omit<MarketplaceFeeBreakdown, 'pricingVersion'> {
-  const s = Math.max(0, Math.round(subtotalCents));
-  if (s <= 0) {
-    const stripeEstimatedFeeCents = stripeFeeEstimateCents(0);
-    return {
-      subtotalCents: 0,
-      serviceFeeCents: 0,
-      convenienceFeeCents: 0,
-      protectionFeeCents: 0,
-      feeTotalCents: 0,
-      customerTotalCents: 0,
-      stripeEstimatedFeeCents,
-      platformGrossMarginCents: -stripeEstimatedFeeCents,
-      effectiveTakeRate: 0,
-      pricingBand: 'low',
-    };
+  feeProfile: MarketplaceFeeProfile = 'medium'
+): number {
+  const base = calculateBaseTieredServiceFeeCents(subtotalCents);
+  return roundCents(adjustFeeRateByProfile(base, feeProfile));
+}
+
+export function calculateConvenienceFeeCents(subtotalCents: number): number {
+  const s = clampNonNegative(subtotalCents);
+  if (s <= 0) return 0;
+  if (s < 7_500) return 199;
+  if (s < 20_000) return 299;
+  return 399;
+}
+
+export function calculateProtectionFeeCents(subtotalCents: number): number {
+  const s = clampNonNegative(subtotalCents);
+  if (s <= 0) return 0;
+  return Math.min(Math.max(roundCents(s * 0.02), 100), 999);
+}
+
+export function calculateDemandFeeCents(subtotalCents: number, demandMultiplier = 0): number {
+  const s = clampNonNegative(subtotalCents);
+  const m = Number(demandMultiplier);
+  if (!Number.isFinite(m) || m <= 0) return 0;
+  return roundCents(s * m);
+}
+
+export function calculateSubtotalCents(input: FeeInputs): number {
+  const travel = travelFromInput(input);
+  let work = 0;
+  switch (input.chargeModel) {
+    case 'flat': {
+      work = clampNonNegative(input.flatFeeCents);
+      break;
+    }
+    case 'hourly': {
+      const raw = input.hourlyRateCents * input.hours;
+      const subtotal = clampNonNegative(raw);
+      work = Math.max(subtotal, input.minimumJobCents ?? 0);
+      break;
+    }
+    case 'flat_hourly': {
+      const extraHours = Math.max(0, input.actualHours - input.includedHours);
+      const overage = roundCents(input.overageHourlyRateCents * extraHours);
+      const raw = input.baseFeeCents + overage;
+      const subtotal = clampNonNegative(raw);
+      work = Math.max(subtotal, input.minimumJobCents ?? 0);
+      break;
+    }
+    default: {
+      const exhaustive: never = input;
+      return exhaustive;
+    }
   }
-  const band = bandForSubtotal(s);
+  return work + travel;
+}
 
-  let serviceFeeCents = 0;
-  let convenienceFeeCents = 0;
-  let protectionFeeCents = 0;
-
-  if (band === 'low') {
-    serviceFeeCents = Math.max(Math.round(s * profile.lowServiceRate), profile.lowServiceMinCents);
-    convenienceFeeCents = profile.lowConvenienceCents;
-    protectionFeeCents = profile.lowProtectionCents;
-  } else if (band === 'mid') {
-    serviceFeeCents = Math.round(s * profile.midServiceRate);
-    convenienceFeeCents = profile.midConvenienceCents;
-    protectionFeeCents = Math.max(
-      Math.round(s * profile.midProtectionRate),
-      profile.midProtectionMinCents
-    );
-  } else {
-    serviceFeeCents = Math.round(s * profile.highServiceRate);
-    convenienceFeeCents = 0;
-    protectionFeeCents = Math.round(s * profile.highProtectionRate);
-  }
-
-  let feeTotalCents = serviceFeeCents + convenienceFeeCents + protectionFeeCents;
-
-  if (s < 7500 && feeTotalCents < profile.feeFloorUnder75Cents) {
-    const add = profile.feeFloorUnder75Cents - feeTotalCents;
-    convenienceFeeCents += add;
-    feeTotalCents = serviceFeeCents + convenienceFeeCents + protectionFeeCents;
-  }
-
-  const afterStripe = enforceFeeCoversStripe(s, serviceFeeCents, convenienceFeeCents, protectionFeeCents);
-  serviceFeeCents = afterStripe.serviceFeeCents;
-  convenienceFeeCents = afterStripe.convenienceFeeCents;
-  protectionFeeCents = afterStripe.protectionFeeCents;
-  feeTotalCents = afterStripe.feeTotalCents;
-  const customerTotalCents = afterStripe.customerTotalCents;
-  const stripeEstimatedFeeCents = afterStripe.stripeEstimatedFeeCents;
-
-  const platformGrossMarginCents = feeTotalCents - stripeEstimatedFeeCents;
-  const effectiveTakeRate = s > 0 ? feeTotalCents / s : 0;
-
+function coreFeeBreakdownFromSubtotal(
+  subtotalCents: number,
+  demandFeeCentsResolved: number,
+  feeProfile: MarketplaceFeeProfile = 'medium'
+): FeeBreakdown {
+  const s = clampNonNegative(subtotalCents);
+  const serviceFeeCents = calculateServiceFeeCents(s, feeProfile);
+  const convenienceFeeCents = calculateConvenienceFeeCents(s);
+  const protectionFeeCents = calculateProtectionFeeCents(s);
+  const demandFeeCents = Math.max(0, roundCents(demandFeeCentsResolved));
+  const totalFeeCents = serviceFeeCents + convenienceFeeCents + protectionFeeCents + demandFeeCents;
   return {
     subtotalCents: s,
     serviceFeeCents,
     convenienceFeeCents,
     protectionFeeCents,
-    feeTotalCents,
-    customerTotalCents,
-    stripeEstimatedFeeCents,
-    platformGrossMarginCents,
-    effectiveTakeRate,
-    pricingBand: band,
+    demandFeeCents,
+    totalFeeCents,
+    totalCustomerCents: s + totalFeeCents,
+    proEarningsCents: s,
+    platformRevenueCents: totalFeeCents,
   };
+}
+
+function toMarketplaceFeeBreakdown(
+  b: FeeBreakdown,
+  pricingVersion: string
+): MarketplaceFeeBreakdown {
+  const version = pricingVersion.trim() || TIERED_PRICING_VERSION_ID;
+  const stripeEstimatedFeeCents = stripeFeeEstimateCents(b.totalCustomerCents);
+  const effectiveTakeRate = b.subtotalCents > 0 ? b.totalFeeCents / b.subtotalCents : 0;
+  return {
+    ...b,
+    feeTotalCents: b.totalFeeCents,
+    totalCents: b.totalCustomerCents,
+    proReceivesCents: b.proEarningsCents,
+    customerTotalCents: b.totalCustomerCents,
+    stripeEstimatedFeeCents,
+    platformGrossMarginCents: b.platformRevenueCents - stripeEstimatedFeeCents,
+    effectiveTakeRate,
+    pricingVersion: isKnownVersion(version) ? version : TIERED_PRICING_VERSION_ID,
+    pricingBand: bandForSubtotalTier(b.subtotalCents),
+  };
+}
+
+/**
+ * Full marketplace fee stack on top of pro subtotal.
+ * Optional `demandFeeCents` override for pay-time dynamic pricing (caps / absolutes).
+ *
+ * @example Flat job ($100 work; fees on top)
+ * ```ts
+ * calculateMarketplaceFees({ chargeModel: 'flat', flatFeeCents: 10_000 });
+ * ```
+ *
+ * @example Hourly (rate × hours, floored by minimum job when higher)
+ * ```ts
+ * calculateMarketplaceFees({
+ *   chargeModel: 'hourly',
+ *   hourlyRateCents: 4_000,
+ *   hours: 3,
+ *   minimumJobCents: 8_000,
+ * });
+ * ```
+ *
+ * @example Flat + hourly overage (base package + extra hours × overage rate; then minimum)
+ * ```ts
+ * calculateMarketplaceFees({
+ *   chargeModel: 'flat_hourly',
+ *   baseFeeCents: 8_000,
+ *   includedHours: 2,
+ *   actualHours: 3.5,
+ *   overageHourlyRateCents: 3_000,
+ *   minimumJobCents: 10_000,
+ * });
+ * ```
+ *
+ * @example Travel on top of any model (fees use full pro subtotal = work + travel)
+ * ```ts
+ * calculateMarketplaceFees({
+ *   chargeModel: 'hourly',
+ *   hourlyRateCents: 4_000,
+ *   hours: 3,
+ *   minimumJobCents: 8_000,
+ *   travelFeeCents: 1_500, // e.g. $15 trip
+ * });
+ * ```
+ */
+export function calculateMarketplaceFees(
+  input: FeeInputs,
+  overrides?: MarketplaceFeeOverrides
+): MarketplaceFeeBreakdown {
+  const subtotalCents = calculateSubtotalCents(input);
+  const s = clampNonNegative(subtotalCents);
+
+  if (s <= 0) {
+    const b = coreFeeBreakdownFromSubtotal(0, 0, overrides?.feeProfile ?? 'medium');
+    return toMarketplaceFeeBreakdown(b, TIERED_PRICING_VERSION_ID);
+  }
+
+  const feeProfile = overrides?.feeProfile ?? 'medium';
+  const overrideDemand = overrides?.demandFeeCents;
+  const demandResolved =
+    overrideDemand != null && Number.isFinite(overrideDemand) && overrideDemand > 0
+      ? overrideDemand
+      : calculateDemandFeeCents(s, demandMultiplierFromInput(input));
+
+  const b = coreFeeBreakdownFromSubtotal(s, demandResolved, feeProfile);
+  return toMarketplaceFeeBreakdown(b, TIERED_PRICING_VERSION_ID);
 }
 
 function isKnownVersion(v: string): v is MarketplacePricingVersionId {
@@ -212,21 +326,14 @@ export function hashStringForPricingAb(value: string): number {
   return h;
 }
 
-/**
- * Base version when no experiment overrides (default `v1_2026_04`).
- * Set `MARKETPLACE_PRICING_VERSION=v1_2026_04` explicitly in env if needed.
- */
 export function resolveMarketplacePricingVersion(): string {
-  const v = (process.env.MARKETPLACE_PRICING_VERSION ?? DEFAULT_MARKETPLACE_PRICING_VERSION).trim();
-  return v || DEFAULT_MARKETPLACE_PRICING_VERSION;
+  const v = (process.env.MARKETPLACE_PRICING_VERSION ?? TIERED_PRICING_VERSION_ID).trim();
+  return v || TIERED_PRICING_VERSION_ID;
 }
 
 /**
- * Fee experiment / A/B flag (server env only).
- *
- * - `off`, `control`, empty: use `MARKETPLACE_PRICING_VERSION` (or default v1).
- * - `v1_2026_04` | `v2_low_ticket_push` | `v3_higher_protection`: force that engine for all new bookings.
- * - `deterministic_ab`: pick an arm from `MARKETPLACE_PRICING_AB_ARMS` using `hashStringForPricingAb(customerId)`.
+ * Experiment / version stamp for bookings (fee math is always tiered).
+ * Arms still select a `pricing_version` string for analytics.
  */
 export function resolveMarketplacePricingVersionForBooking(context?: {
   customerId?: string | null;
@@ -239,7 +346,7 @@ export function resolveMarketplacePricingVersionForBooking(context?: {
   if (raw === 'deterministic_ab') {
     const armsRaw = (
       process.env.MARKETPLACE_PRICING_AB_ARMS ??
-      'v1_2026_04,v2_low_ticket_push,v3_higher_protection'
+      'tiered_v1,v1_2026_04,v2_low_ticket_push,v3_higher_protection'
     )
       .split(',')
       .map((s) => s.trim())
@@ -250,43 +357,49 @@ export function resolveMarketplacePricingVersionForBooking(context?: {
       return resolveMarketplacePricingVersion();
     }
     const idx = Math.abs(hashStringForPricingAb(cid)) % arms.length;
-    return arms[idx] ?? DEFAULT_MARKETPLACE_PRICING_VERSION;
+    return arms[idx] ?? TIERED_PRICING_VERSION_ID;
   }
 
   if (isKnownVersion(raw)) {
     return raw;
   }
 
-  console.warn('[pricing] Unknown MARKETPLACE_PRICING_EXPERIMENT, falling back to MARKETPLACE_PRICING_VERSION', raw);
+  console.warn('[pricing] Unknown MARKETPLACE_PRICING_EXPERIMENT, falling back', raw);
   return resolveMarketplacePricingVersion();
 }
 
 /**
- * Deterministic, versioned marketplace fees on pro subtotal (cents), before demand/promo adjustments.
+ * Back-compat: tiered engine from pro subtotal (cents). Version stamps `pricing_version` only.
  */
 export function computeMarketplaceFees(
   subtotalCents: number,
-  pricingVersion: string = resolveMarketplacePricingVersionForBooking()
+  pricingVersion: string = resolveMarketplacePricingVersionForBooking(),
+  feeProfile: MarketplaceFeeProfile = 'medium'
 ): MarketplaceFeeBreakdown {
-  const v = pricingVersion.trim() || DEFAULT_MARKETPLACE_PRICING_VERSION;
-
-  if (v === 'v1_2026_04' || v === DEFAULT_MARKETPLACE_PRICING_VERSION) {
-    return { ...computeWithProfile(subtotalCents, PROFILE_V1), pricingVersion: 'v1_2026_04' };
-  }
-  if (v === 'v2_low_ticket_push') {
-    return { ...computeWithProfile(subtotalCents, PROFILE_V2), pricingVersion: 'v2_low_ticket_push' };
-  }
-  if (v === 'v3_higher_protection') {
-    return { ...computeWithProfile(subtotalCents, PROFILE_V3), pricingVersion: 'v3_higher_protection' };
-  }
-
-  console.warn('[pricing] Unknown pricing version, using v1_2026_04', v);
-  return { ...computeWithProfile(subtotalCents, PROFILE_V1), pricingVersion: 'v1_2026_04' };
+  const b = calculateMarketplaceFees(
+    {
+      chargeModel: 'flat',
+      flatFeeCents: Math.max(0, Math.round(subtotalCents)),
+    },
+    { feeProfile }
+  );
+  const version = pricingVersion.trim() || TIERED_PRICING_VERSION_ID;
+  return toMarketplaceFeeBreakdown(
+    {
+      subtotalCents: b.subtotalCents,
+      serviceFeeCents: b.serviceFeeCents,
+      convenienceFeeCents: b.convenienceFeeCents,
+      protectionFeeCents: b.protectionFeeCents,
+      demandFeeCents: b.demandFeeCents,
+      totalFeeCents: b.totalFeeCents,
+      totalCustomerCents: b.totalCustomerCents,
+      proEarningsCents: b.proEarningsCents,
+      platformRevenueCents: b.platformRevenueCents,
+    },
+    version
+  );
 }
 
-/**
- * Internal / admin: contribution margin after Stripe, refunds, promos, and reserves (all cents).
- */
 export function computeContributionMarginCents(input: {
   feeTotalCents: number;
   stripeFeeCents: number;
