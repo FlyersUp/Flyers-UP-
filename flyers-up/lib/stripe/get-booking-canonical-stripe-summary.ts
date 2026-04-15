@@ -214,7 +214,7 @@ export async function getBookingCanonicalStripeSummary(
     .eq('id', bookingId)
     .maybeSingle();
   if (error || !b) return null;
-  const row = b as Record<string, unknown>;
+  const row = b as unknown as Record<string, unknown>;
   const depPi =
     opts?.depositPaymentIntentId ??
     (typeof row.deposit_payment_intent_id === 'string' ? row.deposit_payment_intent_id : 'pi_unknown_deposit');

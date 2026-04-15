@@ -236,7 +236,7 @@ async function assertCanonicalStripeMetadataContractsFromBookingRow(
     .single();
   assert.ok(!error, `${ctx}: ${error?.message ?? String(error)}`);
   assert.ok(b);
-  const summary = buildBookingCanonicalStripeSummaryFromRow(b as Record<string, unknown>, {
+  const summary = buildBookingCanonicalStripeSummaryFromRow(b as unknown as Record<string, unknown>, {
     depositPaymentIntentId: input.piDeposit,
     finalPaymentIntentId: input.piFinal,
     serviceTitle: 'Integration payment fixture',

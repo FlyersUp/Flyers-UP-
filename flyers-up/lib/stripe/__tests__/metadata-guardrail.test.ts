@@ -96,7 +96,7 @@ test('createTransfer usage must import transferLifecycleStripeMetadata', () => {
 
 test('refundPaymentIntent must not receive empty metadata object as second argument', () => {
   const violations: string[] = [];
-  const re = /refundPaymentIntent\s*\(\s*[^,]+,\s*\{\s*\}\s*\)/gs;
+  const re = /refundPaymentIntent\s*\(\s*[^,]+,\s*\{\s*\}\s*\)/g;
   for (const abs of collectSources()) {
     const text = readFileSync(abs, 'utf8');
     if (re.test(text)) {
