@@ -16,7 +16,7 @@ import {
 } from '@/lib/bookings/remaining-balance-cents';
 import { getUnifiedBookingPaymentAmountsForBooking } from '@/lib/bookings/booking-receipt-service';
 import type { CustomerRemainingPaymentUiInput } from '@/lib/bookings/customer-remaining-payment-ui';
-import { coalesceBookingFinalPaymentIntentId } from '@/lib/bookings/money-state';
+import { getBookingFinalPaymentIntentIdOrNull } from '@/lib/bookings/money-state';
 import { resolveFinalPaymentIntentStripeSnapshotForCustomerUi } from '@/lib/stripe/verify-final-payment-intent-status';
 
 export const runtime = 'nodejs';
@@ -66,7 +66,7 @@ export async function GET(
       'id, customer_id, pro_id, service_date, service_time, address, notes, status, price, created_at, accepted_at, on_the_way_at, started_at, completed_at, cancelled_at, status_history';
     // Extended columns (migrations 031+) - may not exist if migrations not applied
     const EXTENDED_COLUMNS =
-      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, customer_fees_retained_cents, refunded_total_cents, total_amount_cents, amount_subtotal, amount_deposit, amount_remaining, amount_total, booking_timezone, en_route_at, arrived_at, job_request_id, scope_confirmed_at, job_details_snapshot, photos_snapshot, no_show_eligible_at, scheduled_start_at, grace_period_minutes, customer_confirmed, confirmed_by_customer_at, payment_lifecycle_status, customer_review_deadline_at, payout_released, requires_admin_review, payout_hold_reason, suspicious_completion, suspicious_completion_reason, admin_hold, final_payment_intent_id, stripe_payment_intent_remaining_id, payment_intent_id, stripe_payment_intent_deposit_id, deposit_payment_intent_id';
+      ', payment_status, paid_at, final_payment_status, fully_paid_at, payment_due_at, remaining_due_at, auto_confirm_at, paid_deposit_at, paid_remaining_at, payout_status, refund_status, customer_fees_retained_cents, refunded_total_cents, amount_paid_cents, refund_after_payout, total_amount_cents, amount_subtotal, amount_deposit, amount_remaining, amount_total, booking_timezone, en_route_at, arrived_at, job_request_id, scope_confirmed_at, job_details_snapshot, photos_snapshot, no_show_eligible_at, scheduled_start_at, grace_period_minutes, customer_confirmed, confirmed_by_customer_at, payment_lifecycle_status, customer_review_deadline_at, payout_released, payout_transfer_id, requires_admin_review, payout_hold_reason, suspicious_completion, suspicious_completion_reason, admin_hold, final_payment_intent_id, stripe_payment_intent_remaining_id, payment_intent_id, stripe_payment_intent_deposit_id, deposit_payment_intent_id';
 
     let proIdForQuery: string | null = null;
     if (role === 'pro') {
@@ -211,6 +211,8 @@ export async function GET(
       refund_status?: string | null;
       customer_fees_retained_cents?: number | null;
       refunded_total_cents?: number | null;
+      amount_paid_cents?: number | null;
+      refund_after_payout?: boolean | null;
       total_amount_cents?: number | null;
       amount_deposit?: number | null;
       amount_remaining?: number | null;
@@ -226,6 +228,7 @@ export async function GET(
       customer_review_deadline_at?: string | null;
       booking_timezone?: string | null;
       payout_released?: boolean | null;
+      payout_transfer_id?: string | null;
       requires_admin_review?: boolean | null;
       payout_hold_reason?: string | null;
       suspicious_completion?: boolean | null;
@@ -261,7 +264,7 @@ export async function GET(
         remainingAmountCents: fallbackRemaining,
       };
 
-    const finalPaymentIntentId = coalesceBookingFinalPaymentIntentId(b);
+    const finalPaymentIntentId = getBookingFinalPaymentIntentIdOrNull(b);
 
     const deriveMoneyInput: CustomerRemainingPaymentUiInput = {
       status: String(booking.status ?? ''),
@@ -277,6 +280,11 @@ export async function GET(
       customerReviewDeadlineAt: b.customer_review_deadline_at ?? null,
       amountRemaining: paymentAmounts.remainingAmountCents,
       finalPaymentIntentId,
+      payoutReleased: b.payout_released === true,
+      payoutTransferId: b.payout_transfer_id ?? null,
+      refundedTotalCents: b.refunded_total_cents ?? null,
+      amountPaidCents: b.amount_paid_cents ?? paymentAmounts.paidAmountCents,
+      refundAfterPayout: b.refund_after_payout === true,
     };
 
     const stripeSnapshot = await resolveFinalPaymentIntentStripeSnapshotForCustomerUi({
@@ -363,6 +371,8 @@ export async function GET(
           customerReviewDeadlineAt: b.customer_review_deadline_at ?? null,
           bookingTimezone: b.booking_timezone ?? null,
           payoutReleased: b.payout_released === true,
+          payoutTransferId: b.payout_transfer_id ?? null,
+          refundAfterPayout: b.refund_after_payout === true,
           requiresAdminReview: b.requires_admin_review === true,
           payoutHoldReason: b.payout_hold_reason ?? null,
           suspiciousCompletion: b.suspicious_completion === true,

@@ -280,6 +280,16 @@ describe('inferPaymentPhaseFromBookingIds', () => {
     });
     assert.strictEqual(k, 'unknown');
   });
+
+  it('treats legacy payment_intent_id as remaining when it is not the deposit PI', () => {
+    const k = inferPaymentPhaseFromBookingIds('pi_final_leg', {
+      stripe_payment_intent_deposit_id: 'pi_dep',
+      payment_intent_id: 'pi_final_leg',
+      final_payment_intent_id: null,
+      stripe_payment_intent_remaining_id: null,
+    });
+    assert.strictEqual(k, 'remaining');
+  });
 });
 
 describe('resolveWebhookPaymentKind', () => {

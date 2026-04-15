@@ -1,4 +1,5 @@
 import { inferPaymentPhaseFromBookingIds } from '@/lib/bookings/unified-receipt';
+import type { BookingFinalPaymentIntentIdRow } from '@/lib/bookings/money-state';
 
 export type WebhookPaymentKind = 'deposit' | 'remaining' | 'legacy_full';
 
@@ -10,12 +11,7 @@ export type WebhookPaymentKind = 'deposit' | 'remaining' | 'legacy_full';
 export function resolveWebhookPaymentKind(
   meta: Record<string, string | undefined>,
   paymentIntentId: string,
-  booking: {
-    stripe_payment_intent_deposit_id?: string | null;
-    stripe_payment_intent_remaining_id?: string | null;
-    payment_intent_id?: string | null;
-    final_payment_intent_id?: string | null;
-  }
+  booking: BookingFinalPaymentIntentIdRow
 ): WebhookPaymentKind {
   const phase = (meta.payment_phase ?? meta.phase ?? '').toLowerCase();
   if (phase === 'full' || phase === 'single') return 'legacy_full';

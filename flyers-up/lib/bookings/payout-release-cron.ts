@@ -6,18 +6,21 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
-import {
-  evaluatePayoutTransferEligibility,
-  releasePayout,
-} from '@/lib/bookings/payment-lifecycle-service';
+import { releasePayout } from '@/lib/bookings/payment-lifecycle-service';
+import { payoutReleaseCronCandidateOrFilter } from '@/lib/bookings/payout-release-cron-selection';
+import { getPayoutReleaseEligibilitySnapshot } from '@/lib/bookings/payout-release-eligibility-snapshot';
 import type { PayoutHoldReason } from '@/lib/bookings/payment-lifecycle-types';
+import { warnStuckPayoutsForCron } from '@/lib/bookings/stuck-payout-detector';
 
 export type PayoutReleaseCronResult = {
   released: number;
   failed: number;
   flagged: number;
-  /** Candidates seen (payout not released, deposit+remaining paid, in completed-like status) */
+  /** Candidates seen (lifecycle + payout flags + deposit/remaining paid; not filtered by bookings.status) */
   total: number;
+  /** Post-run: eligible + unreleased past grace (see {@link findStuckPayoutBookings}). */
+  stuck_payout_count: number;
+  stuck_payout_sample: string[];
 };
 
 type QueueReason =
@@ -106,7 +109,7 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
   const { data: candidates, error } = await admin
     .from('bookings')
     .select('id, pro_id, service_pros(user_id)')
-    .in('status', ['completed', 'customer_confirmed', 'auto_confirmed', 'payout_eligible'])
+    .or(payoutReleaseCronCandidateOrFilter())
     .eq('payout_released', false)
     .or('requires_admin_review.is.null,requires_admin_review.eq.false')
     .not('refund_status', 'eq', 'pending')
@@ -125,8 +128,8 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
   for (const row of candidates ?? []) {
     const bookingId = row.id as string;
     const proUserId = (row as { service_pros?: { user_id?: string } }).service_pros?.user_id;
-    const ev = await evaluatePayoutTransferEligibility(admin, bookingId, { initiatedByAdmin: false });
-    if (ev.ok) {
+    const snap = await getPayoutReleaseEligibilitySnapshot(admin, bookingId, { initiatedByAdmin: false });
+    if (snap.eligible) {
       const out = await releasePayout(admin, { bookingId });
       if (out.ok) {
         await admin.from('booking_events').insert({
@@ -164,11 +167,24 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
       continue;
     }
 
-    if (ev.flagForAdminReview) {
-      await flagForManualPayoutReview(admin, bookingId, ev.holdReason);
+    if (snap.flagForAdminReview) {
+      await flagForManualPayoutReview(admin, bookingId, snap.holdReason);
       flagged++;
     }
   }
 
-  return { released, failed, flagged, total: candidates?.length ?? 0 };
+  const { stuck } = await warnStuckPayoutsForCron(admin, {
+    route: '/api/cron/bookings/payout-release',
+    maxScan: 200,
+    limit: 25,
+  });
+
+  return {
+    released,
+    failed,
+    flagged,
+    total: candidates?.length ?? 0,
+    stuck_payout_count: stuck.length,
+    stuck_payout_sample: stuck.map((s) => s.bookingId).slice(0, 12),
+  };
 }

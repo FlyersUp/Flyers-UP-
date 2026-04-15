@@ -3,7 +3,13 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { coalesceBookingFinalPaymentIntentId, getMoneyState } from '../money-state';
+import {
+  coalesceBookingDepositPaymentIntentId,
+  coalesceBookingFinalPaymentIntentId,
+  getBookingDepositPaymentIntentIdOrNull,
+  getBookingFinalPaymentIntentIdOrNull,
+  getMoneyState,
+} from '../money-state';
 
 const depositPaidBase = {
   status: 'awaiting_remaining_payment',
@@ -333,6 +339,26 @@ describe('getMoneyState — golden flow', () => {
   });
 });
 
+describe('getBookingFinalPaymentIntentIdOrNull / getBookingDepositPaymentIntentIdOrNull', () => {
+  it('matches coalesce helpers (canonical API)', () => {
+    const row = {
+      final_payment_intent_id: 'pi_final',
+      payment_intent_id: 'pi_legacy',
+    };
+    assert.strictEqual(getBookingFinalPaymentIntentIdOrNull(row), coalesceBookingFinalPaymentIntentId(row));
+    assert.strictEqual(
+      getBookingDepositPaymentIntentIdOrNull({
+        stripe_payment_intent_deposit_id: 'pi_dep',
+        payment_intent_id: 'pi_other',
+      }),
+      coalesceBookingDepositPaymentIntentId({
+        stripe_payment_intent_deposit_id: 'pi_dep',
+        payment_intent_id: 'pi_other',
+      })
+    );
+  });
+});
+
 describe('coalesceBookingFinalPaymentIntentId', () => {
   it('prefers final_payment_intent_id over legacy payment_intent_id', () => {
     assert.strictEqual(
@@ -384,6 +410,29 @@ describe('coalesceBookingFinalPaymentIntentId', () => {
   });
 });
 
+describe('coalesceBookingDepositPaymentIntentId', () => {
+  it('prefers stripe_payment_intent_deposit_id', () => {
+    assert.strictEqual(
+      coalesceBookingDepositPaymentIntentId({
+        stripe_payment_intent_deposit_id: 'pi_dep',
+        payment_intent_id: 'pi_other',
+      }),
+      'pi_dep'
+    );
+  });
+
+  it('does not treat legacy payment_intent_id as deposit when it equals explicit final columns', () => {
+    assert.strictEqual(
+      coalesceBookingDepositPaymentIntentId({
+        payment_intent_id: 'pi_final',
+        final_payment_intent_id: 'pi_final',
+        stripe_payment_intent_deposit_id: 'pi_dep',
+      }),
+      'pi_dep'
+    );
+  });
+});
+
 describe('getMoneyState — customerRefund', () => {
   it('uses payment_lifecycle_status refunded', () => {
     const m = getMoneyState(
@@ -427,5 +476,36 @@ describe('getMoneyState — customerRefund', () => {
     );
     assert.strictEqual(m.customerRefund, 'partial');
     assert.strictEqual(m.refundAfterProPayout, true);
+    assert.strictEqual(m.customerRefundFunding, 'from_platform_balance');
+  });
+
+  it('uses refund_after_payout for funding even when payoutReleased is false', () => {
+    const m = getMoneyState(
+      {
+        status: 'completed',
+        paymentLifecycleStatus: 'payout_sent',
+        refundedTotalCents: 100,
+        amountPaidCents: 2000,
+        payoutReleased: false,
+        refundAfterPayout: true,
+      },
+      {},
+      Date.now()
+    );
+    assert.strictEqual(m.customerRefundFunding, 'from_platform_balance');
+  });
+
+  it('marks pre-payout full refund as from_booking_payment', () => {
+    const m = getMoneyState(
+      {
+        status: 'completed',
+        paymentLifecycleStatus: 'refunded',
+        payoutReleased: false,
+        refundAfterPayout: false,
+      },
+      {},
+      Date.now()
+    );
+    assert.strictEqual(m.customerRefundFunding, 'from_booking_payment');
   });
 });

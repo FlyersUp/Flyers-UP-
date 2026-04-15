@@ -111,6 +111,8 @@ export interface BookingDetailData {
   paymentLifecycleStatus?: string | null;
   customerReviewDeadlineAt?: string | null;
   payoutReleased?: boolean | null;
+  /** True when any refund was recorded after payout to the pro (Connect clawback may be required). */
+  refundAfterPayout?: boolean | null;
   requiresAdminReview?: boolean | null;
   payoutHoldReason?: string | null;
   suspiciousCompletion?: boolean | null;
@@ -141,6 +143,7 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     platformFeeCents: b.platformFeeCents ?? null,
     refundStatus: b.refundStatus ?? null,
     refundedTotalCents: b.refundedTotalCents ?? null,
+    paidAmountCents: b.paidAmountCents ?? null,
     amountDeposit: b.amountDeposit,
     amountRemaining: b.amountRemaining,
     amountTotal: b.amountTotal,
@@ -166,6 +169,7 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     paymentLifecycleStatus: b.paymentLifecycleStatus ?? null,
     customerReviewDeadlineAt: b.customerReviewDeadlineAt ?? null,
     payoutReleased: b.payoutReleased ?? null,
+    refundAfterPayout: b.refundAfterPayout ?? null,
     requiresAdminReview: b.requiresAdminReview ?? null,
     payoutHoldReason: b.payoutHoldReason ?? null,
     suspiciousCompletion: b.suspiciousCompletion ?? null,
@@ -261,6 +265,9 @@ export function BookingDetailContent({
           payoutReleased: fullBooking.payoutReleased ?? null,
           requiresAdminReview: fullBooking.requiresAdminReview ?? null,
           payoutTransferId: fullBooking.payoutTransferId ?? null,
+          refundedTotalCents: fullBooking.refundedTotalCents ?? null,
+          amountPaidCents: fullBooking.paidAmountCents ?? null,
+          refundAfterPayout: fullBooking.refundAfterPayout ?? null,
         };
         const customerMoney = getMoneyState(
           customerRemainingUiToMoneyStateBooking(remainingPaymentInput),
@@ -556,6 +563,7 @@ export function BookingDetailContent({
                 finalPaymentCustomerNote={finalPaymentNote}
                 layoutVariant="compact"
                 showOnPlatformReceiptTrust={showRebookStrip}
+                customerRefundFunding={customerMoney.customerRefundFunding}
               />
             </section>
 

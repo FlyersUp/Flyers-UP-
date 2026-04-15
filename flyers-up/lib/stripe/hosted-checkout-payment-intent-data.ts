@@ -2,6 +2,11 @@ import {
   buildLegacyFullPaymentIntentStripeFields,
   capStripeBookingPaymentMetadata,
 } from '@/lib/stripe/booking-payment-intent-metadata';
+import {
+  assertUnifiedBookingPaymentIntentMetadata,
+  buildUnifiedBookingPaymentIntentMoneyMetadata,
+  mergeUnifiedBookingPaymentIntentMoneyMetadata,
+} from '@/lib/stripe/payment-intent-metadata-unified';
 
 /**
  * PaymentIntent fields for Stripe Checkout (hosted) when charging the platform account.
@@ -9,12 +14,8 @@ import {
  * `application_fee_amount` used for destination charges).
  *
  * ## Metadata alignment with deposit / final
- * Deposit and final routes merge `appendLifecyclePaymentIntentMetadata` keys:
- * `subtotal_cents`, `platform_fee_cents`, `deposit_amount_cents`, `final_amount_cents`,
- * `total_amount_cents`, `pricing_version`, `payment_phase`.
- * Hosted legacy full uses `payment_phase: full` (via `buildLegacyFullPaymentIntentStripeFields`) and, when
- * `HostedCheckoutBookingMoneySnapshot` is provided, the same **cent key names** so
- * `normalizeBookingPaymentMetadata` does not need one-off branches for Checkout.
+ * Uses {@link buildUnifiedBookingPaymentIntentMoneyMetadata} so required cent keys always match
+ * deposit / final lifecycle PaymentIntents.
  */
 export type HostedCheckoutPaymentIntentData = {
   metadata: Record<string, string>;
@@ -32,6 +33,30 @@ export type HostedCheckoutBookingMoneySnapshot = {
   feeTotalCents?: number | null;
 };
 
+function resolveHostedCheckoutSubtotalCents(
+  amountCents: number,
+  snap: HostedCheckoutBookingMoneySnapshot | null | undefined
+): number {
+  const sub = snap?.subtotalCents;
+  if (typeof sub === 'number' && Number.isFinite(sub) && sub > 0) {
+    return Math.round(sub);
+  }
+  return amountCents;
+}
+
+function resolveHostedCheckoutPlatformFeeCents(snap: HostedCheckoutBookingMoneySnapshot | null | undefined): number {
+  if (!snap) return 0;
+  const fromRow = snap.platformFeeCents;
+  if (typeof fromRow === 'number' && Number.isFinite(fromRow) && fromRow > 0) {
+    return Math.round(fromRow);
+  }
+  const fromTotal = snap.feeTotalCents;
+  if (typeof fromTotal === 'number' && Number.isFinite(fromTotal) && fromTotal > 0) {
+    return Math.round(fromTotal);
+  }
+  return 0;
+}
+
 export function buildHostedCheckoutPaymentIntentData(input: {
   bookingId: string;
   customerId: string;
@@ -48,38 +73,32 @@ export function buildHostedCheckoutPaymentIntentData(input: {
     serviceTitle: input.serviceTitle,
   });
 
-  const amount = Math.round(input.amountCents);
-  stripeFields.metadata.customer_total_cents = String(amount);
-  stripeFields.metadata.total_amount_cents = String(amount);
+  const amount = Math.round(Number(input.amountCents));
+  const snap = input.bookingMoneySnapshot ?? null;
+  const subtotal = resolveHostedCheckoutSubtotalCents(amount, snap);
+  const platformFee = resolveHostedCheckoutPlatformFeeCents(snap);
 
-  const snap = input.bookingMoneySnapshot;
-  if (snap) {
-    const pv = String(snap.pricingVersion ?? '').trim();
-    if (pv) {
-      stripeFields.metadata.pricing_version = pv;
-    }
-    const sub = snap.subtotalCents;
-    if (typeof sub === 'number' && Number.isFinite(sub) && sub > 0) {
-      stripeFields.metadata.subtotal_cents = String(Math.round(sub));
-    }
-    const platformFeeFromRow =
-      typeof snap.platformFeeCents === 'number' && Number.isFinite(snap.platformFeeCents) && snap.platformFeeCents > 0
-        ? Math.round(snap.platformFeeCents)
-        : null;
-    const platformFeeFromTotal =
-      typeof snap.feeTotalCents === 'number' && Number.isFinite(snap.feeTotalCents) && snap.feeTotalCents > 0
-        ? Math.round(snap.feeTotalCents)
-        : null;
-    const platformFee = platformFeeFromRow ?? platformFeeFromTotal;
-    if (platformFee != null && platformFee > 0) {
-      stripeFields.metadata.platform_fee_cents = String(platformFee);
-    }
-    stripeFields.metadata.deposit_amount_cents = '0';
-    stripeFields.metadata.final_amount_cents = String(amount);
-  }
+  mergeUnifiedBookingPaymentIntentMoneyMetadata(
+    stripeFields.metadata,
+    buildUnifiedBookingPaymentIntentMoneyMetadata({
+      bookingId: input.bookingId,
+      paymentPhase: 'full',
+      subtotalCents: subtotal,
+      totalAmountCents: amount,
+      platformFeeCents: platformFee,
+      depositAmountCents: 0,
+      finalAmountCents: amount,
+      pricingVersion: snap?.pricingVersion,
+    })
+  );
+
+  stripeFields.metadata.customer_total_cents = String(amount);
+
+  const capped = capStripeBookingPaymentMetadata(stripeFields.metadata);
+  assertUnifiedBookingPaymentIntentMetadata(capped);
 
   return {
-    metadata: capStripeBookingPaymentMetadata(stripeFields.metadata),
+    metadata: capped,
     description: stripeFields.description,
     statement_descriptor_suffix: stripeFields.statement_descriptor_suffix,
   };

@@ -18,6 +18,11 @@ test('buildHostedCheckoutPaymentIntentData: platform-hold metadata, no Connect k
   assert.equal(data.metadata.phase, 'full');
   assert.equal(data.metadata.customer_total_cents, '12500');
   assert.equal(data.metadata.total_amount_cents, '12500');
+  assert.equal(data.metadata.subtotal_cents, '12500');
+  assert.equal(data.metadata.platform_fee_cents, '0');
+  assert.equal(data.metadata.deposit_amount_cents, '0');
+  assert.equal(data.metadata.final_amount_cents, '12500');
+  assert.equal(data.metadata.pricing_version, 'unknown');
   assert.ok(data.description.includes('Full payment'));
   assert.ok(data.statement_descriptor_suffix.length > 0);
 

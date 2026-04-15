@@ -109,6 +109,34 @@ describe('state-machine', () => {
       assert.ok(!r.eligible);
     });
 
+    it('allows payout when lifecycle is payout_ready even if bookings.status lags (e.g. deposit_paid)', () => {
+      const old = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+      const r = isPayoutEligible({
+        ...base,
+        status: 'deposit_paid',
+        payment_lifecycle_status: 'payout_ready',
+        customer_confirmed: false,
+        auto_confirm_at: null,
+        completed_at: old,
+        autoReleaseAfterCompletionHours: 24,
+      });
+      assert.ok(r.eligible, r.reason);
+    });
+
+    it('allows payout when lifecycle is final_paid with stale workflow status', () => {
+      const old = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+      const r = isPayoutEligible({
+        ...base,
+        status: 'awaiting_customer_confirmation',
+        payment_lifecycle_status: 'final_paid',
+        customer_confirmed: false,
+        auto_confirm_at: null,
+        completed_at: old,
+        autoReleaseAfterCompletionHours: 24,
+      });
+      assert.ok(r.eligible, r.reason);
+    });
+
     it('blocked when not confirmed and auto_confirm in future', () => {
       const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       const r = isPayoutEligible({

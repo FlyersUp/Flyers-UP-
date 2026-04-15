@@ -6,6 +6,8 @@
 
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { refundPaymentIntent } from '@/lib/stripe/server';
+import { refundLifecycleMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
+import { appendBookingRefundEvent } from '@/lib/bookings/booking-refund-ledger';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 
@@ -79,14 +81,69 @@ export async function executeNoShowCancel(
   // Refund deposit if captured
   const depositPiId = payload.stripe_payment_intent_deposit_id;
   if (depositPiId && payload.refund_status !== 'succeeded') {
-    const refundId = await refundPaymentIntent(depositPiId, {
-      reason: 'requested_by_customer',
-      booking_id: bookingId,
-    });
+    const { data: snapPre } = await admin
+      .from('bookings')
+      .select(
+        [
+          'payout_released',
+          'deposit_amount_cents',
+          'amount_deposit',
+          'subtotal_cents',
+          'total_amount_cents',
+          'amount_total',
+          'amount_platform_fee',
+          'final_amount_cents',
+          'remaining_amount_cents',
+          'pricing_version',
+        ].join(', ')
+      )
+      .eq('id', bookingId)
+      .maybeSingle();
+    const sn = snapPre as {
+      payout_released?: boolean;
+      deposit_amount_cents?: number;
+      amount_deposit?: number;
+      subtotal_cents?: number;
+      total_amount_cents?: number;
+      amount_total?: number;
+      amount_platform_fee?: number;
+      final_amount_cents?: number;
+      remaining_amount_cents?: number;
+      pricing_version?: string | null;
+    } | null;
+    const depCents = Number(sn?.deposit_amount_cents ?? sn?.amount_deposit ?? 0) || 0;
+    const refundId = await refundPaymentIntent(
+      depositPiId,
+      refundLifecycleMetadata({
+        booking_id: bookingId,
+        refund_scope: 'deposit',
+        resolution_type: 'no_show_pro_cancel',
+        subtotal_cents: Number(sn?.subtotal_cents ?? 0) || 0,
+        total_amount_cents: Number(sn?.total_amount_cents ?? sn?.amount_total ?? 0) || 0,
+        platform_fee_cents: Number(sn?.amount_platform_fee ?? 0) || 0,
+        deposit_amount_cents: depCents,
+        final_amount_cents: Number(sn?.final_amount_cents ?? sn?.remaining_amount_cents ?? 0) || 0,
+        pricing_version: typeof sn?.pricing_version === 'string' ? sn.pricing_version : null,
+        extra: { reason: 'requested_by_customer' },
+      })
+    );
     if (refundId) {
+      const afterPayout = sn?.payout_released === true;
+      void appendBookingRefundEvent(admin, {
+        bookingId,
+        refundType: afterPayout ? 'after_payout' : 'before_payout',
+        amountCents: depCents,
+        stripeRefundId: refundId,
+        paymentIntentId: depositPiId,
+        requiresClawback: afterPayout,
+        source: 'system',
+      });
       await admin
         .from('bookings')
-        .update({ refund_status: 'pending' })
+        .update({
+          refund_status: 'pending',
+          ...(afterPayout ? { refund_after_payout: true, requires_admin_review: true } : {}),
+        })
         .eq('id', bookingId);
     }
   }

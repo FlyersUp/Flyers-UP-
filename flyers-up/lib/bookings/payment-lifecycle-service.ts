@@ -12,13 +12,18 @@ import {
   buildBookingPaymentIntentStripeFields,
   capStripeBookingPaymentMetadata,
 } from '@/lib/stripe/booking-payment-intent-metadata';
-import { appendLifecyclePaymentIntentMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
+import {
+  appendLifecyclePaymentIntentMetadata,
+  refundLifecycleMetadata,
+  transferLifecycleStripeMetadata,
+} from '@/lib/stripe/booking-payment-metadata-lifecycle';
+import { assertUnifiedBookingPaymentIntentMetadata } from '@/lib/stripe/payment-intent-metadata-unified';
 import {
   createTransfer,
   refundPaymentIntent,
   refundPaymentIntentPartial,
 } from '@/lib/stripe/server';
-import { isPayoutEligible, PAYOUT_AUTO_RELEASE_REVIEW_HOURS } from '@/lib/bookings/state-machine';
+import { isPayoutEligible } from '@/lib/bookings/state-machine';
 import { resolveMilestonePayoutGate } from '@/lib/bookings/multi-day-payout';
 import { resolveProPayoutTransferCents } from '@/lib/bookings/booking-payout-economics';
 import { evaluatePayoutRiskForPro } from '@/lib/payoutRisk';
@@ -28,12 +33,27 @@ import type {
   BookingDisputeStatus,
   PayoutHoldReason,
 } from '@/lib/bookings/payment-lifecycle-types';
+import { getPayoutReleaseEligibilitySnapshot } from '@/lib/bookings/payout-release-eligibility-snapshot';
+import {
+  getBookingWorkflowStatusAfterFinalPayment,
+  resolvePayoutLifecyclePatchAfterFinalPayment,
+} from '@/lib/bookings/final-payment-post-success-model';
 import { assertPayoutHoldReason } from '@/lib/bookings/payment-lifecycle-types';
+import {
+  coalesceBookingDepositPaymentIntentId,
+  coalesceBookingFinalPaymentIntentId,
+  type BookingFinalPaymentIntentIdRow,
+} from '@/lib/bookings/money-state';
 import {
   finalPaymentAutoRetryCountCeiling,
   hoursBeforeNextFinalPaymentCronAttempt,
   mapStripeFailureCodeToFinalPaymentRetryReason,
 } from '@/lib/bookings/final-payment-retry-reason';
+import {
+  appendBookingRefundEvent,
+  bookingRefundEventExistsForStripeEvent,
+  legacyWebhookChargeRefundLedgerDup,
+} from '@/lib/bookings/booking-refund-ledger';
 import { PAYOUT_REVIEW_QUEUE_OPEN_STATUSES } from '@/lib/admin/payout-review-queue-status';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 import { createNotificationEvent } from '@/lib/notifications';
@@ -155,6 +175,8 @@ export async function syncBookingPaymentSummary(admin: AdminClient, bookingId: s
         'deposit_payment_intent_id',
         'stripe_payment_intent_deposit_id',
         'final_payment_intent_id',
+        'stripe_payment_intent_remaining_id',
+        'payment_intent_id',
         'payout_transfer_id',
         'stripe_transfer_id',
         'paid_deposit_at',
@@ -218,9 +240,8 @@ export async function syncBookingPaymentSummary(admin: AdminClient, bookingId: s
       dispute_status: String(row.dispute_status ?? 'none'),
       payout_blocked: row.payout_blocked !== false,
       payout_hold_reason: String(row.payout_hold_reason ?? 'none'),
-      deposit_payment_intent_id:
-        (row.deposit_payment_intent_id as string) ?? (row.stripe_payment_intent_deposit_id as string) ?? null,
-      final_payment_intent_id: (row.final_payment_intent_id as string) ?? null,
+      deposit_payment_intent_id: coalesceBookingDepositPaymentIntentId(row as BookingFinalPaymentIntentIdRow),
+      final_payment_intent_id: coalesceBookingFinalPaymentIntentId(row as BookingFinalPaymentIntentIdRow),
       payout_transfer_id: (row.payout_transfer_id as string) ?? (row.stripe_transfer_id as string) ?? null,
       deposit_paid_at: (row.paid_deposit_at as string) ?? null,
       final_paid_at: (row.paid_remaining_at as string) ?? null,
@@ -515,6 +536,12 @@ export async function attemptFinalCharge(
   const row = b as unknown as Record<string, unknown>;
   if (row.admin_hold === true) return { ok: false, code: 'admin_hold' };
   if (String(row.dispute_status ?? 'none') !== 'none') return { ok: false, code: 'dispute' };
+  if (String(row.payment_lifecycle_status ?? '').trim() === 'cancelled_during_review') {
+    return { ok: false, code: 'cancelled_during_review' };
+  }
+  if (String(row.final_payment_status ?? '').toUpperCase() === 'CANCELLED') {
+    return { ok: false, code: 'final_cancelled' };
+  }
 
   const lc = String(row.payment_lifecycle_status ?? '');
   const allowedLc: BookingPaymentStatus[] = ['final_pending', 'payment_failed', 'requires_customer_action'];
@@ -670,6 +697,7 @@ export async function attemptFinalCharge(
       paymentIntentId: pi.id,
       failureCode: pi.last_payment_error?.code ?? 'unknown',
       failureMessage: pi.last_payment_error?.message ?? pi.status,
+      declineCode: pi.last_payment_error?.decline_code ?? null,
     });
     return { ok: false, code: 'failed' };
   } catch (e) {
@@ -778,8 +806,7 @@ export async function handleFinalPaymentSucceeded(
   const history = Array.isArray(pr?.status_history)
     ? ([...(pr!.status_history as { status: string; at: string }[])] as { status: string; at: string }[])
     : [];
-  const isAwaitingRemaining = prevStatus === 'awaiting_remaining_payment';
-  const nextBookingStatus = isAwaitingRemaining ? 'awaiting_customer_confirmation' : 'fully_paid';
+  const nextBookingStatus = getBookingWorkflowStatusAfterFinalPayment(prevStatus);
   const nextHistory = [...history, { status: nextBookingStatus, at: now }];
 
   await admin
@@ -791,7 +818,10 @@ export async function handleFinalPaymentSucceeded(
       paid_remaining_at: now,
       fully_paid_at: now,
       amount_paid_cents: newPaid,
-      payment_lifecycle_status: 'final_paid',
+      /**
+       * Do not set `payment_lifecycle_status` here: remainder settlement is `final_payment_status` + timestamps;
+       * the follow-up update applies {@link resolvePayoutLifecyclePatchAfterFinalPayment} from {@link evaluatePayoutEligibility}.
+       */
       status: nextBookingStatus,
       status_history: nextHistory,
       final_payment_retry_reason: null,
@@ -825,16 +855,16 @@ export async function handleFinalPaymentSucceeded(
   }
 
   const ev = await evaluatePayoutEligibility(admin, bookingId);
+  const payoutPatch = resolvePayoutLifecyclePatchAfterFinalPayment(ev);
+  await admin
+    .from('bookings')
+    .update({
+      ...payoutPatch,
+      ...(ev.eligible ? { payout_eligible_at: now } : {}),
+    })
+    .eq('id', bookingId);
+
   if (ev.eligible) {
-    await admin
-      .from('bookings')
-      .update({
-        payment_lifecycle_status: 'payout_ready',
-        payout_blocked: false,
-        payout_hold_reason: 'none',
-        payout_eligible_at: now,
-      })
-      .eq('id', bookingId);
     await logBookingPaymentEvent(admin, {
       bookingId,
       eventType: 'payout_ready',
@@ -843,14 +873,6 @@ export async function handleFinalPaymentSucceeded(
       metadata: { after: 'final_payment_succeeded' },
     });
   } else {
-    await admin
-      .from('bookings')
-      .update({
-        payment_lifecycle_status: 'payout_on_hold',
-        payout_blocked: true,
-        payout_hold_reason: ev.holdReason,
-      })
-      .eq('id', bookingId);
     await logBookingPaymentEvent(admin, {
       bookingId,
       eventType: 'payout_blocked',
@@ -865,7 +887,12 @@ export async function handleFinalPaymentSucceeded(
 
 export async function handleFinalPaymentFailed(
   admin: AdminClient,
-  input: { paymentIntentId: string; failureCode: string; failureMessage: string }
+  input: {
+    paymentIntentId: string;
+    failureCode: string;
+    failureMessage: string;
+    declineCode?: string | null;
+  }
 ): Promise<void> {
   if (!input.paymentIntentId) return;
 
@@ -885,7 +912,10 @@ export async function handleFinalPaymentFailed(
     return;
   }
 
-  const retryReason = mapStripeFailureCodeToFinalPaymentRetryReason(input.failureCode);
+  const retryReason = mapStripeFailureCodeToFinalPaymentRetryReason(
+    input.failureCode,
+    input.declineCode
+  );
   const { data: row } = await admin
     .from('bookings')
     .select('final_charge_retry_count')
@@ -922,6 +952,7 @@ export async function handleFinalPaymentFailed(
       metadata: {
         failure_code: input.failureCode,
         failure_message: input.failureMessage,
+        decline_code: input.declineCode ?? null,
         retry_count: prevRetryCount,
         final_payment_retry_reason: retryReason,
         auto_retry: false,
@@ -974,6 +1005,7 @@ export async function handleFinalPaymentFailed(
     metadata: {
       failure_code: input.failureCode,
       failure_message: input.failureMessage,
+      decline_code: input.declineCode ?? null,
       retry_count: nextRetry,
       final_payment_retry_reason: retryReason,
     },
@@ -1021,174 +1053,11 @@ export async function evaluatePayoutTransferEligibility(
   bookingId: string,
   opts: { initiatedByAdmin: boolean }
 ): Promise<PayoutTransferEvaluation> {
-  const { data: b, error } = await admin
-    .from('bookings')
-    .select(
-      [
-        'id',
-        'status',
-        'arrived_at',
-        'started_at',
-        'completed_at',
-        'customer_confirmed',
-        'auto_confirm_at',
-        'dispute_open',
-        'cancellation_reason',
-        'paid_deposit_at',
-        'paid_remaining_at',
-        'refund_status',
-        'suspicious_completion',
-        'is_multi_day',
-        'payout_released',
-        'admin_hold',
-        'dispute_status',
-        'payment_lifecycle_status',
-        'final_payment_status',
-        'payout_blocked',
-        'payout_hold_reason',
-        'requires_admin_review',
-        'stripe_destination_account_id',
-        'service_pros(stripe_account_id, user_id, stripe_charges_enabled)',
-      ].join(', ')
-    )
-    .eq('id', bookingId)
-    .maybeSingle();
-
-  if (error || !b) {
-    return { ok: false, holdReason: 'missing_final_payment', flagForAdminReview: false };
-  }
-
-  const row = b as unknown as Record<string, unknown>;
-  if (row.payout_released === true) {
-    return { ok: false, holdReason: 'already_released', flagForAdminReview: false };
-  }
-  const lifecycleEarly = String(row.payment_lifecycle_status ?? '');
-  const refundStatusLower = String(row.refund_status ?? '').toLowerCase();
-  if (lifecycleEarly === 'refunded' || refundStatusLower === 'succeeded') {
-    return { ok: false, holdReason: 'customer_refunded', flagForAdminReview: false };
-  }
-  if (!opts.initiatedByAdmin && row.requires_admin_review === true) {
-    return { ok: false, holdReason: 'admin_review_required', flagForAdminReview: false };
-  }
-  if (row.admin_hold === true) {
-    return { ok: false, holdReason: 'admin_hold', flagForAdminReview: true };
-  }
-
-  const disputeClear =
-    row.dispute_status == null ||
-    String(row.dispute_status).trim() === '' ||
-    String(row.dispute_status) === 'none';
-  if (!disputeClear || row.dispute_open === true) {
-    return { ok: false, holdReason: 'dispute_open', flagForAdminReview: true };
-  }
-
-  const lc = String(row.payment_lifecycle_status ?? '');
-  const finalPaidLegacy =
-    String((row as { final_payment_status?: string }).final_payment_status ?? '').toUpperCase() === 'PAID';
-  const paidFinal =
-    lc === 'paid' ||
-    ['final_paid', 'payout_ready', 'payout_sent'].includes(lc) ||
-    finalPaidLegacy;
-  if (!paidFinal) {
-    return { ok: false, holdReason: 'missing_final_payment', flagForAdminReview: false };
-  }
-
-  if (!opts.initiatedByAdmin && row.payout_blocked === true) {
-    return { ok: false, holdReason: 'payout_blocked', flagForAdminReview: true };
-  }
-
-  const isMultiFlag = row.is_multi_day === true;
-  const gate = await resolveMilestonePayoutGate(admin, bookingId, isMultiFlag);
-  if (gate.fetchError) {
-    return { ok: false, holdReason: 'insufficient_completion_evidence', flagForAdminReview: true };
-  }
-
-  const sm = isPayoutEligible({
-    status: String(row.status ?? ''),
-    arrived_at: (row.arrived_at as string) ?? null,
-    started_at: (row.started_at as string) ?? null,
-    completed_at: (row.completed_at as string) ?? null,
-    customer_confirmed: row.customer_confirmed === true,
-    auto_confirm_at: (row.auto_confirm_at as string) ?? null,
-    dispute_open: row.dispute_open === true,
-    cancellation_reason: (row.cancellation_reason as string) ?? null,
-    paid_deposit_at: (row.paid_deposit_at as string) ?? null,
-    paid_remaining_at: (row.paid_remaining_at as string) ?? null,
-    refund_status: (row.refund_status as string) ?? null,
-    suspicious_completion: row.suspicious_completion === true,
-    is_multi_day: gate.enforceMilestoneGate,
-    multi_day_schedule_ok: gate.scheduleOk,
-    adminTransferOverride: opts.initiatedByAdmin,
-    autoReleaseAfterCompletionHours: opts.initiatedByAdmin ? null : PAYOUT_AUTO_RELEASE_REVIEW_HOURS,
+  const snap = await getPayoutReleaseEligibilitySnapshot(admin, bookingId, {
+    initiatedByAdmin: opts.initiatedByAdmin,
   });
-
-  if (!sm.eligible) {
-    const r = sm.reason ?? '';
-    if (r.includes('review window has not passed')) {
-      return { ok: false, holdReason: 'waiting_post_completion_review', flagForAdminReview: false };
-    }
-    if (r.includes('Dispute')) return { ok: false, holdReason: 'dispute_open', flagForAdminReview: true };
-    if (r.includes('no-show')) return { ok: false, holdReason: 'no_show_review', flagForAdminReview: true };
-    if (r.includes('Suspicious') || r.includes('admin review')) {
-      return { ok: false, holdReason: 'fraud_review', flagForAdminReview: true };
-    }
-    if (r.includes('Payment not complete') || r.includes('deposit or remaining')) {
-      return { ok: false, holdReason: 'missing_final_payment', flagForAdminReview: false };
-    }
-    if (r.includes('Refund already processed')) {
-      return { ok: false, holdReason: 'customer_refunded', flagForAdminReview: false };
-    }
-    if (r.includes('Refund')) return { ok: false, holdReason: 'refund_pending', flagForAdminReview: true };
-    if (r.includes('not in')) return { ok: false, holdReason: 'insufficient_completion_evidence', flagForAdminReview: false };
-    if (r.includes('not arrived') || r.includes('not been started') || r.includes('not been completed')) {
-      return { ok: false, holdReason: 'insufficient_completion_evidence', flagForAdminReview: false };
-    }
-    if (r.includes('Multi-day')) {
-      return { ok: false, holdReason: 'insufficient_completion_evidence', flagForAdminReview: true };
-    }
-    return { ok: false, holdReason: 'insufficient_completion_evidence', flagForAdminReview: false };
-  }
-
-  if (!opts.initiatedByAdmin) {
-    const { data: jc } = await admin
-      .from('job_completions')
-      .select('after_photo_urls, booking_id')
-      .eq('booking_id', bookingId)
-      .maybeSingle();
-    const rawUrls = (jc as { after_photo_urls?: string[] } | null)?.after_photo_urls ?? [];
-    const validUrls = rawUrls.filter(
-      (u): u is string =>
-        typeof u === 'string' &&
-        u.trim().length > 5 &&
-        !/^(placeholder|n\/a|none|null|undefined)$/i.test(u.trim())
-    );
-    if (validUrls.length < 2 || jc?.booking_id !== bookingId) {
-      return { ok: false, holdReason: 'insufficient_completion_evidence', flagForAdminReview: true };
-    }
-  }
-
-  const dest =
-    (row.stripe_destination_account_id as string) ??
-    ((row.service_pros as { stripe_account_id?: string })?.stripe_account_id ?? '');
-  if (!dest || !String(dest).trim()) {
-    return { ok: false, holdReason: 'missing_payment_method', flagForAdminReview: true };
-  }
-
-  const chargesOn =
-    (row.service_pros as { stripe_charges_enabled?: boolean })?.stripe_charges_enabled === true;
-  if (!opts.initiatedByAdmin && !chargesOn) {
-    return { ok: false, holdReason: 'missing_payment_method', flagForAdminReview: true };
-  }
-
-  const proUser = (row.service_pros as { user_id?: string })?.user_id;
-  if (proUser) {
-    const risk = await evaluatePayoutRiskForPro(proUser);
-    if (risk.payoutsOnHold) {
-      return { ok: false, holdReason: 'fraud_review', flagForAdminReview: true };
-    }
-  }
-
-  return { ok: true };
+  if (snap.eligible) return { ok: true };
+  return { ok: false, holdReason: snap.holdReason, flagForAdminReview: snap.flagForAdminReview };
 }
 
 export async function evaluatePayoutEligibility(
@@ -1261,6 +1130,7 @@ export async function evaluatePayoutEligibility(
 
   const base = isPayoutEligible({
     status: String(row.status ?? ''),
+    payment_lifecycle_status: (row.payment_lifecycle_status as string | null | undefined) ?? null,
     arrived_at: (row.arrived_at as string) ?? null,
     started_at: (row.started_at as string) ?? null,
     completed_at: (row.completed_at as string) ?? null,
@@ -1388,7 +1258,16 @@ export async function releasePayout(
         'currency',
         'stripe_destination_account_id',
         'final_payment_intent_id',
+        'stripe_payment_intent_remaining_id',
+        'payment_intent_id',
+        'stripe_payment_intent_deposit_id',
+        'deposit_payment_intent_id',
         'payout_released',
+        'pricing_version',
+        'deposit_amount_cents',
+        'amount_deposit',
+        'final_amount_cents',
+        'remaining_amount_cents',
         'service_pros(stripe_account_id, user_id)',
       ].join(', ')
     )
@@ -1418,20 +1297,34 @@ export async function releasePayout(
   if (netToPro <= 0) return { ok: false, code: 'zero_amount' };
 
   const currency = String(row.currency ?? 'usd').toLowerCase();
-  const finalPi = (row.final_payment_intent_id as string) ?? '';
+  const finalPi = coalesceBookingFinalPaymentIntentId(row as BookingFinalPaymentIntentIdRow) ?? '';
+
+  const totalCents = Number(row.total_amount_cents ?? row.amount_total ?? 0) || 0;
+  const depRow = Number(row.deposit_amount_cents ?? row.amount_deposit ?? 0) || 0;
+  const finRow = Number(row.final_amount_cents ?? row.remaining_amount_cents ?? 0) || 0;
+  const platformFee = Number(row.amount_platform_fee ?? 0) || 0;
+  const pricingVersion =
+    typeof row.pricing_version === 'string' ? row.pricing_version : null;
+
+  const transferMeta = transferLifecycleStripeMetadata({
+    booking_id: input.bookingId,
+    linked_final_payment_intent_id: finalPi,
+    payout_amount_cents: netToPro,
+    pro_id: String(row.pro_id ?? ''),
+    subtotal_cents: subtotalCents,
+    total_amount_cents: totalCents,
+    platform_fee_cents: platformFee,
+    deposit_amount_cents: depRow,
+    final_amount_cents: finRow,
+    pricing_version: pricingVersion,
+  });
 
   const transferId = await createTransfer({
     amount: netToPro,
     currency,
     destinationAccountId: dest,
     bookingId: input.bookingId,
-    metadata: {
-      booking_id: input.bookingId,
-      payout_phase: 'transfer',
-      linked_final_payment_intent_id: finalPi,
-      payout_amount_cents: String(netToPro),
-      pro_id: String(row.pro_id ?? ''),
-    },
+    metadata: transferMeta,
     idempotencyKey: `payout-booking-${input.bookingId}`,
   });
 
@@ -1663,34 +1556,92 @@ export async function runAdminRefundCustomer(
   const { data: b, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, payout_released, final_payment_intent_id, stripe_payment_intent_remaining_id, stripe_payment_intent_deposit_id, payment_intent_id, payment_lifecycle_status, refund_status'
+      [
+        'id',
+        'payout_released',
+        'final_payment_intent_id',
+        'stripe_payment_intent_remaining_id',
+        'stripe_payment_intent_deposit_id',
+        'deposit_payment_intent_id',
+        'payment_intent_id',
+        'payment_lifecycle_status',
+        'refund_status',
+        'deposit_amount_cents',
+        'amount_deposit',
+        'final_amount_cents',
+        'remaining_amount_cents',
+        'subtotal_cents',
+        'total_amount_cents',
+        'amount_total',
+        'amount_platform_fee',
+        'pricing_version',
+      ].join(', ')
     )
     .eq('id', id)
     .maybeSingle();
   if (bErr || !b) return { ok: false, error: 'not_found' };
-  const br = b as Record<string, string | boolean | null | undefined>;
-  if (br.payout_released === true) {
-    return { ok: false, error: 'already_released' };
-  }
+  const br = b as unknown as Record<string, string | boolean | number | null | undefined>;
+  const payoutReleased = br.payout_released === true;
   const lc = String(br.payment_lifecycle_status ?? '');
   const rs = String(br.refund_status ?? '').toLowerCase();
   if (lc === 'refunded' || rs === 'succeeded') {
     return { ok: false, error: 'already_refunded' };
   }
 
-  const piFinal = (br.final_payment_intent_id as string) ?? (br.stripe_payment_intent_remaining_id as string) ?? null;
-  const piDep =
-    (br.stripe_payment_intent_deposit_id as string) ?? (br.payment_intent_id as string) ?? null;
+  const piFinal = coalesceBookingFinalPaymentIntentId(br as BookingFinalPaymentIntentIdRow);
+  const piDep = coalesceBookingDepositPaymentIntentId(br as BookingFinalPaymentIntentIdRow);
   if (!piFinal && !piDep) {
     return { ok: false, error: 'no_payment_intent' };
   }
 
+  const depCents =
+    Number(br.deposit_amount_cents ?? br.amount_deposit ?? 0) || 0;
+  const finalCents =
+    Number(br.final_amount_cents ?? br.remaining_amount_cents ?? 0) || 0;
+  const subtotalSnap = Number(br.subtotal_cents ?? 0) || 0;
+  const totalSnap =
+    Number(br.total_amount_cents ?? br.amount_total ?? 0) || 0;
+  const platformSnap = Number(br.amount_platform_fee ?? 0) || 0;
+  const pricingSnap = typeof br.pricing_version === 'string' ? br.pricing_version : null;
+
+  const refundType = payoutReleased ? 'after_payout' : 'before_payout';
+  const requiresClawback = payoutReleased;
+
+  const refundIds: { pi: string; refundId: string; amountCents: number }[] = [];
   try {
     if (piFinal) {
-      await refundPaymentIntent(piFinal, { booking_id: id, payment_phase: 'refund', refund_scope: 'full' });
+      const rid = await refundPaymentIntent(
+        piFinal,
+        refundLifecycleMetadata({
+          booking_id: id,
+          refund_scope: 'full',
+          resolution_type: 'admin_refund_customer',
+          subtotal_cents: subtotalSnap,
+          total_amount_cents: totalSnap,
+          platform_fee_cents: platformSnap,
+          deposit_amount_cents: depCents,
+          final_amount_cents: finalCents,
+          pricing_version: pricingSnap,
+        })
+      );
+      if (rid) refundIds.push({ pi: piFinal, refundId: rid, amountCents: finalCents > 0 ? finalCents : 0 });
     }
     if (piDep && piDep !== piFinal) {
-      await refundPaymentIntent(piDep, { booking_id: id, payment_phase: 'refund', refund_scope: 'full' });
+      const rid = await refundPaymentIntent(
+        piDep,
+        refundLifecycleMetadata({
+          booking_id: id,
+          refund_scope: 'full',
+          resolution_type: 'admin_refund_customer',
+          subtotal_cents: subtotalSnap,
+          total_amount_cents: totalSnap,
+          platform_fee_cents: platformSnap,
+          deposit_amount_cents: depCents,
+          final_amount_cents: finalCents,
+          pricing_version: pricingSnap,
+        })
+      );
+      if (rid) refundIds.push({ pi: piDep, refundId: rid, amountCents: depCents > 0 ? depCents : 0 });
     }
   } catch (e) {
     console.error('[runAdminRefundCustomer] stripe refund failed', id, e);
@@ -1706,11 +1657,28 @@ export async function runAdminRefundCustomer(
     .update({
       payment_lifecycle_status: 'refunded',
       refund_status: 'succeeded',
-      requires_admin_review: false,
+      requires_admin_review: payoutReleased ? true : false,
       payout_blocked: true,
       payout_hold_reason: 'customer_refunded',
+      refund_after_payout: payoutReleased ? true : false,
     })
     .eq('id', id);
+
+  for (const row of refundIds) {
+    const amt = row.amountCents > 0 ? row.amountCents : 0;
+    const ins = await appendBookingRefundEvent(admin, {
+      bookingId: id,
+      refundType,
+      amountCents: amt,
+      stripeRefundId: row.refundId,
+      paymentIntentId: row.pi,
+      requiresClawback,
+      source: 'admin',
+    });
+    if (ins.ok === false && 'error' in ins) {
+      console.warn('[runAdminRefundCustomer] refund ledger insert', id, ins.error);
+    }
+  }
 
   const { data: openQueueRows } = await admin
     .from('payout_review_queue')
@@ -1768,7 +1736,12 @@ export async function runAdminRefundCustomer(
     },
   });
 
-  return { ok: true, message: 'Customer refund processed; payout review cleared.' };
+  return {
+    ok: true,
+    message: payoutReleased
+      ? 'Customer refund processed from the platform balance. Payout to the professional was not reversed automatically — booking flagged for admin review and clawback tracking.'
+      : 'Customer refund processed; payout review cleared.',
+  };
 }
 
 export async function openDispute(
@@ -1874,23 +1847,69 @@ export async function resolveDispute(
   if (input.refundAmountCents && input.refundAmountCents > 0) {
     const { data: b } = await admin
       .from('bookings')
-      .select('final_payment_intent_id, stripe_payment_intent_remaining_id, payment_intent_id, stripe_payment_intent_deposit_id')
+      .select(
+        [
+          'final_payment_intent_id',
+          'stripe_payment_intent_remaining_id',
+          'payment_intent_id',
+          'stripe_payment_intent_deposit_id',
+          'deposit_payment_intent_id',
+          'payout_released',
+          'subtotal_cents',
+          'total_amount_cents',
+          'amount_total',
+          'amount_platform_fee',
+          'deposit_amount_cents',
+          'amount_deposit',
+          'final_amount_cents',
+          'remaining_amount_cents',
+          'pricing_version',
+        ].join(', ')
+      )
       .eq('id', bookingId)
       .maybeSingle();
-    const br = b as Record<string, string | null> | null;
-    const piRefund =
-      br?.final_payment_intent_id ?? br?.stripe_payment_intent_remaining_id ?? br?.payment_intent_id ?? null;
+    const br = b as Record<string, string | boolean | number | null | undefined> | null;
+    const piRefund = br ? coalesceBookingFinalPaymentIntentId(br as BookingFinalPaymentIntentIdRow) : null;
     if (piRefund) {
-      await refundPaymentIntentPartial(piRefund, input.refundAmountCents, {
-        metadata: {
+      const depC = Number(br?.deposit_amount_cents ?? br?.amount_deposit ?? 0) || 0;
+      const finC = Number(br?.final_amount_cents ?? br?.remaining_amount_cents ?? 0) || 0;
+      const subC = Number(br?.subtotal_cents ?? 0) || 0;
+      const totC = Number(br?.total_amount_cents ?? br?.amount_total ?? 0) || 0;
+      const feeC = Number(br?.amount_platform_fee ?? 0) || 0;
+      const pv = typeof br?.pricing_version === 'string' ? br.pricing_version : null;
+      const rid = await refundPaymentIntentPartial(piRefund, input.refundAmountCents, {
+        metadata: refundLifecycleMetadata({
           booking_id: bookingId,
-          payment_phase: 'refund',
           refund_scope: 'partial',
           resolution_type: input.resolution,
           dispute_id: input.disputeId,
-        },
+          subtotal_cents: subC,
+          total_amount_cents: totC,
+          platform_fee_cents: feeC,
+          deposit_amount_cents: depC,
+          final_amount_cents: finC,
+          pricing_version: pv,
+        }),
         idempotencyKey: `dispute-partial-refund-${input.disputeId}-${piRefund}-${input.refundAmountCents}`,
       });
+      if (rid) {
+        const after = br?.payout_released === true;
+        await appendBookingRefundEvent(admin, {
+          bookingId,
+          refundType: after ? 'after_payout' : 'before_payout',
+          amountCents: input.refundAmountCents,
+          stripeRefundId: rid,
+          paymentIntentId: piRefund,
+          requiresClawback: after,
+          source: 'dispute',
+        });
+        if (after) {
+          await admin
+            .from('bookings')
+            .update({ refund_after_payout: true, requires_admin_review: true })
+            .eq('id', bookingId);
+        }
+      }
     }
   }
 
@@ -1974,6 +1993,7 @@ export async function applyStripeChargeRefundedWebhook(
     deltaRefundedCents: number;
     stripeEventId: string;
     bookingIdFromMetadata?: string | null;
+    stripeRefundId?: string | null;
   }
 ): Promise<{ ok: boolean; bookingId?: string; reason?: string }> {
   const delta = Math.max(0, Math.round(input.deltaRefundedCents || 0));
@@ -2001,6 +2021,13 @@ export async function applyStripeChargeRefundedWebhook(
   }
   if (!bookingId) return { ok: false, reason: 'booking_not_found' };
 
+  if (await bookingRefundEventExistsForStripeEvent(admin, input.stripeEventId)) {
+    return { ok: true, bookingId, reason: 'duplicate_refund_ledger' };
+  }
+  if (await legacyWebhookChargeRefundLedgerDup(admin, bookingId, input.stripeEventId)) {
+    return { ok: true, bookingId, reason: 'duplicate_legacy_payment_event' };
+  }
+
   const { data: row, error } = await admin
     .from('bookings')
     .select(
@@ -2026,13 +2053,14 @@ export async function applyStripeChargeRefundedWebhook(
   if (error || !row) return { ok: false, reason: 'booking_load_failed' };
 
   const r = row as unknown as Record<string, unknown>;
-  const prevRefunded = Math.max(
-    Number(r.amount_refunded_cents ?? 0) || 0,
-    Number(r.refunded_total_cents ?? 0) || 0
-  );
+  const refTot = Number(r.refunded_total_cents ?? 0) || 0;
+  const refAmt = Number(r.amount_refunded_cents ?? 0) || 0;
+  const prevRefunded = Math.max(refAmt, refTot);
   const nextRefunded = prevRefunded + delta;
   const paidCents = estimateCustomerPaidCentsFromBookingRow(r);
   const nowIso = new Date().toISOString();
+  const payoutReleased = r.payout_released === true;
+  const refundType = payoutReleased ? 'after_payout' : 'before_payout';
 
   const update: Record<string, unknown> = {
     amount_refunded_cents: nextRefunded,
@@ -2053,10 +2081,60 @@ export async function applyStripeChargeRefundedWebhook(
     update.payment_lifecycle_status = 'partially_refunded';
   }
 
-  const { error: upErr } = await admin.from('bookings').update(update).eq('id', bookingId);
+  if (payoutReleased) {
+    update.refund_after_payout = true;
+    update.requires_admin_review = true;
+  }
+
+  const { data: updatedRow, error: upErr } = await admin
+    .from('bookings')
+    .update(update)
+    .eq('id', bookingId)
+    .eq('refunded_total_cents', refTot)
+    .eq('amount_refunded_cents', refAmt)
+    .select('id')
+    .maybeSingle();
+
   if (upErr) {
     console.warn('[applyStripeChargeRefundedWebhook] update failed', upErr);
     return { ok: false, reason: 'update_failed' };
+  }
+  if (!updatedRow) {
+    const { data: r2 } = await admin
+      .from('bookings')
+      .select('refunded_total_cents, amount_refunded_cents')
+      .eq('id', bookingId)
+      .maybeSingle();
+    const r2t = r2 as { refunded_total_cents?: number; amount_refunded_cents?: number } | null;
+    const nowMax = Math.max(
+      Number(r2t?.amount_refunded_cents ?? 0) || 0,
+      Number(r2t?.refunded_total_cents ?? 0) || 0
+    );
+    if (nowMax >= nextRefunded) {
+      return { ok: true, bookingId, reason: 'refund_already_applied' };
+    }
+    if (await bookingRefundEventExistsForStripeEvent(admin, input.stripeEventId)) {
+      return { ok: true, bookingId, reason: 'duplicate_refund_ledger_after_race' };
+    }
+    return { ok: false, reason: 'concurrent_refund_update' };
+  }
+
+  const ledger = await appendBookingRefundEvent(admin, {
+    bookingId,
+    refundType,
+    amountCents: delta,
+    stripeRefundId: input.stripeRefundId ?? null,
+    stripeChargeId: input.chargeId,
+    paymentIntentId: piId,
+    stripeEventId: input.stripeEventId,
+    requiresClawback: refundType === 'after_payout',
+    source: 'webhook',
+  });
+  if (ledger.ok === false && 'duplicate' in ledger && ledger.duplicate) {
+    return { ok: true, bookingId, reason: 'duplicate_refund_ledger_insert' };
+  }
+  if (ledger.ok === false && 'error' in ledger) {
+    console.warn('[applyStripeChargeRefundedWebhook] ledger insert failed', ledger.error);
   }
 
   await logBookingPaymentEvent(admin, {
@@ -2067,9 +2145,12 @@ export async function applyStripeChargeRefundedWebhook(
     amountCents: delta,
     stripePaymentIntentId: piId,
     stripeChargeId: input.chargeId,
+    stripeRefundId: input.stripeRefundId ?? null,
     metadata: {
       stripe_event_id: input.stripeEventId,
       cumulative_refunded_cents: nextRefunded,
+      refund_type: refundType,
+      connect_transfer_not_reversed: true,
     },
   });
 
@@ -2139,6 +2220,7 @@ export async function createDepositPaymentIntent(input: {
     'deposit'
   );
   const metadata = capStripeBookingPaymentMetadata({ ...stripeFields.metadata, ...meta });
+  assertUnifiedBookingPaymentIntentMetadata(metadata);
 
   const pi = await s.paymentIntents.create(
     {

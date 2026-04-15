@@ -11,6 +11,10 @@ import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { stripe } from '@/lib/stripe/server';
 import { STATUS } from '@/lib/bookings/booking-status';
+import {
+  coalesceBookingDepositPaymentIntentId,
+  type BookingFinalPaymentIntentIdRow,
+} from '@/lib/bookings/money-state';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -81,7 +85,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Cancel PaymentIntent if exists
-    const piId = b.stripe_payment_intent_deposit_id ?? b.payment_intent_id;
+    const piId = coalesceBookingDepositPaymentIntentId(b as BookingFinalPaymentIntentIdRow);
     if (piId && stripe) {
       try {
         const pi = await stripe.paymentIntents.retrieve(piId);

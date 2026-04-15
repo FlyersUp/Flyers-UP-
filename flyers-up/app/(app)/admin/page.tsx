@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { requireAdminUser, isAdminUser } from '@/app/(app)/admin/_admin';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { countFlaggedPayoutReviewsForAdmin } from '@/lib/admin/flagged-payout-review';
+import { findStuckPayoutBookings } from '@/lib/bookings/stuck-payout-detector';
+import { StuckPayoutsAlertCard } from '@/components/admin/StuckPayoutsAlertCard';
 import { getCommandCenterData, getJobsWaitingForAttention } from '@/lib/adminCommandCenter';
 import { KpiCard } from '@/components/admin/KpiCard';
 import { AlertList, type AlertItem as PlatformAlertItem } from '@/components/admin/AlertList';
@@ -104,10 +106,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   }
 
   const adminSb = createAdminSupabaseClient();
-  const [ccData, jobsWaiting, payoutReviewPending] = await Promise.all([
+  const [ccData, jobsWaiting, payoutReviewPending, stuckPayouts] = await Promise.all([
     getCommandCenterData(),
     getJobsWaitingForAttention(),
     countFlaggedPayoutReviewsForAdmin(adminSb),
+    findStuckPayoutBookings(adminSb, { limit: 10, maxScan: 80 }),
   ]);
 
   const { revenue, jobs, pros, customers, alerts } = ccData;
@@ -130,6 +133,15 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       count: payoutReviewPending,
       severity: payoutReviewPending >= 3 ? 'warning' : 'info',
       href: '/admin/payments/payout-review',
+    });
+  }
+  if (stuckPayouts.length > 0) {
+    platformAlerts.push({
+      id: 'stuck-payouts',
+      label: `Stuck payouts (${stuckPayouts.length})`,
+      count: stuckPayouts.length,
+      severity: 'critical',
+      href: '/admin/bookings',
     });
   }
   if (revenue.refundsCount > 0) {
@@ -303,6 +315,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
         {/* Optional: Admin session banner */}
         <AdminSessionBanner email={user?.email ?? null} environment={envLabel} />
+
+        <StuckPayoutsAlertCard items={stuckPayouts} />
 
         {/* Section 2 — Marketplace Health (KPI row) */}
         <section>

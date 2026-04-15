@@ -30,6 +30,8 @@ import {
   handleDepositPaymentFailed,
   handleFinalPaymentFailed,
 } from '@/lib/bookings/payment-lifecycle-service';
+import { pickLatestStripeRefundIdFromCharge } from '@/lib/bookings/booking-refund-ledger';
+import type { BookingFinalPaymentIntentIdRow } from '@/lib/bookings/money-state';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -279,16 +281,11 @@ export async function POST(req: NextRequest) {
             const { data: bRow } = await admin
               .from('bookings')
               .select(
-                'stripe_payment_intent_deposit_id, stripe_payment_intent_remaining_id, payment_intent_id, final_payment_intent_id'
+                'stripe_payment_intent_deposit_id, stripe_payment_intent_remaining_id, payment_intent_id, final_payment_intent_id, deposit_payment_intent_id'
               )
               .eq('id', bookingId)
               .maybeSingle();
-            const kind = resolveWebhookPaymentKind(meta, paymentIntent.id, (bRow ?? {}) as {
-              stripe_payment_intent_deposit_id?: string | null;
-              stripe_payment_intent_remaining_id?: string | null;
-              payment_intent_id?: string | null;
-              final_payment_intent_id?: string | null;
-            });
+            const kind = resolveWebhookPaymentKind(meta, paymentIntent.id, (bRow ?? {}) as BookingFinalPaymentIntentIdRow);
             const phase = (meta.payment_phase ?? meta.phase ?? '').toLowerCase();
             const isFinalPaymentFailure =
               kind === 'remaining' || phase === 'final' || phase === 'remaining';
@@ -303,6 +300,7 @@ export async function POST(req: NextRequest) {
                   paymentIntentId: paymentIntent.id,
                   failureCode: paymentIntent.last_payment_error?.code ?? 'unknown',
                   failureMessage: paymentIntent.last_payment_error?.message ?? paymentIntent.status,
+                  declineCode: paymentIntent.last_payment_error?.decline_code ?? null,
                 });
               } catch (lcErr) {
                 console.warn('[webhook] lifecycle final fail handler', lcErr);
@@ -386,12 +384,14 @@ export async function POST(req: NextRequest) {
           const pmeta = (pi.metadata || {}) as Record<string, string | undefined>;
           const bookingIdFromMetadata = pmeta.booking_id ?? pmeta.bookingId ?? null;
           const admin = createSupabaseAdmin();
+          const stripeRefundId = pickLatestStripeRefundIdFromCharge(charge, delta);
           const applied = await applyStripeChargeRefundedWebhook(admin, {
             paymentIntentId: piId,
             chargeId: charge.id,
             deltaRefundedCents: delta,
             stripeEventId: eventId,
             bookingIdFromMetadata,
+            stripeRefundId,
           });
           if (applied.ok && applied.bookingId) {
             await admin.from('booking_events').insert({

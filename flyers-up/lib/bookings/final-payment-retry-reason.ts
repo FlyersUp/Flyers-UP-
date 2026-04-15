@@ -22,8 +22,14 @@ export function isFinalPaymentRetryReason(v: string | null | undefined): v is Fi
 }
 
 export function mapStripeFailureCodeToFinalPaymentRetryReason(
-  code: string | null | undefined
+  code: string | null | undefined,
+  declineCode?: string | null
 ): FinalPaymentRetryReason {
+  const d = String(declineCode ?? '')
+    .trim()
+    .toLowerCase();
+  if (d === 'insufficient_funds') return 'insufficient_funds';
+
   const c = String(code ?? 'unknown')
     .trim()
     .toLowerCase();

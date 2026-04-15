@@ -5,6 +5,11 @@ import {
   DEFAULT_SERVICE_FEE_PERCENT,
 } from '@/lib/bookings/fee-config';
 import { calculateMarketplaceFees } from '@/lib/pricing/fees';
+import {
+  coalesceBookingDepositPaymentIntentId,
+  coalesceBookingFinalPaymentIntentId,
+  type BookingFinalPaymentIntentIdRow,
+} from '@/lib/bookings/money-state';
 
 export type UnifiedReceiptOverallStatus =
   | 'unpaid'
@@ -147,21 +152,12 @@ function normalizeCurrencyCode(raw: string | null | undefined): { code: string; 
  */
 export function inferPaymentPhaseFromBookingIds(
   paymentIntentId: string,
-  booking: {
-    stripe_payment_intent_deposit_id?: string | null;
-    stripe_payment_intent_remaining_id?: string | null;
-    payment_intent_id?: string | null;
-    final_payment_intent_id?: string | null;
-  }
+  booking: BookingFinalPaymentIntentIdRow
 ): 'deposit' | 'remaining' | 'unknown' {
   const pid = paymentIntentId.trim();
   if (!pid) return 'unknown';
-  const dep =
-    (booking.stripe_payment_intent_deposit_id ?? booking.payment_intent_id ?? '')
-      .trim();
-  const rem =
-    (booking.stripe_payment_intent_remaining_id ?? booking.final_payment_intent_id ?? '')
-      .trim();
+  const dep = (coalesceBookingDepositPaymentIntentId(booking) ?? '').trim();
+  const rem = (coalesceBookingFinalPaymentIntentId(booking) ?? '').trim();
   if (dep && pid === dep) return 'deposit';
   if (rem && pid === rem) return 'remaining';
   return 'unknown';

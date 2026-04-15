@@ -14,6 +14,8 @@ export type BookingStage =
   | 'deposit_paid'
   | 'pro_en_route'
   | 'in_progress'
+  /** Work complete; customer review / remaining balance window (before final is settled). */
+  | 'post_completion_review'
   | 'completed';
 
 export type CancellationReasonCode =
@@ -39,6 +41,8 @@ export interface CancellationPolicyInput {
   depositPaidCents: number;
   remainingPaidCents: number;
   depositAmountCents: number;
+  /** When cancelling during the post-completion review window, hours-left tiers use this deadline. */
+  customerReviewDeadlineAt?: Date | null;
 }
 
 export interface CancellationPolicyDecision {
@@ -66,6 +70,7 @@ export function evaluateCancellationPolicy(input: CancellationPolicyInput): Canc
     depositPaidCents,
     remainingPaidCents,
     depositAmountCents,
+    customerReviewDeadlineAt,
   } = input;
 
   const hoursBefore = hoursBeforeStart(scheduledStartAt, canceledAt);
@@ -141,6 +146,48 @@ export function evaluateCancellationPolicy(input: CancellationPolicyInput): Canc
 
   // Customer cancels — time-based rules
   if (canceledBy === 'customer') {
+    if (bookingStage === 'post_completion_review') {
+      const deadline = customerReviewDeadlineAt;
+      if (deadline && depositPaidCents > 0) {
+        const hoursLeft = (deadline.getTime() - canceledAt.getTime()) / (1000 * 60 * 60);
+        if (hoursLeft > 12) {
+          return {
+            ...base,
+            refundType: 'full',
+            refundAmountCents: depositPaidCents,
+            strikePro: false,
+            explanation:
+              'Customer cancelled during the post-job review window with more than 12 hours left — full deposit refund.',
+            manualReviewRequired: false,
+            ruleFired: 'customer_post_completion_review_gt12h_left',
+          };
+        }
+        if (hoursLeft > 0) {
+          const partial = Math.round(depositPaidCents * 0.5);
+          return {
+            ...base,
+            refundType: 'partial',
+            refundAmountCents: partial,
+            strikePro: false,
+            explanation:
+              'Customer cancelled during the post-job review window (12 hours or less remaining) — 50% deposit refund.',
+            manualReviewRequired: false,
+            ruleFired: 'customer_post_completion_review_partial_deposit',
+          };
+        }
+      }
+      return {
+        ...base,
+        refundType: depositPaidCents > 0 ? 'full' : 'none',
+        refundAmountCents: depositPaidCents,
+        strikePro: false,
+        explanation:
+          'Customer cancelled during the post-job review window — deposit refunded per policy (default full when deadline metadata is absent).',
+        manualReviewRequired: false,
+        ruleFired: 'customer_post_completion_review_default_full_deposit',
+      };
+    }
+
     // After in_progress: no refund unless admin
     if (bookingStage === 'in_progress' || bookingStage === 'completed') {
       return {
@@ -252,6 +299,21 @@ export function mapDbStatusToBookingStage(status: string): BookingStage {
   if (s === 'accepted' || s === 'payment_required' || s === 'awaiting_deposit_payment') return 'accepted';
   if (s === 'pro_en_route' || s === 'on_the_way' || s === 'arrived') return 'pro_en_route';
   if (s === 'in_progress' || s === 'started') return 'in_progress';
-  if (s.includes('completed') || s.includes('paid') || s.includes('awaiting')) return 'completed';
+  if (
+    s === 'awaiting_remaining_payment' ||
+    s === 'awaiting_customer_confirmation' ||
+    s === 'completed_pending_payment' ||
+    s === 'awaiting_payment'
+  ) {
+    return 'post_completion_review';
+  }
+  if (
+    s.includes('completed') ||
+    s.includes('paid') ||
+    s === 'customer_confirmed' ||
+    s === 'auto_confirmed'
+  ) {
+    return 'completed';
+  }
   return 'accepted';
 }

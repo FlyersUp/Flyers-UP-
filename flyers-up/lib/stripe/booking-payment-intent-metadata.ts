@@ -4,6 +4,13 @@
  * (booking_id, customer_id, pro_id). Webhooks and parsers still accept legacy camelCase
  * on older PaymentIntents via `meta.booking_id ?? meta.bookingId`, etc.
  *
+ * ## Canonical money keys (all money-moving Stripe objects)
+ *
+ * See {@link CANONICAL_BOOKING_STRIPE_MONEY_METADATA_KEYS} and
+ * {@link buildUnifiedBookingPaymentIntentMoneyMetadata} in `payment-intent-metadata-unified.ts`.
+ * PaymentIntents must also pass {@link assertUnifiedBookingPaymentIntentMetadata}; refunds and
+ * transfers use the same cent keys with `payment_phase` of `refund` or `transfer`.
+ *
  * ## Metadata classification (read by {@link normalizeBookingPaymentMetadata})
  *
  * **Financial truth** — may be used when the `bookings` row lacks frozen cents (never use
@@ -52,6 +59,11 @@ const PROTECTED_METADATA_KEYS = new Set([
   'total_amount_cents',
   'booking_service_status',
   'linked_deposit_payment_intent_id',
+  'linked_final_payment_intent_id',
+  'payout_amount_cents',
+  'refund_scope',
+  'resolution_type',
+  'dispute_id',
   'review_deadline_at',
   'fee_profile',
   'subtotal_tier',
@@ -188,6 +200,10 @@ export type BookingPaymentIntentPricingMetadata = {
   pricing_version?: string;
   /** Pro service subtotal in cents (matches bookings.subtotal_cents / quote line). */
   subtotal_cents?: number;
+  /** Booking customer total; mirrors unified `total_amount_cents` on split PIs. */
+  total_amount_cents?: number;
+  /** Marketplace fee aggregate; mirrors unified `platform_fee_cents`. */
+  platform_fee_cents?: number;
 };
 
 const META_TITLE_MAX = 200;
@@ -235,7 +251,8 @@ export function buildBookingPaymentIntentStripeFields(input: {
     customer_id: input.customerId,
     pro_id: input.proId,
     booking_reference: ref,
-    payment_phase: input.paymentPhase,
+    /** Unified schema: final charge uses `final`, not Stripe-internal `remaining`. */
+    payment_phase: input.paymentPhase === 'deposit' ? 'deposit' : 'final',
     service_title: title,
     phase: phaseLegacy,
     paymentType: paymentTypeLegacy,

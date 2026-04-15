@@ -26,6 +26,10 @@ import {
   resolveTotalBookingCentsFromRow,
   type BookingMoneySnapshot,
 } from '@/lib/bookings/remaining-balance-cents';
+import {
+  getBookingFinalPaymentIntentIdOrNull,
+  type BookingFinalPaymentIntentIdRow,
+} from '@/lib/bookings/money-state';
 import { netProEarningDollars, resolveProEarningListRefundUi } from '@/lib/bookings/pro-earnings-refund-math';
 import { perfLog, perfLoggingEnabled, perfNoteGetCurrentUser } from '@/lib/perfBoot';
 import { resolveSameDayEnabledFromServicePro } from '@/lib/operations/availabilityValidation';
@@ -169,6 +173,8 @@ export interface BookingDetails {
   payoutTransferId?: string | null;
   /** After automatic payout cron: funds transferred to Connect account */
   payoutReleased?: boolean | null;
+  /** Any refund recorded after payout release (Connect clawback may be required). */
+  refundAfterPayout?: boolean | null;
   /** Marketplace payment lifecycle (e.g. payout_on_hold). */
   paymentLifecycleStatus?: string | null;
   /** Payout paused for manual review (see payout cron / admin tools). */
@@ -1145,13 +1151,14 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       paymentDueAt: d.payment_due_at as string | null | undefined,
       remainingDueAt: d.remaining_due_at as string | null | undefined,
       customerReviewDeadlineAt: (d.customer_review_deadline_at as string | null | undefined) ?? null,
-      finalPaymentIntentId: trimIdOrNull(d.final_payment_intent_id),
+      finalPaymentIntentId: trimIdOrNull(getBookingFinalPaymentIntentIdOrNull(d as BookingFinalPaymentIntentIdRow)),
       autoConfirmAt: d.auto_confirm_at as string | null | undefined,
       paidDepositAt: d.paid_deposit_at as string | null | undefined,
       paidRemainingAt: d.paid_remaining_at as string | null | undefined,
       payoutStatus: d.payout_status as string | null | undefined,
       payoutTransferId: trimIdOrNull(d.payout_transfer_id),
       payoutReleased: d.payout_released === true,
+      refundAfterPayout: (d as { refund_after_payout?: boolean }).refund_after_payout === true,
       paymentLifecycleStatus: (d.payment_lifecycle_status as string | null | undefined) ?? null,
       requiresAdminReview: d.requires_admin_review === true,
       payoutHoldReason: (d.payout_hold_reason as string | null | undefined) ?? null,

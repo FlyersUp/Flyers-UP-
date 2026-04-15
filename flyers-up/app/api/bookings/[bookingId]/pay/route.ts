@@ -27,6 +27,11 @@ import {
   capStripeBookingPaymentMetadata,
 } from '@/lib/stripe/booking-payment-intent-metadata';
 import {
+  assertUnifiedBookingPaymentIntentMetadata,
+  buildUnifiedBookingPaymentIntentMoneyMetadata,
+  mergeUnifiedBookingPaymentIntentMoneyMetadata,
+} from '@/lib/stripe/payment-intent-metadata-unified';
+import {
   buildBookingPaymentIntentPricingMetadata,
   trustOccupationProfileForStripeMetadata,
 } from '@/lib/stripe/booking-payment-pricing-metadata';
@@ -320,6 +325,27 @@ export async function POST(
     }),
   });
 
+  mergeUnifiedBookingPaymentIntentMoneyMetadata(
+    stripeMeta.metadata,
+    buildUnifiedBookingPaymentIntentMoneyMetadata({
+      bookingId: id,
+      paymentPhase: 'full',
+      subtotalCents: quote.amountSubtotal,
+      totalAmountCents: amountCents,
+      platformFeeCents: quote.amountPlatformFee ?? pricing.feeTotalCents,
+      depositAmountCents: 0,
+      finalAmountCents: amountCents,
+      pricingVersion:
+        typeof (booking as { pricing_version?: string | null }).pricing_version === 'string'
+          ? (booking as { pricing_version: string }).pricing_version
+          : null,
+    })
+  );
+  stripeMeta.metadata.customer_total_cents = String(amountCents);
+
+  const cappedLegacyMetadata = capStripeBookingPaymentMetadata(stripeMeta.metadata);
+  assertUnifiedBookingPaymentIntentMetadata(cappedLegacyMetadata);
+
   const paymentIntentData: {
     amount: number;
     currency: string;
@@ -333,7 +359,7 @@ export async function POST(
     currency: quote.currency,
     automatic_payment_methods: { enabled: true },
     customer: customerResult.stripeCustomerId,
-    metadata: capStripeBookingPaymentMetadata(stripeMeta.metadata),
+    metadata: cappedLegacyMetadata,
     description: stripeMeta.description,
     statement_descriptor_suffix: stripeMeta.statement_descriptor_suffix,
   };

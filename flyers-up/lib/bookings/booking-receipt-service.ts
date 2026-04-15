@@ -20,6 +20,11 @@ import {
   computeReceiptQuoteOverlay,
   dbRowPricingOverlay,
 } from '@/lib/bookings/receipt-quote-from-booking';
+import {
+  getBookingDepositPaymentIntentIdOrNull,
+  getBookingFinalPaymentIntentIdOrNull,
+  type BookingFinalPaymentIntentIdRow,
+} from '@/lib/bookings/money-state';
 
 type AdminClient = SupabaseClient;
 
@@ -157,14 +162,10 @@ export async function loadUnifiedReceiptBookingInput(
 
   const b = row as unknown as Record<string, unknown>;
   const pricingFromFinal = await loadPricingFromPaymentIntentMetadata(
-    (b.stripe_payment_intent_remaining_id as string) ??
-      (b.final_payment_intent_id as string) ??
-      null
+    getBookingFinalPaymentIntentIdOrNull(b as BookingFinalPaymentIntentIdRow)
   );
   const pricingFromDeposit = await loadPricingFromPaymentIntentMetadata(
-    (b.stripe_payment_intent_deposit_id as string) ??
-      (b.payment_intent_id as string) ??
-      null
+    getBookingDepositPaymentIntentIdOrNull(b as BookingFinalPaymentIntentIdRow)
   );
   const dbOverlay = dbRowPricingOverlay(b);
 
@@ -422,12 +423,11 @@ export async function loadUnifiedReceiptBookingInput(
     serviceDate: (b.service_date as string) ?? null,
     serviceTime: (b.service_time as string) ?? null,
     address: (b.address as string) ?? null,
-    stripePaymentIntentDepositId:
-      (b.stripe_payment_intent_deposit_id as string) ?? null,
-    stripePaymentIntentRemainingId:
-      (b.stripe_payment_intent_remaining_id as string) ?? null,
+    /** Raw-ish snapshot ids: use getters so deposit vs final semantics stay aligned with money-state. */
+    stripePaymentIntentDepositId: getBookingDepositPaymentIntentIdOrNull(b as BookingFinalPaymentIntentIdRow),
+    stripePaymentIntentRemainingId: getBookingFinalPaymentIntentIdOrNull(b as BookingFinalPaymentIntentIdRow),
     paymentIntentId: (b.payment_intent_id as string) ?? null,
-    finalPaymentIntentId: (b.final_payment_intent_id as string) ?? null,
+    finalPaymentIntentId: getBookingFinalPaymentIntentIdOrNull(b as BookingFinalPaymentIntentIdRow),
     currency: (b.currency as string) ?? null,
     ledgerDepositPaidPaymentIntentId: ledger.latestDepositPaidPaymentIntentId,
     ledgerRemainingPaidPaymentIntentId: ledger.latestRemainingPaidPaymentIntentId,

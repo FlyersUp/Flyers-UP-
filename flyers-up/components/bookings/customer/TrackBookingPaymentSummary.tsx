@@ -11,6 +11,15 @@ import { DEFAULT_BOOKING_TIMEZONE, formatBookingDateTimeInZone } from '@/lib/dat
 import { labelDynamicPricingReason } from '@/lib/bookings/dynamic-pricing-reason-labels';
 import { StayOnPlatformTrustCallout } from '@/components/retention/StayOnPlatformTrustCallout';
 import { CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT } from '@/lib/bookings/customer-payment-platform-hold-copy';
+import type { MoneyCustomerRefundFunding } from '@/lib/bookings/money-state';
+
+function refundFundingCaption(funding: MoneyCustomerRefundFunding): string | null {
+  if (funding === 'none') return null;
+  if (funding === 'from_booking_payment') {
+    return 'How you were refunded: platform refund from the original booking payment (your bank sees a card credit like a normal purchase reversal).';
+  }
+  return 'How you were refunded: platform refund from Flyers Up’s Stripe balance. Your professional’s payout is not automatically reversed from their bank — Flyers Up may handle recovery separately.';
+}
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -89,6 +98,8 @@ export interface TrackBookingPaymentSummaryProps {
   layoutVariant?: 'full' | 'compact';
   /** Completed jobs — informational on-platform trust copy near receipt. */
   showOnPlatformReceiptTrust?: boolean;
+  /** From {@link getMoneyState} — distinguishes platform-balance vs booking-charge window refunds. */
+  customerRefundFunding?: MoneyCustomerRefundFunding | null;
   className?: string;
 }
 
@@ -128,6 +139,7 @@ export function TrackBookingPaymentSummary({
   finalPaymentCustomerNote = null,
   layoutVariant = 'full',
   showOnPlatformReceiptTrust = false,
+  customerRefundFunding = null,
   className = '',
 }: TrackBookingPaymentSummaryProps) {
   const tz = bookingTimezone?.trim() || DEFAULT_BOOKING_TIMEZONE;
@@ -364,11 +376,18 @@ export function TrackBookingPaymentSummary({
             )}
 
           {receipt.refundedTotalCents > 0 && (
-            <div className="flex justify-between gap-3 text-sm">
-              <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Refunded</span>
-              <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
-                {formatCents(receipt.refundedTotalCents)}
-              </span>
+            <div className="space-y-1.5">
+              <div className="flex justify-between gap-3 text-sm">
+                <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Refunded</span>
+                <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
+                  {formatCents(receipt.refundedTotalCents)}
+                </span>
+              </div>
+              {customerRefundFunding && refundFundingCaption(customerRefundFunding) ? (
+                <p className="text-[11px] leading-snug text-[#6A6A6A] dark:text-[#A1A8B3]">
+                  {refundFundingCaption(customerRefundFunding)}
+                </p>
+              ) : null}
             </div>
           )}
         </div>
@@ -564,11 +583,18 @@ export function TrackBookingPaymentSummary({
         </div>
 
         {receipt.refundedTotalCents > 0 && (
-          <div className="flex justify-between gap-4 text-sm">
-            <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Refunded to you</span>
-            <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
-              {formatCents(receipt.refundedTotalCents)}
-            </span>
+          <div className="space-y-1.5">
+            <div className="flex justify-between gap-4 text-sm">
+              <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Refunded to you</span>
+              <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
+                {formatCents(receipt.refundedTotalCents)}
+              </span>
+            </div>
+            {customerRefundFunding && refundFundingCaption(customerRefundFunding) ? (
+              <p className="text-[11px] leading-snug text-[#6A6A6A] dark:text-[#A1A8B3]">
+                {refundFundingCaption(customerRefundFunding)}
+              </p>
+            ) : null}
           </div>
         )}
 

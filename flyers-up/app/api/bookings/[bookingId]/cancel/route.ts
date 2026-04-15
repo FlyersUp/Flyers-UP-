@@ -13,6 +13,16 @@ import {
   type CanceledBy,
   type CancellationReasonCode,
 } from '@/lib/operations/cancellationPolicy';
+import {
+  isCustomerCancelDuringPostCompletionReviewWindow,
+  maybeRefundDepositAfterReviewWindowCancel,
+  persistCustomerCancelDuringPostCompletionReview,
+  type BookingRowForReviewCancel,
+} from '@/lib/bookings/post-completion-review-cancel';
+import {
+  coalesceBookingDepositPaymentIntentId,
+  type BookingFinalPaymentIntentIdRow,
+} from '@/lib/bookings/money-state';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,7 +52,31 @@ export async function POST(
   const { data: booking, error: bErr } = await admin
     .from('bookings')
     .select(
-      'id, status, customer_id, pro_id, service_date, service_time, paid_deposit_at, paid_remaining_at, amount_deposit, amount_remaining, total_amount_cents, refunded_total_cents'
+      [
+        'id',
+        'status',
+        'customer_id',
+        'pro_id',
+        'service_date',
+        'service_time',
+        'paid_deposit_at',
+        'paid_remaining_at',
+        'amount_deposit',
+        'amount_remaining',
+        'deposit_amount_cents',
+        'total_amount_cents',
+        'refunded_total_cents',
+        'payment_lifecycle_status',
+        'customer_review_deadline_at',
+        'service_status',
+        'stripe_payment_intent_deposit_id',
+        'deposit_payment_intent_id',
+        'payment_intent_id',
+        'final_payment_intent_id',
+        'stripe_payment_intent_remaining_id',
+        'payout_released',
+        'status_history',
+      ].join(', ')
     )
     .eq('id', id)
     .maybeSingle();
@@ -52,14 +86,6 @@ export async function POST(
   const status = String(booking.status);
   if (['cancelled', 'declined'].includes(status)) {
     return NextResponse.json({ error: 'Booking already canceled' }, { status: 409 });
-  }
-  // Block cancel for completed/final states — use dispute flow instead
-  const terminalStatuses = ['completed', 'awaiting_customer_confirmation', 'paid', 'fully_paid'];
-  if (terminalStatuses.includes(status)) {
-    return NextResponse.json(
-      { error: 'Booking is completed. For refunds or disputes, please contact support.' },
-      { status: 409 }
-    );
   }
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
@@ -83,10 +109,111 @@ export async function POST(
   const scheduledStart = new Date(`${booking.service_date}T${booking.service_time || '12:00'}`);
   const now = new Date();
 
-  const depositAmountCents = Number(booking.amount_deposit ?? 0) || 0;
+  const depositAmountCents =
+    Number((booking as { deposit_amount_cents?: number }).deposit_amount_cents ?? booking.amount_deposit ?? 0) ||
+    0;
   const remainingAmountCents = Number(booking.amount_remaining ?? 0) || 0;
   const depositPaidCents = booking.paid_deposit_at ? depositAmountCents : 0;
   const remainingPaidCents = booking.paid_remaining_at ? remainingAmountCents : 0;
+
+  const reviewRow = booking as unknown as BookingRowForReviewCancel;
+  if (canceledBy === 'customer' && isCustomerCancelDuringPostCompletionReviewWindow(reviewRow)) {
+    const decision = evaluateCancellationPolicy({
+      canceledBy: 'customer',
+      bookingStage: mapDbStatusToBookingStage(status),
+      scheduledStartAt: scheduledStart,
+      canceledAt: now,
+      reasonCode,
+      hasEvidence: false,
+      depositPaidCents,
+      remainingPaidCents,
+      depositAmountCents,
+      customerReviewDeadlineAt: reviewRow.customer_review_deadline_at
+        ? new Date(String(reviewRow.customer_review_deadline_at))
+        : null,
+    });
+
+    const persisted = await persistCustomerCancelDuringPostCompletionReview(admin, {
+      booking: reviewRow,
+      customerUserId: user.id,
+      reasonCode,
+      decision,
+    });
+    if (!persisted.ok) {
+      return NextResponse.json({ error: persisted.error }, { status: 500 });
+    }
+
+    const depositPi = coalesceBookingDepositPaymentIntentId(booking as BookingFinalPaymentIntentIdRow);
+
+    const refundOut = await maybeRefundDepositAfterReviewWindowCancel(admin, {
+      bookingId: id,
+      decision,
+      depositPaymentIntentId: depositPi,
+      depositPaidCents,
+      payoutReleased: (booking as { payout_released?: boolean }).payout_released === true,
+    });
+
+    if (decision.strikePro && booking.pro_id) {
+      const { data: pro } = await admin
+        .from('service_pros')
+        .select('user_id')
+        .eq('id', booking.pro_id)
+        .maybeSingle();
+      if (pro?.user_id) {
+        const { data: existing } = await admin
+          .from('pro_safety_compliance_settings')
+          .select('strike_count')
+          .eq('pro_user_id', pro.user_id)
+          .maybeSingle();
+        const newCount = ((existing as { strike_count?: number })?.strike_count ?? 0) + 1;
+        const payload = { strike_count: newCount, updated_at: now.toISOString() };
+        if (existing) {
+          await admin.from('pro_safety_compliance_settings').update(payload).eq('pro_user_id', pro.user_id);
+        } else {
+          await admin.from('pro_safety_compliance_settings').insert({
+            pro_user_id: pro.user_id,
+            guidelines_acknowledged: false,
+            strike_count: newCount,
+            updated_at: now.toISOString(),
+            created_at: now.toISOString(),
+          });
+        }
+      }
+    }
+
+    await admin.from('booking_events').insert({
+      booking_id: id,
+      type: 'BOOKING_CANCELLED',
+      data: {
+        canceled_by: canceledBy,
+        reason_code: reasonCode,
+        refund_type: decision.refundType,
+        refund_amount_cents: decision.refundAmountCents,
+        policy_explanation: decision.explanation,
+        context: 'post_completion_review_window',
+        stripe_refund_id: refundOut.refundId,
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      refundType: decision.refundType,
+      refundAmountCents: decision.refundAmountCents,
+      explanation: decision.explanation,
+      manualReviewRequired: decision.manualReviewRequired,
+      stripeRefundId: refundOut.refundId,
+      refundError: refundOut.error,
+    });
+  }
+
+  // Block cancel for completed/final states — use dispute flow instead
+  const terminalStatuses = ['completed', 'awaiting_customer_confirmation', 'paid', 'fully_paid'];
+  if (terminalStatuses.includes(status)) {
+    return NextResponse.json(
+      { error: 'Booking is completed. For refunds or disputes, please contact support.' },
+      { status: 409 }
+    );
+  }
 
   const decision = evaluateCancellationPolicy({
     canceledBy,
@@ -98,6 +225,10 @@ export async function POST(
     depositPaidCents,
     remainingPaidCents,
     depositAmountCents,
+    customerReviewDeadlineAt: (booking as { customer_review_deadline_at?: string | null })
+      .customer_review_deadline_at
+      ? new Date(String((booking as { customer_review_deadline_at?: string | null }).customer_review_deadline_at))
+      : null,
   });
 
   const { error: updErr } = await admin

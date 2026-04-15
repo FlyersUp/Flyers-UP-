@@ -30,7 +30,8 @@ export async function GET(req: NextRequest) {
     .eq('dispute_status', 'none')
     .eq('admin_hold', false)
     .lt('final_charge_retry_count', 3)
-    .not('final_payment_status', 'ilike', 'paid');
+    .not('final_payment_status', 'ilike', 'paid')
+    .not('final_payment_status', 'ilike', 'cancelled');
 
   if (error) {
     console.error(LOG, 'query failed', error);

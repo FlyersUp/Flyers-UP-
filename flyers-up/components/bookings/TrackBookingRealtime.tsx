@@ -22,6 +22,7 @@ export interface TrackBookingData {
   platformFeeCents?: number | null;
   refundStatus?: string | null;
   refundedTotalCents?: number | null;
+  paidAmountCents?: number | null;
   amountDeposit?: number | null;
   amountRemaining?: number | null;
   amountTotal?: number | null;
@@ -48,6 +49,7 @@ export interface TrackBookingData {
   paymentLifecycleStatus?: string | null;
   customerReviewDeadlineAt?: string | null;
   payoutReleased?: boolean | null;
+  refundAfterPayout?: boolean | null;
   requiresAdminReview?: boolean | null;
   payoutHoldReason?: string | null;
   suspiciousCompletion?: boolean | null;

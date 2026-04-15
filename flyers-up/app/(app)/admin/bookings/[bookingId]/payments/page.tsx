@@ -4,6 +4,11 @@ import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { requireAdminUser } from '@/app/(app)/admin/_admin';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { getBookingReceipt } from '@/lib/bookings/booking-receipt-service';
+import {
+  coalesceBookingDepositPaymentIntentId,
+  coalesceBookingFinalPaymentIntentId,
+  type BookingFinalPaymentIntentIdRow,
+} from '@/lib/bookings/money-state';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,10 +45,13 @@ export default async function AdminBookingPaymentsAuditPage({
         'customer_receipt_final_email_note',
         'stripe_payment_intent_deposit_id',
         'stripe_payment_intent_remaining_id',
+        'deposit_payment_intent_id',
         'payment_intent_id',
         'final_payment_intent_id',
         'refunded_total_cents',
         'refund_status',
+        'payout_released',
+        'refund_after_payout',
         'paid_deposit_at',
         'paid_remaining_at',
         'fully_paid_at',
@@ -64,6 +72,15 @@ export default async function AdminBookingPaymentsAuditPage({
     .select('stripe_event_id, email_kind, created_at')
     .eq('booking_id', id)
     .order('created_at', { ascending: false });
+
+  const { data: refundEvents } = await admin
+    .from('booking_refund_events')
+    .select(
+      'id, created_at, refund_type, stripe_refund_id, stripe_charge_id, payment_intent_id, amount_cents, requires_clawback, stripe_event_id, source'
+    )
+    .eq('booking_id', id)
+    .order('created_at', { ascending: false })
+    .limit(50);
 
   const receipt = await getBookingReceipt(admin, id);
 
@@ -116,6 +133,49 @@ export default async function AdminBookingPaymentsAuditPage({
             </section>
 
             <section className="rounded-[18px] border border-hairline bg-surface p-4 shadow-card space-y-2 text-sm">
+              <h2 className="font-medium">Refund / payout flags (DB)</h2>
+              <p className="text-xs text-muted leading-relaxed">
+                Stripe Connect: refunding a charge credits the customer from the platform balance. An outbound Transfer to
+                a connected account is not reversed automatically — see clawback on ledger rows.
+              </p>
+              <div className="grid gap-1 text-sm">
+                <div>
+                  <span className="text-muted">Payout released:</span>{' '}
+                  {(booking as { payout_released?: boolean }).payout_released === true ? 'Yes' : 'No'}
+                </div>
+                <div>
+                  <span className="text-muted">Refund after payout:</span>{' '}
+                  {(booking as { refund_after_payout?: boolean }).refund_after_payout === true ? 'Yes' : 'No'}
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-[18px] border border-hairline bg-surface p-4 shadow-card space-y-2 text-sm">
+              <h2 className="font-medium">Refund ledger (append-only)</h2>
+              {!refundEvents?.length ? (
+                <p className="text-muted text-xs">No rows in booking_refund_events.</p>
+              ) : (
+                <ul className="space-y-2 text-xs font-mono break-all">
+                  {(refundEvents as Record<string, unknown>[]).map((r) => (
+                    <li key={String(r.id)} className="border-b border-hairline pb-2">
+                      <div>
+                        {String(r.created_at)} · {String(r.refund_type)} · ${(Number(r.amount_cents ?? 0) / 100).toFixed(2)}{' '}
+                        · clawback {r.requires_clawback === true ? 'yes' : 'no'} · {String(r.source ?? '')}
+                      </div>
+                      <div className="text-muted mt-0.5">
+                        re: {String(r.stripe_refund_id ?? '—')} · ch: {String(r.stripe_charge_id ?? '—')} · pi:{' '}
+                        {String(r.payment_intent_id ?? '—')}
+                      </div>
+                      {r.stripe_event_id ? (
+                        <div className="text-muted">evt: {String(r.stripe_event_id)}</div>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="rounded-[18px] border border-hairline bg-surface p-4 shadow-card space-y-2 text-sm">
               <h2 className="font-medium">Stripe PaymentIntent ids (DB)</h2>
               <pre className="text-xs bg-surface2 p-3 rounded-lg overflow-x-auto whitespace-pre-wrap break-all">
                 {JSON.stringify(
@@ -124,9 +184,17 @@ export default async function AdminBookingPaymentsAuditPage({
                       .stripe_payment_intent_deposit_id,
                     stripe_payment_intent_remaining_id: (booking as { stripe_payment_intent_remaining_id?: string })
                       .stripe_payment_intent_remaining_id,
+                    deposit_payment_intent_id: (booking as { deposit_payment_intent_id?: string })
+                      .deposit_payment_intent_id,
                     payment_intent_id: (booking as { payment_intent_id?: string }).payment_intent_id,
                     final_payment_intent_id: (booking as { final_payment_intent_id?: string })
                       .final_payment_intent_id,
+                    coalesced_final_payment_intent_id: coalesceBookingFinalPaymentIntentId(
+                      booking as BookingFinalPaymentIntentIdRow
+                    ),
+                    coalesced_deposit_payment_intent_id: coalesceBookingDepositPaymentIntentId(
+                      booking as BookingFinalPaymentIntentIdRow
+                    ),
                   },
                   null,
                   2

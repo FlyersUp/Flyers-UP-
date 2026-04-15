@@ -21,6 +21,8 @@ export type BookingPaymentStatus =
   | 'deposit_pending'
   | 'deposit_paid'
   | 'final_pending'
+  /** Customer cancelled while final was still pending inside the post-completion review window. */
+  | 'cancelled_during_review'
   | 'final_processing'
   | 'final_paid'
   | 'requires_customer_action'
@@ -96,6 +98,7 @@ const PAYMENT_STATUSES: ReadonlySet<string> = new Set<BookingPaymentStatus>([
   'deposit_pending',
   'deposit_paid',
   'final_pending',
+  'cancelled_during_review',
   'final_processing',
   'final_paid',
   'requires_customer_action',

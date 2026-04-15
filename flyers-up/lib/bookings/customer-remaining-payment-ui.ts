@@ -33,6 +33,11 @@ export type CustomerRemainingPaymentUiInput = {
   payoutReleased?: boolean | null;
   requiresAdminReview?: boolean | null;
   payoutTransferId?: string | null;
+  /** For refund vs paid inference on Track (see {@link getMoneyState}). */
+  refundedTotalCents?: number | null;
+  amountPaidCents?: number | null;
+  /** bookings.refund_after_payout */
+  refundAfterPayout?: boolean | null;
 };
 
 export type CustomerRemainingPaymentUiState =
@@ -50,6 +55,9 @@ const POST_COMPLETION_STATUSES = new Set([
   'awaiting_customer_confirmation',
   'completed_pending_payment',
   'awaiting_payment',
+  /** Post-remainder workflow (replaces legacy `fully_paid` where allowed). */
+  'paid',
+  'fully_paid',
 ]);
 
 function depositPaid(input: CustomerRemainingPaymentUiInput): boolean {

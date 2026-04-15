@@ -16,6 +16,8 @@ const POST_COMPLETION_STATUSES = new Set([
   'awaiting_customer_confirmation',
   'completed_pending_payment',
   'awaiting_payment',
+  'paid',
+  'fully_paid',
 ]);
 
 /** Live Stripe reads. `undefined` = not fetched yet; `null` | string = fetch completed. */
@@ -54,14 +56,47 @@ export type MoneyStateBookingInput = {
   refundedTotalCents?: number | null;
   /** When set, compared to {@link refundedTotalCents} for legacy rows missing lifecycle refund states. */
   amountPaidCents?: number | null;
+  /**
+   * bookings.refund_after_payout — any refund recorded after `payout_released` (Connect: platform-funded
+   * customer credit; does not imply the pro Transfer was reversed).
+   */
+  refundAfterPayout?: boolean | null;
 };
 
-/** Row slice for resolving which Stripe PaymentIntent id represents the final/remaining charge. */
+/**
+ * Snake_case booking row slice for PaymentIntent resolution.
+ *
+ * **Do not read these properties directly for money, refunds, webhooks, or transfer logic** except in:
+ * - {@link coalesceBookingFinalPaymentIntentId} / {@link coalesceBookingDepositPaymentIntentId} (this module)
+ * - Legacy single-charge payment route, deposit provisioning writes, raw admin audit JSON, migrations/tests.
+ *
+ * Prefer {@link getBookingFinalPaymentIntentIdOrNull} and {@link getBookingDepositPaymentIntentIdOrNull}.
+ */
 export type BookingFinalPaymentIntentIdRow = {
+  /**
+   * Canonical DB column for the final/remaining charge when populated.
+   * **Unsafe alone:** empty on many rows; legacy bookings may only have `stripe_payment_intent_remaining_id` or `payment_intent_id`.
+   */
   final_payment_intent_id?: string | null;
+  /**
+   * Stripe-facing remaining balance PI when split from `final_payment_intent_id`.
+   * **Unsafe alone:** may be null while final lives in `final_payment_intent_id` or legacy `payment_intent_id`.
+   */
   stripe_payment_intent_remaining_id?: string | null;
+  /**
+   * Legacy first / single PaymentIntent id. May be **deposit**, **full single charge**, or **final** depending on era.
+   * **Never use for “final PI” or “deposit PI” without** {@link getBookingFinalPaymentIntentIdOrNull} /
+   * {@link getBookingDepositPaymentIntentIdOrNull}.
+   */
   payment_intent_id?: string | null;
+  /**
+   * Dedicated deposit PI when split payments exist.
+   * **Unsafe alone:** prefer {@link getBookingDepositPaymentIntentIdOrNull} so legacy `payment_intent_id` is not mistaken for deposit when it holds the final PI.
+   */
   stripe_payment_intent_deposit_id?: string | null;
+  /**
+   * Alternate deposit PI column. Same cautions as `stripe_payment_intent_deposit_id` above.
+   */
   deposit_payment_intent_id?: string | null;
 };
 
@@ -72,6 +107,8 @@ function pickNonEmptyPaymentIntentId(v: unknown): string | null {
 /**
  * Prefer dedicated final/remaining columns; otherwise fall back to legacy `payment_intent_id`
  * when it is not the same id as the deposit PI (avoids treating deposit intent as final).
+ *
+ * Prefer {@link getBookingFinalPaymentIntentIdOrNull} at new call sites (same implementation).
  */
 export function coalesceBookingFinalPaymentIntentId(row: BookingFinalPaymentIntentIdRow): string | null {
   const primary =
@@ -88,6 +125,49 @@ export function coalesceBookingFinalPaymentIntentId(row: BookingFinalPaymentInte
   if (depositPi && legacy === depositPi) return null;
 
   return legacy;
+}
+
+/**
+ * Deposit PI: dedicated deposit columns first, then legacy `payment_intent_id` when it cannot be the
+ * dedicated final/remaining PI (same explicit-column guard as {@link coalesceBookingFinalPaymentIntentId}).
+ *
+ * Prefer {@link getBookingDepositPaymentIntentIdOrNull} at new call sites (same implementation).
+ */
+export function coalesceBookingDepositPaymentIntentId(row: BookingFinalPaymentIntentIdRow): string | null {
+  const primary =
+    pickNonEmptyPaymentIntentId(row.stripe_payment_intent_deposit_id) ??
+    pickNonEmptyPaymentIntentId(row.deposit_payment_intent_id);
+  if (primary) return primary;
+
+  const legacy = pickNonEmptyPaymentIntentId(row.payment_intent_id);
+  if (!legacy) return null;
+
+  const explicitFinal =
+    pickNonEmptyPaymentIntentId(row.final_payment_intent_id) ??
+    pickNonEmptyPaymentIntentId(row.stripe_payment_intent_remaining_id);
+  if (explicitFinal && legacy === explicitFinal) return null;
+
+  return legacy;
+}
+
+/**
+ * Canonical **final / remaining** Stripe PaymentIntent id for guards, refunds, webhooks, and customer pay flows.
+ * Prefer this name at call sites so code review can spot unsafe raw column reads.
+ *
+ * @see {@link coalesceBookingFinalPaymentIntentId} — identical logic; kept for existing imports.
+ */
+export function getBookingFinalPaymentIntentIdOrNull(row: BookingFinalPaymentIntentIdRow): string | null {
+  return coalesceBookingFinalPaymentIntentId(row);
+}
+
+/**
+ * Canonical **deposit** Stripe PaymentIntent id (split model + safe legacy fallback).
+ * Prefer this name at call sites over ad-hoc `stripe_payment_intent_deposit_id ?? payment_intent_id`.
+ *
+ * @see {@link coalesceBookingDepositPaymentIntentId}
+ */
+export function getBookingDepositPaymentIntentIdOrNull(row: BookingFinalPaymentIntentIdRow): string | null {
+  return coalesceBookingDepositPaymentIntentId(row);
 }
 
 export type MoneyFinalPhase =
@@ -114,6 +194,13 @@ export type MoneyCustomerCardVariant = 'unknown_balance' | 'legacy_pending_manua
 /** Customer refund recorded on the booking (does not assert Stripe transfer reversal to the Pro). */
 export type MoneyCustomerRefundPhase = 'none' | 'partial' | 'full';
 
+/**
+ * Customer-facing funding source for a refund (honest Connect semantics).
+ * - `from_booking_payment`: refund against the booking charge while funds were still under platform control of that payment (typical pre-payout).
+ * - `from_platform_balance`: includes post-payout refunds — Stripe credits the customer from the platform account; outbound Transfer to the pro is not auto-reversed.
+ */
+export type MoneyCustomerRefundFunding = 'none' | 'from_booking_payment' | 'from_platform_balance';
+
 export type MoneyState = {
   final: MoneyFinalPhase;
   payout: MoneyPayoutPhase;
@@ -133,6 +220,8 @@ export type MoneyState = {
    * an outbound transfer; UI should use calm “adjustment may be pending” language when applicable.
    */
   refundAfterProPayout: boolean;
+  /** Distinguishes platform-balance-funded refunds vs refunds tied to the booking charge window. */
+  customerRefundFunding: MoneyCustomerRefundFunding;
 };
 
 function depositPaid(input: CustomerRemainingPaymentUiInput): boolean {
@@ -339,12 +428,13 @@ function deriveCustomerRefund(booking: MoneyStateBookingInput): {
   afterPayout: boolean;
 } {
   const released = booking.payoutReleased === true;
+  const explicitPost = booking.refundAfterPayout === true;
   const lc = String(booking.paymentLifecycleStatus ?? '').toLowerCase();
   if (lc === 'refunded') {
-    return { phase: 'full', afterPayout: released };
+    return { phase: 'full', afterPayout: explicitPost || released };
   }
   if (lc === 'partially_refunded') {
-    return { phase: 'partial', afterPayout: released };
+    return { phase: 'partial', afterPayout: explicitPost || released };
   }
 
   const ref = Math.max(0, Math.round(Number(booking.refundedTotalCents ?? 0) || 0));
@@ -354,9 +444,17 @@ function deriveCustomerRefund(booking: MoneyStateBookingInput): {
 
   const paid = Math.max(0, Math.round(Number(booking.amountPaidCents ?? 0) || 0));
   if (paid > 0 && ref >= paid) {
-    return { phase: 'full', afterPayout: released };
+    return { phase: 'full', afterPayout: explicitPost || released };
   }
-  return { phase: 'partial', afterPayout: released };
+  return { phase: 'partial', afterPayout: explicitPost || released };
+}
+
+function deriveCustomerRefundFunding(
+  phase: MoneyCustomerRefundPhase,
+  afterPayout: boolean
+): MoneyCustomerRefundFunding {
+  if (phase === 'none') return 'none';
+  return afterPayout ? 'from_platform_balance' : 'from_booking_payment';
 }
 
 function logMoneyStateAnomalies(
@@ -407,6 +505,7 @@ export function getMoneyState(
   const customerFinalPaid = isCustomerFinalPaidForPayout(booking, final);
   const payout = computePayoutPhase(booking, stripe, customerFinalPaid);
   const { phase: customerRefund, afterPayout: refundAfterProPayout } = deriveCustomerRefund(booking);
+  const customerRefundFunding = deriveCustomerRefundFunding(customerRefund, refundAfterProPayout);
 
   logMoneyStateAnomalies(booking, stripe, final, payout);
 
@@ -419,6 +518,7 @@ export function getMoneyState(
     customerCardVariant: computeCustomerCardVariant(booking, input, raw, final, remainingCents),
     customerRefund,
     refundAfterProPayout,
+    customerRefundFunding,
   };
 }
 
@@ -447,8 +547,9 @@ export function customerRemainingUiToMoneyStateBooking(
     payoutReleased: input.payoutReleased,
     payoutTransferId: input.payoutTransferId,
     finalPaymentIntentId: input.finalPaymentIntentId,
-    refundedTotalCents: undefined,
-    amountPaidCents: undefined,
+    refundedTotalCents: input.refundedTotalCents ?? undefined,
+    amountPaidCents: input.amountPaidCents ?? undefined,
+    refundAfterPayout: input.refundAfterPayout ?? undefined,
   };
 }
 
@@ -486,6 +587,7 @@ export function bookingDetailsToMoneyStateInput(b: BookingDetails): MoneyStateBo
     customerReviewDeadlineAt: b.customerReviewDeadlineAt,
     requiresAdminReview: b.requiresAdminReview,
     payoutReleased: b.payoutReleased,
+    refundAfterPayout: b.refundAfterPayout ?? null,
     payoutStatus: b.payoutStatus ?? null,
     payoutTransferId: b.payoutTransferId,
     finalPaymentIntentId: b.finalPaymentIntentId,

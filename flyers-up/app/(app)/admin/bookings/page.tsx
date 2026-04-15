@@ -4,6 +4,11 @@ import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { requireAdminUser } from '@/app/(app)/admin/_admin';
 import { adminSetBookingStatusAction } from '@/app/(app)/admin/_actions';
 import { buildUnifiedBookingReceipt } from '@/lib/bookings/unified-receipt';
+import {
+  coalesceBookingDepositPaymentIntentId,
+  coalesceBookingFinalPaymentIntentId,
+  type BookingFinalPaymentIntentIdRow,
+} from '@/lib/bookings/money-state';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +39,7 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
   const resendConfigured = Boolean(process.env.RESEND_API_KEY);
 
   const BOOKING_PAYMENT_COLUMNS =
-    'id, status, service_date, service_time, address, notes, customer_id, pro_id, created_at, total_amount_cents, amount_deposit, amount_remaining, amount_total, payment_status, final_payment_status, refunded_total_cents, refund_status, stripe_payment_intent_deposit_id, stripe_payment_intent_remaining_id, payment_intent_id, final_payment_intent_id, paid_deposit_at, paid_remaining_at, paid_at, fully_paid_at, price, customer_receipt_deposit_email_at, customer_receipt_final_email_at, customer_receipt_deposit_email_note, customer_receipt_final_email_note, requires_admin_review, payout_released';
+    'id, status, service_date, service_time, address, notes, customer_id, pro_id, created_at, total_amount_cents, amount_deposit, amount_remaining, amount_total, payment_status, final_payment_status, refunded_total_cents, refund_status, stripe_payment_intent_deposit_id, stripe_payment_intent_remaining_id, deposit_payment_intent_id, payment_intent_id, final_payment_intent_id, paid_deposit_at, paid_remaining_at, paid_at, fully_paid_at, price, customer_receipt_deposit_email_at, customer_receipt_final_email_at, customer_receipt_deposit_email_note, customer_receipt_final_email_note, requires_admin_review, payout_released';
 
   let rows: any[] = [];
   if (!q) {
@@ -186,15 +191,17 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
                     stripePaymentIntentRemainingId:
                       (b.stripe_payment_intent_remaining_id as string) ?? null,
                     paymentIntentId: (b.payment_intent_id as string) ?? null,
-                    finalPaymentIntentId: (b.final_payment_intent_id as string) ?? null,
+                    finalPaymentIntentId: coalesceBookingFinalPaymentIntentId(
+                      b as BookingFinalPaymentIntentIdRow
+                    ),
                   });
                   const depPi =
                     receipt.stripePaymentIntentDepositId ??
-                    (b.payment_intent_id as string) ??
+                    coalesceBookingDepositPaymentIntentId(b as BookingFinalPaymentIntentIdRow) ??
                     '—';
                   const remPi =
                     receipt.stripePaymentIntentRemainingId ??
-                    (b.final_payment_intent_id as string) ??
+                    coalesceBookingFinalPaymentIntentId(b as BookingFinalPaymentIntentIdRow) ??
                     '—';
                   const totalCents = receipt.totalBookingCents;
 

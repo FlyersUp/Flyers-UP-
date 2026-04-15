@@ -14,6 +14,14 @@ function finalCentsFromRow(row: Record<string, unknown>): number {
   );
 }
 
+/** True when cron / {@link attemptFinalCharge} must never treat the row as an auto-final candidate. */
+export function isBookingExcludedFromScheduledFinalCharge(row: Record<string, unknown>): boolean {
+  return (
+    String(row.payment_lifecycle_status ?? '').trim() === 'cancelled_during_review' ||
+    String(row.final_payment_status ?? '').toUpperCase() === 'CANCELLED'
+  );
+}
+
 function isLifecycleBackfillCandidate(lc: string | null | undefined): boolean {
   const s = String(lc ?? '').trim();
   return !s || s === 'deposit_paid' || s === 'unpaid' || s === 'deposit_pending';
@@ -52,6 +60,7 @@ export async function reconcileBookingForFinalAutoCharge(
   if (error || !row) return false;
 
   const r = row as unknown as Record<string, unknown>;
+  if (isBookingExcludedFromScheduledFinalCharge(r)) return false;
   if (r.admin_hold === true) return false;
   if (String(r.dispute_status ?? 'none') !== 'none') return false;
   if (String(r.payment_status ?? '').toUpperCase() !== 'PAID') return false;
@@ -121,13 +130,16 @@ export async function fetchPrimaryFinalChargeCandidateIds(
   const nowMs = new Date(nowIso).getTime();
   const { data, error } = await admin
     .from('bookings')
-    .select('id, customer_review_deadline_at, remaining_due_at, final_amount_cents, remaining_amount_cents, amount_remaining')
+    .select(
+      'id, customer_review_deadline_at, remaining_due_at, final_amount_cents, remaining_amount_cents, amount_remaining, final_payment_status'
+    )
     .eq('service_status', 'completed')
     .eq('payment_lifecycle_status', 'final_pending')
     .eq('dispute_status', 'none')
     .or('admin_hold.is.null,admin_hold.eq.false')
     .eq('payment_status', 'PAID')
-    .not('final_payment_status', 'ilike', 'paid');
+    .not('final_payment_status', 'ilike', 'paid')
+    .not('final_payment_status', 'ilike', 'cancelled');
 
   if (error) {
     console.error('[final-charge-candidates] primary query failed', error);
@@ -137,6 +149,7 @@ export async function fetchPrimaryFinalChargeCandidateIds(
   const out: string[] = [];
   for (const raw of data ?? []) {
     const r = raw as unknown as Record<string, unknown>;
+    if (String(r.final_payment_status ?? '').toUpperCase() === 'CANCELLED') continue;
     if (finalCentsFromRow(r) <= 0) continue;
     const cr = r.customer_review_deadline_at
       ? new Date(String(r.customer_review_deadline_at)).getTime()
@@ -170,7 +183,9 @@ export async function fetchLegacyFinalChargeCandidateIds(
     .lte('remaining_due_at', nowIso)
     .eq('dispute_status', 'none')
     .or('admin_hold.is.null,admin_hold.eq.false')
-    .not('final_payment_status', 'ilike', 'paid');
+    .not('final_payment_status', 'ilike', 'paid')
+    .not('final_payment_status', 'ilike', 'cancelled')
+    .neq('payment_lifecycle_status', 'cancelled_during_review');
 
   if (error) {
     console.error('[final-charge-candidates] legacy query failed', error);
@@ -181,6 +196,7 @@ export async function fetchLegacyFinalChargeCandidateIds(
   for (const raw of data ?? []) {
     const r = raw as unknown as Record<string, unknown>;
     if (r.admin_hold === true) continue;
+    if (isBookingExcludedFromScheduledFinalCharge(r)) continue;
     if (finalCentsFromRow(r) <= 0) continue;
     const lc = String(r.payment_lifecycle_status ?? '');
     const ss = String(r.service_status ?? '');

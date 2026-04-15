@@ -41,6 +41,7 @@ import {
   trustOccupationProfileForStripeMetadata,
 } from '@/lib/stripe/booking-payment-pricing-metadata';
 import { appendLifecyclePaymentIntentMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
+import { assertUnifiedBookingPaymentIntentMetadata } from '@/lib/stripe/payment-intent-metadata-unified';
 import {
   logBookingPaymentEvent,
   syncBookingPaymentSummary,
@@ -522,6 +523,7 @@ export async function POST(
     )
   );
   stripeFields.metadata = capStripeBookingPaymentMetadata(stripeFields.metadata);
+  assertUnifiedBookingPaymentIntentMetadata(stripeFields.metadata);
 
   const paymentIntent = await stripe.paymentIntents.create(
     {

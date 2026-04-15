@@ -10,6 +10,11 @@ import {
   sendUnifiedReceiptEmailFinal,
 } from '@/lib/email/customer-booking-receipt';
 import { logWebhookReceiptEvent } from '@/lib/stripe/webhook-receipt-log';
+import {
+  coalesceBookingDepositPaymentIntentId,
+  coalesceBookingFinalPaymentIntentId,
+  type BookingFinalPaymentIntentIdRow,
+} from '@/lib/bookings/money-state';
 
 type Admin = SupabaseClient;
 
@@ -41,16 +46,14 @@ function matchesCommittedPaymentState(
   if (ctx.kind === 'deposit') {
     const ps = String(row.payment_status ?? '').toUpperCase();
     if (ps !== 'PAID') return false;
-    const dep = String(row.stripe_payment_intent_deposit_id ?? row.payment_intent_id ?? '').trim();
+    const dep = String(coalesceBookingDepositPaymentIntentId(row as BookingFinalPaymentIntentIdRow) ?? '').trim();
     return dep === pi;
   }
 
   if (ctx.kind === 'remaining') {
     const fs = String(row.final_payment_status ?? '').toUpperCase();
     if (fs !== 'PAID') return false;
-    const rem = String(
-      row.stripe_payment_intent_remaining_id ?? row.final_payment_intent_id ?? ''
-    ).trim();
+    const rem = String(coalesceBookingFinalPaymentIntentId(row as BookingFinalPaymentIntentIdRow) ?? '').trim();
     return rem === pi;
   }
 
@@ -76,6 +79,7 @@ export async function sendCustomerBookingReceiptEmailAfterCommit(
         'final_payment_status',
         'payment_intent_id',
         'final_payment_intent_id',
+        'deposit_payment_intent_id',
         'stripe_payment_intent_deposit_id',
         'stripe_payment_intent_remaining_id',
         'customer_receipt_deposit_email_at',

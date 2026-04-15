@@ -49,6 +49,7 @@ describe('payment lifecycle guards', () => {
   it('isBookingPaymentStatus', async () => {
     const { isBookingPaymentStatus } = await import('../payment-lifecycle-types');
     assert.equal(isBookingPaymentStatus('deposit_paid'), true);
+    assert.equal(isBookingPaymentStatus('cancelled_during_review'), true);
     assert.equal(isBookingPaymentStatus('nope'), false);
   });
 });

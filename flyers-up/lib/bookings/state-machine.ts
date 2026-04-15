@@ -111,11 +111,28 @@ export function isPayoutBlockedStatus(status: string): boolean {
   return NO_PAYOUT_STATUSES.includes(status);
 }
 
+/**
+ * When `bookings.status` lags `payment_lifecycle_status`, payout transfer eligibility follows **money
+ * pipeline** truth first: if lifecycle already marks final settlement / payout queue (`payout_ready`,
+ * `final_paid`, …), do not reject solely on a stale workflow label in `bookings.status`.
+ */
+export function payoutLifecycleSkipsWorkflowBlocklist(lifecycleStatus: string | null | undefined): boolean {
+  const lc = String(lifecycleStatus ?? '').trim().toLowerCase();
+  return (
+    lc === 'paid' ||
+    lc === 'final_paid' ||
+    lc === 'payout_ready' ||
+    lc === 'payout_sent'
+  );
+}
+
 /** Hours after job completion before automatic marketplace payout release (cron). */
 export const PAYOUT_AUTO_RELEASE_REVIEW_HOURS = 24;
 
 export interface PayoutEligibilityInput {
   status: string;
+  /** When set to a post-final lifecycle, {@link isPayoutBlockedStatus} is skipped (money truth wins). */
+  payment_lifecycle_status?: string | null;
   arrived_at: string | null;
   started_at: string | null;
   completed_at: string | null;
@@ -151,7 +168,10 @@ export interface PayoutEligibilityInput {
 export function isPayoutEligible(input: PayoutEligibilityInput): { eligible: boolean; reason?: string } {
   const now = new Date().toISOString();
 
-  if (isPayoutBlockedStatus(input.status)) {
+  if (
+    !payoutLifecycleSkipsWorkflowBlocklist(input.payment_lifecycle_status) &&
+    isPayoutBlockedStatus(input.status)
+  ) {
     return { eligible: false, reason: 'Booking not in confirmed/completed state' };
   }
   if (!input.arrived_at) {

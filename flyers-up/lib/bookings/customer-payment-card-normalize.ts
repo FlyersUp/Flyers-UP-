@@ -20,6 +20,8 @@ const POST_COMPLETION_STATUSES = new Set([
   'awaiting_customer_confirmation',
   'completed_pending_payment',
   'awaiting_payment',
+  'paid',
+  'fully_paid',
 ]);
 
 export type CustomerPaymentCardKind =
@@ -76,7 +78,7 @@ function isFinalPaymentAlreadySucceeded(
   const lc = String(input.paymentLifecycleStatus ?? '').trim().toLowerCase();
   if (lc === 'final_paid' || lc === 'payout_ready' || lc === 'payout_sent') return true;
   const st = String(input.status ?? '').trim().toLowerCase();
-  if (st === 'fully_paid' || st === 'payout_released') return true;
+  if (st === 'fully_paid' || st === 'paid' || st === 'payout_released') return true;
   return false;
 }
 

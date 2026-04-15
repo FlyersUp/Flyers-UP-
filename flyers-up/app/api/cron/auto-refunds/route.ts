@@ -10,7 +10,13 @@ import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { refundPaymentIntent } from '@/lib/stripe/server';
+import { refundLifecycleMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
+import { appendBookingRefundEvent } from '@/lib/bookings/booking-refund-ledger';
 import { STATUS } from '@/lib/bookings/booking-status';
+import {
+  coalesceBookingDepositPaymentIntentId,
+  type BookingFinalPaymentIntentIdRow,
+} from '@/lib/bookings/money-state';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,7 +40,27 @@ export async function GET(req: NextRequest) {
   // Cancelled bookings with paid deposit, job never started, no refund yet
   const { data: toRefund, error } = await admin
     .from('bookings')
-    .select('id, customer_id, pro_id, deposit_amount_cents, amount_deposit, refunded_total_cents, stripe_payment_intent_deposit_id, payment_intent_id, service_pros(user_id)')
+    .select(
+      [
+        'id',
+        'customer_id',
+        'pro_id',
+        'deposit_amount_cents',
+        'amount_deposit',
+        'subtotal_cents',
+        'total_amount_cents',
+        'amount_total',
+        'amount_platform_fee',
+        'final_amount_cents',
+        'remaining_amount_cents',
+        'pricing_version',
+        'refunded_total_cents',
+        'stripe_payment_intent_deposit_id',
+        'payment_intent_id',
+        'payout_released',
+        'service_pros(user_id)',
+      ].join(', ')
+    )
     .in('status', CANCELLED_STATUSES)
     .or('refund_status.is.null,refund_status.eq.none')
     .not('paid_deposit_at', 'is', null)
@@ -51,7 +77,7 @@ export async function GET(req: NextRequest) {
   let failed = 0;
 
   for (const b of eligible) {
-    const piId = b.stripe_payment_intent_deposit_id ?? b.payment_intent_id;
+    const piId = coalesceBookingDepositPaymentIntentId(b as BookingFinalPaymentIntentIdRow);
     if (!piId) continue;
 
     // Set pending first (idempotent)
@@ -63,19 +89,52 @@ export async function GET(req: NextRequest) {
 
     if (updErr) continue; // Already pending or processing
 
-    const refundId = await refundPaymentIntent(piId, {
-      reason: 'requested_by_customer',
-      booking_id: b.id,
-    });
+    const row = b as Record<string, string | number | boolean | null | undefined>;
+    const depC = Number(row.deposit_amount_cents ?? row.amount_deposit ?? 0) || 0;
+    const finC = Number(row.final_amount_cents ?? row.remaining_amount_cents ?? 0) || 0;
+    const subC = Number(row.subtotal_cents ?? 0) || 0;
+    const totC = Number(row.total_amount_cents ?? row.amount_total ?? 0) || 0;
+    const feeC = Number(row.amount_platform_fee ?? 0) || 0;
+    const pv = typeof row.pricing_version === 'string' ? row.pricing_version : null;
+    const refundId = await refundPaymentIntent(
+      piId,
+      refundLifecycleMetadata({
+        booking_id: String(b.id),
+        refund_scope: 'deposit',
+        resolution_type: 'cron_auto_refund',
+        subtotal_cents: subC,
+        total_amount_cents: totC,
+        platform_fee_cents: feeC,
+        deposit_amount_cents: depC,
+        final_amount_cents: finC,
+        pricing_version: pv,
+        extra: { reason: 'requested_by_customer' },
+      })
+    );
 
     const proUserId = (b.service_pros as { user_id?: string })?.user_id;
 
     if (refundId) {
+      const depCents =
+        Number((b as { deposit_amount_cents?: number }).deposit_amount_cents ?? 0) ||
+        Number((b as { amount_deposit?: number }).amount_deposit ?? 0) ||
+        0;
+      const afterPayout = (b as { payout_released?: boolean }).payout_released === true;
+      void appendBookingRefundEvent(admin, {
+        bookingId: b.id as string,
+        refundType: afterPayout ? 'after_payout' : 'before_payout',
+        amountCents: depCents,
+        stripeRefundId: refundId,
+        paymentIntentId: piId,
+        requiresClawback: afterPayout,
+        source: 'cron',
+      });
       await admin
         .from('bookings')
         .update({
           refund_status: 'succeeded',
           stripe_refund_deposit_id: refundId,
+          ...(afterPayout ? { refund_after_payout: true, requires_admin_review: true } : {}),
         })
         .eq('id', b.id);
 

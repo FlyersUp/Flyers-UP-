@@ -63,6 +63,7 @@ function minutesBetween(startIso: string | null, endIso: string | null): number 
 
 const BOOKING_PAYOUT_REVIEW_SELECT = [
   'id',
+  /** `bookings.status` — admin scan context only; queue filters use requires_admin_review + payout_released. */
   'status',
   'payment_lifecycle_status',
   'payout_hold_reason',

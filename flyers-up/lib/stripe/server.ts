@@ -25,6 +25,11 @@ export const stripe = (() => {
 /**
  * Refund a PaymentIntent or its latest charge.
  * Safe to call; logs errors. Returns refund id or null.
+ *
+ * **Stripe Connect:** Refunding the charge credits the **customer** from the platform Stripe balance.
+ * An outbound **Transfer** to a connected account is **not** reversed automatically — reconciling
+ * post-payout refunds (recovery / clawback) is a separate operational step. Callers must not assume
+ * the pro’s Connect balance was debited by this API alone.
  */
 export async function refundPaymentIntent(
   paymentIntentId: string,
@@ -55,6 +60,9 @@ export async function refundPaymentIntent(
 /**
  * Partial (or exact-amount) refund against a PaymentIntent. Amount is in cents (smallest currency unit).
  * Prefer this for admin partial refunds; do not use full-charge refund for partial amounts.
+ *
+ * Same **Connect / Transfer** caveat as {@link refundPaymentIntent}: no automatic reversal of funds
+ * already transferred to the connected account.
  */
 export async function refundPaymentIntentPartial(
   paymentIntentId: string,

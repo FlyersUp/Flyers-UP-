@@ -78,6 +78,8 @@ export function buildBookingPaymentIntentPricingMetadata(args: {
     booking_pricing_category_slug: booking.pricing_category_slug ?? undefined,
     pricing_version: (booking.pricing_version && String(booking.pricing_version).trim()) || undefined,
     subtotal_cents: quote.amountSubtotal,
+    total_amount_cents: pricing.customerTotalCents,
+    platform_fee_cents: pricing.feeTotalCents,
     service_subtotal_cents: pricing.serviceSubtotalCents,
     service_fee_cents: pricing.serviceFeeCents,
     convenience_fee_cents: pricing.convenienceFeeCents,

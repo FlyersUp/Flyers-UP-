@@ -18,8 +18,15 @@ import {
 } from '@/lib/bookings/payment-lifecycle-service';
 import { reconcileBookingForFinalAutoCharge } from '@/lib/bookings/final-charge-candidates';
 import { refundPaymentIntent, refundPaymentIntentPartial } from '@/lib/stripe/server';
+import { refundLifecycleMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
 import { stripe as stripeClient } from '@/lib/stripe';
 import { isAdminUser } from '@/lib/admin/server-admin-access';
+import { appendBookingRefundEvent } from '@/lib/bookings/booking-refund-ledger';
+import {
+  coalesceBookingDepositPaymentIntentId,
+  coalesceBookingFinalPaymentIntentId,
+  type BookingFinalPaymentIntentIdRow,
+} from '@/lib/bookings/money-state';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -173,24 +180,52 @@ export async function POST(
       const { data: b } = await admin
         .from('bookings')
         .select(
-          'final_payment_intent_id, stripe_payment_intent_remaining_id, payment_intent_id, stripe_payment_intent_deposit_id, amount_refunded_cents, refunded_total_cents'
+          [
+            'final_payment_intent_id',
+            'stripe_payment_intent_remaining_id',
+            'payment_intent_id',
+            'stripe_payment_intent_deposit_id',
+            'deposit_payment_intent_id',
+            'amount_refunded_cents',
+            'refunded_total_cents',
+            'payout_released',
+            'subtotal_cents',
+            'total_amount_cents',
+            'amount_total',
+            'amount_platform_fee',
+            'deposit_amount_cents',
+            'amount_deposit',
+            'final_amount_cents',
+            'remaining_amount_cents',
+            'pricing_version',
+          ].join(', ')
         )
         .eq('id', id)
         .maybeSingle();
       const br = b as Record<string, string | null | number | undefined> | null;
-      const piFinal =
-        (br?.final_payment_intent_id as string) ?? (br?.stripe_payment_intent_remaining_id as string) ?? null;
-      const piDeposit = (br?.stripe_payment_intent_deposit_id as string) ?? (br?.payment_intent_id as string) ?? null;
+      const piFinal = br ? coalesceBookingFinalPaymentIntentId(br as BookingFinalPaymentIntentIdRow) : null;
+      const piDeposit = br ? coalesceBookingDepositPaymentIntentId(br as BookingFinalPaymentIntentIdRow) : null;
       const piId = piFinal ?? piDeposit;
       if (!piId) return NextResponse.json({ error: 'No PaymentIntent' }, { status: 400 });
 
+      const depC = Number(br?.deposit_amount_cents ?? br?.amount_deposit ?? 0) || 0;
+      const finC = Number(br?.final_amount_cents ?? br?.remaining_amount_cents ?? 0) || 0;
+      const subC = Number(br?.subtotal_cents ?? 0) || 0;
+      const totC = Number(br?.total_amount_cents ?? br?.amount_total ?? 0) || 0;
+      const feeC = Number(br?.amount_platform_fee ?? 0) || 0;
+      const pv = typeof br?.pricing_version === 'string' ? br.pricing_version : null;
       const refundId = await refundPaymentIntentPartial(piId, cents, {
-        metadata: {
+        metadata: refundLifecycleMetadata({
           booking_id: id,
-          payment_phase: 'refund',
           refund_scope: 'partial',
           resolution_type: 'admin',
-        },
+          subtotal_cents: subC,
+          total_amount_cents: totC,
+          platform_fee_cents: feeC,
+          deposit_amount_cents: depC,
+          final_amount_cents: finC,
+          pricing_version: pv,
+        }),
         idempotencyKey: `admin-partial-refund-${id}-${piId}-${cents}`,
       });
       if (!refundId) {
@@ -200,14 +235,28 @@ export async function POST(
       const prevRef =
         Number(br?.amount_refunded_cents ?? br?.refunded_total_cents ?? 0) || 0;
       const nextRef = prevRef + cents;
+      const afterPayout = (br as { payout_released?: boolean }).payout_released === true;
       await admin
         .from('bookings')
         .update({
           amount_refunded_cents: nextRef,
           refunded_total_cents: nextRef,
           payment_lifecycle_status: 'partially_refunded',
+          ...(afterPayout ? { refund_after_payout: true, requires_admin_review: true } : {}),
         })
         .eq('id', id);
+      const ledger = await appendBookingRefundEvent(admin, {
+        bookingId: id,
+        refundType: afterPayout ? 'after_payout' : 'before_payout',
+        amountCents: cents,
+        stripeRefundId: refundId,
+        paymentIntentId: piId,
+        requiresClawback: afterPayout,
+        source: 'admin',
+      });
+      if (ledger.ok === false && 'error' in ledger) {
+        console.warn('[admin partial_refund] ledger', ledger.error);
+      }
       await syncBookingPaymentSummary(admin, id);
       await logBookingPaymentEvent(admin, {
         bookingId: id,
@@ -224,21 +273,93 @@ export async function POST(
     case 'full_refund': {
       const { data: b } = await admin
         .from('bookings')
-        .select('final_payment_intent_id, stripe_payment_intent_remaining_id, stripe_payment_intent_deposit_id, payment_intent_id')
+        .select(
+          [
+            'final_payment_intent_id',
+            'stripe_payment_intent_remaining_id',
+            'stripe_payment_intent_deposit_id',
+            'deposit_payment_intent_id',
+            'payment_intent_id',
+            'payout_released',
+            'deposit_amount_cents',
+            'amount_deposit',
+            'final_amount_cents',
+            'remaining_amount_cents',
+            'subtotal_cents',
+            'total_amount_cents',
+            'amount_total',
+            'amount_platform_fee',
+            'pricing_version',
+          ].join(', ')
+        )
         .eq('id', id)
         .maybeSingle();
-      const br = b as Record<string, string | null> | null;
-      const piFinal = br?.final_payment_intent_id ?? br?.stripe_payment_intent_remaining_id;
-      const piDep = br?.stripe_payment_intent_deposit_id ?? br?.payment_intent_id;
+      const br = b as Record<string, string | number | boolean | null> | null;
+      const piFinal = br ? coalesceBookingFinalPaymentIntentId(br as BookingFinalPaymentIntentIdRow) : null;
+      const piDep = br ? coalesceBookingDepositPaymentIntentId(br as BookingFinalPaymentIntentIdRow) : null;
+      const afterPayout = br?.payout_released === true;
+      const depCents = Number(br?.deposit_amount_cents ?? br?.amount_deposit ?? 0) || 0;
+      const finalCents = Number(br?.final_amount_cents ?? br?.remaining_amount_cents ?? 0) || 0;
+      const subSnap = Number(br?.subtotal_cents ?? 0) || 0;
+      const totalSnap = Number(br?.total_amount_cents ?? br?.amount_total ?? 0) || 0;
+      const platformSnap = Number(br?.amount_platform_fee ?? 0) || 0;
+      const pricingSnap = typeof br?.pricing_version === 'string' ? br.pricing_version : null;
       if (!stripeClient) return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
-      if (piFinal) await refundPaymentIntent(piFinal, { booking_id: id, payment_phase: 'refund', refund_scope: 'full' });
+      const recorded: { refundId: string; pi: string; cents: number }[] = [];
+      if (piFinal) {
+        const rid = await refundPaymentIntent(
+          piFinal,
+          refundLifecycleMetadata({
+            booking_id: id,
+            refund_scope: 'full',
+            resolution_type: 'admin_full_refund',
+            subtotal_cents: subSnap,
+            total_amount_cents: totalSnap,
+            platform_fee_cents: platformSnap,
+            deposit_amount_cents: depCents,
+            final_amount_cents: finalCents,
+            pricing_version: pricingSnap,
+          })
+        );
+        if (rid) recorded.push({ refundId: rid, pi: piFinal, cents: finalCents > 0 ? finalCents : 0 });
+      }
       if (piDep && piDep !== piFinal) {
-        await refundPaymentIntent(piDep, { booking_id: id, payment_phase: 'refund', refund_scope: 'full' });
+        const rid = await refundPaymentIntent(
+          piDep,
+          refundLifecycleMetadata({
+            booking_id: id,
+            refund_scope: 'full',
+            resolution_type: 'admin_full_refund',
+            subtotal_cents: subSnap,
+            total_amount_cents: totalSnap,
+            platform_fee_cents: platformSnap,
+            deposit_amount_cents: depCents,
+            final_amount_cents: finalCents,
+            pricing_version: pricingSnap,
+          })
+        );
+        if (rid) recorded.push({ refundId: rid, pi: piDep, cents: depCents > 0 ? depCents : 0 });
       }
       await admin
         .from('bookings')
-        .update({ payment_lifecycle_status: 'refunded', refund_status: 'succeeded' })
+        .update({
+          payment_lifecycle_status: 'refunded',
+          refund_status: 'succeeded',
+          ...(afterPayout ? { refund_after_payout: true, requires_admin_review: true } : {}),
+        })
         .eq('id', id);
+      for (const row of recorded) {
+        const ins = await appendBookingRefundEvent(admin, {
+          bookingId: id,
+          refundType: afterPayout ? 'after_payout' : 'before_payout',
+          amountCents: row.cents,
+          stripeRefundId: row.refundId,
+          paymentIntentId: row.pi,
+          requiresClawback: afterPayout,
+          source: 'admin',
+        });
+        if (ins.ok === false && 'error' in ins) console.warn('[admin full_refund] ledger', ins.error);
+      }
       await syncBookingPaymentSummary(admin, id);
       await logBookingPaymentEvent(admin, {
         bookingId: id,

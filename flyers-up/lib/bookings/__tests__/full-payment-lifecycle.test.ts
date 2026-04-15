@@ -5,15 +5,16 @@
  *   INTEGRATION_TEST=1 npx tsx --test lib/bookings/__tests__/full-payment-lifecycle.test.ts
  *
  * Requires: SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL.
- * Creates throwaway auth users, a service_pros row, a booking, job_completions, then deletes them.
+ * Creates throwaway auth users, a service_pros row, bookings, job_completions, then deletes them.
  *
  * Stripe: real PaymentIntents are not created. Deposit/final webhooks are simulated via
  * {@link handleDepositPaymentSucceeded} / {@link handleFinalPaymentSucceeded}. Connect
  * transfers are stubbed via {@link setCreateTransferForIntegrationTest}.
  */
 import assert from 'node:assert/strict';
-import { after, describe, it } from 'node:test';
+import { after, before, describe, it } from 'node:test';
 import type Stripe from 'stripe';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
   finalizeDepositPaymentIntentProvisioning,
@@ -22,6 +23,9 @@ import {
   markBookingCompleted,
   releasePayout,
 } from '@/lib/bookings/payment-lifecycle-service';
+import { getPayoutReleaseEligibilitySnapshot } from '@/lib/bookings/payout-release-eligibility-snapshot';
+import { payoutReleaseCronCandidateOrFilter } from '@/lib/bookings/payout-release-cron-selection';
+import { runPayoutReleaseCron } from '@/lib/bookings/payout-release-cron';
 import { setCreateTransferForIntegrationTest } from '@/lib/stripe/server';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 
@@ -41,20 +45,366 @@ function mockPaymentIntent(partial: Partial<Stripe.PaymentIntent> & { id: string
   } as Stripe.PaymentIntent;
 }
 
+/** Same candidate filter + guards as {@link runPayoutReleaseCron} (narrowed to one booking id). */
+async function assertBookingIsCronCandidateRow(
+  admin: SupabaseClient,
+  bookingId: string,
+  message: string
+): Promise<void> {
+  const { data, error } = await admin
+    .from('bookings')
+    .select('id')
+    .eq('id', bookingId)
+    .or(payoutReleaseCronCandidateOrFilter())
+    .eq('payout_released', false)
+    .or('requires_admin_review.is.null,requires_admin_review.eq.false')
+    .not('refund_status', 'eq', 'pending')
+    .not('paid_deposit_at', 'is', null)
+    .not('paid_remaining_at', 'is', null)
+    .maybeSingle();
+  assert.ok(!error, error?.message ?? String(error));
+  assert.equal(data?.id, bookingId, message);
+}
+
+type BookingMoneySnapshot = {
+  payment_lifecycle_status?: string | null;
+  refund_status?: string | null;
+  stripe_transfer_id?: string | null;
+  payout_transfer_id?: string | null;
+  payout_released?: boolean | null;
+  final_payment_intent_id?: string | null;
+  final_payment_status?: string | null;
+};
+
+/**
+ * Cross-field invariants so silent regressions (refund vs payout_sent, missing transfer id) fail loudly.
+ */
+function assertNoContradictoryMoneyState(row: BookingMoneySnapshot, ctx: string): void {
+  const refund = String(row.refund_status ?? '').toLowerCase();
+  const lc = String(row.payment_lifecycle_status ?? '');
+
+  if (refund === 'succeeded' || refund === 'partial') {
+    assert.notEqual(
+      lc,
+      'payout_sent',
+      `${ctx}: refunded booking must not be payout_sent (lifecycle=${lc}, refund=${refund})`
+    );
+  }
+
+  if (lc === 'payout_sent') {
+    assert.ok(
+      row.stripe_transfer_id && String(row.stripe_transfer_id).trim().length > 4,
+      `${ctx}: payout_sent requires stripe_transfer_id`
+    );
+    assert.ok(
+      row.payout_transfer_id && String(row.payout_transfer_id).trim().length > 4,
+      `${ctx}: payout_sent requires payout_transfer_id`
+    );
+  }
+
+  if (lc === 'final_paid' || lc === 'payout_ready') {
+    assert.ok(
+      row.final_payment_intent_id && String(row.final_payment_intent_id).trim().length > 4,
+      `${ctx}: ${lc} after auto-charge path requires final_payment_intent_id`
+    );
+    assert.equal(
+      String(row.final_payment_status ?? '').toUpperCase(),
+      'PAID',
+      `${ctx}: ${lc} requires final_payment_status PAID`
+    );
+  }
+}
+
+async function assertPostPayoutBookingRow(
+  admin: SupabaseClient,
+  bookingId: string,
+  expectedTransferId: string,
+  ctx: string
+): Promise<void> {
+  const { data: row, error } = await admin
+    .from('bookings')
+    .select(
+      'payment_lifecycle_status, refund_status, stripe_transfer_id, payout_transfer_id, payout_released, final_payment_intent_id, final_payment_status, payout_status'
+    )
+    .eq('id', bookingId)
+    .single();
+  assert.ok(!error, error?.message ?? String(error));
+  assert.equal(row?.payment_lifecycle_status, 'payout_sent', `${ctx}: lifecycle after successful transfer`);
+  assert.equal(row?.payout_released, true, `${ctx}: payout_released`);
+  assert.equal(row?.stripe_transfer_id, expectedTransferId, `${ctx}: stripe_transfer_id`);
+  assert.equal(row?.payout_transfer_id, expectedTransferId, `${ctx}: payout_transfer_id`);
+  assertNoContradictoryMoneyState(row, ctx);
+}
+
+async function assertBookingPayoutRow(
+  admin: SupabaseClient,
+  bookingId: string,
+  expectedTransferId: string,
+  ctx: string
+): Promise<void> {
+  const { data: bp, error } = await admin
+    .from('booking_payouts')
+    .select('stripe_transfer_id, status, booking_id')
+    .eq('booking_id', bookingId)
+    .maybeSingle();
+  assert.ok(!error, error?.message ?? String(error));
+  assert.ok(bp, `${ctx}: booking_payouts row exists`);
+  assert.ok(
+    bp?.stripe_transfer_id && String(bp.stripe_transfer_id).trim().length > 4,
+    `${ctx}: booking_payouts.stripe_transfer_id`
+  );
+  assert.equal(bp?.stripe_transfer_id, expectedTransferId, `${ctx}: booking_payouts transfer id`);
+  assert.equal(bp?.status, 'released', `${ctx}: booking_payouts.status`);
+}
+
+async function insertLifecycleBooking(
+  admin: SupabaseClient,
+  proRowId: string,
+  customerUserId: string,
+  notes: string
+): Promise<string> {
+  const { data: bookingRow, error: bookErr } = await admin
+    .from('bookings')
+    .insert({
+      customer_id: customerUserId,
+      pro_id: proRowId,
+      service_date: '2026-06-15',
+      service_time: '10:00',
+      address: '100 Integration Test Lane',
+      notes,
+      status: 'accepted',
+      status_history: [{ status: 'requested', at: new Date().toISOString() }],
+      currency: 'usd',
+      total_amount_cents: 10_000,
+      amount_subtotal: 9500,
+      subtotal_cents: 9500,
+      platform_fee_cents: 500,
+      deposit_amount_cents: 2000,
+      final_amount_cents: 8000,
+      remaining_amount_cents: 8000,
+      dispute_status: 'none',
+      refund_status: 'none',
+      is_multi_day: false,
+      payout_blocked: false,
+      payout_hold_reason: 'none',
+      suspicious_completion: false,
+    })
+    .select('id')
+    .single();
+  if (bookErr || !bookingRow?.id) assert.fail(bookErr?.message ?? 'booking insert');
+  return bookingRow.id as string;
+}
+
+async function seedThroughFinalPaidAndPayoutReady(
+  admin: SupabaseClient,
+  bookingId: string,
+  proRowId: string,
+  proUserId: string,
+  piDeposit: string,
+  piFinal: string
+): Promise<void> {
+  {
+    const { data: row } = await admin
+      .from('bookings')
+      .select('final_amount_cents, remaining_amount_cents, total_amount_cents, deposit_amount_cents')
+      .eq('id', bookingId)
+      .single();
+    assert.ok(row?.final_amount_cents != null && Number(row.final_amount_cents) > 0, 'fixture must have final balance');
+    assert.equal(Number(row?.final_amount_cents), 8000);
+    assert.equal(Number(row?.deposit_amount_cents), 2000);
+    assert.equal(Number(row?.total_amount_cents), 10_000);
+  }
+
+  await finalizeDepositPaymentIntentProvisioning(admin, {
+    bookingId,
+    paymentIntentId: piDeposit,
+    currency: 'usd',
+    amountDepositCents: 2000,
+  });
+  {
+    const { data: row } = await admin
+      .from('bookings')
+      .select(
+        'payment_lifecycle_status, deposit_payment_intent_id, service_status, payment_status'
+      )
+      .eq('id', bookingId)
+      .single();
+    assert.equal(row?.payment_lifecycle_status, 'deposit_pending');
+    assert.ok(
+      row?.deposit_payment_intent_id && String(row.deposit_payment_intent_id) === piDeposit,
+      'deposit_payment_intent_id must exist and match provisioning PI'
+    );
+    assert.equal(row?.service_status, 'deposit_pending');
+    assert.notEqual(
+      String(row?.payment_status ?? '').toUpperCase(),
+      'PAID',
+      'deposit: payment_status must not be PAID before deposit succeeds'
+    );
+  }
+
+  await handleDepositPaymentSucceeded(
+    admin,
+    mockPaymentIntent({
+      id: piDeposit,
+      amount: 2000,
+      amount_received: 2000,
+      currency: 'usd',
+      customer: 'cus_integration_test',
+      payment_method: null,
+      metadata: { booking_id: bookingId },
+    })
+  );
+  {
+    const { data: row } = await admin
+      .from('bookings')
+      .select(
+        'payment_lifecycle_status, payment_status, paid_deposit_at, stripe_payment_intent_deposit_id, deposit_payment_intent_id, payment_intent_id, amount_paid_cents, service_status'
+      )
+      .eq('id', bookingId)
+      .single();
+    assert.equal(row?.payment_lifecycle_status, 'deposit_paid');
+    assert.equal(String(row?.payment_status ?? '').toUpperCase(), 'PAID');
+    assert.ok(row?.paid_deposit_at);
+    assert.equal(row?.stripe_payment_intent_deposit_id, piDeposit);
+    assert.equal(row?.deposit_payment_intent_id, piDeposit);
+    assert.equal(row?.payment_intent_id, piDeposit);
+    assert.equal(row?.amount_paid_cents, 2000);
+    assert.equal(row?.service_status, 'deposit_paid');
+  }
+
+  const completedAt = new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString();
+  const autoConfirmAt = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const { error: upCompErr } = await admin
+    .from('bookings')
+    .update({
+      status: 'awaiting_remaining_payment',
+      arrived_at: completedAt,
+      started_at: completedAt,
+      completed_at: completedAt,
+      auto_confirm_at: autoConfirmAt,
+    })
+    .eq('id', bookingId);
+  assert.ok(!upCompErr, upCompErr?.message);
+
+  const { error: jcErr } = await admin.from('job_completions').insert({
+    booking_id: bookingId,
+    pro_id: proRowId,
+    after_photo_urls: [
+      'https://cdn.example/__integration__/lifecycle-after-a.jpg',
+      'https://cdn.example/__integration__/lifecycle-after-b.jpg',
+    ],
+  });
+  assert.ok(!jcErr, jcErr?.message);
+
+  await markBookingCompleted(admin, { bookingId, completedByUserId: proUserId });
+  {
+    const { data: row } = await admin
+      .from('bookings')
+      .select(
+        'payment_lifecycle_status, service_status, customer_review_deadline_at, final_amount_cents'
+      )
+      .eq('id', bookingId)
+      .single();
+    assert.equal(Number(row?.final_amount_cents), 8000, 'completion path assumes positive final');
+    assert.equal(row?.payment_lifecycle_status, 'final_pending');
+    assert.equal(row?.service_status, 'completed');
+    assert.ok(row?.customer_review_deadline_at, 'customer_review_deadline_at must be set for positive final');
+    const deadlineMs = Date.parse(String(row.customer_review_deadline_at));
+    assert.ok(Number.isFinite(deadlineMs), 'customer_review_deadline_at must be a valid timestamp');
+    assert.ok(
+      deadlineMs > Date.parse(completedAt),
+      'review deadline should be after completed_at for the 24h review window'
+    );
+  }
+
+  const reviewPast = new Date(Date.now() - 60_000).toISOString();
+  await admin.from('bookings').update({ customer_review_deadline_at: reviewPast }).eq('id', bookingId);
+  const { error: procErr } = await admin
+    .from('bookings')
+    .update({
+      payment_lifecycle_status: 'final_processing',
+      final_charge_attempted_at: new Date().toISOString(),
+      final_payment_intent_id: piFinal,
+      stripe_payment_intent_remaining_id: piFinal,
+    })
+    .eq('id', bookingId);
+  assert.ok(!procErr, procErr?.message);
+  {
+    const { data: row } = await admin
+      .from('bookings')
+      .select(
+        'payment_lifecycle_status, final_payment_intent_id, stripe_payment_intent_remaining_id, final_charge_attempted_at'
+      )
+      .eq('id', bookingId)
+      .single();
+    assert.equal(row?.payment_lifecycle_status, 'final_processing');
+    assert.equal(row?.final_payment_intent_id, piFinal);
+    assert.equal(row?.stripe_payment_intent_remaining_id, piFinal);
+    assert.ok(row?.final_charge_attempted_at, 'final_charge_attempted_at should be set when entering final_processing');
+  }
+
+  await handleFinalPaymentSucceeded(
+    admin,
+    mockPaymentIntent({
+      id: piFinal,
+      amount: 8000,
+      amount_received: 8000,
+      currency: 'usd',
+      metadata: { booking_id: bookingId },
+    })
+  );
+  {
+    const { data: row } = await admin
+      .from('bookings')
+      .select(
+        'payment_lifecycle_status, final_payment_intent_id, final_payment_status, paid_remaining_at, fully_paid_at, amount_paid_cents, payout_blocked, status, stripe_payment_intent_remaining_id, payout_eligible_at, refund_status'
+      )
+      .eq('id', bookingId)
+      .single();
+    assert.equal(row?.final_payment_intent_id, piFinal);
+    assert.equal(row?.stripe_payment_intent_remaining_id, piFinal);
+    assert.equal(String(row?.final_payment_status ?? '').toUpperCase(), 'PAID');
+    assert.ok(row?.paid_remaining_at);
+    assert.ok(row?.fully_paid_at, 'fully_paid_at should be set when remainder succeeds');
+    assert.equal(row?.amount_paid_cents, 10_000, 'amount_paid_cents = deposit + remainder');
+    const lc = String(row?.payment_lifecycle_status ?? '');
+    assert.ok(
+      lc === 'final_paid' || lc === 'payout_ready',
+      `after final PI success, lifecycle must be final_paid or payout_ready (got ${lc})`
+    );
+    assert.equal(row?.payout_blocked, false);
+    assert.ok(row?.payout_eligible_at, 'payout_eligible_at should be set when immediately payout_ready');
+    assert.equal(
+      row?.status,
+      'awaiting_customer_confirmation',
+      'realistic post-final-payment workflow status'
+    );
+    assertNoContradictoryMoneyState(row, 'after handleFinalPaymentSucceeded');
+  }
+}
+
 describe('integration: full deposit → final → payout lifecycle', { skip: !RUN }, () => {
   const created = {
     customerUserId: '' as string,
     proUserId: '' as string,
     proRowId: '' as string,
-    bookingId: '' as string,
+    directBookingId: '' as string,
+    cronBookingId: '' as string,
     categoryId: '' as string,
   };
 
   after(async () => {
     setCreateTransferForIntegrationTest(null);
+    if (!RUN) return;
+
     const admin = createSupabaseAdmin();
-    if (created.bookingId) {
-      await admin.from('bookings').delete().eq('id', created.bookingId);
+    const bookingIds = [created.directBookingId, created.cronBookingId].filter(Boolean);
+
+    if (created.cronBookingId) {
+      await admin.from('bookings').delete().eq('id', created.cronBookingId);
+    }
+    if (created.directBookingId) {
+      await admin.from('bookings').delete().eq('id', created.directBookingId);
     }
     if (created.proRowId) {
       await admin.from('service_pros').delete().eq('id', created.proRowId);
@@ -62,16 +412,50 @@ describe('integration: full deposit → final → payout lifecycle', { skip: !RU
     for (const uid of [created.customerUserId, created.proUserId]) {
       if (uid) {
         await admin.auth.admin.deleteUser(uid);
+        const { data: authRes, error: authErr } = await admin.auth.admin.getUserById(uid);
+        assert.ok(
+          authErr != null || authRes?.user == null,
+          `cleanup: auth user ${uid} should be removed (${authErr?.message ?? 'still present'})`
+        );
       }
+    }
+
+    for (const id of bookingIds) {
+      const { count: bCount, error: bErr } = await admin
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('id', id);
+      assert.ok(!bErr, bErr?.message);
+      assert.equal(bCount ?? 0, 0, `cleanup: booking ${id} must not remain`);
+
+      const { count: jcCount, error: jcErr } = await admin
+        .from('job_completions')
+        .select('*', { count: 'exact', head: true })
+        .eq('booking_id', id);
+      assert.ok(!jcErr, jcErr?.message);
+      assert.equal(jcCount ?? 0, 0, `cleanup: job_completions for ${id} must not remain`);
+
+      const { count: bpCount, error: bpErr } = await admin
+        .from('booking_payouts')
+        .select('*', { count: 'exact', head: true })
+        .eq('booking_id', id);
+      assert.ok(!bpErr, bpErr?.message);
+      assert.equal(bpCount ?? 0, 0, `cleanup: booking_payouts for ${id} must not remain`);
+    }
+
+    if (created.proRowId) {
+      const { count: proCount, error: proErr } = await admin
+        .from('service_pros')
+        .select('*', { count: 'exact', head: true })
+        .eq('id', created.proRowId);
+      assert.ok(!proErr, proErr?.message);
+      assert.equal(proCount ?? 0, 0, 'cleanup: service_pros fixture row must not remain');
     }
   });
 
-  it('runs deposit PI → paid → completed → final PI → paid → payout release with consistent rows', async () => {
+  before(async () => {
     const admin = createSupabaseAdmin();
     const suffix = `${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
-    const piDeposit = `pi_integration_dep_${suffix}`;
-    const piFinal = `pi_integration_final_${suffix}`;
-    const transferId = `tr_integration_${suffix}`;
 
     const { data: cat, error: catErr } = await admin.from('service_categories').select('id').limit(1).maybeSingle();
     if (catErr || !cat?.id) {
@@ -141,192 +525,100 @@ describe('integration: full deposit → final → payout lifecycle', { skip: !RU
       .single();
     if (proInsErr || !proIns?.id) assert.fail(proInsErr?.message ?? 'service_pros insert');
     created.proRowId = proIns.id as string;
+  });
 
-    const { data: bookingRow, error: bookErr } = await admin
-      .from('bookings')
-      .insert({
-        customer_id: created.customerUserId,
-        pro_id: created.proRowId,
-        service_date: '2026-06-15',
-        service_time: '10:00',
-        address: '100 Integration Test Lane',
-        notes: 'full-payment-lifecycle integration',
-        status: 'accepted',
-        status_history: [{ status: 'requested', at: new Date().toISOString() }],
-        currency: 'usd',
-        total_amount_cents: 10_000,
-        amount_subtotal: 9500,
-        subtotal_cents: 9500,
-        platform_fee_cents: 500,
-        deposit_amount_cents: 2000,
-        final_amount_cents: 8000,
-        remaining_amount_cents: 8000,
-        dispute_status: 'none',
-        refund_status: 'none',
-        is_multi_day: false,
-        payout_blocked: false,
-        payout_hold_reason: 'none',
-        suspicious_completion: false,
-      })
-      .select('id')
-      .single();
-    if (bookErr || !bookingRow?.id) assert.fail(bookErr?.message ?? 'booking insert');
-    created.bookingId = bookingRow.id as string;
-    const bookingId = created.bookingId;
+  it('A. direct: lifecycle through payout_ready then releasePayout (not cron)', async () => {
+    const admin = createSupabaseAdmin();
+    const suffix = `dir_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
+    const piDeposit = `pi_integration_dep_${suffix}`;
+    const piFinal = `pi_integration_final_${suffix}`;
+    const transferId = `tr_integration_${suffix}`;
 
-    // --- 2) Deposit PaymentIntent provisioned (Stripe create mocked away; DB path only)
-    await finalizeDepositPaymentIntentProvisioning(admin, {
+    created.directBookingId = await insertLifecycleBooking(
+      admin,
+      created.proRowId,
+      created.customerUserId,
+      'full-payment-lifecycle A direct'
+    );
+    const bookingId = created.directBookingId;
+
+    await seedThroughFinalPaidAndPayoutReady(
+      admin,
       bookingId,
-      paymentIntentId: piDeposit,
-      currency: 'usd',
-      amountDepositCents: 2000,
-    });
-    {
-      const { data: row } = await admin
-        .from('bookings')
-        .select('payment_lifecycle_status, deposit_payment_intent_id, service_status')
-        .eq('id', bookingId)
-        .single();
-      assert.equal(row?.payment_lifecycle_status, 'deposit_pending');
-      assert.equal(row?.deposit_payment_intent_id, piDeposit);
-      assert.equal(row?.service_status, 'deposit_pending');
-    }
-
-    // --- 3) Deposit succeeded (webhook simulation)
-    await handleDepositPaymentSucceeded(
-      admin,
-      mockPaymentIntent({
-        id: piDeposit,
-        amount: 2000,
-        amount_received: 2000,
-        currency: 'usd',
-        customer: 'cus_integration_test',
-        payment_method: null,
-        metadata: { booking_id: bookingId },
-      })
+      created.proRowId,
+      created.proUserId,
+      piDeposit,
+      piFinal
     );
-    {
-      const { data: row } = await admin
-        .from('bookings')
-        .select(
-          'payment_lifecycle_status, payment_status, paid_deposit_at, stripe_payment_intent_deposit_id, amount_paid_cents'
-        )
-        .eq('id', bookingId)
-        .single();
-      assert.equal(row?.payment_lifecycle_status, 'deposit_paid');
-      assert.equal(String(row?.payment_status ?? '').toUpperCase(), 'PAID');
-      assert.ok(row?.paid_deposit_at);
-      assert.equal(row?.stripe_payment_intent_deposit_id, piDeposit);
-      assert.equal(row?.amount_paid_cents, 2000);
-    }
 
-    // --- 4) Pro completion + lifecycle “job complete” (review window + final due)
-    const completedAt = new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString();
-    const autoConfirmAt = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-    const { error: upCompErr } = await admin
-      .from('bookings')
-      .update({
-        status: 'awaiting_remaining_payment',
-        arrived_at: completedAt,
-        started_at: completedAt,
-        completed_at: completedAt,
-        auto_confirm_at: autoConfirmAt,
-      })
-      .eq('id', bookingId);
-    assert.ok(!upCompErr, upCompErr?.message);
-
-    const { error: jcErr } = await admin.from('job_completions').insert({
-      booking_id: bookingId,
-      pro_id: created.proRowId,
-      after_photo_urls: [
-        'https://cdn.example/__integration__/lifecycle-after-a.jpg',
-        'https://cdn.example/__integration__/lifecycle-after-b.jpg',
-      ],
-    });
-    assert.ok(!jcErr, jcErr?.message);
-
-    await markBookingCompleted(admin, { bookingId, completedByUserId: created.proUserId });
-    {
-      const { data: row } = await admin
-        .from('bookings')
-        .select('payment_lifecycle_status, service_status, customer_review_deadline_at')
-        .eq('id', bookingId)
-        .single();
-      assert.equal(row?.payment_lifecycle_status, 'final_pending');
-      assert.equal(row?.service_status, 'completed');
-      assert.ok(row?.customer_review_deadline_at);
-    }
-
-    // --- 5) Auto-charge triggered (Stripe PI create not called; mirror in-flight final_processing)
-    const reviewPast = new Date(Date.now() - 60_000).toISOString();
-    await admin.from('bookings').update({ customer_review_deadline_at: reviewPast }).eq('id', bookingId);
-    const { error: procErr } = await admin
-      .from('bookings')
-      .update({
-        payment_lifecycle_status: 'final_processing',
-        final_charge_attempted_at: new Date().toISOString(),
-        final_payment_intent_id: piFinal,
-        stripe_payment_intent_remaining_id: piFinal,
-      })
-      .eq('id', bookingId);
-    assert.ok(!procErr, procErr?.message);
-    {
-      const { data: row } = await admin
-        .from('bookings')
-        .select('payment_lifecycle_status, final_payment_intent_id')
-        .eq('id', bookingId)
-        .single();
-      assert.equal(row?.payment_lifecycle_status, 'final_processing');
-      assert.equal(row?.final_payment_intent_id, piFinal);
-    }
-
-    // --- 6) Final payment succeeded (off-session success / webhook simulation)
-    await handleFinalPaymentSucceeded(
-      admin,
-      mockPaymentIntent({
-        id: piFinal,
-        amount: 8000,
-        amount_received: 8000,
-        currency: 'usd',
-        metadata: { booking_id: bookingId },
-      })
-    );
-    {
-      const { data: row } = await admin
-        .from('bookings')
-        .select(
-          'payment_lifecycle_status, final_payment_intent_id, final_payment_status, paid_remaining_at, payout_blocked'
-        )
-        .eq('id', bookingId)
-        .single();
-      assert.equal(row?.final_payment_intent_id, piFinal);
-      assert.equal(String(row?.final_payment_status ?? '').toUpperCase(), 'PAID');
-      assert.ok(row?.paid_remaining_at);
-      assert.equal(row?.payment_lifecycle_status, 'payout_ready');
-      assert.equal(row?.payout_blocked, false);
-    }
-
-    // --- 7–8) Payout release + mocked Stripe transfer success
     setCreateTransferForIntegrationTest(async () => transferId);
     const out = await releasePayout(admin, { bookingId });
     assert.equal(out.ok, true, `releasePayout failed: ${out.code ?? 'unknown'}`);
     assert.equal(out.transferId, transferId);
 
-    {
-      const { data: row } = await admin
-        .from('bookings')
-        .select('payment_lifecycle_status, payout_released, stripe_transfer_id, payout_transfer_id, payout_status')
-        .eq('id', bookingId)
-        .single();
-      assert.equal(row?.payment_lifecycle_status, 'payout_sent');
-      assert.equal(row?.payout_released, true);
-      assert.equal(row?.stripe_transfer_id, transferId);
-      assert.equal(row?.payout_transfer_id, transferId);
-      assert.equal(row?.payout_status, 'succeeded');
-    }
+    const { data: payoutRow } = await admin
+      .from('bookings')
+      .select('payout_status')
+      .eq('id', bookingId)
+      .single();
+    assert.equal(payoutRow?.payout_status, 'succeeded');
 
-    const { data: bp } = await admin.from('booking_payouts').select('stripe_transfer_id, status').eq('booking_id', bookingId).maybeSingle();
-    assert.equal(bp?.stripe_transfer_id, transferId);
-    assert.equal(bp?.status, 'released');
+    await assertPostPayoutBookingRow(admin, bookingId, transferId, 'A direct releasePayout');
+    await assertBookingPayoutRow(admin, bookingId, transferId, 'A direct releasePayout');
+  });
+
+  it('B. cron: eligible booking is discovered by cron query, runPayoutReleaseCron releases, booking_payouts written', async () => {
+    const admin = createSupabaseAdmin();
+    const suffix = `cron_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
+    const piDeposit = `pi_integration_dep_${suffix}`;
+    const piFinal = `pi_integration_final_${suffix}`;
+    const transferId = `tr_integration_${suffix}`;
+
+    created.cronBookingId = await insertLifecycleBooking(
+      admin,
+      created.proRowId,
+      created.customerUserId,
+      'full-payment-lifecycle B cron path'
+    );
+    const bookingId = created.cronBookingId;
+
+    await seedThroughFinalPaidAndPayoutReady(
+      admin,
+      bookingId,
+      created.proRowId,
+      created.proUserId,
+      piDeposit,
+      piFinal
+    );
+
+    const snap = await getPayoutReleaseEligibilitySnapshot(admin, bookingId, { initiatedByAdmin: false });
+    assert.equal(
+      snap.eligible,
+      true,
+      `booking must be transfer-eligible before cron; snapshot: ${JSON.stringify(snap)}`
+    );
+
+    await assertBookingIsCronCandidateRow(
+      admin,
+      bookingId,
+      'runPayoutReleaseCron candidate query must include this booking (lifecycle filter regression)'
+    );
+
+    setCreateTransferForIntegrationTest(async () => transferId);
+    const cronResult = await runPayoutReleaseCron(admin);
+    assert.ok(
+      cronResult.released >= 1,
+      `cron must release at least this booking when eligible; result=${JSON.stringify(cronResult)}`
+    );
+
+    const { data: payoutRow } = await admin
+      .from('bookings')
+      .select('payout_status')
+      .eq('id', bookingId)
+      .single();
+    assert.equal(payoutRow?.payout_status, 'succeeded');
+
+    await assertPostPayoutBookingRow(admin, bookingId, transferId, 'B cron runPayoutReleaseCron');
+    await assertBookingPayoutRow(admin, bookingId, transferId, 'B cron runPayoutReleaseCron');
   });
 });

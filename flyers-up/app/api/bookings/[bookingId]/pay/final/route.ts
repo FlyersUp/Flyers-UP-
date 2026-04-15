@@ -33,6 +33,7 @@ import {
   trustOccupationProfileForStripeMetadata,
 } from '@/lib/stripe/booking-payment-pricing-metadata';
 import { appendLifecyclePaymentIntentMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
+import { assertUnifiedBookingPaymentIntentMetadata } from '@/lib/stripe/payment-intent-metadata-unified';
 import {
   logBookingPaymentEvent,
   syncBookingPaymentSummary,
@@ -47,7 +48,12 @@ import {
   logCustomerFinalPaymentRouteError,
   safeDepositPercentFromAmounts,
 } from '@/lib/bookings/customer-final-payment-route';
-import { coalesceBookingFinalPaymentIntentId, getMoneyState } from '@/lib/bookings/money-state';
+import {
+  getBookingDepositPaymentIntentIdOrNull,
+  getBookingFinalPaymentIntentIdOrNull,
+  getMoneyState,
+  type BookingFinalPaymentIntentIdRow,
+} from '@/lib/bookings/money-state';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -208,7 +214,7 @@ export async function POST(
       );
     }
 
-    const coalescedFinalPiId = coalesceBookingFinalPaymentIntentId(
+    const coalescedFinalPiId = getBookingFinalPaymentIntentIdOrNull(
       bookingRowToFinalPaymentIntentRow(booking)
     );
 
@@ -743,11 +749,7 @@ export async function POST(
       }),
     });
 
-    const depositPiId =
-      String(booking.deposit_payment_intent_id ?? '').trim() ||
-      String(booking.stripe_payment_intent_deposit_id ?? '').trim() ||
-      String(booking.payment_intent_id ?? '').trim() ||
-      '';
+    const depositPiId = getBookingDepositPaymentIntentIdOrNull(booking as BookingFinalPaymentIntentIdRow) ?? '';
 
     Object.assign(
       stripeFields.metadata,
@@ -771,6 +773,7 @@ export async function POST(
       )
     );
     stripeFields.metadata = capStripeBookingPaymentMetadata(stripeFields.metadata);
+    assertUnifiedBookingPaymentIntentMetadata(stripeFields.metadata);
 
     const currency = (typeof booking.currency === 'string' && booking.currency.trim()
       ? booking.currency.trim().toLowerCase()
