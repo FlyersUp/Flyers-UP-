@@ -10,6 +10,7 @@ import {
 import { DEFAULT_BOOKING_TIMEZONE, formatBookingDateTimeInZone } from '@/lib/datetime';
 import { labelDynamicPricingReason } from '@/lib/bookings/dynamic-pricing-reason-labels';
 import { StayOnPlatformTrustCallout } from '@/components/retention/StayOnPlatformTrustCallout';
+import { CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT } from '@/lib/bookings/customer-payment-platform-hold-copy';
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -590,6 +591,10 @@ export function TrackBookingPaymentSummary({
             <StayOnPlatformTrustCallout variant="compact" />
           </div>
         ) : null}
+
+        <p className="pt-3 mt-1 border-t border-black/[0.06] dark:border-white/[0.08] text-xs leading-relaxed text-[#6A6A6A] dark:text-[#A1A8B3]">
+          {CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT}
+        </p>
 
         <p className="pt-2">
           <a

@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getBookingById, type BookingDetails } from '@/lib/api';
+import { CUSTOMER_PAYMENT_PLATFORM_HOLD_LONG } from '@/lib/bookings/customer-payment-platform-hold-copy';
 
 function PayContent() {
   const searchParams = useSearchParams();
@@ -45,6 +46,7 @@ function PayContent() {
           <p className="text-muted mt-1">
             Payment is collected after the pro finishes. You’ll only be able to pay when this request is marked “awaiting payment”.
           </p>
+          <p className="text-muted mt-2 text-sm leading-relaxed">{CUSTOMER_PAYMENT_PLATFORM_HOLD_LONG}</p>
         </div>
 
         {error ? (

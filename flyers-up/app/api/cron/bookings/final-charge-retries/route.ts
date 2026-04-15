@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireCronSecret } from '@/lib/cron/auth';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 import { attemptFinalCharge, logBookingPaymentEvent } from '@/lib/bookings/payment-lifecycle-service';
+import {
+  finalPaymentAutoRetryCountCeiling,
+  hoursBeforeNextFinalPaymentCronAttempt,
+  isFinalPaymentRetryReason,
+} from '@/lib/bookings/final-payment-retry-reason';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const { data: rows, error } = await admin
     .from('bookings')
-    .select('id, payment_failed_at, final_charge_retry_count')
+    .select('id, payment_failed_at, final_charge_retry_count, final_payment_retry_reason')
     .eq('payment_lifecycle_status', 'payment_failed')
     .eq('dispute_status', 'none')
     .eq('admin_hold', false)
@@ -38,10 +43,13 @@ export async function GET(req: NextRequest) {
   for (const r of rows ?? []) {
     const failAt = (r as { payment_failed_at?: string | null }).payment_failed_at;
     const n = Number((r as { final_charge_retry_count?: number }).final_charge_retry_count ?? 0);
+    const reasonRaw = (r as { final_payment_retry_reason?: string | null }).final_payment_retry_reason;
+    const reasonForCeiling = isFinalPaymentRetryReason(reasonRaw) ? reasonRaw : null;
+    if (n >= finalPaymentAutoRetryCountCeiling(reasonForCeiling)) continue;
     if (!failAt) continue;
     const failMs = new Date(failAt).getTime();
     const hours = (now - failMs) / (3600 * 1000);
-    const needHours = n <= 0 ? 12 : 48;
+    const needHours = hoursBeforeNextFinalPaymentCronAttempt(n);
     if (hours < needHours) continue;
 
     await logBookingPaymentEvent(admin, {

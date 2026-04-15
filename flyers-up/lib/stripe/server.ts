@@ -143,14 +143,28 @@ export async function retrieveStripeProcessingFeeCentsForPaymentIntent(
  * TODO: Platform fee logic - currently transfers full amount.
  */
 
-export async function createTransfer(params: {
+export type CreateTransferParams = {
   amount: number; // cents
   currency: string;
   destinationAccountId: string;
   bookingId: string;
   metadata?: Record<string, string>;
   idempotencyKey?: string;
-}): Promise<string | null> {
+};
+
+type CreateTransferImpl = (params: CreateTransferParams) => Promise<string | null>;
+
+let createTransferIntegrationTestOverride: CreateTransferImpl | null = null;
+
+/** Replace Stripe Connect transfers (integration tests only). Pass null to restore default behavior. */
+export function setCreateTransferForIntegrationTest(fn: CreateTransferImpl | null): void {
+  createTransferIntegrationTestOverride = fn;
+}
+
+export async function createTransfer(params: CreateTransferParams): Promise<string | null> {
+  if (createTransferIntegrationTestOverride) {
+    return createTransferIntegrationTestOverride(params);
+  }
   try {
     const s = getStripe();
     const idempotencyKey = params.idempotencyKey ?? `payout-${params.bookingId}`;

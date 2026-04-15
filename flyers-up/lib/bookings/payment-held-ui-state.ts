@@ -4,6 +4,7 @@
  */
 
 import { getPayoutHoldExplanation, type PayoutHoldExplanationContext } from '@/lib/bookings/payout-hold-explanations';
+import { CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT } from '@/lib/bookings/customer-payment-platform-hold-copy';
 import type { PayoutHoldReason } from '@/lib/bookings/payment-lifecycle-types';
 
 export type PaymentHeldView = 'pro' | 'customer';
@@ -296,13 +297,14 @@ export function buildPaymentHeldUiState(input: BuildPaymentHeldUiStateInput): Pa
   }
 
   if (view === 'customer') {
+    const customerBody = [exp.customer_message, CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT].filter(Boolean).join('\n\n');
     return {
       variant: 'customer',
       badge: BADGE,
       title: CUSTOMER_TITLE,
       subtitle: CUSTOMER_SUBTITLE,
       timeline,
-      infoPanelBody: exp.customer_message,
+      infoPanelBody: customerBody,
       explanationCode: exp.code,
       whyCallout: whyCalloutForCode(exp.code),
     };

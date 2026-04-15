@@ -27,6 +27,7 @@ import { DepositPayBar } from '@/components/checkout/DepositPayBar';
 import { BookingLoadErrorPage } from '@/components/checkout/BookingLoadErrorPage';
 import { QuickRulesSheet } from '@/components/booking/QuickRulesSheet';
 import { bookingConfirmedPath } from '@/lib/bookings/booking-routes';
+import { CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT } from '@/lib/bookings/customer-payment-platform-hold-copy';
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -548,6 +549,9 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
           <h1 className="mb-6 text-[1.625rem] font-bold leading-tight tracking-tight text-[#2d3436] dark:text-white">
             {isFinalPayment ? 'Pay remaining balance' : 'Review & pay deposit'}
           </h1>
+          <p className="mb-6 -mt-4 text-sm leading-relaxed text-[#6B7280] dark:text-white/60">
+            {CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT}
+          </p>
 
           {/* LOADING STATE */}
           {loading && (

@@ -2,6 +2,7 @@
 
 import { ProtectedFlyersUpBadge } from '@/components/retention/ProtectedFlyersUpBadge';
 import { cn } from '@/lib/cn';
+import { CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT } from '@/lib/bookings/customer-payment-platform-hold-copy';
 
 export type StayOnPlatformTrustVariant = 'compact' | 'comfortable';
 
@@ -47,6 +48,7 @@ export function StayOnPlatformTrustCallout({
           isCompact ? 'text-[11px] leading-snug' : 'text-xs leading-relaxed'
         )}
       >
+        <li>{CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT}</li>
         <li>Payments and refunds are tracked with clear receipts.</li>
         <li>Support can step in fairly if something doesn&apos;t go as planned.</li>
         <li>Your job history stays in one place — easier to book the same pro again.</li>

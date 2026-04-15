@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getBookingById, type BookingDetails } from '@/lib/api';
+import { CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT } from '@/lib/bookings/customer-payment-platform-hold-copy';
 
 function PaidContent() {
   const searchParams = useSearchParams();
@@ -34,8 +35,11 @@ function PaidContent() {
         <Card className="p-8 text-center">
           <div className="text-5xl mb-4">✅</div>
           <h1 className="text-2xl font-semibold text-text mb-2">Payment received</h1>
-          <p className="text-muted mb-6">
+          <p className="text-muted mb-2">
             Thanks—your payment went through. You can review the request details any time.
+          </p>
+          <p className="text-muted mb-6 text-sm leading-relaxed max-w-lg mx-auto">
+            {CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT}
           </p>
 
           {booking ? (

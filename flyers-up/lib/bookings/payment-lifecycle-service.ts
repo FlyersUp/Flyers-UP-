@@ -29,6 +29,11 @@ import type {
   PayoutHoldReason,
 } from '@/lib/bookings/payment-lifecycle-types';
 import { assertPayoutHoldReason } from '@/lib/bookings/payment-lifecycle-types';
+import {
+  finalPaymentAutoRetryCountCeiling,
+  hoursBeforeNextFinalPaymentCronAttempt,
+  mapStripeFailureCodeToFinalPaymentRetryReason,
+} from '@/lib/bookings/final-payment-retry-reason';
 import { PAYOUT_REVIEW_QUEUE_OPEN_STATUSES } from '@/lib/admin/payout-review-queue-status';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 import { createNotificationEvent } from '@/lib/notifications';
@@ -644,6 +649,10 @@ export async function attemptFinalCharge(
           requires_customer_action_at: now,
           payout_blocked: true,
           payout_hold_reason: 'requires_customer_action',
+          final_payment_retry_reason: 'requires_action',
+          last_failure_code: pi.last_payment_error?.code ?? 'requires_action',
+          last_failure_message:
+            pi.last_payment_error?.message ?? 'This payment requires additional authentication.',
         })
         .eq('id', input.bookingId);
       await syncBookingPaymentSummary(admin, input.bookingId);
@@ -701,6 +710,9 @@ export async function recoverFinalChargeException(
       payout_hold_reason: 'charge_failed',
       final_payment_status: 'FAILED',
       final_charge_retry_count: nextRetry,
+      final_payment_retry_reason: 'unknown',
+      last_failure_code: 'exception',
+      last_failure_message: errorMessage,
     })
     .eq('id', bookingId)
     .eq('payment_lifecycle_status', 'final_processing');
@@ -714,19 +726,20 @@ export async function recoverFinalChargeException(
       failure_message: errorMessage,
       retry_count: nextRetry,
       no_payment_intent: true,
+      final_payment_retry_reason: 'unknown',
     },
   });
   await syncBookingPaymentSummary(admin, bookingId);
 
   const cid = (row as { customer_id?: string } | null)?.customer_id;
-  if (cid) {
+    if (cid) {
     void createNotificationEvent({
       userId: cid,
       type: NOTIFICATION_TYPES.PAYMENT_FAILED,
       bookingId,
-      titleOverride: 'Remaining payment could not be processed',
+      titleOverride: 'Your payment failed — update your card',
       bodyOverride:
-        'We could not charge your saved card. Please update your payment method or pay the remaining balance in the app.',
+        'Open your booking to update your payment method or complete the remaining balance.',
       basePath: 'customer',
       dedupeKey: `final_charge_exception:${bookingId}:${nextRetry}`,
     });
@@ -781,6 +794,9 @@ export async function handleFinalPaymentSucceeded(
       payment_lifecycle_status: 'final_paid',
       status: nextBookingStatus,
       status_history: nextHistory,
+      final_payment_retry_reason: null,
+      last_failure_code: null,
+      last_failure_message: null,
     })
     .eq('id', bookingId);
 
@@ -869,18 +885,78 @@ export async function handleFinalPaymentFailed(
     return;
   }
 
+  const retryReason = mapStripeFailureCodeToFinalPaymentRetryReason(input.failureCode);
   const { data: row } = await admin
     .from('bookings')
     .select('final_charge_retry_count')
     .eq('id', bookingId)
     .maybeSingle();
-  const nextRetry = Number((row as { final_charge_retry_count?: number } | null)?.final_charge_retry_count ?? 0) + 1;
+  const prevRetryCount = Number(
+    (row as { final_charge_retry_count?: number } | null)?.final_charge_retry_count ?? 0
+  );
   const now = new Date().toISOString();
+
+  if (retryReason === 'requires_action') {
+    await admin
+      .from('bookings')
+      .update({
+        final_payment_retry_reason: retryReason,
+        last_failure_code: input.failureCode,
+        last_failure_message: input.failureMessage,
+        payment_failed_at: now,
+        payout_blocked: true,
+        payout_hold_reason: 'requires_customer_action',
+        payment_lifecycle_status: 'requires_customer_action',
+        requires_customer_action_at: now,
+        final_charge_retry_count: prevRetryCount,
+        final_payment_status: 'FAILED',
+      })
+      .eq('id', bookingId);
+
+    await logBookingPaymentEvent(admin, {
+      bookingId,
+      eventType: 'final_payment_failed',
+      phase: 'final',
+      status: 'requires_action',
+      stripePaymentIntentId: input.paymentIntentId || null,
+      metadata: {
+        failure_code: input.failureCode,
+        failure_message: input.failureMessage,
+        retry_count: prevRetryCount,
+        final_payment_retry_reason: retryReason,
+        auto_retry: false,
+      },
+    });
+
+    await syncBookingPaymentSummary(admin, bookingId);
+
+    const { data: cust } = await admin.from('bookings').select('customer_id').eq('id', bookingId).maybeSingle();
+    const cid = (cust as { customer_id?: string } | null)?.customer_id;
+    if (cid) {
+      void createNotificationEvent({
+        userId: cid,
+        type: NOTIFICATION_TYPES.PAYMENT_FAILED,
+        bookingId,
+        titleOverride: 'Action required to complete payment',
+        bodyOverride:
+          'Open your booking to authenticate with your bank or update your payment method.',
+        basePath: 'customer',
+        dedupeKey: `final_pi_requires_action:${input.paymentIntentId}`,
+      });
+    }
+    return;
+  }
+
+  const nextRetry = prevRetryCount + 1;
+  const retryCeiling = finalPaymentAutoRetryCountCeiling(retryReason);
 
   await admin
     .from('bookings')
     .update({
       final_charge_retry_count: nextRetry,
+      final_payment_retry_reason: retryReason,
+      last_failure_code: input.failureCode,
+      last_failure_message: input.failureMessage,
       payment_failed_at: now,
       payout_blocked: true,
       payout_hold_reason: 'charge_failed',
@@ -899,16 +975,17 @@ export async function handleFinalPaymentFailed(
       failure_code: input.failureCode,
       failure_message: input.failureMessage,
       retry_count: nextRetry,
+      final_payment_retry_reason: retryReason,
     },
   });
 
-  if (nextRetry < 3) {
+  if (nextRetry < retryCeiling) {
     await logBookingPaymentEvent(admin, {
       bookingId,
       eventType: 'retry_scheduled',
       phase: 'final',
       status: 'scheduled',
-      metadata: { attempt: nextRetry },
+      metadata: { attempt: nextRetry, final_payment_retry_reason: retryReason },
     });
   }
 
@@ -921,9 +998,9 @@ export async function handleFinalPaymentFailed(
       userId: cid,
       type: NOTIFICATION_TYPES.PAYMENT_FAILED,
       bookingId,
-      titleOverride: 'Remaining payment could not be processed',
+      titleOverride: 'Your payment failed — update your card',
       bodyOverride:
-        'Your saved card was declined or could not be charged. Please update your payment method or pay the remaining balance in the app.',
+        'Open your booking to update your payment method or complete the remaining balance.',
       basePath: 'customer',
       dedupeKey: `final_pi_failed:${input.paymentIntentId}`,
     });

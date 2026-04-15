@@ -17,6 +17,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Check, MessageCircle, Home } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT } from '@/lib/bookings/customer-payment-platform-hold-copy';
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -207,6 +208,9 @@ export function BookingConfirmedContent({
         <h2 id="confirmed-payment" className="text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-3">
           Payment
         </h2>
+        <p className="mb-3 text-xs leading-relaxed text-[#6A6A6A] dark:text-[#A1A8B3]">
+          {CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT}
+        </p>
         <div className="space-y-2 text-sm">
           {isFinal ? (
             <div className="flex justify-between">

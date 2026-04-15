@@ -256,7 +256,11 @@ export function buildBookingPaymentIntentStripeFields(input: {
   };
 }
 
-/** Legacy single-charge checkout (full amount in one PaymentIntent). */
+/**
+ * Legacy single-charge checkout (full amount in one PaymentIntent).
+ * Hosted Stripe Checkout reuses this builder (`buildHostedCheckoutPaymentIntentData`) so `payment_phase: full`
+ * matches deposit/final routing keys consumed by `normalizeBookingPaymentMetadata` / webhooks.
+ */
 export function buildLegacyFullPaymentIntentStripeFields(input: {
   bookingId: string;
   customerId: string;
