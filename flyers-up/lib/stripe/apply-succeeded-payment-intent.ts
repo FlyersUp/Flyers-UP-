@@ -253,29 +253,38 @@ export async function applySucceededPaymentIntent(
           });
         }
       }
+    } else {
+      console.error('[applySucceededPI] late-cancel refund not created (Stripe returned null)', {
+        bookingId,
+        payment_intent_id: paymentIntent.id,
+        payment_kind: paymentKind,
+        note: 'Booking refund_status may be pending; do not send refund-success notifications.',
+      });
     }
     await admin.from('booking_events').insert({
       booking_id: bookingId,
       type: 'LATE_PAYMENT_AUTO_REFUND',
       data: { payment_intent_id: paymentIntent.id, refund_id: refundId ?? null },
     });
-    void createNotificationEvent({
-      userId: b.customer_id,
-      type: NOTIFICATION_TYPES.PAYMENT_REFUNDED,
-      bookingId,
-      titleOverride: 'Payment refunded',
-      bodyOverride: 'Payment arrived after cancellation — automatically refunded',
-      basePath: 'customer',
-    });
-    if (proUserId) {
+    if (refundId) {
       void createNotificationEvent({
-        userId: proUserId,
+        userId: b.customer_id,
         type: NOTIFICATION_TYPES.PAYMENT_REFUNDED,
         bookingId,
-        titleOverride: 'Late payment refunded',
-        bodyOverride: 'Customer paid after cancellation — refunded',
-        basePath: 'pro',
+        titleOverride: 'Payment refunded',
+        bodyOverride: 'Payment arrived after cancellation — automatically refunded',
+        basePath: 'customer',
       });
+      if (proUserId) {
+        void createNotificationEvent({
+          userId: proUserId,
+          type: NOTIFICATION_TYPES.PAYMENT_REFUNDED,
+          bookingId,
+          titleOverride: 'Late payment refunded',
+          bodyOverride: 'Customer paid after cancellation — refunded',
+          basePath: 'pro',
+        });
+      }
     }
     return {
       handled: true,

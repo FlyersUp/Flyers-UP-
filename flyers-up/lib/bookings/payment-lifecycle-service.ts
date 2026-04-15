@@ -23,6 +23,7 @@ import {
   refundPaymentIntent,
   refundPaymentIntentPartial,
 } from '@/lib/stripe/server';
+import { runAdminRefundCustomerStripeRefunds } from '@/lib/bookings/admin-refund-customer-stripe';
 import { isPayoutEligible } from '@/lib/bookings/state-machine';
 import { resolveMilestonePayoutGate } from '@/lib/bookings/multi-day-payout';
 import { resolveProPayoutTransferCents } from '@/lib/bookings/booking-payout-economics';
@@ -1546,11 +1547,13 @@ export async function runAdminRefundCustomer(
     actorUserId: string;
     refundReason?: string | null;
     internalNote?: string | null;
-  }
+  },
+  /** Automated tests: supply a stub `refundPaymentIntent` and the Stripe client guard is skipped. */
+  testOverrides?: { refundPaymentIntent?: typeof refundPaymentIntent }
 ): Promise<{ ok: boolean; error?: string; message?: string }> {
   const id = input.bookingId;
-  const stripe = stripeClient();
-  if (!stripe) {
+  const hasRefundOverride = Boolean(testOverrides?.refundPaymentIntent);
+  if (!hasRefundOverride && !stripeClient()) {
     return { ok: false, error: 'stripe_not_configured' };
   }
 
@@ -1610,52 +1613,23 @@ export async function runAdminRefundCustomer(
   const refundType = payoutReleased ? 'after_payout' : 'before_payout';
   const requiresClawback = payoutReleased;
 
-  const refundIds: { pi: string; refundId: string; amountCents: number }[] = [];
-  try {
-    if (piFinal) {
-      const rid = await refundPaymentIntent(
-        piFinal,
-        refundLifecycleMetadata({
-          booking_id: id,
-          refund_scope: 'full',
-          resolution_type: 'admin_refund_customer',
-          refunded_amount_cents: finalCents > 0 ? finalCents : 0,
-          refund_type: refundType,
-          refund_source_payment_phase: 'final',
-          subtotal_cents: subtotalSnap,
-          total_amount_cents: totalSnap,
-          platform_fee_cents: platformSnap,
-          deposit_amount_cents: depCents,
-          final_amount_cents: finalCents,
-          pricing_version: pricingSnap,
-        })
-      );
-      if (rid) refundIds.push({ pi: piFinal, refundId: rid, amountCents: finalCents > 0 ? finalCents : 0 });
-    }
-    if (piDep && piDep !== piFinal) {
-      const rid = await refundPaymentIntent(
-        piDep,
-        refundLifecycleMetadata({
-          booking_id: id,
-          refund_scope: 'full',
-          resolution_type: 'admin_refund_customer',
-          refunded_amount_cents: depCents > 0 ? depCents : 0,
-          refund_type: refundType,
-          refund_source_payment_phase: 'deposit',
-          subtotal_cents: subtotalSnap,
-          total_amount_cents: totalSnap,
-          platform_fee_cents: platformSnap,
-          deposit_amount_cents: depCents,
-          final_amount_cents: finalCents,
-          pricing_version: pricingSnap,
-        })
-      );
-      if (rid) refundIds.push({ pi: piDep, refundId: rid, amountCents: depCents > 0 ? depCents : 0 });
-    }
-  } catch (e) {
-    console.error('[runAdminRefundCustomer] stripe refund failed', id, e);
-    return { ok: false, error: 'stripe_refund_failed' };
+  const stripeBatch = await runAdminRefundCustomerStripeRefunds({
+    bookingId: id,
+    piFinal,
+    piDep,
+    depCents,
+    finalCents,
+    subtotalSnap,
+    totalSnap,
+    platformSnap,
+    pricingSnap,
+    payoutReleased,
+    refundPaymentIntent: testOverrides?.refundPaymentIntent,
+  });
+  if (!stripeBatch.ok) {
+    return { ok: false, error: stripeBatch.error };
   }
+  const refundIds = stripeBatch.refundIds;
 
   const now = new Date().toISOString();
   const reasonTrim = input.refundReason?.trim() || null;
@@ -1939,6 +1913,14 @@ export async function resolveDispute(
         }),
         idempotencyKey: `dispute-partial-refund-${input.disputeId}-${piRefund}-${input.refundAmountCents}`,
       });
+      if (!rid) {
+        console.error('[resolveDispute] refundPaymentIntentPartial returned null', {
+          bookingId,
+          disputeId: input.disputeId,
+          payment_intent: piRefund,
+          amount_cents: input.refundAmountCents,
+        });
+      }
       if (rid) {
         const after = br?.payout_released === true;
         await appendBookingRefundEvent(admin, {

@@ -221,6 +221,11 @@ export async function GET(req: NextRequest) {
       }
       succeeded++;
     } else {
+      console.error('[cron/auto-refunds] refundPaymentIntent returned null', {
+        booking_id: b.id,
+        payment_intent: piId,
+        note: 'refund_status was set pending then failed; customer notified.',
+      });
       await admin
         .from('bookings')
         .update({ refund_status: 'failed' })

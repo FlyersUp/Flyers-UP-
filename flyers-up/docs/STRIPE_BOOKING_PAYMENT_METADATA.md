@@ -55,10 +55,32 @@ Per-line fees and promo lines (when present), e.g. `service_fee_cents`, `conveni
 - **Analytics** — Join on `pricing_version` + phase; do not treat analytics-only keys as financial truth
 - **Refunds / remediation** — Amount decisions use DB + Stripe objects; metadata documents scope and timing (`refund_type`, `refunded_amount_cents`)
 
+## Refund caller behavior when `refundPaymentIntent*` returns `null`
+
+`null` means the refund was **not** created in Stripe (metadata validation abort in production, Stripe/network error, or missing charge). Callers must not treat `null` like a successful refund id.
+
+| Caller | On `null` |
+|--------|-----------|
+| **Admin `partial_refund` route** | `502` + `refund_not_created`; structured `console.error` with `booking_id` / PI / cents. |
+| **Admin `full_refund` route** | Per-PI `console.error`; if any attempted PI fails, **no** booking `refunded`/`succeeded` update; `502` + `stripe_refund_incomplete` with attempted/succeeded counts. |
+| **`runAdminRefundCustomer`** | Per-PI `console.error`; batch guard returns `stripe_refund_failed` or `stripe_refund_partial_failure`; **no** booking refund lifecycle update. |
+| **`resolveDispute` (partial refund)** | `console.error`; dispute resolution still proceeds (dispute row + booking flags already updated); **no** ledger/remediation without a refund id. |
+| **Cron `auto-refunds`** | `console.error`; `refund_status: failed` + customer notification (existing `else` branch). |
+| **`applySucceededPI` (late cancel)** | `console.error`; **no** “refunded” customer/pro push; `refund_status` may stay `pending` for ops follow-up. |
+| **`executeNoShowCancel` (deposit)** | `console.error`; `refund_status: failed` on booking (cancel RPC already succeeded). |
+| **`maybeRefundDepositAfterReviewWindowCancel`** | Existing branch sets `refund_status: failed` + `manual_review_required` + returns error (now also logs). |
+
+**Intentional difference:** `resolveDispute` does not roll back dispute resolution when the Stripe partial refund fails — the admin has already chosen an outcome; ops must reconcile money separately.
+
 ## Drift prevention
 
-- `lib/stripe/server.ts` — in dev/CI, `refundPaymentIntent` / `refundPaymentIntentPartial` / `createTransfer` validate non-empty metadata via `assertCanonical*MetadataDev`.
+- `lib/stripe/server.ts` — `validateRefundCreateMetadata` runs before every Stripe refund create:
+  - **Dev / CI:** throws if metadata is `{}` / omitted (normalized to empty) or if `booking_id` is missing/blank, then `assertCanonicalRefundMetadataDev` for complete objects.
+  - **Production:** empty or `booking_id`-less metadata logs an error and **does not** call Stripe (returns `null` from `refundPaymentIntent` / `refundPaymentIntentPartial`) unless the documented escape hatch is enabled.
+- **Documented exception:** set `ALLOW_EMPTY_STRIPE_REFUND_METADATA=1` (see `REFUND_METADATA_LEGACY_ALLOW_ENV` in `server.ts`) only for legacy or emergency paths; prefer `refundLifecycleMetadata` on all callers.
+- `createTransfer` — non-empty metadata still validated via `assertCanonicalTransferMetadataDev`.
 - `lib/stripe/__tests__/metadata-guardrail.test.ts` — scans `lib/` and `app/` (excluding tests and `server.ts`) and fails if `refundPaymentIntent*` is used without `refundLifecycleMetadata`, or `createTransfer` without `transferLifecycleStripeMetadata`.
+- `lib/stripe/__tests__/refund-metadata-guard.test.ts` — unit coverage for empty metadata and missing `booking_id` behavior.
 
 ## Backward compatibility
 

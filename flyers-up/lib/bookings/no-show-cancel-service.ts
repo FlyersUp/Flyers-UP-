@@ -137,7 +137,14 @@ export async function executeNoShowCancel(
         extra: { reason: 'requested_by_customer' },
       })
     );
-    if (refundId) {
+    if (!refundId) {
+      console.error('[no-show-cancel] deposit refundPaymentIntent returned null', {
+        bookingId,
+        deposit_payment_intent: depositPiId,
+        note: 'Booking is already cancelled; refund did not run. Investigate Stripe/metadata.',
+      });
+      await admin.from('bookings').update({ refund_status: 'failed' }).eq('id', bookingId);
+    } else {
       if (afterPayoutPre) {
         const tid =
           typeof sn?.stripe_transfer_id === 'string' && sn.stripe_transfer_id.trim()

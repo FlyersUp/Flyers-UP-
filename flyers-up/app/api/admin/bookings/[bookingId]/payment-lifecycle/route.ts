@@ -28,6 +28,7 @@ import {
   type BookingFinalPaymentIntentIdRow,
 } from '@/lib/bookings/money-state';
 import { recordRefundAfterPayoutRemediation } from '@/lib/bookings/refund-remediation';
+import { refundBatchIsComplete } from '@/lib/stripe/refund-batch-outcome';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -236,7 +237,16 @@ export async function POST(
         idempotencyKey: `admin-partial-refund-${id}-${piId}-${cents}`,
       });
       if (!refundId) {
-        return NextResponse.json({ error: 'Stripe partial refund failed' }, { status: 502 });
+        console.error('[admin partial_refund] refundPaymentIntentPartial returned null', {
+          booking_id: id,
+          payment_intent: piId,
+          cents,
+          note: 'Includes metadata validation abort and Stripe failures; do not treat as success.',
+        });
+        return NextResponse.json(
+          { error: 'Stripe partial refund failed', code: 'refund_not_created' },
+          { status: 502 }
+        );
       }
 
       const prevRef =
@@ -344,14 +354,20 @@ export async function POST(
       const platformSnap = Number(br?.amount_platform_fee ?? 0) || 0;
       const pricingSnap = typeof br?.pricing_version === 'string' ? br.pricing_version : null;
       if (!stripeClient) return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
+
+      let attempted = 0;
       const recorded: { refundId: string; pi: string; cents: number }[] = [];
       if (piFinal) {
+        attempted += 1;
         const rid = await refundPaymentIntent(
           piFinal,
           refundLifecycleMetadata({
             booking_id: id,
             refund_scope: 'full',
             resolution_type: 'admin_full_refund',
+            refunded_amount_cents: finalCents > 0 ? finalCents : 0,
+            refund_type: afterPayout ? 'after_payout' : 'before_payout',
+            refund_source_payment_phase: 'final',
             subtotal_cents: subSnap,
             total_amount_cents: totalSnap,
             platform_fee_cents: platformSnap,
@@ -360,9 +376,17 @@ export async function POST(
             pricing_version: pricingSnap,
           })
         );
+        if (!rid) {
+          console.error('[admin full_refund] refundPaymentIntent returned null', {
+            booking_id: id,
+            payment_intent: piFinal,
+            phase: 'final',
+          });
+        }
         if (rid) recorded.push({ refundId: rid, pi: piFinal, cents: finalCents > 0 ? finalCents : 0 });
       }
       if (piDep && piDep !== piFinal) {
+        attempted += 1;
         const rid = await refundPaymentIntent(
           piDep,
           refundLifecycleMetadata({
@@ -380,8 +404,36 @@ export async function POST(
             pricing_version: pricingSnap,
           })
         );
+        if (!rid) {
+          console.error('[admin full_refund] refundPaymentIntent returned null', {
+            booking_id: id,
+            payment_intent: piDep,
+            phase: 'deposit',
+          });
+        }
         if (rid) recorded.push({ refundId: rid, pi: piDep, cents: depCents > 0 ? depCents : 0 });
       }
+
+      if (attempted === 0) {
+        return NextResponse.json({ error: 'No PaymentIntent for refund' }, { status: 400 });
+      }
+      if (!refundBatchIsComplete(attempted, recorded.length)) {
+        console.error('[admin full_refund] refund batch incomplete — booking not marked refunded', {
+          booking_id: id,
+          attempted,
+          succeeded: recorded.length,
+        });
+        return NextResponse.json(
+          {
+            ok: false,
+            error: 'stripe_refund_incomplete',
+            attempted,
+            succeeded: recorded.length,
+          },
+          { status: 502 }
+        );
+      }
+
       await admin
         .from('bookings')
         .update({
@@ -485,7 +537,9 @@ export async function POST(
               ? 409
               : out.error === 'stripe_not_configured'
                 ? 500
-                : 400;
+                : out.error === 'stripe_refund_failed' || out.error === 'stripe_refund_partial_failure'
+                  ? 502
+                  : 400;
         return NextResponse.json({ ok: false, error: out.error ?? 'refund_failed' }, { status });
       }
       return NextResponse.json({

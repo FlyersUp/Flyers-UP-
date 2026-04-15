@@ -10,6 +10,79 @@ import {
   assertCanonicalTransferMetadataDev,
 } from '@/lib/stripe/payment-metadata';
 
+export type RefundCreateMetadataValidation =
+  | { ok: true }
+  | { ok: false; reason: 'empty_metadata' | 'missing_booking_id'; message: string };
+
+/**
+ * Ensures Stripe refund `metadata` is never silently empty or missing `booking_id`.
+ *
+ * - **Dev / CI** (`NODE_ENV !== 'production'` or `CI` / `VITEST`): throws on invalid metadata unless
+ *   `ALLOW_EMPTY_STRIPE_REFUND_METADATA` is set (see `REFUND_METADATA_LEGACY_ALLOW_ENV`).
+ * - **Production**: returns `{ ok: false }` (caller should abort the refund) and logs an error,
+ *   unless the legacy allow env is set — then logs a warning and returns `{ ok: true }`.
+ *
+ * ## Documented exception (legacy / emergency only)
+ *
+ * Set `ALLOW_EMPTY_STRIPE_REFUND_METADATA=1` to permit empty or booking-id–missing metadata on
+ * refund create. Prefer fixing the caller to use `refundLifecycleMetadata` instead.
+ */
+export const REFUND_METADATA_LEGACY_ALLOW_ENV = 'ALLOW_EMPTY_STRIPE_REFUND_METADATA';
+
+function refundMetadataLegacyAllowEnabled(): boolean {
+  return process.env[REFUND_METADATA_LEGACY_ALLOW_ENV] === '1';
+}
+
+function refundMetadataStrictEnforcement(): boolean {
+  return (
+    process.env.NODE_ENV !== 'production' ||
+    process.env.CI === 'true' ||
+    process.env.VITEST === 'true'
+  );
+}
+
+/**
+ * Validates metadata before `refunds.create`. Exported for unit tests.
+ */
+export function validateRefundCreateMetadata(
+  meta: Record<string, string>,
+  context: string
+): RefundCreateMetadataValidation {
+  const keys = Object.keys(meta);
+  const allowLegacy = refundMetadataLegacyAllowEnabled();
+  const strict = refundMetadataStrictEnforcement();
+
+  if (keys.length === 0) {
+    const message = `${context}: Stripe refund metadata is empty. Use refundLifecycleMetadata(...) from booking-payment-metadata-lifecycle. Documented escape: ${REFUND_METADATA_LEGACY_ALLOW_ENV}=1.`;
+    if (strict && !allowLegacy) {
+      throw new Error(message);
+    }
+    if (!strict && !allowLegacy) {
+      console.error('[stripe]', message);
+      return { ok: false, reason: 'empty_metadata', message };
+    }
+    console.warn('[stripe]', message, `(${REFUND_METADATA_LEGACY_ALLOW_ENV}=1; proceeding)`);
+    return { ok: true };
+  }
+
+  const bookingId = String(meta.booking_id ?? '').trim();
+  if (!bookingId) {
+    const message = `${context}: Stripe refund metadata must include non-empty booking_id (canonical snake_case key). Documented escape: ${REFUND_METADATA_LEGACY_ALLOW_ENV}=1.`;
+    if (strict && !allowLegacy) {
+      throw new Error(message);
+    }
+    if (!strict && !allowLegacy) {
+      console.error('[stripe]', message, { keys: keys.slice(0, 20) });
+      return { ok: false, reason: 'missing_booking_id', message };
+    }
+    console.warn('[stripe]', message, `(${REFUND_METADATA_LEGACY_ALLOW_ENV}=1; proceeding)`);
+    return { ok: true };
+  }
+
+  assertCanonicalRefundMetadataDev(meta, context);
+  return { ok: true };
+}
+
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key?.trim()) {
@@ -35,11 +108,21 @@ export const stripe = (() => {
  * An outbound **Transfer** to a connected account is **not** reversed automatically — reconciling
  * post-payout refunds (recovery / clawback) is a separate operational step. Callers must not assume
  * the pro’s Connect balance was debited by this API alone.
+ *
+ * **Metadata:** Pass the object from `refundLifecycleMetadata`. Empty or invalid metadata is
+ * rejected in dev/CI (throws) and in production returns `null` without calling Stripe unless
+ * `ALLOW_EMPTY_STRIPE_REFUND_METADATA=1` is set (documented legacy escape hatch).
  */
 export async function refundPaymentIntent(
   paymentIntentId: string,
   reasonMetadata?: Record<string, string>
 ): Promise<string | null> {
+  const meta = reasonMetadata ?? {};
+  const validated = validateRefundCreateMetadata(meta, 'refundPaymentIntent');
+  if (!validated.ok) {
+    return null;
+  }
+
   try {
     const s = getStripe();
     const pi = await s.paymentIntents.retrieve(paymentIntentId);
@@ -47,10 +130,6 @@ export async function refundPaymentIntent(
     if (!chargeId) {
       console.warn('[stripe] No charge to refund for PI', paymentIntentId);
       return null;
-    }
-    const meta = reasonMetadata ?? {};
-    if (Object.keys(meta).length > 0) {
-      assertCanonicalRefundMetadataDev(meta, 'refundPaymentIntent');
     }
     const refund = await s.refunds.create(
       {
@@ -72,6 +151,8 @@ export async function refundPaymentIntent(
  *
  * Same **Connect / Transfer** caveat as {@link refundPaymentIntent}: no automatic reversal of funds
  * already transferred to the connected account.
+ *
+ * **Metadata:** Same rules as `refundPaymentIntent` — use `refundLifecycleMetadata`.
  */
 export async function refundPaymentIntentPartial(
   paymentIntentId: string,
@@ -86,14 +167,16 @@ export async function refundPaymentIntentPartial(
     console.warn('[stripe] refundPaymentIntentPartial: invalid amount', amountCents);
     return null;
   }
+  const partialMeta = options?.metadata ?? {};
+  const validated = validateRefundCreateMetadata(partialMeta, 'refundPaymentIntentPartial');
+  if (!validated.ok) {
+    return null;
+  }
+
   try {
     const s = getStripe();
     const idempotencyKey =
       options?.idempotencyKey ?? `partial-refund-${paymentIntentId}-${Math.round(amountCents)}`;
-    const partialMeta = options?.metadata ?? {};
-    if (Object.keys(partialMeta).length > 0) {
-      assertCanonicalRefundMetadataDev(partialMeta, 'refundPaymentIntentPartial');
-    }
     const refund = await s.refunds.create(
       {
         payment_intent: paymentIntentId,

@@ -233,6 +233,11 @@ export async function maybeRefundDepositAfterReviewWindowCancel(
       }
     }
   } else if (decision.refundAmountCents > 0) {
+    console.error('[post-completion-review-cancel] Stripe refund returned null', {
+      bookingId,
+      deposit_payment_intent: depositPaymentIntentId,
+      refund_amount_cents: decision.refundAmountCents,
+    });
     await admin
       .from('bookings')
       .update({ refund_status: 'failed', manual_review_required: true })
