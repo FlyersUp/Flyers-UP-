@@ -27,6 +27,7 @@ import {
   coalesceBookingFinalPaymentIntentId,
   type BookingFinalPaymentIntentIdRow,
 } from '@/lib/bookings/money-state';
+import { recordRefundAfterPayoutRemediation } from '@/lib/bookings/refund-remediation';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -198,6 +199,8 @@ export async function POST(
             'final_amount_cents',
             'remaining_amount_cents',
             'pricing_version',
+            'stripe_transfer_id',
+            'payout_transfer_id',
           ].join(', ')
         )
         .eq('id', id)
@@ -257,6 +260,37 @@ export async function POST(
       if (ledger.ok === false && 'error' in ledger) {
         console.warn('[admin partial_refund] ledger', ledger.error);
       }
+      if (afterPayout) {
+        const tid =
+          typeof br?.stripe_transfer_id === 'string' && String(br.stripe_transfer_id).trim()
+            ? String(br.stripe_transfer_id).trim()
+            : typeof br?.payout_transfer_id === 'string' && String(br.payout_transfer_id).trim()
+              ? String(br.payout_transfer_id).trim()
+              : null;
+        const rem = await recordRefundAfterPayoutRemediation(admin, {
+          bookingId: id,
+          idempotencyKey: `admin-partial:${id}:${refundId}`,
+          source: 'admin_partial_refund',
+          refundScope: 'partial',
+          amountCents: cents,
+          stripeRefundIds: [refundId],
+          payoutReleased: true,
+          stripeTransferId: tid,
+          actorUserId: user.id,
+          actorType: 'admin',
+        });
+        if (rem.ok && !rem.skipped) {
+          await logBookingPaymentEvent(admin, {
+            bookingId: id,
+            eventType: 'post_payout_refund_remediation_opened',
+            phase: 'refund',
+            status: 'pending_review',
+            actorType: 'admin',
+            actorUserId: user.id,
+            metadata: { remediation: 'admin_partial_refund' },
+          });
+        }
+      }
       await syncBookingPaymentSummary(admin, id);
       await logBookingPaymentEvent(admin, {
         bookingId: id,
@@ -290,6 +324,8 @@ export async function POST(
             'amount_total',
             'amount_platform_fee',
             'pricing_version',
+            'stripe_transfer_id',
+            'payout_transfer_id',
           ].join(', ')
         )
         .eq('id', id)
@@ -359,6 +395,36 @@ export async function POST(
           source: 'admin',
         });
         if (ins.ok === false && 'error' in ins) console.warn('[admin full_refund] ledger', ins.error);
+      }
+      if (afterPayout && recorded.length > 0) {
+        const tid =
+          typeof br?.stripe_transfer_id === 'string' && String(br.stripe_transfer_id).trim()
+            ? String(br.stripe_transfer_id).trim()
+            : typeof br?.payout_transfer_id === 'string' && String(br.payout_transfer_id).trim()
+              ? String(br.payout_transfer_id).trim()
+              : null;
+        const rem = await recordRefundAfterPayoutRemediation(admin, {
+          bookingId: id,
+          idempotencyKey: `admin-full-refund-route:${id}:${recorded.map((r) => r.refundId).join(':')}`,
+          source: 'admin_full_refund_route',
+          refundScope: 'full',
+          stripeRefundIds: recorded.map((r) => r.refundId),
+          payoutReleased: true,
+          stripeTransferId: tid,
+          actorUserId: user.id,
+          actorType: 'admin',
+        });
+        if (rem.ok && !rem.skipped) {
+          await logBookingPaymentEvent(admin, {
+            bookingId: id,
+            eventType: 'post_payout_refund_remediation_opened',
+            phase: 'refund',
+            status: 'pending_review',
+            actorType: 'admin',
+            actorUserId: user.id,
+            metadata: { remediation: 'admin_full_refund_route' },
+          });
+        }
       }
       await syncBookingPaymentSummary(admin, id);
       await logBookingPaymentEvent(admin, {

@@ -126,6 +126,7 @@ async function getCustomerBooking(bookingId: string) {
     payment_lifecycle_status?: string | null;
     customer_review_deadline_at?: string | null;
     payout_released?: boolean | null;
+    payout_transfer_id?: string | null;
     requires_admin_review?: boolean | null;
     payout_hold_reason?: string | null;
     suspicious_completion?: boolean | null;

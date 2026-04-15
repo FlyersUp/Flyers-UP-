@@ -7,7 +7,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CancellationPolicyDecision } from '@/lib/operations/cancellationPolicy';
 import { CANCELLATION_POLICY_VERSION, type CancellationReasonCode } from '@/lib/operations/cancellationPolicy';
 import { appendBookingRefundEvent } from '@/lib/bookings/booking-refund-ledger';
-import { logBookingPaymentEvent, syncBookingPaymentSummary } from '@/lib/bookings/payment-lifecycle-service';
+import {
+  logBookingPaymentEvent,
+  syncBookingPaymentSummary,
+} from '@/lib/bookings/payment-lifecycle-service';
+import { recordRefundAfterPayoutRemediation } from '@/lib/bookings/refund-remediation';
 import { refundPaymentIntent, refundPaymentIntentPartial } from '@/lib/stripe/server';
 import { refundLifecycleMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
 
@@ -185,6 +189,41 @@ export async function maybeRefundDepositAfterReviewWindowCancel(
         ...(payoutReleased ? { refund_after_payout: true, requires_admin_review: true } : {}),
       })
       .eq('id', bookingId);
+
+    if (payoutReleased) {
+      const { data: snap } = await admin
+        .from('bookings')
+        .select('stripe_transfer_id, payout_transfer_id')
+        .eq('id', bookingId)
+        .maybeSingle();
+      const s = snap as { stripe_transfer_id?: string | null; payout_transfer_id?: string | null } | null;
+      const tid =
+        typeof s?.stripe_transfer_id === 'string' && s.stripe_transfer_id.trim()
+          ? s.stripe_transfer_id.trim()
+          : typeof s?.payout_transfer_id === 'string' && s.payout_transfer_id.trim()
+            ? s.payout_transfer_id.trim()
+            : null;
+      const rem = await recordRefundAfterPayoutRemediation(admin, {
+        bookingId,
+        idempotencyKey: `post-completion-review:${bookingId}:${refundId}`,
+        source: 'post_completion_review_cancel',
+        refundScope: decision.refundAmountCents >= depositPaidCents ? 'full' : 'partial',
+        amountCents: decision.refundAmountCents,
+        stripeRefundIds: [refundId],
+        payoutReleased: true,
+        stripeTransferId: tid,
+        actorType: 'system',
+      });
+      if (rem.ok && !rem.skipped) {
+        await logBookingPaymentEvent(admin, {
+          bookingId,
+          eventType: 'post_payout_refund_remediation_opened',
+          phase: 'refund',
+          status: 'pending_review',
+          metadata: { remediation: 'post_completion_review_cancel' },
+        });
+      }
+    }
   } else if (decision.refundAmountCents > 0) {
     await admin
       .from('bookings')

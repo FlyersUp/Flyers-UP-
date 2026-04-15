@@ -54,6 +54,7 @@ import {
   bookingRefundEventExistsForStripeEvent,
   legacyWebhookChargeRefundLedgerDup,
 } from '@/lib/bookings/booking-refund-ledger';
+import { recordRefundAfterPayoutRemediation } from '@/lib/bookings/refund-remediation';
 import { PAYOUT_REVIEW_QUEUE_OPEN_STATUSES } from '@/lib/admin/payout-review-queue-status';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 import { createNotificationEvent } from '@/lib/notifications';
@@ -1575,6 +1576,8 @@ export async function runAdminRefundCustomer(
         'amount_total',
         'amount_platform_fee',
         'pricing_version',
+        'stripe_transfer_id',
+        'payout_transfer_id',
       ].join(', ')
     )
     .eq('id', id)
@@ -1677,6 +1680,39 @@ export async function runAdminRefundCustomer(
     });
     if (ins.ok === false && 'error' in ins) {
       console.warn('[runAdminRefundCustomer] refund ledger insert', id, ins.error);
+    }
+  }
+
+  if (payoutReleased && refundIds.length > 0) {
+    const stripeTransferId =
+      typeof br.stripe_transfer_id === 'string' && br.stripe_transfer_id.trim()
+        ? br.stripe_transfer_id.trim()
+        : typeof br.payout_transfer_id === 'string' && br.payout_transfer_id.trim()
+          ? br.payout_transfer_id.trim()
+          : null;
+    const rem = await recordRefundAfterPayoutRemediation(admin, {
+      bookingId: id,
+      idempotencyKey: `admin-refund-customer:${id}:${refundIds.map((x) => x.refundId).join(':')}`,
+      source: 'admin_refund_customer',
+      refundScope: 'full',
+      stripeRefundIds: refundIds.map((x) => x.refundId),
+      payoutReleased: true,
+      stripeTransferId,
+      actorUserId: input.actorUserId,
+      actorType: 'admin',
+    });
+    if (rem.ok && !rem.skipped) {
+      await logBookingPaymentEvent(admin, {
+        bookingId: id,
+        eventType: 'post_payout_refund_remediation_opened',
+        phase: 'refund',
+        status: 'pending_review',
+        actorType: 'admin',
+        actorUserId: input.actorUserId,
+        metadata: { remediation: 'admin_refund_customer' },
+      });
+    } else if (!rem.ok) {
+      console.warn('[runAdminRefundCustomer] remediation failed', id, rem);
     }
   }
 
@@ -1864,6 +1900,8 @@ export async function resolveDispute(
           'final_amount_cents',
           'remaining_amount_cents',
           'pricing_version',
+          'stripe_transfer_id',
+          'payout_transfer_id',
         ].join(', ')
       )
       .eq('id', bookingId)
@@ -1904,10 +1942,35 @@ export async function resolveDispute(
           source: 'dispute',
         });
         if (after) {
-          await admin
-            .from('bookings')
-            .update({ refund_after_payout: true, requires_admin_review: true })
-            .eq('id', bookingId);
+          const tid =
+            typeof br?.stripe_transfer_id === 'string' && br.stripe_transfer_id.trim()
+              ? br.stripe_transfer_id.trim()
+              : typeof br?.payout_transfer_id === 'string' && br.payout_transfer_id.trim()
+                ? br.payout_transfer_id.trim()
+                : null;
+          const rem = await recordRefundAfterPayoutRemediation(admin, {
+            bookingId,
+            idempotencyKey: `dispute-partial:${bookingId}:${rid}`,
+            source: 'dispute',
+            refundScope: 'partial',
+            amountCents: input.refundAmountCents,
+            stripeRefundIds: [rid],
+            payoutReleased: true,
+            stripeTransferId: tid,
+            actorUserId: input.adminUserId,
+            actorType: 'admin',
+          });
+          if (rem.ok && !rem.skipped) {
+            await logBookingPaymentEvent(admin, {
+              bookingId,
+              eventType: 'post_payout_refund_remediation_opened',
+              phase: 'refund',
+              status: 'pending_review',
+              actorType: 'admin',
+              actorUserId: input.adminUserId,
+              metadata: { remediation: 'dispute_partial_refund', dispute_id: input.disputeId },
+            });
+          }
         }
       }
     }
@@ -2045,6 +2108,8 @@ export async function applyStripeChargeRefundedWebhook(
         'amount_deposit',
         'final_amount_cents',
         'remaining_amount_cents',
+        'stripe_transfer_id',
+        'payout_transfer_id',
       ].join(', ')
     )
     .eq('id', bookingId)
@@ -2153,6 +2218,32 @@ export async function applyStripeChargeRefundedWebhook(
       connect_transfer_not_reversed: true,
     },
   });
+
+  if (payoutReleased) {
+    const tidRaw = r.stripe_transfer_id ?? r.payout_transfer_id;
+    const tid =
+      typeof tidRaw === 'string' && tidRaw.trim() ? tidRaw.trim() : null;
+    const rem = await recordRefundAfterPayoutRemediation(admin, {
+      bookingId,
+      idempotencyKey: `webhook:${input.stripeEventId}`,
+      source: 'webhook_charge_refunded',
+      refundScope: paidCents > 0 && nextRefunded >= paidCents ? 'full' : 'partial',
+      amountCents: delta,
+      stripeRefundIds: input.stripeRefundId ? [input.stripeRefundId] : [],
+      payoutReleased: true,
+      stripeTransferId: tid,
+      actorType: 'system',
+    });
+    if (rem.ok && !rem.skipped) {
+      await logBookingPaymentEvent(admin, {
+        bookingId,
+        eventType: 'post_payout_refund_remediation_opened',
+        phase: 'refund',
+        status: 'pending_review',
+        metadata: { remediation: 'webhook_charge_refunded', stripe_event_id: input.stripeEventId },
+      });
+    }
+  }
 
   await syncBookingPaymentSummary(admin, bookingId);
 

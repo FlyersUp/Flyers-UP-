@@ -11,6 +11,8 @@ import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { refundPaymentIntent } from '@/lib/stripe/server';
 import { refundLifecycleMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
+import { recordRefundAfterPayoutRemediation } from '@/lib/bookings/refund-remediation';
+import { logBookingPaymentEvent } from '@/lib/bookings/payment-lifecycle-service';
 import { appendBookingRefundEvent } from '@/lib/bookings/booking-refund-ledger';
 import { STATUS } from '@/lib/bookings/booking-status';
 import {
@@ -58,6 +60,8 @@ export async function GET(req: NextRequest) {
         'stripe_payment_intent_deposit_id',
         'payment_intent_id',
         'payout_released',
+        'stripe_transfer_id',
+        'payout_transfer_id',
         'service_pros(user_id)',
       ].join(', ')
     )
@@ -137,6 +141,35 @@ export async function GET(req: NextRequest) {
           ...(afterPayout ? { refund_after_payout: true, requires_admin_review: true } : {}),
         })
         .eq('id', b.id);
+
+      if (afterPayout) {
+        const tid =
+          typeof row.stripe_transfer_id === 'string' && String(row.stripe_transfer_id).trim()
+            ? String(row.stripe_transfer_id).trim()
+            : typeof row.payout_transfer_id === 'string' && String(row.payout_transfer_id).trim()
+              ? String(row.payout_transfer_id).trim()
+              : null;
+        const rem = await recordRefundAfterPayoutRemediation(admin, {
+          bookingId: String(b.id),
+          idempotencyKey: `cron:${String(b.id)}:${refundId}`,
+          source: 'cron_auto_refund',
+          refundScope: 'full',
+          amountCents: depCents,
+          stripeRefundIds: [refundId],
+          payoutReleased: true,
+          stripeTransferId: tid,
+          actorType: 'cron',
+        });
+        if (rem.ok && !rem.skipped) {
+          await logBookingPaymentEvent(admin, {
+            bookingId: String(b.id),
+            eventType: 'post_payout_refund_remediation_opened',
+            phase: 'refund',
+            status: 'pending_review',
+            metadata: { remediation: 'cron_auto_refund' },
+          });
+        }
+      }
 
       await admin.from('booking_events').insert({
         booking_id: b.id,

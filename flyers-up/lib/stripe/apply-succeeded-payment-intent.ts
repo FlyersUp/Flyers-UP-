@@ -11,6 +11,8 @@ import { normalizeBookingPaymentMetadata } from '@/lib/stripe/booking-payment-in
 import { recordBookingStripeFeeSnapshot } from '@/lib/stripe/booking-stripe-fee-snapshot';
 import { refundPaymentIntent } from '@/lib/stripe/server';
 import { refundLifecycleMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
+import { recordRefundAfterPayoutRemediation } from '@/lib/bookings/refund-remediation';
+import { logBookingPaymentEvent } from '@/lib/bookings/payment-lifecycle-service';
 import { appendBookingRefundEvent } from '@/lib/bookings/booking-refund-ledger';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
@@ -138,6 +140,8 @@ export async function applySucceededPaymentIntent(
         'remaining_amount_cents',
         'pricing_version',
         'payout_released',
+        'stripe_transfer_id',
+        'payout_transfer_id',
         'service_pros(user_id)',
       ].join(', ')
     )
@@ -204,6 +208,35 @@ export async function applySucceededPaymentIntent(
       });
       if (ins.ok === false && 'error' in ins) {
         console.warn('[applySucceededPI] refund ledger', ins.error);
+      }
+      if (afterPayout && refundId) {
+        const tr = booking as { stripe_transfer_id?: string | null; payout_transfer_id?: string | null };
+        const tid =
+          typeof tr.stripe_transfer_id === 'string' && tr.stripe_transfer_id.trim()
+            ? tr.stripe_transfer_id.trim()
+            : typeof tr.payout_transfer_id === 'string' && tr.payout_transfer_id.trim()
+              ? tr.payout_transfer_id.trim()
+              : null;
+        const rem = await recordRefundAfterPayoutRemediation(admin, {
+          bookingId,
+          idempotencyKey: `late-capture-cancel:${paymentIntent.id}:${refundId}`,
+          source: 'system_cancel',
+          refundScope: 'full',
+          amountCents: paymentIntent.amount,
+          stripeRefundIds: [refundId],
+          payoutReleased: true,
+          stripeTransferId: tid,
+          actorType: 'system',
+        });
+        if (rem.ok && !rem.skipped) {
+          await logBookingPaymentEvent(admin, {
+            bookingId,
+            eventType: 'post_payout_refund_remediation_opened',
+            phase: 'refund',
+            status: 'pending_review',
+            metadata: { remediation: 'cancelled_after_capture' },
+          });
+        }
       }
     }
     await admin.from('booking_events').insert({

@@ -91,7 +91,11 @@ export type BookingPaymentEventType =
   /** Admin chose keep on hold — no transfer; booking stays in review. */
   | 'admin_payout_keep_on_hold'
   /** Admin refunded the customer from payout review (full refund + queue resolved). */
-  | 'admin_refund_customer';
+  | 'admin_refund_customer'
+  /** Post–payout refund: clawback / Connect recovery workflow opened (deduped per remediation idempotency). */
+  | 'post_payout_refund_remediation_opened'
+  /** Admin marked pro clawback remediation resolved or waived. */
+  | 'pro_clawback_remediation_resolved';
 
 const PAYMENT_STATUSES: ReadonlySet<string> = new Set<BookingPaymentStatus>([
   'unpaid',

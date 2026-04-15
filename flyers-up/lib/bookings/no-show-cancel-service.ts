@@ -7,6 +7,8 @@
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { refundPaymentIntent } from '@/lib/stripe/server';
 import { refundLifecycleMetadata } from '@/lib/stripe/booking-payment-metadata-lifecycle';
+import { recordRefundAfterPayoutRemediation } from '@/lib/bookings/refund-remediation';
+import { logBookingPaymentEvent } from '@/lib/bookings/payment-lifecycle-service';
 import { appendBookingRefundEvent } from '@/lib/bookings/booking-refund-ledger';
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
@@ -95,6 +97,8 @@ export async function executeNoShowCancel(
           'final_amount_cents',
           'remaining_amount_cents',
           'pricing_version',
+          'stripe_transfer_id',
+          'payout_transfer_id',
         ].join(', ')
       )
       .eq('id', bookingId)
@@ -110,6 +114,8 @@ export async function executeNoShowCancel(
       final_amount_cents?: number;
       remaining_amount_cents?: number;
       pricing_version?: string | null;
+      stripe_transfer_id?: string | null;
+      payout_transfer_id?: string | null;
     } | null;
     const depCents = Number(sn?.deposit_amount_cents ?? sn?.amount_deposit ?? 0) || 0;
     const refundId = await refundPaymentIntent(
@@ -129,6 +135,34 @@ export async function executeNoShowCancel(
     );
     if (refundId) {
       const afterPayout = sn?.payout_released === true;
+      if (afterPayout) {
+        const tid =
+          typeof sn?.stripe_transfer_id === 'string' && sn.stripe_transfer_id.trim()
+            ? sn.stripe_transfer_id.trim()
+            : typeof sn?.payout_transfer_id === 'string' && sn.payout_transfer_id.trim()
+              ? sn.payout_transfer_id.trim()
+              : null;
+        const rem = await recordRefundAfterPayoutRemediation(admin, {
+          bookingId,
+          idempotencyKey: `no-show:${depositPiId}:${refundId}`,
+          source: 'no_show_cancel',
+          refundScope: 'full',
+          amountCents: depCents,
+          stripeRefundIds: [refundId],
+          payoutReleased: true,
+          stripeTransferId: tid,
+          actorType: 'system',
+        });
+        if (rem.ok && !rem.skipped) {
+          await logBookingPaymentEvent(admin, {
+            bookingId,
+            eventType: 'post_payout_refund_remediation_opened',
+            phase: 'refund',
+            status: 'pending_review',
+            metadata: { remediation: 'no_show_cancel' },
+          });
+        }
+      }
       void appendBookingRefundEvent(admin, {
         bookingId,
         refundType: afterPayout ? 'after_payout' : 'before_payout',
