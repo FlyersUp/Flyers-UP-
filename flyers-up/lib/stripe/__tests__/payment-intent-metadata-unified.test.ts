@@ -173,6 +173,9 @@ test('canonical money snapshot: refund lifecycle + cap', () => {
     booking_id: '00000000-0000-4000-8000-0000000000aa',
     refund_scope: 'full',
     resolution_type: 'admin_refund_customer',
+    refunded_amount_cents: 3500,
+    refund_type: 'before_payout',
+    refund_source_payment_phase: 'final',
     subtotal_cents: 5000,
     total_amount_cents: 5500,
     platform_fee_cents: 500,
@@ -181,6 +184,8 @@ test('canonical money snapshot: refund lifecycle + cap', () => {
     pricing_version: 'pv1',
   });
   assertRefundOrTransferBookingStripeMoneyMetadata(meta);
+  assert.equal(meta.refunded_amount_cents, '3500');
+  assert.equal(meta.refund_type, 'before_payout');
   assert.deepEqual(unifiedMoneySnapshot(meta), {
     booking_id: '00000000-0000-4000-8000-0000000000aa',
     payment_phase: 'refund',
@@ -207,6 +212,8 @@ test('canonical money snapshot: transfer lifecycle + cap', () => {
     pricing_version: '',
   });
   assertRefundOrTransferBookingStripeMoneyMetadata(meta);
+  assert.equal(meta.transferred_total_cents, '4000');
+  assert.equal(meta.payout_amount_cents, '4000');
   assert.deepEqual(unifiedMoneySnapshot(meta), {
     booking_id: '00000000-0000-4000-8000-0000000000bb',
     payment_phase: 'transfer',

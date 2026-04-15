@@ -10,6 +10,7 @@ import {
   type BookingFinalPaymentIntentIdRow,
 } from '@/lib/bookings/money-state';
 import { RefundRemediationAdminPanel } from '@/components/admin/RefundRemediationAdminPanel';
+import { getBookingCanonicalStripeSummary } from '@/lib/stripe/get-booking-canonical-stripe-summary';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,6 +95,7 @@ export default async function AdminBookingPaymentsAuditPage({
     .limit(80);
 
   const receipt = await getBookingReceipt(admin, id);
+  const canonicalStripe = await getBookingCanonicalStripeSummary(admin, id);
 
   return (
     <Layout title="Flyers Up – Admin · Booking payments">
@@ -142,6 +144,22 @@ export default async function AdminBookingPaymentsAuditPage({
                 </div>
               </div>
             </section>
+
+            {canonicalStripe ? (
+              <section className="rounded-[18px] border border-hairline bg-surface p-4 shadow-card space-y-2 text-sm">
+                <h2 className="font-medium">Canonical Stripe metadata (debug)</h2>
+                <p className="text-xs text-muted leading-relaxed">
+                  Rebuilt from this booking row using the same helpers as production (not live Stripe API objects).
+                  Refund block is an illustrative full refund on the final PI before payout.
+                </p>
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-sm text-muted">Show JSON</summary>
+                  <pre className="mt-2 text-[11px] font-mono whitespace-pre-wrap break-all border border-hairline rounded-lg p-3 overflow-x-auto max-h-[480px] overflow-y-auto">
+                    {JSON.stringify(canonicalStripe, null, 2)}
+                  </pre>
+                </details>
+              </section>
+            ) : null}
 
             <section className="rounded-[18px] border border-hairline bg-surface p-4 shadow-card space-y-2 text-sm">
               <h2 className="font-medium">Refund / payout flags (DB)</h2>

@@ -5,6 +5,11 @@
 
 import Stripe from 'stripe';
 
+import {
+  assertCanonicalRefundMetadataDev,
+  assertCanonicalTransferMetadataDev,
+} from '@/lib/stripe/payment-metadata';
+
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key?.trim()) {
@@ -43,10 +48,14 @@ export async function refundPaymentIntent(
       console.warn('[stripe] No charge to refund for PI', paymentIntentId);
       return null;
     }
+    const meta = reasonMetadata ?? {};
+    if (Object.keys(meta).length > 0) {
+      assertCanonicalRefundMetadataDev(meta, 'refundPaymentIntent');
+    }
     const refund = await s.refunds.create(
       {
         charge: chargeId,
-        metadata: reasonMetadata ?? {},
+        metadata: meta,
       },
       { idempotencyKey: `refund-${paymentIntentId}` }
     );
@@ -81,11 +90,15 @@ export async function refundPaymentIntentPartial(
     const s = getStripe();
     const idempotencyKey =
       options?.idempotencyKey ?? `partial-refund-${paymentIntentId}-${Math.round(amountCents)}`;
+    const partialMeta = options?.metadata ?? {};
+    if (Object.keys(partialMeta).length > 0) {
+      assertCanonicalRefundMetadataDev(partialMeta, 'refundPaymentIntentPartial');
+    }
     const refund = await s.refunds.create(
       {
         payment_intent: paymentIntentId,
         amount: Math.round(amountCents),
-        metadata: options?.metadata ?? {},
+        metadata: partialMeta,
       },
       { idempotencyKey }
     );
@@ -181,6 +194,9 @@ export async function createTransfer(params: CreateTransferParams): Promise<stri
       bookingId: params.bookingId,
       ...params.metadata,
     };
+    if (params.metadata && Object.keys(params.metadata).length > 0) {
+      assertCanonicalTransferMetadataDev(meta, 'createTransfer');
+    }
     const t = await s.transfers.create(
       {
         amount: params.amount,

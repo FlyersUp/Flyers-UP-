@@ -217,11 +217,15 @@ export async function POST(
       const totC = Number(br?.total_amount_cents ?? br?.amount_total ?? 0) || 0;
       const feeC = Number(br?.amount_platform_fee ?? 0) || 0;
       const pv = typeof br?.pricing_version === 'string' ? br.pricing_version : null;
+      const afterPayout = (br as { payout_released?: boolean }).payout_released === true;
       const refundId = await refundPaymentIntentPartial(piId, cents, {
         metadata: refundLifecycleMetadata({
           booking_id: id,
           refund_scope: 'partial',
           resolution_type: 'admin',
+          refunded_amount_cents: cents,
+          refund_type: afterPayout ? 'after_payout' : 'before_payout',
+          refund_source_payment_phase: piFinal ? 'final' : 'deposit',
           subtotal_cents: subC,
           total_amount_cents: totC,
           platform_fee_cents: feeC,
@@ -238,7 +242,6 @@ export async function POST(
       const prevRef =
         Number(br?.amount_refunded_cents ?? br?.refunded_total_cents ?? 0) || 0;
       const nextRef = prevRef + cents;
-      const afterPayout = (br as { payout_released?: boolean }).payout_released === true;
       await admin
         .from('bookings')
         .update({
@@ -366,6 +369,9 @@ export async function POST(
             booking_id: id,
             refund_scope: 'full',
             resolution_type: 'admin_full_refund',
+            refunded_amount_cents: depCents > 0 ? depCents : 0,
+            refund_type: afterPayout ? 'after_payout' : 'before_payout',
+            refund_source_payment_phase: 'deposit',
             subtotal_cents: subSnap,
             total_amount_cents: totalSnap,
             platform_fee_cents: platformSnap,

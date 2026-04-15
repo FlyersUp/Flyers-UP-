@@ -118,12 +118,16 @@ export async function executeNoShowCancel(
       payout_transfer_id?: string | null;
     } | null;
     const depCents = Number(sn?.deposit_amount_cents ?? sn?.amount_deposit ?? 0) || 0;
+    const afterPayoutPre = sn?.payout_released === true;
     const refundId = await refundPaymentIntent(
       depositPiId,
       refundLifecycleMetadata({
         booking_id: bookingId,
         refund_scope: 'deposit',
         resolution_type: 'no_show_pro_cancel',
+        refunded_amount_cents: depCents,
+        refund_type: afterPayoutPre ? 'after_payout' : 'before_payout',
+        refund_source_payment_phase: 'deposit',
         subtotal_cents: Number(sn?.subtotal_cents ?? 0) || 0,
         total_amount_cents: Number(sn?.total_amount_cents ?? sn?.amount_total ?? 0) || 0,
         platform_fee_cents: Number(sn?.amount_platform_fee ?? 0) || 0,
@@ -134,8 +138,7 @@ export async function executeNoShowCancel(
       })
     );
     if (refundId) {
-      const afterPayout = sn?.payout_released === true;
-      if (afterPayout) {
+      if (afterPayoutPre) {
         const tid =
           typeof sn?.stripe_transfer_id === 'string' && sn.stripe_transfer_id.trim()
             ? sn.stripe_transfer_id.trim()
@@ -165,18 +168,18 @@ export async function executeNoShowCancel(
       }
       void appendBookingRefundEvent(admin, {
         bookingId,
-        refundType: afterPayout ? 'after_payout' : 'before_payout',
+        refundType: afterPayoutPre ? 'after_payout' : 'before_payout',
         amountCents: depCents,
         stripeRefundId: refundId,
         paymentIntentId: depositPiId,
-        requiresClawback: afterPayout,
+        requiresClawback: afterPayoutPre,
         source: 'system',
       });
       await admin
         .from('bookings')
         .update({
           refund_status: 'pending',
-          ...(afterPayout ? { refund_after_payout: true, requires_admin_review: true } : {}),
+          ...(afterPayoutPre ? { refund_after_payout: true, requires_admin_review: true } : {}),
         })
         .eq('id', bookingId);
     }

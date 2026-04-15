@@ -123,12 +123,16 @@ export async function GET(req: NextRequest) {
     const totC = Number(row.total_amount_cents ?? row.amount_total ?? 0) || 0;
     const feeC = Number(row.amount_platform_fee ?? 0) || 0;
     const pv = typeof row.pricing_version === 'string' ? row.pricing_version : null;
+    const afterPayoutRow = (b as { payout_released?: boolean }).payout_released === true;
     const refundId = await refundPaymentIntent(
       piId,
       refundLifecycleMetadata({
         booking_id: String(b.id),
         refund_scope: 'deposit',
         resolution_type: 'cron_auto_refund',
+        refunded_amount_cents: depC,
+        refund_type: afterPayoutRow ? 'after_payout' : 'before_payout',
+        refund_source_payment_phase: 'deposit',
         subtotal_cents: subC,
         total_amount_cents: totC,
         platform_fee_cents: feeC,
@@ -146,14 +150,13 @@ export async function GET(req: NextRequest) {
         Number((b as { deposit_amount_cents?: number }).deposit_amount_cents ?? 0) ||
         Number((b as { amount_deposit?: number }).amount_deposit ?? 0) ||
         0;
-      const afterPayout = (b as { payout_released?: boolean }).payout_released === true;
       void appendBookingRefundEvent(admin, {
         bookingId: b.id as string,
-        refundType: afterPayout ? 'after_payout' : 'before_payout',
+        refundType: afterPayoutRow ? 'after_payout' : 'before_payout',
         amountCents: depCents,
         stripeRefundId: refundId,
         paymentIntentId: piId,
-        requiresClawback: afterPayout,
+        requiresClawback: afterPayoutRow,
         source: 'cron',
       });
       await admin
@@ -161,11 +164,11 @@ export async function GET(req: NextRequest) {
         .update({
           refund_status: 'succeeded',
           stripe_refund_deposit_id: refundId,
-          ...(afterPayout ? { refund_after_payout: true, requires_admin_review: true } : {}),
+          ...(afterPayoutRow ? { refund_after_payout: true, requires_admin_review: true } : {}),
         })
         .eq('id', b.id);
 
-      if (afterPayout) {
+      if (afterPayoutRow) {
         const tid =
           typeof row.stripe_transfer_id === 'string' && String(row.stripe_transfer_id).trim()
             ? String(row.stripe_transfer_id).trim()

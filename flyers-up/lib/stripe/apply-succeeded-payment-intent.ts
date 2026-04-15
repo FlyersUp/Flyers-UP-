@@ -179,6 +179,7 @@ export async function applySucceededPaymentIntent(
     const totC = Number(bRow.total_amount_cents ?? bRow.amount_total ?? 0) || 0;
     const feeC = Number(bRow.amount_platform_fee ?? bRow.fee_total_cents ?? 0) || 0;
     const pv = typeof bRow.pricing_version === 'string' ? bRow.pricing_version : null;
+    const afterPayout = (b as { payout_released?: boolean }).payout_released === true;
     const refundId = await refundPaymentIntent(
       paymentIntent.id,
       refundLifecycleMetadata({
@@ -186,6 +187,10 @@ export async function applySucceededPaymentIntent(
         refund_scope:
           paymentKind === 'deposit' ? 'deposit' : paymentKind === 'remaining' ? 'final' : 'full',
         resolution_type: 'cancelled_after_capture',
+        refunded_amount_cents: Math.round(Number(paymentIntent.amount) || 0),
+        refund_type: afterPayout ? 'after_payout' : 'before_payout',
+        refund_source_payment_phase:
+          paymentKind === 'deposit' ? 'deposit' : paymentKind === 'remaining' ? 'final' : 'full',
         subtotal_cents: subC,
         total_amount_cents: totC,
         platform_fee_cents: feeC,
@@ -201,7 +206,6 @@ export async function applySucceededPaymentIntent(
     if (paymentKind === 'deposit') upd.stripe_refund_deposit_id = refundId ?? undefined;
     else if (paymentKind === 'remaining') upd.stripe_refund_remaining_id = refundId ?? undefined;
     else upd.stripe_refund_remaining_id = refundId ?? undefined;
-    const afterPayout = (b as { payout_released?: boolean }).payout_released === true;
     if (afterPayout) {
       upd.refund_after_payout = true;
       upd.requires_admin_review = true;

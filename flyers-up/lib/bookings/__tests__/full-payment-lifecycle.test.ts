@@ -15,6 +15,10 @@
  * GET /api/cron/bookings/payout-release. After a successful auto-release, {@link findStuckPayoutBookings}
  * must not treat the booking as stuck. With {@link requires_admin_review} = true, the cron skips the
  * row; eligibility snapshot explains the hold (not a silent stuck miss).
+ *
+ * Metadata parity: after final paid, `assertCanonicalStripeMetadataContractsFromBookingRow` rebuilds
+ * deposit/final PaymentIntent metadata and Connect transfer metadata from the frozen `bookings` row
+ * using the same builders as production so canonical Stripe keys stay aligned end-to-end.
  */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
@@ -32,6 +36,15 @@ import { getPayoutReleaseEligibilitySnapshot } from '@/lib/bookings/payout-relea
 import { payoutReleaseCronCandidateOrFilter } from '@/lib/bookings/payout-release-cron-selection';
 import { runPayoutReleaseCron } from '@/lib/bookings/payout-release-cron';
 import { findStuckPayoutBookings } from '@/lib/bookings/stuck-payout-detector';
+import {
+  assertAllCanonicalMoneyKeysOnPaymentIntentMetadata,
+  buildBookingCanonicalStripeSummaryFromRow,
+} from '@/lib/stripe/get-booking-canonical-stripe-summary';
+import {
+  assertCanonicalBookingPaymentMetadata,
+  assertCanonicalRefundMetadata,
+  assertCanonicalTransferMetadata,
+} from '@/lib/stripe/payment-metadata';
 import { setCreateTransferForIntegrationTest } from '@/lib/stripe/server';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 
@@ -184,6 +197,70 @@ async function assertBookingPayoutRow(
   assert.equal(bp?.status, 'released', `${ctx}: booking_payouts.status`);
 }
 
+/**
+ * Stripe PaymentIntents and Connect transfers are **not** retrieved from Stripe in this test; we
+ * simulate webhooks with minimal PI payloads. Metadata parity is validated by rebuilding deposit,
+ * final, transfer (and an example refund) from the frozen `bookings` row via
+ * {@link buildBookingCanonicalStripeSummaryFromRow} — the same builders production uses.
+ */
+async function assertCanonicalStripeMetadataContractsFromBookingRow(
+  admin: SupabaseClient,
+  input: { bookingId: string; piDeposit: string; piFinal: string },
+  ctx: string
+): Promise<void> {
+  const { data: b, error } = await admin
+    .from('bookings')
+    .select(
+      [
+        'id',
+        'customer_id',
+        'pro_id',
+        'subtotal_cents',
+        'amount_subtotal',
+        'total_amount_cents',
+        'platform_fee_cents',
+        'amount_platform_fee',
+        'deposit_amount_cents',
+        'final_amount_cents',
+        'remaining_amount_cents',
+        'pricing_version',
+        'deposit_payment_intent_id',
+        'final_payment_intent_id',
+        'stripe_payment_intent_remaining_id',
+        'customer_review_deadline_at',
+        'amount_refunded_cents',
+        'refunded_total_cents',
+      ].join(', ')
+    )
+    .eq('id', input.bookingId)
+    .single();
+  assert.ok(!error, `${ctx}: ${error?.message ?? String(error)}`);
+  assert.ok(b);
+  const summary = buildBookingCanonicalStripeSummaryFromRow(b as Record<string, unknown>, {
+    depositPaymentIntentId: input.piDeposit,
+    finalPaymentIntentId: input.piFinal,
+    serviceTitle: 'Integration payment fixture',
+  });
+
+  assertAllCanonicalMoneyKeysOnPaymentIntentMetadata(summary.depositPaymentIntentMetadata, `${ctx} deposit PI`);
+  assertAllCanonicalMoneyKeysOnPaymentIntentMetadata(summary.finalPaymentIntentMetadata, `${ctx} final PI`);
+  assertCanonicalBookingPaymentMetadata(summary.depositPaymentIntentMetadata);
+  assertCanonicalBookingPaymentMetadata(summary.finalPaymentIntentMetadata);
+
+  assert.ok(
+    summary.connectTransferMetadata.transferred_total_cents,
+    `${ctx}: transfer must stamp transferred_total_cents`
+  );
+  assert.equal(
+    summary.connectTransferMetadata.transferred_total_cents,
+    summary.connectTransferMetadata.payout_amount_cents,
+    `${ctx}: transferred_total_cents mirrors payout_amount_cents`
+  );
+  assertCanonicalTransferMetadata(summary.connectTransferMetadata);
+
+  assertCanonicalRefundMetadata(summary.exampleRefundOnFinalPaymentIntentMetadata);
+}
+
 async function insertLifecycleBooking(
   admin: SupabaseClient,
   proRowId: string,
@@ -215,6 +292,7 @@ async function insertLifecycleBooking(
       payout_blocked: false,
       payout_hold_reason: 'none',
       suspicious_completion: false,
+      pricing_version: 'integration_fixture_v1',
     })
     .select('id')
     .single();
@@ -408,6 +486,12 @@ async function seedThroughFinalPaidAndPayoutReady(
     );
     assertNoContradictoryMoneyState(row, 'after handleFinalPaymentSucceeded');
   }
+
+  await assertCanonicalStripeMetadataContractsFromBookingRow(
+    admin,
+    { bookingId, piDeposit, piFinal },
+    'seedThroughFinalPaidAndPayoutReady'
+  );
 }
 
 describe('integration: full deposit → final → payout lifecycle', { skip: !RUN }, () => {
@@ -600,6 +684,7 @@ describe('integration: full deposit → final → payout lifecycle', { skip: !RU
     await assertBookingPayoutRow(admin, bookingId, transferId, 'A direct releasePayout');
   });
 
+  // Mirrors production cron discovery (shared `payoutReleaseCronCandidateOrFilter` + guards).
   it('B. cron: production parity — same selection as GET /api/cron/bookings/payout-release, then releasePayout via runPayoutReleaseCron', async () => {
     const admin = createSupabaseAdmin();
     const suffix = `cron_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
@@ -667,6 +752,8 @@ describe('integration: full deposit → final → payout lifecycle', { skip: !RU
     );
   });
 
+  // `requires_admin_review` is an intentional payout hold — not a stuck payout failure.
+  // Transfer stub counts only `createTransfer` params.bookingId for this fixture (shared DB safe).
   it('C. negative: requires_admin_review excludes booking from cron selection; snapshot explains hold; not stuck', async () => {
     const admin = createSupabaseAdmin();
     const suffix = `adm_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
@@ -739,6 +826,26 @@ describe('integration: full deposit → final → payout lifecycle', { skip: !RU
     assert.ok(
       !stuck.some((s) => s.bookingId === bookingId),
       'admin-review bookings are excluded from stuck scan (not mis-reported as silent payout failure)'
+    );
+  });
+});
+
+describe('canonical Stripe metadata (always-on unit checks)', () => {
+  it('throws when refund metadata omits refunded_amount_cents (guardrail)', () => {
+    assert.throws(
+      () =>
+        assertCanonicalRefundMetadata({
+          booking_id: '00000000-0000-4000-8000-000000000001',
+          payment_phase: 'refund',
+          subtotal_cents: '0',
+          total_amount_cents: '0',
+          platform_fee_cents: '0',
+          deposit_amount_cents: '0',
+          final_amount_cents: '0',
+          pricing_version: 'unknown',
+          refund_type: 'before_payout',
+        }),
+      /refunded_amount_cents/
     );
   });
 });
