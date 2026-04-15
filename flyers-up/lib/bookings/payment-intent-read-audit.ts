@@ -90,18 +90,19 @@ function isExcluded(relPosix: string): boolean {
 }
 
 function walkFiles(root: string, dir: string, acc: string[]): void {
-  let entries: ReturnType<typeof readdirSync>;
+  let entries: import('fs').Dirent[];
   try {
-    entries = readdirSync(dir, { withFileTypes: true });
+    entries = readdirSync(dir, { withFileTypes: true }) as import('fs').Dirent[];
   } catch {
     return;
   }
   for (const e of entries) {
-    if (e.name.startsWith('.') && e.name !== '.') continue;
-    if (e.name === 'node_modules') continue;
-    const p = join(dir, e.name);
+    const name = String(e.name);
+    if (name.startsWith('.') && name !== '.') continue;
+    if (name === 'node_modules') continue;
+    const p = join(dir, name);
     if (e.isDirectory()) walkFiles(root, p, acc);
-    else if (e.isFile() && (e.name.endsWith('.ts') || e.name.endsWith('.tsx'))) acc.push(p);
+    else if (e.isFile() && (name.endsWith('.ts') || name.endsWith('.tsx'))) acc.push(p);
   }
 }
 

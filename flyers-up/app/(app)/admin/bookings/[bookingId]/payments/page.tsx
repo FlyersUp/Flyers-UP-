@@ -9,6 +9,7 @@ import {
   coalesceBookingFinalPaymentIntentId,
   type BookingFinalPaymentIntentIdRow,
 } from '@/lib/bookings/money-state';
+import { RefundRemediationAdminPanel } from '@/components/admin/RefundRemediationAdminPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,9 @@ export default async function AdminBookingPaymentsAuditPage({
         'refund_status',
         'payout_released',
         'refund_after_payout',
+        'pro_clawback_remediation_status',
+        'stripe_outbound_recovery_status',
+        'stripe_transfer_id',
         'paid_deposit_at',
         'paid_remaining_at',
         'fully_paid_at',
@@ -81,6 +85,13 @@ export default async function AdminBookingPaymentsAuditPage({
     .eq('booking_id', id)
     .order('created_at', { ascending: false })
     .limit(50);
+
+  const { data: remediationEvents } = await admin
+    .from('booking_refund_remediation_events')
+    .select('id, created_at, event_type, details, actor_type')
+    .eq('booking_id', id)
+    .order('created_at', { ascending: true })
+    .limit(80);
 
   const receipt = await getBookingReceipt(admin, id);
 
@@ -147,7 +158,55 @@ export default async function AdminBookingPaymentsAuditPage({
                   <span className="text-muted">Refund after payout:</span>{' '}
                   {(booking as { refund_after_payout?: boolean }).refund_after_payout === true ? 'Yes' : 'No'}
                 </div>
+                <div>
+                  <span className="text-muted">Pro clawback remediation:</span>{' '}
+                  <span className="font-mono">
+                    {(booking as { pro_clawback_remediation_status?: string }).pro_clawback_remediation_status ?? '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted">Stripe outbound recovery:</span>{' '}
+                  <span className="font-mono">
+                    {(booking as { stripe_outbound_recovery_status?: string }).stripe_outbound_recovery_status ?? '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted">stripe_transfer_id:</span>{' '}
+                  <span className="font-mono break-all">
+                    {(booking as { stripe_transfer_id?: string | null }).stripe_transfer_id ?? '—'}
+                  </span>
+                </div>
               </div>
+              <RefundRemediationAdminPanel
+                bookingId={id}
+                clawbackStatus={
+                  String((booking as { pro_clawback_remediation_status?: string }).pro_clawback_remediation_status ?? 'none')
+                }
+                recoveryStatus={String(
+                  (booking as { stripe_outbound_recovery_status?: string }).stripe_outbound_recovery_status ??
+                    'not_applicable'
+                )}
+              />
+            </section>
+
+            <section className="rounded-[18px] border border-hairline bg-surface p-4 shadow-card space-y-2 text-sm">
+              <h2 className="font-medium">Post–payout refund remediation (append-only)</h2>
+              {!remediationEvents?.length ? (
+                <p className="text-muted text-xs">No rows in booking_refund_remediation_events.</p>
+              ) : (
+                <ul className="space-y-2 text-xs font-mono break-all">
+                  {(remediationEvents as Record<string, unknown>[]).map((r) => (
+                    <li key={String(r.id)} className="border-b border-hairline pb-2">
+                      <div>
+                        {String(r.created_at)} · {String(r.event_type)} · {String(r.actor_type ?? '')}
+                      </div>
+                      <pre className="text-muted mt-1 whitespace-pre-wrap break-all text-[11px]">
+                        {JSON.stringify(r.details, null, 2)}
+                      </pre>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
 
             <section className="rounded-[18px] border border-hairline bg-surface p-4 shadow-card space-y-2 text-sm">

@@ -318,6 +318,8 @@ export interface Database {
           amount_refunded_cents?: number | null;
           amount_paid_cents?: number | null;
           refund_after_payout?: boolean | null;
+          pro_clawback_remediation_status?: string | null;
+          stripe_outbound_recovery_status?: string | null;
           payout_amount_cents?: number | null;
           payout_blocked?: boolean | null;
           requires_admin_review?: boolean | null;
@@ -403,6 +405,8 @@ export interface Database {
           amount_refunded_cents?: number | null;
           amount_paid_cents?: number | null;
           refund_after_payout?: boolean | null;
+          pro_clawback_remediation_status?: string | null;
+          stripe_outbound_recovery_status?: string | null;
           payout_amount_cents?: number | null;
           payout_blocked?: boolean | null;
           requires_admin_review?: boolean | null;
@@ -488,6 +492,8 @@ export interface Database {
           amount_refunded_cents?: number | null;
           amount_paid_cents?: number | null;
           refund_after_payout?: boolean | null;
+          pro_clawback_remediation_status?: string | null;
+          stripe_outbound_recovery_status?: string | null;
           payout_amount_cents?: number | null;
           payout_blocked?: boolean | null;
           requires_admin_review?: boolean | null;

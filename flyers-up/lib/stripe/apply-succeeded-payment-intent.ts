@@ -153,15 +153,26 @@ export async function applySucceededPaymentIntent(
     return { handled: false };
   }
 
-  const paymentKind = resolveWebhookPaymentKind(meta, paymentIntent.id, booking as BookingFinalPaymentIntentIdRow);
+  /** Narrow Supabase row — `data` is otherwise inferred as `GenericStringError`. */
+  const b = booking as unknown as Record<string, unknown> & {
+    id: string;
+    status: string;
+    pro_id: string;
+    customer_id: string;
+    status_history: unknown;
+    payment_status?: string | null;
+    service_pros?: { user_id?: string } | null;
+  };
 
-  const proId = booking.pro_id;
-  const history = Array.isArray(booking.status_history) ? booking.status_history : [];
+  const paymentKind = resolveWebhookPaymentKind(meta, paymentIntent.id, b as BookingFinalPaymentIntentIdRow);
+
+  const proId = b.pro_id;
+  const history = Array.isArray(b.status_history) ? b.status_history : [];
   const now = new Date().toISOString();
-  const proUserId = (booking.service_pros as { user_id?: string })?.user_id;
+  const proUserId = (b.service_pros as { user_id?: string })?.user_id;
 
-  if (isCancelled(booking.status)) {
-    const bRow = booking as Record<string, string | number | boolean | null | undefined>;
+  if (isCancelled(b.status)) {
+    const bRow = b as Record<string, string | number | boolean | null | undefined>;
     const depC = Number(bRow.deposit_amount_cents ?? bRow.amount_deposit ?? 0) || 0;
     const finC = Number(bRow.final_amount_cents ?? bRow.remaining_amount_cents ?? 0) || 0;
     const subC = Number(bRow.subtotal_cents ?? 0) || 0;
@@ -190,7 +201,7 @@ export async function applySucceededPaymentIntent(
     if (paymentKind === 'deposit') upd.stripe_refund_deposit_id = refundId ?? undefined;
     else if (paymentKind === 'remaining') upd.stripe_refund_remaining_id = refundId ?? undefined;
     else upd.stripe_refund_remaining_id = refundId ?? undefined;
-    const afterPayout = (booking as { payout_released?: boolean }).payout_released === true;
+    const afterPayout = (b as { payout_released?: boolean }).payout_released === true;
     if (afterPayout) {
       upd.refund_after_payout = true;
       upd.requires_admin_review = true;
@@ -210,7 +221,7 @@ export async function applySucceededPaymentIntent(
         console.warn('[applySucceededPI] refund ledger', ins.error);
       }
       if (afterPayout && refundId) {
-        const tr = booking as { stripe_transfer_id?: string | null; payout_transfer_id?: string | null };
+        const tr = b as { stripe_transfer_id?: string | null; payout_transfer_id?: string | null };
         const tid =
           typeof tr.stripe_transfer_id === 'string' && tr.stripe_transfer_id.trim()
             ? tr.stripe_transfer_id.trim()
@@ -245,7 +256,7 @@ export async function applySucceededPaymentIntent(
       data: { payment_intent_id: paymentIntent.id, refund_id: refundId ?? null },
     });
     void createNotificationEvent({
-      userId: booking.customer_id,
+      userId: b.customer_id,
       type: NOTIFICATION_TYPES.PAYMENT_REFUNDED,
       bookingId,
       titleOverride: 'Payment refunded',
@@ -272,10 +283,10 @@ export async function applySucceededPaymentIntent(
 
   if (paymentKind === 'deposit') {
     const already =
-      String(booking.payment_status ?? '').toUpperCase() === 'PAID' &&
-      ((booking as { stripe_payment_intent_deposit_id?: string }).stripe_payment_intent_deposit_id ===
+      String(b.payment_status ?? '').toUpperCase() === 'PAID' &&
+      ((b as { stripe_payment_intent_deposit_id?: string }).stripe_payment_intent_deposit_id ===
         paymentIntent.id ||
-        (booking as { payment_intent_id?: string }).payment_intent_id === paymentIntent.id);
+        (b as { payment_intent_id?: string }).payment_intent_id === paymentIntent.id);
 
     if (!already) {
       const updatePayload: Record<string, unknown> = {
@@ -300,7 +311,7 @@ export async function applySucceededPaymentIntent(
       });
       if (!already) {
         void createNotificationEvent({
-          userId: booking.customer_id,
+          userId: b.customer_id,
           type: NOTIFICATION_TYPES.PAYMENT_DEPOSIT_PAID,
           bookingId,
           basePath: 'customer',
@@ -319,7 +330,7 @@ export async function applySucceededPaymentIntent(
         console.log('[applySucceededPI:deposit_paid]', {
           bookingId,
           proId: proId ?? null,
-          oldStatus: booking.status,
+          oldStatus: b.status,
           paymentIntentId: paymentIntent.id,
         });
       }
@@ -358,11 +369,11 @@ export async function applySucceededPaymentIntent(
 
   if (paymentKind === 'remaining') {
     const already =
-      String((booking as { final_payment_status?: string }).final_payment_status ?? '').toUpperCase() ===
+      String((b as { final_payment_status?: string }).final_payment_status ?? '').toUpperCase() ===
         'PAID' &&
-      coalesceBookingFinalPaymentIntentId(booking as BookingFinalPaymentIntentIdRow) === paymentIntent.id;
+      coalesceBookingFinalPaymentIntentId(b as BookingFinalPaymentIntentIdRow) === paymentIntent.id;
 
-    const isAwaitingRemaining = booking.status === 'awaiting_remaining_payment';
+    const isAwaitingRemaining = b.status === 'awaiting_remaining_payment';
     const nextStatus = isAwaitingRemaining ? 'awaiting_customer_confirmation' : 'fully_paid';
     const nextHistory = [...history, { status: nextStatus, at: now }];
 
@@ -388,7 +399,7 @@ export async function applySucceededPaymentIntent(
       });
       if (!already) {
         void createNotificationEvent({
-          userId: booking.customer_id,
+          userId: b.customer_id,
           type: NOTIFICATION_TYPES.PAYMENT_REMAINING_PAID,
           bookingId,
           titleOverride:
@@ -423,13 +434,13 @@ export async function applySucceededPaymentIntent(
 
     if (!existing) {
       const amount = proEarningsDollarsFromFrozenRowAndMetadata(
-        booking as Record<string, unknown>,
+        b as Record<string, unknown>,
         normalized.financial,
         normalized.raw.serviceSubtotalCents,
         normalized.raw.platformFeeTotalCents
       );
       await admin.from('pro_earnings').insert({
-        pro_id: booking.pro_id,
+        pro_id: b.pro_id,
         booking_id: bookingId,
         amount: amount,
       });
@@ -481,15 +492,15 @@ export async function applySucceededPaymentIntent(
 
   // legacy_full
   const shouldFinalize =
-    booking.status === 'awaiting_payment' || booking.status === 'completed_pending_payment';
+    b.status === 'awaiting_payment' || b.status === 'completed_pending_payment';
   const alreadyCompleted = history.some((e: { status?: string }) => e?.status === 'completed');
   const nextHistory =
     shouldFinalize && !alreadyCompleted ? [...history, { status: 'completed', at: now }] : history;
 
-  const payOk = String(booking.payment_status ?? '').toUpperCase() === 'PAID';
+  const payOk = String(b.payment_status ?? '').toUpperCase() === 'PAID';
   const samePi =
-    (booking as { payment_intent_id?: string }).payment_intent_id === paymentIntent.id;
-  const fullyDone = booking.status === 'fully_paid';
+    (b as { payment_intent_id?: string }).payment_intent_id === paymentIntent.id;
+  const fullyDone = b.status === 'fully_paid';
   const legacyNeedsUpdate =
     !payOk ||
     !samePi ||
@@ -513,13 +524,13 @@ export async function applySucceededPaymentIntent(
 
   if (shouldFinalize && !existing) {
     const amount = proEarningsDollarsFromFrozenRowAndMetadata(
-      booking as Record<string, unknown>,
+      b as Record<string, unknown>,
       normalized.financial,
       normalized.raw.serviceSubtotalCents,
       normalized.raw.platformFeeTotalCents
     );
     await admin.from('pro_earnings').insert({
-      pro_id: booking.pro_id,
+      pro_id: b.pro_id,
       booking_id: bookingId,
       amount,
     });

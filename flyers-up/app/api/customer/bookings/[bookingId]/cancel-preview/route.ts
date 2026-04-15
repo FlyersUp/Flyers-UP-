@@ -19,6 +19,23 @@ import {
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+type CancelPreviewBookingRow = {
+  id: string;
+  customer_id: string;
+  status: string;
+  service_date: string;
+  service_time: string | null;
+  paid_deposit_at: string | null;
+  paid_remaining_at: string | null;
+  amount_deposit: number | null;
+  amount_remaining: number | null;
+  deposit_amount_cents?: number | null;
+  total_amount_cents?: number | null;
+  payment_lifecycle_status?: string | null;
+  customer_review_deadline_at?: string | null;
+  service_status?: string | null;
+};
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ bookingId: string }> }
@@ -61,20 +78,21 @@ export async function GET(
 
   if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
 
-  const status = String(booking.status);
+  const b = booking as unknown as CancelPreviewBookingRow;
+  const status = String(b.status);
   if (['cancelled', 'declined'].includes(status)) {
     return NextResponse.json({ error: 'Booking already cancelled' }, { status: 409 });
   }
 
   const depositAmountCents =
-    Number((booking as { deposit_amount_cents?: number }).deposit_amount_cents ?? booking.amount_deposit ?? 0) || 0;
-  const depositPaidCents = booking.paid_deposit_at ? depositAmountCents : 0;
-  const remainingPaidCents = booking.paid_remaining_at ? Number(booking.amount_remaining ?? 0) : 0;
+    Number((b as { deposit_amount_cents?: number }).deposit_amount_cents ?? b.amount_deposit ?? 0) || 0;
+  const depositPaidCents = b.paid_deposit_at ? depositAmountCents : 0;
+  const remainingPaidCents = b.paid_remaining_at ? Number(b.amount_remaining ?? 0) : 0;
 
-  const scheduledStart = new Date(`${booking.service_date}T${booking.service_time || '12:00'}`);
+  const scheduledStart = new Date(`${b.service_date}T${b.service_time || '12:00'}`);
   const now = new Date();
 
-  const reviewRow = booking as unknown as BookingRowForReviewCancel;
+  const reviewRow = b as unknown as BookingRowForReviewCancel;
   if (isCustomerCancelDuringPostCompletionReviewWindow(reviewRow)) {
     const decision = evaluateCancellationPolicy({
       canceledBy: 'customer',
@@ -113,9 +131,9 @@ export async function GET(
     depositPaidCents,
     remainingPaidCents,
     depositAmountCents,
-    customerReviewDeadlineAt: (booking as { customer_review_deadline_at?: string | null })
+    customerReviewDeadlineAt: (b as { customer_review_deadline_at?: string | null })
       .customer_review_deadline_at
-      ? new Date(String((booking as { customer_review_deadline_at?: string | null }).customer_review_deadline_at))
+      ? new Date(String((b as { customer_review_deadline_at?: string | null }).customer_review_deadline_at))
       : null,
   });
 

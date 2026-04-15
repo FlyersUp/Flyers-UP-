@@ -22,6 +22,7 @@ function state(partial: Partial<MoneyState>): MoneyState {
     raw: { kind: 'post_review_auto_pending', remainingCents: 0 },
     customerRefund: 'none',
     refundAfterProPayout: false,
+    customerRefundFunding: 'none',
     ...partial,
   };
 }

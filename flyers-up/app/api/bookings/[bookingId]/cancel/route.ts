@@ -27,6 +27,33 @@ import {
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+/** Row shape for `.select(...).maybeSingle()` — explicit so `data` is not inferred as `GenericStringError`. */
+type CancelBookingQueryRow = {
+  id: string;
+  status: string;
+  customer_id: string;
+  pro_id: string | null;
+  service_date: string;
+  service_time: string | null;
+  paid_deposit_at: string | null;
+  paid_remaining_at: string | null;
+  amount_deposit: number | null;
+  amount_remaining: number | null;
+  deposit_amount_cents?: number | null;
+  total_amount_cents?: number | null;
+  refunded_total_cents?: number | null;
+  payment_lifecycle_status?: string | null;
+  customer_review_deadline_at?: string | null;
+  service_status?: string | null;
+  stripe_payment_intent_deposit_id?: string | null;
+  deposit_payment_intent_id?: string | null;
+  payment_intent_id?: string | null;
+  final_payment_intent_id?: string | null;
+  stripe_payment_intent_remaining_id?: string | null;
+  payout_released?: boolean | null;
+  status_history?: unknown;
+};
+
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ bookingId: string }> }
@@ -83,7 +110,8 @@ export async function POST(
 
   if (bErr || !booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
 
-  const status = String(booking.status);
+  const b = booking as unknown as CancelBookingQueryRow;
+  const status = String(b.status);
   if (['cancelled', 'declined'].includes(status)) {
     return NextResponse.json({ error: 'Booking already canceled' }, { status: 409 });
   }
@@ -95,28 +123,27 @@ export async function POST(
   if (role === 'admin') canceledBy = 'admin';
   else if (role === 'pro') {
     const { data: pro } = await supabase.from('service_pros').select('id').eq('user_id', user.id).maybeSingle();
-    if (pro?.id === booking.pro_id) canceledBy = 'pro';
+    if (pro?.id === b.pro_id) canceledBy = 'pro';
   }
 
-  if (canceledBy === 'customer' && booking.customer_id !== user.id) {
+  if (canceledBy === 'customer' && b.customer_id !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   if (canceledBy === 'pro') {
     const { data: pro } = await supabase.from('service_pros').select('id').eq('user_id', user.id).maybeSingle();
-    if (pro?.id !== booking.pro_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (pro?.id !== b.pro_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const scheduledStart = new Date(`${booking.service_date}T${booking.service_time || '12:00'}`);
+  const scheduledStart = new Date(`${b.service_date}T${b.service_time || '12:00'}`);
   const now = new Date();
 
   const depositAmountCents =
-    Number((booking as { deposit_amount_cents?: number }).deposit_amount_cents ?? booking.amount_deposit ?? 0) ||
-    0;
-  const remainingAmountCents = Number(booking.amount_remaining ?? 0) || 0;
-  const depositPaidCents = booking.paid_deposit_at ? depositAmountCents : 0;
-  const remainingPaidCents = booking.paid_remaining_at ? remainingAmountCents : 0;
+    Number((b as { deposit_amount_cents?: number }).deposit_amount_cents ?? b.amount_deposit ?? 0) || 0;
+  const remainingAmountCents = Number(b.amount_remaining ?? 0) || 0;
+  const depositPaidCents = b.paid_deposit_at ? depositAmountCents : 0;
+  const remainingPaidCents = b.paid_remaining_at ? remainingAmountCents : 0;
 
-  const reviewRow = booking as unknown as BookingRowForReviewCancel;
+  const reviewRow = b as unknown as BookingRowForReviewCancel;
   if (canceledBy === 'customer' && isCustomerCancelDuringPostCompletionReviewWindow(reviewRow)) {
     const decision = evaluateCancellationPolicy({
       canceledBy: 'customer',
@@ -143,21 +170,21 @@ export async function POST(
       return NextResponse.json({ error: persisted.error }, { status: 500 });
     }
 
-    const depositPi = coalesceBookingDepositPaymentIntentId(booking as BookingFinalPaymentIntentIdRow);
+    const depositPi = coalesceBookingDepositPaymentIntentId(b as BookingFinalPaymentIntentIdRow);
 
     const refundOut = await maybeRefundDepositAfterReviewWindowCancel(admin, {
       bookingId: id,
       decision,
       depositPaymentIntentId: depositPi,
       depositPaidCents,
-      payoutReleased: (booking as { payout_released?: boolean }).payout_released === true,
+      payoutReleased: (b as { payout_released?: boolean }).payout_released === true,
     });
 
-    if (decision.strikePro && booking.pro_id) {
+    if (decision.strikePro && b.pro_id) {
       const { data: pro } = await admin
         .from('service_pros')
         .select('user_id')
-        .eq('id', booking.pro_id)
+        .eq('id', b.pro_id)
         .maybeSingle();
       if (pro?.user_id) {
         const { data: existing } = await admin
@@ -225,9 +252,9 @@ export async function POST(
     depositPaidCents,
     remainingPaidCents,
     depositAmountCents,
-    customerReviewDeadlineAt: (booking as { customer_review_deadline_at?: string | null })
+    customerReviewDeadlineAt: (b as { customer_review_deadline_at?: string | null })
       .customer_review_deadline_at
-      ? new Date(String((booking as { customer_review_deadline_at?: string | null }).customer_review_deadline_at))
+      ? new Date(String((b as { customer_review_deadline_at?: string | null }).customer_review_deadline_at))
       : null,
   });
 
@@ -253,7 +280,7 @@ export async function POST(
       strike_applied: decision.strikePro,
       manual_review_required: decision.manualReviewRequired,
       status_history: [
-        ...((booking as { status_history?: unknown[] }).status_history ?? []),
+        ...((b as { status_history?: unknown[] }).status_history ?? []),
         { status: 'cancelled', at: now.toISOString(), policy: decision.ruleFired },
       ],
     })
@@ -264,11 +291,11 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to cancel' }, { status: 500 });
   }
 
-  if (decision.strikePro && booking.pro_id) {
+  if (decision.strikePro && b.pro_id) {
     const { data: pro } = await admin
       .from('service_pros')
       .select('user_id')
-      .eq('id', booking.pro_id)
+      .eq('id', b.pro_id)
       .maybeSingle();
     if (pro?.user_id) {
       const { data: existing } = await admin

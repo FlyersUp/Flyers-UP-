@@ -33,6 +33,29 @@ const CANCELLED_STATUSES = [
   'expired_unpaid',
 ];
 
+/** Supabase `select` row — explicit so array elements are not inferred as `GenericStringError`. */
+type AutoRefundBookingRow = {
+  id: string;
+  customer_id: string;
+  pro_id: string | null;
+  deposit_amount_cents?: number | null;
+  amount_deposit?: number | null;
+  subtotal_cents?: number | null;
+  total_amount_cents?: number | null;
+  amount_total?: number | null;
+  amount_platform_fee?: number | null;
+  final_amount_cents?: number | null;
+  remaining_amount_cents?: number | null;
+  pricing_version?: string | null;
+  refunded_total_cents?: number | null;
+  stripe_payment_intent_deposit_id?: string | null;
+  payment_intent_id?: string | null;
+  payout_released?: boolean | null;
+  stripe_transfer_id?: string | null;
+  payout_transfer_id?: string | null;
+  service_pros?: { user_id?: string } | null;
+};
+
 export async function GET(req: NextRequest) {
   const authErr = requireCronSecret(req);
   if (authErr) return authErr;
@@ -76,7 +99,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Query failed' }, { status: 500 });
   }
 
-  const eligible = toRefund ?? [];
+  const eligible = (toRefund ?? []) as unknown as AutoRefundBookingRow[];
   let succeeded = 0;
   let failed = 0;
 
@@ -93,7 +116,7 @@ export async function GET(req: NextRequest) {
 
     if (updErr) continue; // Already pending or processing
 
-    const row = b as Record<string, string | number | boolean | null | undefined>;
+    const row = b as unknown as Record<string, string | number | boolean | null | undefined>;
     const depC = Number(row.deposit_amount_cents ?? row.amount_deposit ?? 0) || 0;
     const finC = Number(row.final_amount_cents ?? row.remaining_amount_cents ?? 0) || 0;
     const subC = Number(row.subtotal_cents ?? 0) || 0;

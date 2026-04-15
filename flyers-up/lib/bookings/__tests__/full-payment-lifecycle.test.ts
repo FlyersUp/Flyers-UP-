@@ -10,6 +10,11 @@
  * Stripe: real PaymentIntents are not created. Deposit/final webhooks are simulated via
  * {@link handleDepositPaymentSucceeded} / {@link handleFinalPaymentSucceeded}. Connect
  * transfers are stubbed via {@link setCreateTransferForIntegrationTest}.
+ *
+ * Cron parity: {@link runPayoutReleaseCron} uses the same booking prefilter as production
+ * GET /api/cron/bookings/payout-release. After a successful auto-release, {@link findStuckPayoutBookings}
+ * must not treat the booking as stuck. With {@link requires_admin_review} = true, the cron skips the
+ * row; eligibility snapshot explains the hold (not a silent stuck miss).
  */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
@@ -26,6 +31,7 @@ import {
 import { getPayoutReleaseEligibilitySnapshot } from '@/lib/bookings/payout-release-eligibility-snapshot';
 import { payoutReleaseCronCandidateOrFilter } from '@/lib/bookings/payout-release-cron-selection';
 import { runPayoutReleaseCron } from '@/lib/bookings/payout-release-cron';
+import { findStuckPayoutBookings } from '@/lib/bookings/stuck-payout-detector';
 import { setCreateTransferForIntegrationTest } from '@/lib/stripe/server';
 import { createSupabaseAdmin } from '@/lib/supabase/server-admin';
 
@@ -64,6 +70,27 @@ async function assertBookingIsCronCandidateRow(
     .maybeSingle();
   assert.ok(!error, error?.message ?? String(error));
   assert.equal(data?.id, bookingId, message);
+}
+
+/** Inverse: row must not match production cron prefilter (e.g. requires_admin_review blocks auto-release). */
+async function assertBookingIsNotCronCandidateRow(
+  admin: SupabaseClient,
+  bookingId: string,
+  message: string
+): Promise<void> {
+  const { data, error } = await admin
+    .from('bookings')
+    .select('id')
+    .eq('id', bookingId)
+    .or(payoutReleaseCronCandidateOrFilter())
+    .eq('payout_released', false)
+    .or('requires_admin_review.is.null,requires_admin_review.eq.false')
+    .not('refund_status', 'eq', 'pending')
+    .not('paid_deposit_at', 'is', null)
+    .not('paid_remaining_at', 'is', null)
+    .maybeSingle();
+  assert.ok(!error, error?.message ?? String(error));
+  assert.equal(data, null, message);
 }
 
 type BookingMoneySnapshot = {
@@ -390,6 +417,7 @@ describe('integration: full deposit → final → payout lifecycle', { skip: !RU
     proRowId: '' as string,
     directBookingId: '' as string,
     cronBookingId: '' as string,
+    adminReviewBookingId: '' as string,
     categoryId: '' as string,
   };
 
@@ -398,8 +426,13 @@ describe('integration: full deposit → final → payout lifecycle', { skip: !RU
     if (!RUN) return;
 
     const admin = createSupabaseAdmin();
-    const bookingIds = [created.directBookingId, created.cronBookingId].filter(Boolean);
+    const bookingIds = [created.directBookingId, created.cronBookingId, created.adminReviewBookingId].filter(
+      Boolean
+    );
 
+    if (created.adminReviewBookingId) {
+      await admin.from('bookings').delete().eq('id', created.adminReviewBookingId);
+    }
     if (created.cronBookingId) {
       await admin.from('bookings').delete().eq('id', created.cronBookingId);
     }
@@ -567,7 +600,7 @@ describe('integration: full deposit → final → payout lifecycle', { skip: !RU
     await assertBookingPayoutRow(admin, bookingId, transferId, 'A direct releasePayout');
   });
 
-  it('B. cron: eligible booking is discovered by cron query, runPayoutReleaseCron releases, booking_payouts written', async () => {
+  it('B. cron: production parity — same selection as GET /api/cron/bookings/payout-release, then releasePayout via runPayoutReleaseCron', async () => {
     const admin = createSupabaseAdmin();
     const suffix = `cron_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
     const piDeposit = `pi_integration_dep_${suffix}`;
@@ -601,7 +634,7 @@ describe('integration: full deposit → final → payout lifecycle', { skip: !RU
     await assertBookingIsCronCandidateRow(
       admin,
       bookingId,
-      'runPayoutReleaseCron candidate query must include this booking (lifecycle filter regression)'
+      'runPayoutReleaseCron candidate query must include this booking (same filters as payout-release-cron.ts)'
     );
 
     setCreateTransferForIntegrationTest(async () => transferId);
@@ -611,14 +644,101 @@ describe('integration: full deposit → final → payout lifecycle', { skip: !RU
       `cron must release at least this booking when eligible; result=${JSON.stringify(cronResult)}`
     );
 
-    const { data: payoutRow } = await admin
+    const { data: bAfterCron } = await admin
       .from('bookings')
-      .select('payout_status')
+      .select('payout_status, payout_released, stripe_transfer_id, payment_lifecycle_status')
       .eq('id', bookingId)
       .single();
-    assert.equal(payoutRow?.payout_status, 'succeeded');
+    assert.equal(bAfterCron?.payout_status, 'succeeded');
+    assert.equal(bAfterCron?.payout_released, true);
+    assert.equal(bAfterCron?.payment_lifecycle_status, 'payout_sent');
+    assert.ok(
+      bAfterCron?.stripe_transfer_id && String(bAfterCron.stripe_transfer_id).includes('tr_'),
+      'stripe_transfer_id set by releasePayout (stub)'
+    );
 
     await assertPostPayoutBookingRow(admin, bookingId, transferId, 'B cron runPayoutReleaseCron');
     await assertBookingPayoutRow(admin, bookingId, transferId, 'B cron runPayoutReleaseCron');
+
+    const stuck = await findStuckPayoutBookings(admin, { maxScan: 200, limit: 50, thresholdMs: 0 });
+    assert.ok(
+      !stuck.some((s) => s.bookingId === bookingId),
+      'after successful auto-release, stuck payout detector must not flag this booking as a silent miss'
+    );
+  });
+
+  it('C. negative: requires_admin_review excludes booking from cron selection; snapshot explains hold; not stuck', async () => {
+    const admin = createSupabaseAdmin();
+    const suffix = `adm_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
+    const piDeposit = `pi_integration_dep_${suffix}`;
+    const piFinal = `pi_integration_final_${suffix}`;
+
+    created.adminReviewBookingId = await insertLifecycleBooking(
+      admin,
+      created.proRowId,
+      created.customerUserId,
+      'full-payment-lifecycle C admin review gate'
+    );
+    const bookingId = created.adminReviewBookingId;
+
+    await seedThroughFinalPaidAndPayoutReady(
+      admin,
+      bookingId,
+      created.proRowId,
+      created.proUserId,
+      piDeposit,
+      piFinal
+    );
+
+    const { error: flagErr } = await admin.from('bookings').update({ requires_admin_review: true }).eq('id', bookingId);
+    assert.ok(!flagErr, flagErr?.message);
+
+    await assertBookingIsNotCronCandidateRow(
+      admin,
+      bookingId,
+      'production cron query must skip rows with requires_admin_review=true'
+    );
+
+    const snap = await getPayoutReleaseEligibilitySnapshot(admin, bookingId, { initiatedByAdmin: false });
+    assert.equal(snap.eligible, false);
+    assert.equal(snap.holdReason, 'admin_review_required');
+    assert.ok(
+      String(snap.reason).toLowerCase().includes('admin'),
+      `snapshot should explain admin gate, got: ${snap.reason}`
+    );
+    assert.ok(
+      snap.missingRequirements.includes('admin_review_cleared'),
+      `missingRequirements should surface admin_review_cleared: ${JSON.stringify(snap.missingRequirements)}`
+    );
+
+    let transferAttemptsForThisBooking = 0;
+    setCreateTransferForIntegrationTest(async (params) => {
+      if (params.bookingId === bookingId) {
+        transferAttemptsForThisBooking += 1;
+        return `tr_should_not_run_${suffix}`;
+      }
+      return `tr_other_${params.bookingId.replace(/-/g, '').slice(0, 12)}`;
+    });
+    await runPayoutReleaseCron(admin);
+    assert.equal(
+      transferAttemptsForThisBooking,
+      0,
+      'releasePayout must not run for a booking excluded from cron candidates (no transfer for this bookingId)'
+    );
+
+    const { data: row } = await admin
+      .from('bookings')
+      .select('payout_released, stripe_transfer_id, payment_lifecycle_status')
+      .eq('id', bookingId)
+      .single();
+    assert.equal(row?.payout_released, false, 'payout must not release while admin review is set');
+    assert.ok(!row?.stripe_transfer_id || String(row.stripe_transfer_id).trim() === '', 'no transfer id');
+    assert.notEqual(row?.payment_lifecycle_status, 'payout_sent');
+
+    const stuck = await findStuckPayoutBookings(admin, { maxScan: 200, limit: 50, thresholdMs: 0 });
+    assert.ok(
+      !stuck.some((s) => s.bookingId === bookingId),
+      'admin-review bookings are excluded from stuck scan (not mis-reported as silent payout failure)'
+    );
   });
 });

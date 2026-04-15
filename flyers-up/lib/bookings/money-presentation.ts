@@ -397,9 +397,9 @@ function applyCustomerRefundOverlayToProPayoutCard(
     : 'A refund was issued to the customer for this booking.';
   const payoutNote =
     state.refundAfterProPayout && state.customerRefund === 'full'
-      ? ' If you were already paid out, a follow-up payout adjustment may still be processing — we will follow up if anything is needed on your side.'
+      ? ' The customer was refunded by the platform; if you were already paid out, balance recovery is handled separately by Flyers Up (not instant). We will contact you only if something is required on your side.'
       : state.refundAfterProPayout && partial
-        ? ' If you were already paid out, your next payout may be adjusted to reflect this — we will follow up if anything is needed on your side.'
+        ? ' The customer received a partial platform refund; if you were already paid out, any recovery is a separate operational step — we will follow up only if needed.'
         : '';
   return {
     ...pres,

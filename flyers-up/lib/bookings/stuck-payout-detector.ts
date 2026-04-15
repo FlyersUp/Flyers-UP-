@@ -205,7 +205,7 @@ export async function findStuckPayoutBookings(
 
   for (const raw of rows ?? []) {
     if (out.length >= limit) break;
-    const row = raw as Record<string, unknown>;
+    const row = raw as unknown as Record<string, unknown>;
     const id = String(row.id ?? '');
     if (!id) continue;
 

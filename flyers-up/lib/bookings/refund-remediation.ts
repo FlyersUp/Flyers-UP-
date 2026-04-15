@@ -231,9 +231,6 @@ async function mergePayoutReviewPostPayoutDetails(
     .from('payout_review_queue')
     .update({
       details: nextDetails,
-      ...(String(row.reason ?? '').length === 0 || row.reason === 'payout_blocked'
-        ? { reason: 'post_payout_customer_refund' as const }
-        : {}),
     })
     .eq('id', (row as { id: string }).id);
   if (up) {

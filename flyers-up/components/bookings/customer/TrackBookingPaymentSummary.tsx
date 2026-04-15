@@ -16,9 +16,9 @@ import type { MoneyCustomerRefundFunding } from '@/lib/bookings/money-state';
 function refundFundingCaption(funding: MoneyCustomerRefundFunding): string | null {
   if (funding === 'none') return null;
   if (funding === 'from_booking_payment') {
-    return 'How you were refunded: platform refund from the original booking payment (your bank sees a card credit like a normal purchase reversal).';
+    return 'Your refund was issued by Flyers Up from your original payment. It can take a few business days to show on your card or bank statement (your bank sets the timing).';
   }
-  return 'How you were refunded: platform refund from Flyers Up’s Stripe balance. Your professional’s payout is not automatically reversed from their bank — Flyers Up may handle recovery separately.';
+  return 'Your refund was issued by Flyers Up from our payment processor. It can take a few business days to appear on your statement. Your professional was paid separately earlier; any adjustment on their side is handled by Flyers Up and does not delay your refund.';
 }
 
 function formatCents(cents: number): string {
