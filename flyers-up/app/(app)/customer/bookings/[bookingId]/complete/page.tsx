@@ -48,6 +48,7 @@ import {
   moneyStripeSnapshotFromCustomerFinalIntent,
 } from '@/lib/bookings/money-state';
 import { CustomerRemainingPaymentCallout } from '@/components/bookings/customer/CustomerRemainingPaymentCallout';
+import { customerRemainingPaymentUiInputFromBookingSlice } from '@/lib/bookings/customer-remaining-payment-ui';
 import { StayOnPlatformTrustCallout } from '@/components/retention/StayOnPlatformTrustCallout';
 import { trackProductAnalyticsEvent } from '@/lib/analytics/productEvents';
 
@@ -98,6 +99,12 @@ interface BookingData {
   finalPaymentIntentStatus?: string | null;
   finalPaymentIntentStripeStatus?: string | null;
   finalPaymentIntentStripeLiveChecked?: boolean;
+  payoutReleased?: boolean | null;
+  requiresAdminReview?: boolean | null;
+  payoutTransferId?: string | null;
+  refundedTotalCents?: number | null;
+  paidAmountCents?: number | null;
+  refundAfterPayout?: boolean | null;
 }
 
 function formatCents(cents: number): string {
@@ -119,27 +126,6 @@ function formatDate(serviceDate?: string, serviceTime?: string): string {
   } catch {
     return serviceDate;
   }
-}
-
-function remainingPaymentInputFromBooking(b: BookingData) {
-  return {
-    status: b.status,
-    paymentStatus: b.paymentStatus,
-    finalPaymentStatus: b.finalPaymentStatus,
-    paymentLifecycleStatus: b.paymentLifecycleStatus,
-    paidDepositAt: b.paidDepositAt,
-    paidAt: b.paidAt ?? null,
-    paidRemainingAt: b.paidRemainingAt,
-    fullyPaidAt: b.fullyPaidAt,
-    completedAt: b.completedAt ?? b.completion?.completedAt ?? null,
-    remainingDueAt: b.remainingDueAt,
-    customerReviewDeadlineAt: b.customerReviewDeadlineAt,
-    amountRemaining: b.amountRemaining,
-    finalPaymentIntentId: b.finalPaymentIntentId ?? null,
-    finalPaymentIntentStatus: b.finalPaymentIntentStatus ?? null,
-    finalPaymentIntentStripeStatus: b.finalPaymentIntentStripeStatus ?? b.finalPaymentIntentStatus ?? null,
-    finalPaymentIntentStripeLiveChecked: b.finalPaymentIntentStripeLiveChecked === true,
-  };
 }
 
 function formatTimestamp(iso: string): string {
@@ -205,7 +191,7 @@ export default function JobCompletePage({
         return;
       }
 
-      const remInput = remainingPaymentInputFromBooking(b);
+      const remInput = customerRemainingPaymentUiInputFromBookingSlice(b);
       const customerMoney = getMoneyState(
         customerRemainingUiToMoneyStateBooking(remInput),
         moneyStripeSnapshotFromCustomerFinalIntent(remInput),
@@ -307,7 +293,7 @@ export default function JobCompletePage({
               <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface/95 backdrop-blur-sm p-4 pb-[env(safe-area-inset-bottom)] sm:relative sm:mt-8 sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0">
                 <div className="max-w-lg mx-auto space-y-3 sm:space-y-4">
                   <p className="text-xs text-muted text-center -mt-2">
-                    Payment is complete. Confirm the job is finished to release payout to your pro.
+                    Payment is complete. Confirm the job is finished so your pro can be paid on schedule.
                   </p>
                   <button
                     type="button"
@@ -361,12 +347,14 @@ export default function JobCompletePage({
                 <BookingRecapCard booking={booking} />
                 <StayOnPlatformTrustCallout variant="compact" className="text-left" />
                 <div className="flex flex-col gap-3">
-                  <Link
-                    href="/customer/settings/payments"
+                  <a
+                    href={`/api/customer/bookings/${bookingId}/receipt?format=html`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex h-12 items-center justify-center rounded-full border border-[hsl(var(--accent-pro)/0.68)] bg-accentOrange text-sm font-semibold text-[hsl(var(--accent-contrast))] transition-colors hover:bg-[hsl(var(--accent-pro)/0.92)]"
                   >
                     View receipt
-                  </Link>
+                  </a>
                   <Link
                     href={`/customer/bookings/${bookingId}/review`}
                     className="flex h-11 items-center justify-center rounded-full border border-border bg-surface text-sm font-medium text-text transition-colors hover:bg-hover"
@@ -416,7 +404,7 @@ export default function JobCompletePage({
                 <div className="max-w-lg mx-auto space-y-3 sm:space-y-4">
                   <CustomerRemainingPaymentCallout
                     bookingId={bookingId}
-                    paymentInput={remainingPaymentInputFromBooking(booking)}
+                    paymentInput={customerRemainingPaymentUiInputFromBookingSlice(booking)}
                     bookingTimezone={booking.bookingTimezone ?? null}
                     variant="compact"
                   />

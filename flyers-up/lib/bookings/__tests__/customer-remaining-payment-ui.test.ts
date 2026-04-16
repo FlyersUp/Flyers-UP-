@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveCustomerRemainingPaymentUiState } from '@/lib/bookings/customer-remaining-payment-ui';
+import {
+  customerRemainingPaymentUiInputFromBookingSlice,
+  deriveCustomerRemainingPaymentUiState,
+} from '@/lib/bookings/customer-remaining-payment-ui';
 
 const base = {
   status: 'deposit_paid',
@@ -88,6 +91,27 @@ test('final PAID → success', () => {
     Date.parse('2026-01-03T12:00:00Z')
   );
   assert.equal(s.kind, 'success');
+});
+
+test('customerRemainingPaymentUiInputFromBookingSlice maps completion + payout fields', () => {
+  const input = customerRemainingPaymentUiInputFromBookingSlice({
+    status: 'awaiting_remaining_payment',
+    paymentStatus: 'PAID',
+    completedAt: null,
+    completion: { completedAt: '2026-01-01T12:00:00Z' },
+    customerReviewDeadlineAt: '2026-01-02T12:00:00Z',
+    amountRemaining: 1000,
+    payoutReleased: true,
+    refundAfterPayout: true,
+    refundedTotalCents: 100,
+    amountPaidCents: 9000,
+  });
+  assert.equal(input.completedAt, '2026-01-01T12:00:00Z');
+  assert.equal(input.customerReviewDeadlineAt, '2026-01-02T12:00:00Z');
+  assert.equal(input.payoutReleased, true);
+  assert.equal(input.refundAfterPayout, true);
+  assert.equal(input.refundedTotalCents, 100);
+  assert.equal(input.amountPaidCents, 9000);
 });
 
 test('payout_on_hold → success (customer settled; stale amount_remaining must not imply balance due)', () => {

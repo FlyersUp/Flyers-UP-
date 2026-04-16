@@ -30,7 +30,7 @@ export function finalPaymentReceiptNoteFromMoneyState(
     return 'Payment status unclear — use the actions below or contact support';
   }
   if (state.customerCardVariant === 'legacy_pending_manual') {
-    return 'Remaining payment pending — this booking may need manual completion';
+    return 'Balance still pending — complete payment in the app or contact support if this looks wrong';
   }
   switch (state.final) {
     case 'final_review_window':
@@ -38,7 +38,7 @@ export function finalPaymentReceiptNoteFromMoneyState(
     case 'final_processing':
       return 'Processing final payment';
     case 'final_due':
-      return 'Remaining balance due — pay now or wait for automatic charge';
+      return 'Balance due — pay in checkout or update your card if an automatic charge did not complete';
     case 'final_failed':
     case 'final_requires_action':
       return 'Final payment failed — retry required';
@@ -59,9 +59,9 @@ export function finalPaymentReceiptNoteFromKind(kind: CustomerPaymentCardKind): 
     case 'processing':
       return 'Processing final payment';
     case 'post_review_due':
-      return 'Remaining balance due — pay now or wait for automatic charge';
+      return 'Balance due — pay in checkout or update your card if an automatic charge did not complete';
     case 'pending_manual':
-      return 'Remaining payment pending — this booking may need manual completion';
+      return 'Balance still pending — complete payment in the app or contact support if this looks wrong';
     case 'unknown':
       return 'Payment status unclear — use the actions below or contact support';
     case 'action_required':

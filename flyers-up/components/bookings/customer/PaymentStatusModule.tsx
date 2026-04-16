@@ -1,10 +1,17 @@
 'use client';
 
+/**
+ * Legacy customer payment strip (deposit / final / countdown).
+ * Prefer `BookingPaymentStatusCard` with `paymentInput` from
+ * `customerRemainingPaymentUiInputFromBookingSlice` so review deadlines and money state match
+ * the booking detail + job-complete flows.
+ */
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useHydrated } from '@/hooks/useHydrated';
 import { formatBookingDateTimeInZone } from '@/lib/datetime';
 import { bookingFinalCheckoutPath } from '@/lib/bookings/booking-routes';
+import { PaymentCountdown } from '@/components/bookings/customer/PaymentCountdown';
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -40,6 +47,8 @@ export interface PaymentStatusModuleProps {
   paymentStatus?: string;
   finalPaymentStatus?: string | null;
   paymentDueAt?: string | null;
+  /** When set, shows “Auto-charging in …” during review window before balance is due. */
+  customerReviewDeadlineAt?: string | null;
   amountDeposit?: number | null;
   amountRemaining?: number | null;
   amountTotal?: number | null;
@@ -48,7 +57,6 @@ export interface PaymentStatusModuleProps {
 }
 
 const checkoutBase = (id: string) => `/customer/bookings/${id}/deposit`;
-const completeBase = (id: string) => `/customer/bookings/${id}/complete`;
 
 export function PaymentStatusModule({
   bookingId,
@@ -56,6 +64,7 @@ export function PaymentStatusModule({
   paymentStatus = 'UNPAID',
   finalPaymentStatus,
   paymentDueAt,
+  customerReviewDeadlineAt,
   amountDeposit,
   amountRemaining,
   amountTotal,
@@ -170,12 +179,21 @@ export function PaymentStatusModule({
     return (
       <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
         <h3 className="text-sm font-medium text-[#6A6A6A] mb-2">Payment &amp; status</h3>
-        <p className="text-sm font-medium text-[#111111]">Job completed — pay remaining balance</p>
+        <p className="text-sm font-medium text-[#111111]">Job completed — balance due</p>
+        {customerReviewDeadlineAt ? (
+          <div className="mt-2">
+            <PaymentCountdown deadlineIso={customerReviewDeadlineAt} />
+          </div>
+        ) : (
+          <p className="text-xs text-[#6A6A6A] mt-1">
+            Pay the rest of your booking. Your deposit is already applied.
+          </p>
+        )}
         <Link
-          href={completeBase(bookingId)}
+          href={bookingFinalCheckoutPath(bookingId)}
           className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 mt-3"
         >
-          Pay remaining {amountRemaining != null ? formatCents(amountRemaining) : ''}
+          Pay balance {amountRemaining != null ? formatCents(amountRemaining) : ''}
         </Link>
       </div>
     );

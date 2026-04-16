@@ -30,8 +30,8 @@ function state(partial: Partial<MoneyState>): MoneyState {
 describe('getMoneyPresentation — customer', () => {
   it('final_due: pay-now card copy + timeline step completed', () => {
     const p = getMoneyPresentation(state({ final: 'final_due', payout: 'inactive' }), 'customer');
-    assert.strictEqual(p.title, 'Remaining payment due');
-    assert.strictEqual(p.ctaPrimary, 'Pay now');
+    assert.strictEqual(p.title, 'Balance due now');
+    assert.strictEqual(p.ctaPrimary, 'Pay balance now');
     assert.strictEqual(p.timelineStep, 'completed');
   });
 

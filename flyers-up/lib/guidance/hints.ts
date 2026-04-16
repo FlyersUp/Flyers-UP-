@@ -25,7 +25,8 @@ export const HINT_CONFIG: Record<
     ariaLabel: 'Tip: Your deposit secures the booking',
   },
   completion_screen: {
-    message: 'Confirm completion to release the final payment.',
-    ariaLabel: 'Tip: Confirm completion to release the final payment',
+    message:
+      'Confirm the job is done so we can charge your saved card for the balance on schedule (or after your review window).',
+    ariaLabel: 'Tip: Confirm completion so your balance can be charged on schedule',
   },
 };

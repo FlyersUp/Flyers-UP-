@@ -14,10 +14,16 @@ test('formatAutoChargeCountdown: hours and minutes when >= 1h', () => {
   assert.equal(r.primary, 'Auto-charging in 19h 13m');
 });
 
+test('formatAutoChargeCountdown: whole hours uses hour wording', () => {
+  const deadline = 10_000 + 3 * 60 * 60_000;
+  const r = formatAutoChargeCountdown(deadline, 10_000);
+  assert.equal(r.primary, 'Auto-charging in 3 hours');
+});
+
 test('formatAutoChargeCountdown: minutes only under 1h', () => {
   const deadline = 0 + 45 * 60_000;
   const r = formatAutoChargeCountdown(deadline, 0);
-  assert.equal(r.primary, 'Auto-charging in 45m');
+  assert.equal(r.primary, 'Auto-charging in 45 min');
 });
 
 test('formatAutoChargeCountdown: very soon uses available soon', () => {

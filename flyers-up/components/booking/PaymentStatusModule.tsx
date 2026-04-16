@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { MoneyState } from '@/lib/bookings/money-state';
+import { bookingFinalCheckoutPath } from '@/lib/bookings/booking-routes';
 
 function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -147,12 +148,15 @@ export function PaymentStatusModule({
       return (
         <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm">
           <h3 className="text-sm font-medium text-[#6A6A6A] mb-2">Payment &amp; status</h3>
-          <p className="text-sm font-medium text-[#111111]">Pay remaining balance</p>
+          <p className="text-sm font-medium text-[#111111]">Job completed — balance due</p>
+          <p className="text-xs text-[#6A6A6A] mt-1">
+            Pay the rest of your booking securely. Your deposit is already applied.
+          </p>
           <Link
-            href={`/customer/bookings/${bookingId}/checkout?phase=final`}
+            href={bookingFinalCheckoutPath(bookingId)}
             className="inline-flex items-center justify-center h-10 px-4 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 mt-3"
           >
-            Pay remaining {amountRemaining != null ? formatCents(amountRemaining) : ''}
+            Pay balance {amountRemaining != null ? formatCents(amountRemaining) : ''}
           </Link>
         </div>
       );

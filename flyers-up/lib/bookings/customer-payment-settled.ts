@@ -1,6 +1,6 @@
 /**
  * Whether the customer has no further balance to pay on a booking (aligns with receipt "Paid in full" / remaining $0).
- * Used to hide misleading "Release remaining payment" while status may still be awaiting_customer_confirmation.
+ * Used to hide misleading “pay balance” CTAs while status may still be awaiting_customer_confirmation.
  */
 export type CustomerMoneySettlementInput = {
   finalPaymentStatus?: string | null;

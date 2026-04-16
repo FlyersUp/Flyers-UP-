@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   MessageSquare,
   Flag,
+  Scale,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -266,6 +267,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               ? `${payoutReviewPending} booking(s) need release approval (flagged payouts).`
               : 'Flagged payouts: approve & release when review is complete.',
           icon: <ShieldCheck className="h-4 w-4" />,
+        },
+        {
+          href: '/admin/reconciliation',
+          title: 'Money reconciliation',
+          description: 'Weekly money health: drift, refunds, remediation, stuck payouts in one report.',
+          icon: <Scale className="h-4 w-4" />,
         },
       ],
     },

@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import { PaymentsSubpageShell } from '@/components/customer/payments/PaymentsSubpageShell';
 import { PaymentHubHeader } from '@/components/customer/payments/PaymentHubHeader';
@@ -32,6 +33,8 @@ function normalizePm(raw: Record<string, unknown>): PaymentMethod {
 }
 
 export default function CustomerPaymentMethodsPage() {
+  const searchParams = useSearchParams();
+  const autoAddTriggered = useRef(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
@@ -74,7 +77,11 @@ export default function CustomerPaymentMethodsPage() {
     };
   }, [fetchMethods]);
 
-  async function openAddModal() {
+  const addFromBooking = searchParams.get('add') === '1';
+  const signInNextHref =
+    addFromBooking ? '/customer/settings/payments/methods?add=1' : '/customer/settings/payments/methods';
+
+  const openAddModal = useCallback(async () => {
     setActionLoading(true);
     try {
       const res = await fetch('/api/stripe/customer/setup-intent', { method: 'POST' });
@@ -86,7 +93,14 @@ export default function CustomerPaymentMethodsPage() {
     } finally {
       setActionLoading(false);
     }
-  }
+  }, []);
+
+  /** Deep link from booking payment card (“Update payment method”) — opens add-card Stripe flow. */
+  useEffect(() => {
+    if (loading || !userId || autoAddTriggered.current || !addFromBooking) return;
+    autoAddTriggered.current = true;
+    void openAddModal();
+  }, [loading, userId, addFromBooking, openAddModal]);
 
   function closeAddModal() {
     setAddModalOpen(false);
@@ -137,7 +151,7 @@ export default function CustomerPaymentMethodsPage() {
         <p className="mt-8 text-sm text-text2">Loading…</p>
       ) : !userId ? (
         <div className="mt-8">
-          <SignInNotice nextHref="/customer/settings/payments/methods" />
+          <SignInNotice nextHref={signInNextHref} />
         </div>
       ) : (
         <>

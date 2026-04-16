@@ -156,7 +156,11 @@ export function BookingPaymentStatusCard({
   if (money.payout === 'payout_held') return null;
 
   const checkoutHref = bookingFinalCheckoutPath(bookingId);
-  const methodsHref = '/customer/settings/payments/methods';
+  const methodsBase = '/customer/settings/payments/methods';
+  const methodsHref =
+    money.final === 'final_failed' || money.final === 'final_requires_action'
+      ? `${methodsBase}?add=1`
+      : methodsBase;
   const issueHref = `/customer/bookings/${bookingId}/issues/new`;
   const supportHref = '/customer/settings/help-support';
   const receiptHref = `/api/customer/bookings/${bookingId}/receipt?format=html`;
@@ -219,7 +223,7 @@ export function BookingPaymentStatusCard({
         ) : null}
       </div>
 
-      {money.final === 'final_review_window' && countdownIso ? (
+      {(money.final === 'final_review_window' || money.final === 'final_due') && countdownIso ? (
         <PaymentCountdown deadlineIso={countdownIso} className="pt-0.5" />
       ) : null}
 
@@ -316,7 +320,7 @@ export function BookingPaymentStatusCard({
             {pres.ctaPrimary}
           </Link>
           <Link href={methodsHref} className={secondaryBtn}>
-            Update payment method
+            Add or replace card
           </Link>
           <Link href={supportHref} className={`${linkAccent} block text-center pt-0.5`}>
             Contact support

@@ -236,7 +236,7 @@ function buildCustomerPresentation(state: MoneyState): MoneyUiPresentation {
       title: 'Payment status',
       subtitle: 'We need a quick update on this booking’s payment schedule.',
       body: "We couldn't confirm the automatic payment schedule for this booking. If you still owe a balance, you can pay now or contact support for help.",
-      ctaPrimary: 'Pay now',
+      ctaPrimary: 'Pay balance',
       ctaSecondary: 'Contact support',
       timelineStep: 'completed',
       timelineVariant: 'customer_remaining',
@@ -250,10 +250,10 @@ function buildCustomerPresentation(state: MoneyState): MoneyUiPresentation {
   if (customerCardVariant === 'legacy_pending_manual') {
     return {
       badge: 'Pending',
-      title: 'Remaining payment pending',
+      title: 'Balance still due',
       subtitle: 'This booking uses an older payment flow.',
-      body: 'This booking was created before the new review-window flow. You can finish payment now.',
-      ctaPrimary: 'Send remaining payment',
+      body: 'This booking was created before the new review-window flow. You can pay the rest of your balance now.',
+      ctaPrimary: 'Pay balance',
       ctaSecondary: 'Contact support',
       timelineStep: 'completed',
       timelineVariant: 'customer_remaining',
@@ -298,10 +298,10 @@ function buildCustomerPresentation(state: MoneyState): MoneyUiPresentation {
     case 'final_review_window':
       return {
         badge: 'Scheduled',
-        title: 'Remaining payment scheduled',
-        subtitle: 'Auto-charge runs after the review window.',
-        body: 'Will auto-charge after the 24-hour review window.',
-        ctaPrimary: 'Pay now',
+        title: 'Balance will auto-charge',
+        subtitle: 'After your review window, we charge your saved card automatically.',
+        body: 'You do not need to do anything unless you want to pay early or report an issue.',
+        ctaPrimary: 'Pay balance early',
         ctaSecondary: 'Contact support',
         timelineStep: 'completed',
         timelineVariant: 'customer_remaining',
@@ -313,10 +313,10 @@ function buildCustomerPresentation(state: MoneyState): MoneyUiPresentation {
     case 'final_due':
       return {
         badge: 'Payment due',
-        title: 'Remaining payment due',
-        subtitle: 'Complete your remaining payment to finish this booking.',
-        body: 'Your review period has ended and the remaining payment has not been completed yet.',
-        ctaPrimary: 'Pay now',
+        title: 'Balance due now',
+        subtitle: 'Pay the rest of your booking to finish checkout.',
+        body: 'Your review window has ended. Pay the balance below, or update your card if a charge did not go through.',
+        ctaPrimary: 'Pay balance now',
         ctaSecondary: 'Contact support',
         timelineStep: 'completed',
         timelineVariant: 'customer_remaining',
@@ -359,9 +359,9 @@ function buildCustomerPresentation(state: MoneyState): MoneyUiPresentation {
       return {
         badge: 'Action needed',
         title: 'Payment failed',
-        subtitle: "We couldn't complete the remaining payment.",
-        body: 'Please retry your payment method to finish this booking.',
-        ctaPrimary: 'Retry payment',
+        subtitle: "We couldn't charge your saved card for the balance.",
+        body: 'Update your card or try again — your booking is not complete until the balance is paid.',
+        ctaPrimary: 'Try payment again',
         ctaSecondary: 'Contact support',
         timelineStep: 'auto_charge',
         timelineVariant: 'customer_remaining',
@@ -373,9 +373,9 @@ function buildCustomerPresentation(state: MoneyState): MoneyUiPresentation {
     case 'final_requires_action':
       return {
         badge: 'Action needed',
-        title: 'Payment needs confirmation',
-        subtitle: 'Your bank needs one more step to complete payment.',
-        body: 'Complete the required confirmation to finish this booking.',
+        title: 'Bank confirmation needed',
+        subtitle: 'Your bank needs one more step to approve the charge.',
+        body: 'Open checkout to finish verification, or update your card if you prefer a different payment method.',
         ctaPrimary: 'Complete payment',
         ctaSecondary: 'Contact support',
         timelineStep: 'auto_charge',

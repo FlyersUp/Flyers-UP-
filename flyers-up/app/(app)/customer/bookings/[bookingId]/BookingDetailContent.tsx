@@ -29,6 +29,7 @@ import {
   getMoneyState,
   moneyStripeSnapshotFromCustomerFinalIntent,
 } from '@/lib/bookings/money-state';
+import { customerRemainingPaymentUiInputFromBookingSlice } from '@/lib/bookings/customer-remaining-payment-ui';
 import { finalPaymentReceiptNoteFromMoneyState } from '@/lib/bookings/customer-final-payment-receipt-note';
 import { BookingPaymentStatusCard } from '@/components/bookings/customer/BookingPaymentStatusCard';
 import { PaymentHeldCustomerCard } from '@/components/payments/payment-held';
@@ -244,7 +245,7 @@ export function BookingDetailContent({
           amountRemaining: booking.amountRemaining,
         });
 
-        const remainingPaymentInput = {
+        const remainingPaymentInput = customerRemainingPaymentUiInputFromBookingSlice({
           status: fullBooking.status ?? booking.status,
           paymentStatus: booking.paymentStatus ?? fullBooking.paymentStatus,
           finalPaymentStatus: booking.finalPaymentStatus ?? fullBooking.finalPaymentStatus,
@@ -268,7 +269,7 @@ export function BookingDetailContent({
           refundedTotalCents: fullBooking.refundedTotalCents ?? null,
           amountPaidCents: fullBooking.paidAmountCents ?? null,
           refundAfterPayout: fullBooking.refundAfterPayout ?? null,
-        };
+        });
         const customerMoney = getMoneyState(
           customerRemainingUiToMoneyStateBooking(remainingPaymentInput),
           moneyStripeSnapshotFromCustomerFinalIntent(remainingPaymentInput),

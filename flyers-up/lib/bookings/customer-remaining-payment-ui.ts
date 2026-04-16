@@ -40,6 +40,68 @@ export type CustomerRemainingPaymentUiInput = {
   refundAfterPayout?: boolean | null;
 };
 
+/**
+ * CamelCase booking slice for building {@link CustomerRemainingPaymentUiInput}.
+ * Use this helper from every customer surface that shows remaining-payment UI so
+ * deadlines, Stripe intent flags, and payout/refund context stay aligned.
+ */
+export type CustomerRemainingPaymentUiBookingSlice = {
+  status: string;
+  paymentStatus?: string | null;
+  finalPaymentStatus?: string | null;
+  paymentLifecycleStatus?: string | null;
+  paidDepositAt?: string | null;
+  paidAt?: string | null;
+  paidRemainingAt?: string | null;
+  fullyPaidAt?: string | null;
+  completedAt?: string | null;
+  /** When only nested completion exists (e.g. job-complete page). */
+  completion?: { completedAt?: string } | null;
+  remainingDueAt?: string | null;
+  customerReviewDeadlineAt?: string | null;
+  amountRemaining?: number | null;
+  finalPaymentIntentId?: string | null;
+  finalPaymentIntentStripeStatus?: string | null;
+  finalPaymentIntentStatus?: string | null;
+  finalPaymentIntentStripeLiveChecked?: boolean;
+  payoutReleased?: boolean | null;
+  requiresAdminReview?: boolean | null;
+  payoutTransferId?: string | null;
+  refundedTotalCents?: number | null;
+  amountPaidCents?: number | null;
+  refundAfterPayout?: boolean | null;
+};
+
+export function customerRemainingPaymentUiInputFromBookingSlice(
+  b: CustomerRemainingPaymentUiBookingSlice
+): CustomerRemainingPaymentUiInput {
+  return {
+    status: b.status,
+    paymentStatus: b.paymentStatus ?? null,
+    finalPaymentStatus: b.finalPaymentStatus ?? null,
+    paymentLifecycleStatus: b.paymentLifecycleStatus ?? null,
+    paidDepositAt: b.paidDepositAt ?? null,
+    paidAt: b.paidAt ?? null,
+    paidRemainingAt: b.paidRemainingAt ?? null,
+    fullyPaidAt: b.fullyPaidAt ?? null,
+    completedAt: b.completedAt ?? b.completion?.completedAt ?? null,
+    remainingDueAt: b.remainingDueAt ?? null,
+    customerReviewDeadlineAt: b.customerReviewDeadlineAt ?? null,
+    amountRemaining: b.amountRemaining ?? null,
+    finalPaymentIntentId: b.finalPaymentIntentId ?? null,
+    finalPaymentIntentStatus: b.finalPaymentIntentStatus ?? null,
+    finalPaymentIntentStripeStatus:
+      b.finalPaymentIntentStripeStatus ?? b.finalPaymentIntentStatus ?? null,
+    finalPaymentIntentStripeLiveChecked: b.finalPaymentIntentStripeLiveChecked === true,
+    payoutReleased: b.payoutReleased ?? null,
+    requiresAdminReview: b.requiresAdminReview ?? null,
+    payoutTransferId: b.payoutTransferId ?? null,
+    refundedTotalCents: b.refundedTotalCents ?? null,
+    amountPaidCents: b.amountPaidCents ?? null,
+    refundAfterPayout: b.refundAfterPayout ?? null,
+  };
+}
+
 export type CustomerRemainingPaymentUiState =
   | { kind: 'none' }
   | { kind: 'before_completion'; remainingCents: number }

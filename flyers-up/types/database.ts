@@ -238,6 +238,29 @@ export interface Database {
           created_at?: string;
         };
       };
+      booking_money_reconciliation_ops: {
+        Row: {
+          booking_id: string;
+          assigned_to: string | null;
+          last_reviewed_at: string | null;
+          ops_note: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          booking_id: string;
+          assigned_to?: string | null;
+          last_reviewed_at?: string | null;
+          ops_note?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          booking_id?: string;
+          assigned_to?: string | null;
+          last_reviewed_at?: string | null;
+          ops_note?: string | null;
+          updated_at?: string;
+        };
+      };
       bookings: {
         Row: {
           id: string;

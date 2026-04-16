@@ -164,7 +164,7 @@ function CheckoutForm({
         disabled={!stripe || !elements}
         loading={loading}
         onSubmit={handleSubmit}
-        label={isFinal ? 'Pay remaining' : 'Pay deposit'}
+        label={isFinal ? 'Pay balance' : 'Pay deposit'}
         backHref={`/customer/bookings/${bookingId}`}
         showBookingRulesLink
       />
