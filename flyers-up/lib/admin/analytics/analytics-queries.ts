@@ -171,7 +171,7 @@ export async function fetchBookingsCreatedBetween(
       break;
     }
     if (!data?.length) break;
-    out.push(...(data as Record<string, unknown>[]));
+    out.push(...(data as unknown as Record<string, unknown>[]));
     if (data.length < PAGE) break;
   }
   return out;
@@ -200,7 +200,7 @@ export async function fetchBookingsCompletedBetween(
       break;
     }
     if (!data?.length) break;
-    out.push(...(data as Record<string, unknown>[]));
+    out.push(...(data as unknown as Record<string, unknown>[]));
     if (data.length < PAGE) break;
   }
   return out;

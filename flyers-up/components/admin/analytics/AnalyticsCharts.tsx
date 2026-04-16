@@ -21,6 +21,20 @@ function formatDayLabel(isoDate: string): string {
   return `${m}/${d}`;
 }
 
+/** Recharts Tooltip value can be number, string, or nested; normalize for display. */
+function tooltipNumeric(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (Array.isArray(value)) {
+    const n = typeof value[0] === 'number' ? value[0] : Number(value[0]);
+    return Number.isFinite(n) ? n : 0;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
 export function AnalyticsCharts({
   bookingsOverTime,
   revenueOverTime,
@@ -61,7 +75,7 @@ export function AnalyticsCharts({
                     border: '1px solid hsl(var(--border))',
                     background: 'hsl(var(--card-neutral))',
                   }}
-                  formatter={(value: number | undefined) => [value ?? 0, 'Completed']}
+                  formatter={(value) => [tooltipNumeric(value), 'Completed']}
                   labelFormatter={(_, payload) => {
                     const row = payload?.[0]?.payload as { date?: string } | undefined;
                     return row?.date ?? '';
@@ -107,9 +121,9 @@ export function AnalyticsCharts({
                     border: '1px solid hsl(var(--border))',
                     background: 'hsl(var(--card-neutral))',
                   }}
-                  formatter={(value: number | undefined, name: string) => {
-                    const label = name === 'gmv' ? 'GMV' : name;
-                    return [`$${value ?? 0}`, label];
+                  formatter={(value, name) => {
+                    const label = String(name) === 'gmv' ? 'GMV' : String(name);
+                    return [`$${tooltipNumeric(value)}`, label];
                   }}
                 />
                 <Legend />
