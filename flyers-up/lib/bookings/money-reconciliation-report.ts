@@ -320,6 +320,8 @@ export function compareReconciliationSnapshotsForOps(
 export type ReconciliationExportFilters = {
   category?: MoneyReconciliationCategory | null;
   unresolvedOnly?: boolean;
+  /** Minimum snapshot age in whole days (`ageInHours` must be >= `minAgeDays * 24`). */
+  minAgeDays?: number;
 };
 
 /**

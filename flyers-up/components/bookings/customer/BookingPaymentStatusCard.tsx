@@ -1,5 +1,11 @@
 'use client';
 
+/**
+ * Customer remaining-balance card: pass `paymentInput` built with
+ * `customerRemainingPaymentUiInputFromBookingSlice` from `lib/bookings/customer-remaining-payment-ui`.
+ * Hand-assembled `CustomerRemainingPaymentUiInput` objects are discouraged (see module doc there).
+ */
+
 import type { ReactNode } from 'react';
 import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
@@ -100,6 +106,7 @@ function cardWrapClass(money: MoneyState): string {
 
 export type BookingPaymentStatusCardProps = {
   bookingId: string;
+  /** Prefer `customerRemainingPaymentUiInputFromBookingSlice` (customer-remaining-payment-ui); avoid one-off literals unless documented in review. */
   paymentInput: CustomerRemainingPaymentUiInput;
   bookingTimezone?: string | null;
   variant?: 'default' | 'compact';

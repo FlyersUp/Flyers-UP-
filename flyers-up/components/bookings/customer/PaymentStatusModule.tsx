@@ -5,6 +5,10 @@
  * Prefer `BookingPaymentStatusCard` with `paymentInput` from
  * `customerRemainingPaymentUiInputFromBookingSlice` so review deadlines and money state match
  * the booking detail + job-complete flows.
+ *
+ * Guardrail: do not introduce new call sites that assemble
+ * `CustomerRemainingPaymentUiInput` (or this module’s prop bag) by hand; see
+ * `lib/bookings/customer-remaining-payment-ui.ts` module doc and `eslint.config.mjs`.
  */
 import Link from 'next/link';
 import { useEffect, useState } from 'react';

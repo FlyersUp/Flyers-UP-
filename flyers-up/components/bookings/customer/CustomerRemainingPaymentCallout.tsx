@@ -1,5 +1,11 @@
 'use client';
 
+/**
+ * Same contract as `BookingPaymentStatusCard`: build `paymentInput` with
+ * `customerRemainingPaymentUiInputFromBookingSlice`; do not hand-shape
+ * `CustomerRemainingPaymentUiInput` unless there is a documented exception.
+ */
+
 import {
   BookingPaymentStatusCard,
   type BookingPaymentStatusCardProps,

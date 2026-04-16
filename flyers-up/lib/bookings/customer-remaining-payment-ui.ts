@@ -1,8 +1,24 @@
 /**
  * Customer-facing remaining-balance UI state (deposit paid, final not settled).
  * Driven by bookings.payment_lifecycle_status, final_payment_status, deadlines, workflow status.
+ *
+ * ---------------------------------------------------------------------------
+ * Convention — customer money UI (`BookingPaymentStatusCard`, callouts, etc.)
+ * ---------------------------------------------------------------------------
+ * Do not hand-shape `CustomerRemainingPaymentUiInput` at call sites (no ad-hoc
+ * object literals mapping booking fields) unless there is a **documented
+ * exception** in PR review (e.g. an isolated test fixture, or a new approved
+ * mapper added next to {@link customerRemainingPaymentUiInputFromBookingSlice}).
+ * Use {@link customerRemainingPaymentUiInputFromBookingSlice} from booking/API
+ * slices so new booking columns propagate consistently to countdown, timeline,
+ * and refund or payout presentation.
+ * ---------------------------------------------------------------------------
  */
 
+/**
+ * Normalized input for customer remaining-balance components.
+ * @see customerRemainingPaymentUiInputFromBookingSlice — preferred construction path
+ */
 export type CustomerRemainingPaymentUiInput = {
   status: string;
   paymentStatus?: string | null;
@@ -41,9 +57,8 @@ export type CustomerRemainingPaymentUiInput = {
 };
 
 /**
- * CamelCase booking slice for building {@link CustomerRemainingPaymentUiInput}.
- * Use this helper from every customer surface that shows remaining-payment UI so
- * deadlines, Stripe intent flags, and payout/refund context stay aligned.
+ * CamelCase booking slice accepted by {@link customerRemainingPaymentUiInputFromBookingSlice}.
+ * Extend this type (and the mapper) when the API gains fields that affect money UI.
  */
 export type CustomerRemainingPaymentUiBookingSlice = {
   status: string;
@@ -72,6 +87,11 @@ export type CustomerRemainingPaymentUiBookingSlice = {
   refundAfterPayout?: boolean | null;
 };
 
+/**
+ * Single mapper for customer remaining-payment semantics. Prefer this over
+ * inline `CustomerRemainingPaymentUiInput` literals everywhere except tests
+ * or explicitly documented exceptions.
+ */
 export function customerRemainingPaymentUiInputFromBookingSlice(
   b: CustomerRemainingPaymentUiBookingSlice
 ): CustomerRemainingPaymentUiInput {
