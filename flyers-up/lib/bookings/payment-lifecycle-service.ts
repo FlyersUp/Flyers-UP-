@@ -76,6 +76,7 @@ import {
   emitRemediationRequiredPaymentEvent,
 } from '@/lib/bookings/admin-refund-instrumentation';
 import { getRefundRetryEligibilitySnapshot } from '@/lib/bookings/refund-retry-preflight';
+import { countValidJobCompletionAfterPhotoUrls } from '@/lib/bookings/job-completion-photo-count';
 
 export type { LogBookingPaymentEventInput };
 export { logBookingPaymentEvent };
@@ -1038,6 +1039,75 @@ export async function evaluatePayoutTransferEligibility(
   };
 }
 
+/**
+ * Clears a stale `payout_on_hold` + `insufficient_completion_evidence` row when current
+ * `job_completions` photos and multi-day milestone gates match what automatic eligibility requires.
+ * Does not override other hold reasons or admin/dispute holds.
+ */
+export async function reconcileStalePayoutOnHoldForCompletionEvidence(
+  admin: AdminClient,
+  bookingId: string
+): Promise<boolean> {
+  const { data: row, error } = await admin
+    .from('bookings')
+    .select(
+      [
+        'id',
+        'payout_released',
+        'payment_lifecycle_status',
+        'payout_hold_reason',
+        'admin_hold',
+        'dispute_open',
+        'dispute_status',
+        'is_multi_day',
+      ].join(', ')
+    )
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (error || !row) return false;
+  const r = row as Record<string, unknown>;
+  if (r.payout_released === true) return false;
+  const lc = String(r.payment_lifecycle_status ?? '').toLowerCase();
+  const hold = String(r.payout_hold_reason ?? '').trim().toLowerCase();
+  if (lc !== 'payout_on_hold' || hold !== 'insufficient_completion_evidence') return false;
+  if (r.admin_hold === true) return false;
+  const disputeClear =
+    r.dispute_status == null ||
+    String(r.dispute_status).trim() === '' ||
+    String(r.dispute_status) === 'none';
+  if (!disputeClear || r.dispute_open === true) return false;
+
+  const isMulti = r.is_multi_day === true;
+  const gate = await resolveMilestonePayoutGate(admin, bookingId, isMulti);
+  if (gate.fetchError) return false;
+  if (gate.enforceMilestoneGate && !gate.scheduleOk) return false;
+
+  const { data: jc } = await admin
+    .from('job_completions')
+    .select('after_photo_urls, booking_id')
+    .eq('booking_id', bookingId)
+    .maybeSingle();
+  const urls = (jc as { after_photo_urls?: string[] } | null)?.after_photo_urls;
+  const n = countValidJobCompletionAfterPhotoUrls(urls);
+  if (n < 2) return false;
+  if (String((jc as { booking_id?: string } | null)?.booking_id ?? '') !== bookingId) return false;
+
+  const { error: upErr } = await admin
+    .from('bookings')
+    .update({
+      payment_lifecycle_status: 'payout_ready',
+      payout_hold_reason: 'none',
+      payout_blocked: false,
+    })
+    .eq('id', bookingId);
+  if (upErr) {
+    console.warn('[reconcileStalePayoutOnHoldForCompletionEvidence] update failed', bookingId, upErr);
+    return false;
+  }
+  await syncBookingPaymentSummary(admin, bookingId);
+  return true;
+}
+
 export async function evaluatePayoutEligibility(
   admin: AdminClient,
   bookingId: string
@@ -1141,13 +1211,8 @@ export async function evaluatePayoutEligibility(
     .eq('booking_id', bookingId)
     .maybeSingle();
   const rawUrls = (jc as { after_photo_urls?: string[] } | null)?.after_photo_urls ?? [];
-  const validUrls = rawUrls.filter(
-    (u): u is string =>
-      typeof u === 'string' &&
-      u.trim().length > 5 &&
-      !/^(placeholder|n\/a|none|null|undefined)$/i.test(u.trim())
-  );
-  if (validUrls.length < 2) {
+  const validCount = countValidJobCompletionAfterPhotoUrls(rawUrls);
+  if (validCount < 2) {
     return { eligible: false, holdReason: 'insufficient_completion_evidence' };
   }
 
@@ -1174,6 +1239,7 @@ export async function releasePayout(
   input: { bookingId: string; initiatedByAdmin?: boolean; actorUserId?: string | null }
 ): Promise<PayoutReleaseResult> {
   const initiatedByAdmin = input.initiatedByAdmin === true;
+  await reconcileStalePayoutOnHoldForCompletionEvidence(admin, input.bookingId);
   const transferEv = await evaluatePayoutTransferEligibility(admin, input.bookingId, { initiatedByAdmin });
   if (!transferEv.ok) {
     return {

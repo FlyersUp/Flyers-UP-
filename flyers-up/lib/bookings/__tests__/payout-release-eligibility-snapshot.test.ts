@@ -4,6 +4,7 @@ import {
   buildPayoutReleaseEligibilitySnapshot,
   type PayoutReleaseSnapshotBuildContext,
 } from '../payout-release-eligibility-snapshot';
+import { countValidJobCompletionAfterPhotoUrls } from '../job-completion-photo-count';
 
 function ctxBase(overrides: Partial<PayoutReleaseSnapshotBuildContext> = {}): PayoutReleaseSnapshotBuildContext {
   return {
@@ -110,5 +111,25 @@ describe('buildPayoutReleaseEligibilitySnapshot', () => {
     assert.equal(snap.eligible, false);
     assert.equal(snap.holdReason, 'customer_refunded');
     assert.ok(snap.missingRequirements.includes('not_customer_refunded'));
+  });
+
+  it('admin + payout_on_hold + insufficient_completion_evidence + final settled → eligible when operational gates pass', () => {
+    const snap = buildPayoutReleaseEligibilitySnapshot(
+      baseRow({
+        payment_lifecycle_status: 'payout_on_hold',
+        payout_hold_reason: 'insufficient_completion_evidence',
+        final_payment_status: 'PAID',
+      }),
+      ctxBase({ initiatedByAdmin: true, skipPhotoProof: true })
+    );
+    assert.equal(snap.eligible, true);
+    assert.deepEqual(snap.missingRequirements, []);
+  });
+});
+
+describe('countValidJobCompletionAfterPhotoUrls', () => {
+  it('rejects placeholder-like strings counted by naive UI', () => {
+    assert.equal(countValidJobCompletionAfterPhotoUrls(['https://a/x.jpg', 'null', 'undefined']), 1);
+    assert.equal(countValidJobCompletionAfterPhotoUrls(['https://a/1.jpg', 'https://a/2.jpg']), 2);
   });
 });

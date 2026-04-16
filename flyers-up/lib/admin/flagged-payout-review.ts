@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { resolveProPayoutTransferCents } from '@/lib/bookings/booking-payout-economics';
+import { countValidJobCompletionAfterPhotoUrls } from '@/lib/bookings/job-completion-photo-count';
 
 export type FlaggedPayoutReviewItem = {
   bookingId: string;
@@ -132,10 +133,7 @@ async function enrichBookingRowsToItems(
   const completionMap = new Map(
     (completions ?? []).map((c) => {
       const urls = (c as { after_photo_urls?: string[] }).after_photo_urls ?? [];
-      const n = Array.isArray(urls)
-        ? urls.filter((u) => typeof u === 'string' && u.trim().length > 5 && !/^(placeholder|n\/a|none)$/i.test(u.trim()))
-            .length
-        : 0;
+      const n = countValidJobCompletionAfterPhotoUrls(urls);
       return [String((c as { booking_id: string }).booking_id), n];
     })
   );

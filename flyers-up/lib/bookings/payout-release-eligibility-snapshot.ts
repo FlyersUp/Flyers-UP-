@@ -13,6 +13,7 @@ import { isPayoutEligible, PAYOUT_AUTO_RELEASE_REVIEW_HOURS } from '@/lib/bookin
 import { resolveMilestonePayoutGate } from '@/lib/bookings/multi-day-payout';
 import { evaluatePayoutRiskForPro } from '@/lib/payoutRisk';
 import type { PayoutHoldReason } from '@/lib/bookings/payment-lifecycle-types';
+import { countValidJobCompletionAfterPhotoUrls } from '@/lib/bookings/job-completion-photo-count';
 
 export const PAYOUT_TRANSFER_SNAPSHOT_SELECT_FIELDS = [
   'id',
@@ -248,25 +249,6 @@ export function buildPayoutReleaseEligibilitySnapshot(
     };
   }
 
-  const lcAdmin = String(row.payment_lifecycle_status ?? '').toLowerCase();
-  const payoutHoldLower = String(row.payout_hold_reason ?? '').trim().toLowerCase();
-  if (
-    ctx.initiatedByAdmin &&
-    lcAdmin === 'payout_on_hold' &&
-    payoutHoldLower === 'insufficient_completion_evidence'
-  ) {
-    missing.push('payout_on_hold_completion_evidence');
-    return {
-      eligible: false,
-      reason:
-        'This booking is in payout_on_hold for completion evidence. Resolve completion photos or milestone checks, or clear that hold on the booking, before releasing funds to the pro.',
-      lifecyclePhase: 'payout_pipeline_blocked',
-      holdReason: 'insufficient_completion_evidence',
-      flagForAdminReview: true,
-      missingRequirements: missing,
-    };
-  }
-
   if (!ctx.initiatedByAdmin && row.payout_blocked === true) {
     missing.push('payout_not_blocked');
     return {
@@ -327,14 +309,9 @@ export function buildPayoutReleaseEligibilitySnapshot(
   if (!ctx.skipPhotoProof) {
     const jc = ctx.jobCompletion;
     const rawUrls = (jc?.after_photo_urls ?? []) as string[];
-    const validUrls = rawUrls.filter(
-      (u): u is string =>
-        typeof u === 'string' &&
-        u.trim().length > 5 &&
-        !/^(placeholder|n\/a|none|null|undefined)$/i.test(u.trim())
-    );
+    const validUrlsCount = countValidJobCompletionAfterPhotoUrls(rawUrls);
     const bid = String(row.id ?? '');
-    if (validUrls.length < 2 || String(jc?.booking_id ?? '') !== bid) {
+    if (validUrlsCount < 2 || String(jc?.booking_id ?? '') !== bid) {
       missing.push('two_valid_completion_photos');
       return {
         eligible: false,
