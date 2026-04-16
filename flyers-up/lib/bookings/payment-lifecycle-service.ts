@@ -1361,14 +1361,24 @@ export async function releasePayout(
     idempotencyKey: `payout-booking-${input.bookingId}`,
   });
 
-  if (!created) {
+  if (created.outcome === 'failure') {
+    if (created.code === 'stripe_not_configured') {
+      return {
+        ok: false,
+        code: 'stripe_not_configured',
+        message: created.message,
+        errorPhase: 'pre_stripe',
+        transferId: null,
+        details: { source: 'create_transfer' },
+      };
+    }
     return {
       ok: false,
       code: 'transfer_failed',
-      message:
-        'Stripe did not return a transfer id. Check server logs and the pro’s Connect account (requirements, payouts, bank), then retry.',
+      message: `Stripe could not create the transfer: ${created.message}. If the pro’s Connect account shows ready, check the Stripe dashboard and server logs.`,
       errorPhase: 'stripe',
       transferId: null,
+      details: { stripeErrorMessage: created.message },
     };
   }
 

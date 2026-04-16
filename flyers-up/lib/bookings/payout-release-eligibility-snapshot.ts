@@ -248,6 +248,25 @@ export function buildPayoutReleaseEligibilitySnapshot(
     };
   }
 
+  const lcAdmin = String(row.payment_lifecycle_status ?? '').toLowerCase();
+  const payoutHoldLower = String(row.payout_hold_reason ?? '').trim().toLowerCase();
+  if (
+    ctx.initiatedByAdmin &&
+    lcAdmin === 'payout_on_hold' &&
+    payoutHoldLower === 'insufficient_completion_evidence'
+  ) {
+    missing.push('payout_on_hold_completion_evidence');
+    return {
+      eligible: false,
+      reason:
+        'This booking is in payout_on_hold for completion evidence. Resolve completion photos or milestone checks, or clear that hold on the booking, before releasing funds to the pro.',
+      lifecyclePhase: 'payout_pipeline_blocked',
+      holdReason: 'insufficient_completion_evidence',
+      flagForAdminReview: true,
+      missingRequirements: missing,
+    };
+  }
+
   if (!ctx.initiatedByAdmin && row.payout_blocked === true) {
     missing.push('payout_not_blocked');
     return {

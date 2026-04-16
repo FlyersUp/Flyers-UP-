@@ -263,6 +263,12 @@ export type CreateTransferSuccess = {
   stripeTransferStatus: string | null;
 };
 
+export type CreateTransferFailureCode = 'stripe_not_configured' | 'stripe_api_error';
+
+export type CreateTransferResult =
+  | { outcome: 'success'; transferId: string; stripeTransferStatus: string | null }
+  | { outcome: 'failure'; code: CreateTransferFailureCode; message: string };
+
 type CreateTransferImpl = (params: CreateTransferParams) => Promise<string | null>;
 
 let createTransferIntegrationTestOverride: CreateTransferImpl | null = null;
@@ -272,13 +278,20 @@ export function setCreateTransferForIntegrationTest(fn: CreateTransferImpl | nul
   createTransferIntegrationTestOverride = fn;
 }
 
-export async function createTransfer(params: CreateTransferParams): Promise<CreateTransferSuccess | null> {
+export async function createTransfer(params: CreateTransferParams): Promise<CreateTransferResult> {
   if (createTransferIntegrationTestOverride) {
     const id = await createTransferIntegrationTestOverride(params);
-    if (!id) return null;
+    if (!id) {
+      return {
+        outcome: 'failure',
+        code: 'stripe_api_error',
+        message: 'Integration test transfer stub returned no transfer id.',
+      };
+    }
     /** Treat test doubles as fully settled so lifecycle assertions stay stable. */
-    return { transferId: id, stripeTransferStatus: 'paid' };
+    return { outcome: 'success', transferId: id, stripeTransferStatus: 'paid' };
   }
+
   try {
     const s = getStripe();
     const idempotencyKey = params.idempotencyKey ?? `payout-${params.bookingId}`;
@@ -301,9 +314,19 @@ export async function createTransfer(params: CreateTransferParams): Promise<Crea
     );
     const tr = t as unknown as { id: string; status?: string };
     const status = typeof tr.status === 'string' ? tr.status : null;
-    return { transferId: tr.id, stripeTransferStatus: status };
+    return { outcome: 'success', transferId: tr.id, stripeTransferStatus: status };
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('STRIPE_SECRET_KEY is required')) {
+      console.error('[stripe] createTransfer blocked — missing secret', params.bookingId);
+      return {
+        outcome: 'failure',
+        code: 'stripe_not_configured',
+        message:
+          'Stripe is not configured on this server (missing STRIPE_SECRET_KEY). Payout transfers cannot run until billing credentials are set.',
+      };
+    }
     console.error('[stripe] createTransfer failed', params.bookingId, err);
-    return null;
+    return { outcome: 'failure', code: 'stripe_api_error', message: msg };
   }
 }

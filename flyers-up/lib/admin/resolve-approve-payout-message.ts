@@ -93,6 +93,8 @@ export function resolveApprovePayoutMessage(
     already_released: 'This booking already has a payout recorded.',
     zero_amount: 'The payout amount is zero — review booking totals and refunds.',
     payout_blocked: 'This payout is still blocked by review policy or dispute state.',
+    stripe_not_configured:
+      'Stripe is not configured on this server, so no transfer could be created. Set STRIPE_SECRET_KEY (or fix env) and retry — this is not the pro’s Connect readiness.',
     unknown_action: 'The server did not recognize this action. Refresh and try again.',
     invalid_booking_id: 'This booking link is invalid.',
     invalid_json: 'The request payload was invalid.',
