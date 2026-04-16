@@ -1065,7 +1065,7 @@ export async function reconcileStalePayoutOnHoldForCompletionEvidence(
     .eq('id', bookingId)
     .maybeSingle();
   if (error || !row) return false;
-  const r = row as Record<string, unknown>;
+  const r = row as unknown as Record<string, unknown>;
   if (r.payout_released === true) return false;
   const lc = String(r.payment_lifecycle_status ?? '').toLowerCase();
   const hold = String(r.payout_hold_reason ?? '').trim().toLowerCase();
