@@ -13,6 +13,7 @@ import {
   getAdminPayoutReviewScanPill,
   getAdminPayoutTransferFailureHelper,
   isBookingRefundedForAdminPayoutActions,
+  payoutReviewLooksLikeStripeTransferIssue,
 } from '@/lib/admin/admin-payout-review-ui';
 
 function formatMoney(cents: number | null) {
@@ -147,8 +148,26 @@ export function FlaggedPayoutReviewPageClient() {
 
           {transferRetry ? (
             <div className="rounded-xl border border-red-200 bg-red-50/90 p-3 text-sm text-red-950 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-100">
-              <p className="font-semibold">Transfer attempt failed</p>
+              <p className="font-semibold">
+                {payoutReviewLooksLikeStripeTransferIssue(item)
+                  ? 'Transfer attempt failed'
+                  : 'Payout release did not complete'}
+              </p>
               <p className="mt-1 text-xs leading-relaxed opacity-95">{getAdminPayoutTransferFailureHelper(item)}</p>
+            </div>
+          ) : null}
+
+          {item.queueLastReleaseMessage || item.queueLastReleaseErrorPhase ? (
+            <div className="rounded-xl border border-hairline bg-surface2/60 px-3 py-2 text-xs text-muted">
+              <p className="font-semibold text-text">Last release attempt</p>
+              {item.queueLastReleaseMessage ? (
+                <p className="mt-1 text-sm text-text">{item.queueLastReleaseMessage}</p>
+              ) : null}
+              {item.queueLastReleaseErrorPhase ? (
+                <p className="mt-1 font-mono text-[10px] uppercase tracking-wide text-muted">
+                  Phase: {item.queueLastReleaseErrorPhase}
+                </p>
+              ) : null}
             </div>
           ) : null}
 

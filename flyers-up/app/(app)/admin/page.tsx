@@ -185,6 +185,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           icon: <LayoutDashboard className="h-4 w-4" />,
         },
         {
+          href: '/admin/analytics',
+          title: 'Analytics',
+          description: 'Founder dashboard: GMV, funnel, health, money risk & attention feed.',
+          icon: <BarChart3 className="h-4 w-4" />,
+        },
+        {
           href: '/admin/density',
           title: 'Marketplace density',
           description: 'Pros per category per zip · Requests per category per zip.',

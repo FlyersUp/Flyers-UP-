@@ -192,19 +192,45 @@ export async function runAdminBookingPaymentLifecycleAction(
       return { status: 200, json: { ok: true } };
     }
     case 'approve_payout': {
+      console.info('[admin payment-lifecycle] approve_payout request', {
+        bookingId: id,
+        actorUserId: userId,
+        action: body.action,
+      });
       const out = await runAdminApprovePayoutRelease(admin, { bookingId: id, actorUserId: userId });
       if (!out.ok) {
+        console.warn('[admin payment-lifecycle] approve_payout 400', {
+          bookingId: id,
+          code: out.code,
+          errorPhase: out.errorPhase,
+          message: out.message,
+          details: out.details,
+        });
         return {
           status: 400,
-          json: { ok: false, code: out.code, transferId: out.transferId ?? null },
+          json: {
+            ok: false,
+            code: out.code,
+            message: out.message ?? null,
+            details: out.details ?? null,
+            errorPhase: out.errorPhase ?? 'eligibility',
+            transferId: out.transferId ?? null,
+          },
         };
       }
+      console.info('[admin payment-lifecycle] approve_payout ok', {
+        bookingId: id,
+        transferId: out.transferId ?? null,
+        amountTransferredCents: out.amountTransferredCents ?? 0,
+      });
       return {
         status: 200,
         json: {
           ok: true,
           transferId: out.transferId ?? null,
           amountTransferredCents: out.amountTransferredCents ?? 0,
+          releaseOutcome: out.releaseOutcome ?? null,
+          stripeTransferStatus: out.stripeTransferStatus ?? null,
         },
       };
     }
@@ -335,7 +361,16 @@ export async function runAdminBookingPaymentLifecycleAction(
       return { status: 200, json: { ok: true } };
     }
     default:
-      return { status: 400, json: { error: 'Unknown action' } };
+      return {
+        status: 400,
+        json: {
+          ok: false,
+          code: 'unknown_action',
+          message: `Unknown action: ${String(body.action ?? '')}`,
+          errorPhase: 'validation',
+          details: { action: body.action ?? null },
+        },
+      };
   }
 }
 

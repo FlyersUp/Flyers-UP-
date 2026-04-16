@@ -34,7 +34,10 @@ import type {
   BookingDisputeStatus,
   PayoutHoldReason,
 } from '@/lib/bookings/payment-lifecycle-types';
-import { getPayoutReleaseEligibilitySnapshot } from '@/lib/bookings/payout-release-eligibility-snapshot';
+import {
+  getPayoutReleaseEligibilitySnapshot,
+  type PayoutReleaseLifecyclePhase,
+} from '@/lib/bookings/payout-release-eligibility-snapshot';
 import {
   getBookingWorkflowStatusAfterFinalPayment,
   resolvePayoutLifecyclePatchAfterFinalPayment,
@@ -983,7 +986,33 @@ export async function handleFinalPaymentFailed(
 
 export type PayoutTransferEvaluation =
   | { ok: true }
-  | { ok: false; holdReason: PayoutHoldReason; flagForAdminReview: boolean };
+  | {
+      ok: false;
+      holdReason: PayoutHoldReason;
+      flagForAdminReview: boolean;
+      reason: string;
+      missingRequirements: string[];
+      lifecyclePhase: PayoutReleaseLifecyclePhase;
+    };
+
+/** Where a payout release failed relative to Stripe (for admin API + UI). */
+export type PayoutReleaseErrorPhase = 'eligibility' | 'pre_stripe' | 'stripe';
+
+export type PayoutReleaseOutcome = 'transfer_settled' | 'transfer_initiated' | 'queued';
+
+export type PayoutReleaseResult = {
+  ok: boolean;
+  code?: string;
+  transferId?: string | null;
+  amountTransferredCents?: number;
+  /** Human-readable; prefer over `code` in admin UI when present. */
+  message?: string;
+  details?: Record<string, unknown>;
+  errorPhase?: PayoutReleaseErrorPhase;
+  /** On success: whether Stripe reports the transfer as paid vs still moving. */
+  releaseOutcome?: PayoutReleaseOutcome;
+  stripeTransferStatus?: string | null;
+};
 
 /**
  * Eligibility for Stripe transfer (cron auto-release or admin approve_payout).
@@ -999,7 +1028,14 @@ export async function evaluatePayoutTransferEligibility(
     initiatedByAdmin: opts.initiatedByAdmin,
   });
   if (snap.eligible) return { ok: true };
-  return { ok: false, holdReason: snap.holdReason, flagForAdminReview: snap.flagForAdminReview };
+  return {
+    ok: false,
+    holdReason: snap.holdReason,
+    flagForAdminReview: snap.flagForAdminReview,
+    reason: snap.reason,
+    missingRequirements: snap.missingRequirements,
+    lifecyclePhase: snap.lifecyclePhase,
+  };
 }
 
 export async function evaluatePayoutEligibility(
@@ -1136,11 +1172,23 @@ export async function evaluatePayoutEligibility(
 export async function releasePayout(
   admin: AdminClient,
   input: { bookingId: string; initiatedByAdmin?: boolean; actorUserId?: string | null }
-): Promise<{ ok: boolean; code?: string; transferId?: string | null }> {
+): Promise<PayoutReleaseResult> {
   const initiatedByAdmin = input.initiatedByAdmin === true;
   const transferEv = await evaluatePayoutTransferEligibility(admin, input.bookingId, { initiatedByAdmin });
   if (!transferEv.ok) {
-    return { ok: false, code: transferEv.holdReason };
+    return {
+      ok: false,
+      code: transferEv.holdReason,
+      message: transferEv.reason,
+      errorPhase: 'eligibility',
+      transferId: null,
+      details: {
+        holdReason: transferEv.holdReason,
+        missingRequirements: transferEv.missingRequirements,
+        lifecyclePhase: transferEv.lifecyclePhase,
+        flagForAdminReview: transferEv.flagForAdminReview,
+      },
+    };
   }
 
   const { data: holdRow } = await admin
@@ -1164,7 +1212,15 @@ export async function releasePayout(
     h?.payout_blocked &&
     hardHolds.has(String(h.payout_hold_reason ?? ''))
   ) {
-    return { ok: false, code: 'payout_blocked' };
+    return {
+      ok: false,
+      code: 'payout_blocked',
+      message:
+        'Payout is blocked on this booking for the current hold reason. Clear the hold or use an appropriate admin action before releasing.',
+      errorPhase: 'pre_stripe',
+      transferId: null,
+      details: { payout_hold_reason: h?.payout_hold_reason ?? null },
+    };
   }
 
   try {
@@ -1175,10 +1231,22 @@ export async function releasePayout(
       .maybeSingle();
     const bg = bpGuard as { stripe_transfer_id?: string | null; status?: string | null } | null;
     if (bg?.stripe_transfer_id != null && String(bg.stripe_transfer_id).trim() !== '') {
-      return { ok: false, code: 'already_released' };
+      return {
+        ok: false,
+        code: 'already_released',
+        message: 'A Stripe transfer id is already recorded for this booking.',
+        errorPhase: 'pre_stripe',
+        transferId: bg.stripe_transfer_id ?? null,
+      };
     }
     if (bg?.status === 'released') {
-      return { ok: false, code: 'already_released' };
+      return {
+        ok: false,
+        code: 'already_released',
+        message: 'Booking payout row is already marked released.',
+        errorPhase: 'pre_stripe',
+        transferId: null,
+      };
     }
   } catch {
     // booking_payouts optional in some environments
@@ -1217,14 +1285,28 @@ export async function releasePayout(
     .maybeSingle();
 
   if (!b || (b as unknown as { payout_released?: boolean }).payout_released) {
-    return { ok: false, code: 'already_released' };
+    return {
+      ok: false,
+      code: 'already_released',
+      message: !b ? 'Booking was not found.' : 'Payout was already released for this booking.',
+      errorPhase: 'pre_stripe',
+      transferId: null,
+    };
   }
 
   const row = b as unknown as Record<string, unknown>;
   const dest =
     (row.stripe_destination_account_id as string) ??
     ((row.service_pros as { stripe_account_id?: string })?.stripe_account_id ?? '');
-  if (!dest) return { ok: false, code: 'no_destination' };
+  if (!dest) {
+    return {
+      ok: false,
+      code: 'no_destination',
+      message: 'No Stripe Connect destination account on file for this pro.',
+      errorPhase: 'pre_stripe',
+      transferId: null,
+    };
+  }
 
   const subtotalCents = Number(row.amount_subtotal ?? 0) || 0;
   const { payoutCents: netToPro } = resolveProPayoutTransferCents({
@@ -1236,7 +1318,16 @@ export async function releasePayout(
     amount_subtotal: subtotalCents > 0 ? subtotalCents : null,
   });
 
-  if (netToPro <= 0) return { ok: false, code: 'zero_amount' };
+  if (netToPro <= 0) {
+    return {
+      ok: false,
+      code: 'zero_amount',
+      message: 'Computed net payout to the pro is zero — review refunds, fees, and booking totals.',
+      errorPhase: 'pre_stripe',
+      transferId: null,
+      details: { netToProCents: netToPro },
+    };
+  }
 
   const currency = String(row.currency ?? 'usd').toLowerCase();
   const finalPi = coalesceBookingFinalPaymentIntentId(row as BookingFinalPaymentIntentIdRow) ?? '';
@@ -1261,7 +1352,7 @@ export async function releasePayout(
     pricing_version: pricingVersion,
   });
 
-  const transferId = await createTransfer({
+  const created = await createTransfer({
     amount: netToPro,
     currency,
     destinationAccountId: dest,
@@ -1270,7 +1361,22 @@ export async function releasePayout(
     idempotencyKey: `payout-booking-${input.bookingId}`,
   });
 
-  if (!transferId) return { ok: false, code: 'transfer_failed' };
+  if (!created) {
+    return {
+      ok: false,
+      code: 'transfer_failed',
+      message:
+        'Stripe did not return a transfer id. Check server logs and the pro’s Connect account (requirements, payouts, bank), then retry.',
+      errorPhase: 'stripe',
+      transferId: null,
+    };
+  }
+
+  const transferId = created.transferId;
+  const stripeTransferStatus = created.stripeTransferStatus;
+  const stLower = String(stripeTransferStatus ?? '').toLowerCase();
+  const releaseOutcome: PayoutReleaseOutcome =
+    stLower === 'paid' ? 'transfer_settled' : 'transfer_initiated';
 
   const now = new Date().toISOString();
 
@@ -1319,7 +1425,55 @@ export async function releasePayout(
     actorUserId: input.actorUserId ?? null,
   });
 
-  return { ok: true, transferId };
+  return { ok: true, transferId, releaseOutcome, stripeTransferStatus };
+}
+
+async function mergePayoutReviewQueueReleaseFailureDetails(
+  admin: AdminClient,
+  bookingId: string,
+  actorUserId: string,
+  failure: Pick<PayoutReleaseResult, 'code' | 'message' | 'errorPhase' | 'details' | 'transferId'>
+): Promise<void> {
+  const now = new Date().toISOString();
+  try {
+    const { data: row } = await admin
+      .from('payout_review_queue')
+      .select('id, details')
+      .eq('booking_id', bookingId)
+      .maybeSingle();
+    const prevDetails =
+      row?.details != null && typeof row.details === 'object' && !Array.isArray(row.details)
+        ? { ...(row.details as Record<string, unknown>) }
+        : {};
+    const next: Record<string, unknown> = {
+      ...prevDetails,
+      last_release_attempt_at: now,
+      last_release_attempt_by: actorUserId,
+      last_release_error_phase: failure.errorPhase ?? null,
+      last_release_message: failure.message ?? null,
+      last_release_code: failure.code ?? null,
+      last_release_details: failure.details ?? null,
+      release_error: typeof failure.code === 'string' ? failure.code : 'unknown',
+    };
+    if (row && (row as { id?: string }).id) {
+      await admin
+        .from('payout_review_queue')
+        .update({ details: next })
+        .eq('id', String((row as { id: string }).id));
+      return;
+    }
+    await admin.from('payout_review_queue').upsert(
+      {
+        booking_id: bookingId,
+        reason: 'missing_evidence',
+        details: { ...next, source: 'admin_release_attempt' },
+        status: 'pending_review',
+      },
+      { onConflict: 'booking_id' }
+    );
+  } catch (e) {
+    console.warn('[mergePayoutReviewQueueReleaseFailureDetails]', bookingId, e);
+  }
 }
 
 /**
@@ -1329,7 +1483,7 @@ export async function releasePayout(
 export async function runAdminApprovePayoutRelease(
   admin: AdminClient,
   input: { bookingId: string; actorUserId: string }
-): Promise<{ ok: boolean; code?: string; transferId?: string | null; amountTransferredCents?: number }> {
+): Promise<PayoutReleaseResult> {
   const id = input.bookingId;
   const { data: snap } = await admin
     .from('bookings')
@@ -1357,7 +1511,29 @@ export async function runAdminApprovePayoutRelease(
 
   const out = await releasePayout(admin, { bookingId: id, initiatedByAdmin: true, actorUserId: input.actorUserId });
   if (!out.ok) {
-    return { ok: false, code: out.code, transferId: out.transferId ?? null };
+    console.warn('[runAdminApprovePayoutRelease] rejected', {
+      bookingId: id,
+      actorUserId: input.actorUserId,
+      code: out.code,
+      errorPhase: out.errorPhase,
+      message: out.message,
+      details: out.details,
+    });
+    await mergePayoutReviewQueueReleaseFailureDetails(admin, id, input.actorUserId, {
+      code: out.code,
+      message: out.message,
+      errorPhase: out.errorPhase,
+      details: out.details,
+      transferId: out.transferId ?? null,
+    });
+    return {
+      ok: false,
+      code: out.code,
+      transferId: out.transferId ?? null,
+      message: out.message,
+      details: out.details,
+      errorPhase: out.errorPhase,
+    };
   }
   const now = new Date().toISOString();
   await admin
@@ -1389,7 +1565,13 @@ export async function runAdminApprovePayoutRelease(
       },
     },
   });
-  return { ok: true, transferId: out.transferId ?? null, amountTransferredCents: amountCents };
+  return {
+    ok: true,
+    transferId: out.transferId ?? null,
+    amountTransferredCents: amountCents,
+    releaseOutcome: out.releaseOutcome,
+    stripeTransferStatus: out.stripeTransferStatus ?? null,
+  };
 }
 
 /**

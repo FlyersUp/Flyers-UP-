@@ -1,6 +1,10 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import {
+  resolveApprovePayoutMessage,
+  type ApprovePayoutResponseJson,
+} from '@/lib/admin/resolve-approve-payout-message';
 
 type Props = {
   bookingId: string;
@@ -33,36 +37,21 @@ export function ApprovePayoutNowButton({ bookingId, onReleased, className, mode 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'approve_payout' }),
       });
-      const json = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        code?: string;
-        error?: string;
-        transferId?: string | null;
-      };
-      if (!res.ok || json.ok === false) {
-        const code = json.code ?? json.error ?? res.statusText;
-        const raw = typeof code === 'string' ? code : 'Release failed';
-        const friendly: Record<string, string> = {
-          transfer_failed:
-            'Stripe could not complete the transfer. Check the pro’s Connect account (charges, payouts, bank), then retry.',
-          no_destination: 'No Stripe Connect destination on file — pro must finish payout setup before retry.',
-          already_released: 'This booking already has a payout recorded.',
-          zero_amount: 'Computed payout amount is zero — review refunds and booking totals.',
-          payout_blocked: 'Payout is still blocked by policy — resolve holds or disputes first.',
-        };
-        setMessage({ type: 'err', text: friendly[raw] ?? raw });
-        return;
+      const json = (await res.json().catch(() => ({}))) as ApprovePayoutResponseJson;
+      const resolved = resolveApprovePayoutMessage(res, json);
+      if (resolved.type === 'ok') {
+        setMessage({ type: 'ok', text: resolved.text });
+        if (resolved.shouldNotifyParent) {
+          await onReleased?.();
+        }
+      } else {
+        setMessage({ type: 'err', text: resolved.text });
       }
-      setMessage({
-        type: 'ok',
-        text:
-          mode === 'retry'
-            ? 'Payout retry submitted. Transfer is processing if eligibility checks pass.'
-            : 'Payout released. Transfer is processing.',
-      });
-      await onReleased?.();
     } catch {
-      setMessage({ type: 'err', text: 'Network error' });
+      setMessage({
+        type: 'err',
+        text: 'Could not reach the server. Check your connection and retry.',
+      });
     } finally {
       inFlight.current = false;
       setLoading(false);
@@ -89,12 +78,18 @@ export function ApprovePayoutNowButton({ bookingId, onReleased, className, mode 
             : 'Approve & release payout now'}
       </button>
       {message?.type === 'ok' ? (
-        <p className="text-sm text-emerald-700 dark:text-emerald-300">{message.text}</p>
+        <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
+          {message.text}
+        </div>
       ) : null}
       {message?.type === 'err' ? (
-        <p className="text-sm text-red-700 dark:text-red-300" role="alert">
+        <div
+          className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300"
+          role="alert"
+          aria-live="polite"
+        >
           {message.text}
-        </p>
+        </div>
       ) : null}
     </div>
   );

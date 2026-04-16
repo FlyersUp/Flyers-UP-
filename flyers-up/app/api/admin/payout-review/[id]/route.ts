@@ -56,11 +56,25 @@ export async function POST(
     const out = await runAdminApprovePayoutRelease(admin, { bookingId, actorUserId: user.id });
     if (!out.ok) {
       return NextResponse.json(
-        { ok: false, error: out.code ?? 'release_failed', transferId: out.transferId ?? null },
+        {
+          ok: false,
+          code: out.code ?? 'release_failed',
+          message: out.message ?? null,
+          details: out.details ?? null,
+          errorPhase: out.errorPhase ?? 'eligibility',
+          transferId: out.transferId ?? null,
+        },
         { status: 400 }
       );
     }
-    return NextResponse.json({ ok: true, status: 'approved' });
+    return NextResponse.json({
+      ok: true,
+      status: 'approved',
+      transferId: out.transferId ?? null,
+      amountTransferredCents: out.amountTransferredCents ?? 0,
+      releaseOutcome: out.releaseOutcome ?? null,
+      stripeTransferStatus: out.stripeTransferStatus ?? null,
+    });
   }
 
   if (action === 'keep_on_hold') {

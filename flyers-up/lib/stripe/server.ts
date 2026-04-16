@@ -256,6 +256,13 @@ export type CreateTransferParams = {
   idempotencyKey?: string;
 };
 
+/** Stripe transfer id + Connect transfer lifecycle status from `transfers.create`. */
+export type CreateTransferSuccess = {
+  transferId: string;
+  /** Stripe `Transfer.status` (e.g. `paid`, `pending`, `in_transit`). Null when unknown (tests). */
+  stripeTransferStatus: string | null;
+};
+
 type CreateTransferImpl = (params: CreateTransferParams) => Promise<string | null>;
 
 let createTransferIntegrationTestOverride: CreateTransferImpl | null = null;
@@ -265,9 +272,12 @@ export function setCreateTransferForIntegrationTest(fn: CreateTransferImpl | nul
   createTransferIntegrationTestOverride = fn;
 }
 
-export async function createTransfer(params: CreateTransferParams): Promise<string | null> {
+export async function createTransfer(params: CreateTransferParams): Promise<CreateTransferSuccess | null> {
   if (createTransferIntegrationTestOverride) {
-    return createTransferIntegrationTestOverride(params);
+    const id = await createTransferIntegrationTestOverride(params);
+    if (!id) return null;
+    /** Treat test doubles as fully settled so lifecycle assertions stay stable. */
+    return { transferId: id, stripeTransferStatus: 'paid' };
   }
   try {
     const s = getStripe();
@@ -289,7 +299,9 @@ export async function createTransfer(params: CreateTransferParams): Promise<stri
       },
       { idempotencyKey }
     );
-    return t.id;
+    const tr = t as unknown as { id: string; status?: string };
+    const status = typeof tr.status === 'string' ? tr.status : null;
+    return { transferId: tr.id, stripeTransferStatus: status };
   } catch (err) {
     console.error('[stripe] createTransfer failed', params.bookingId, err);
     return null;

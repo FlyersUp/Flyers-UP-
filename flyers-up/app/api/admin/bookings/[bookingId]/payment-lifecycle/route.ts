@@ -22,7 +22,17 @@ export async function POST(
 ) {
   const { bookingId } = await params;
   const id = normalizeUuidOrNull(bookingId);
-  if (!id) return NextResponse.json({ error: 'Invalid booking ID' }, { status: 400 });
+  if (!id) {
+    return NextResponse.json(
+      {
+        ok: false,
+        code: 'invalid_booking_id',
+        message: 'Invalid booking ID.',
+        errorPhase: 'validation',
+      },
+      { status: 400 }
+    );
+  }
 
   const supabase = await createServerSupabaseClient();
   const {
@@ -38,7 +48,15 @@ export async function POST(
   try {
     body = (await req.json()) as AdminPaymentLifecycleBody;
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    return NextResponse.json(
+      {
+        ok: false,
+        code: 'invalid_json',
+        message: 'Request body must be valid JSON.',
+        errorPhase: 'validation',
+      },
+      { status: 400 }
+    );
   }
 
   const admin = createAdminSupabaseClient();
@@ -49,6 +67,18 @@ export async function POST(
     body,
     stripeClient,
   });
+
+  const j = result.json as Record<string, unknown>;
+  if (result.status >= 400 || body.action === 'approve_payout') {
+    console.info('[payment-lifecycle route] POST result', {
+      bookingId: id,
+      action: body.action,
+      httpStatus: result.status,
+      code: typeof j.code === 'string' ? j.code : undefined,
+      errorPhase: typeof j.errorPhase === 'string' ? j.errorPhase : undefined,
+      ok: j.ok,
+    });
+  }
 
   return NextResponse.json(result.json, { status: result.status });
 }

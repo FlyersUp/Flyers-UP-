@@ -27,9 +27,18 @@ export function flaggedPayoutReviewNeedsTransferRetry(item: FlaggedPayoutReviewI
 
   const re = String(item.queueReleaseError ?? '').trim().toLowerCase();
   if (TRANSFER_FAIL_CODES.has(re)) return true;
-  if (re.includes('transfer') && re.includes('fail')) return true;
 
   return false;
+}
+
+/** Signals that point to a Stripe Connect transfer failure (vs eligibility / booking-state blocks). */
+export function payoutReviewLooksLikeStripeTransferIssue(item: FlaggedPayoutReviewItem): boolean {
+  const ps = String(item.payoutStatus ?? '').toLowerCase();
+  if (ps === 'failed') return true;
+  const bps = String(item.bookingPayoutRowStatus ?? '').toLowerCase();
+  if (bps === 'failed' || bps === 'reversed') return true;
+  const re = String(item.queueReleaseError ?? '').trim().toLowerCase();
+  return TRANSFER_FAIL_CODES.has(re);
 }
 
 export type AdminPayoutReleaseCtaMode = 'approve' | 'retry' | 'hidden';
@@ -64,9 +73,14 @@ export function getAdminPayoutReviewScanPill(item: FlaggedPayoutReviewItem): {
 }
 
 export function getAdminPayoutTransferFailureHelper(item: FlaggedPayoutReviewItem): string {
-  const parts: string[] = [
-    'Previous payout attempt failed. This usually means the connected Stripe account is not fully ready or Stripe could not complete the transfer. Review account readiness, then retry.',
-  ];
+  const stripeLikely = payoutReviewLooksLikeStripeTransferIssue(item);
+  const parts: string[] = stripeLikely
+    ? [
+        'Previous payout attempt failed at Stripe (transfer declined or not created). Check the pro’s Connect account (requirements, payouts, bank), then retry.',
+      ]
+    : [
+        'A payout release did not complete. This is often a booking-state or eligibility issue (final payment lifecycle, completion requirements, Connect destination), not necessarily a Stripe transfer decline. Open the booking, review flags and the error from your last attempt, then retry after fixing state.',
+      ];
   const block = item.bookingPayoutBlockReason?.trim();
   if (block) {
     parts.push(`Last recorded detail: ${block}`);

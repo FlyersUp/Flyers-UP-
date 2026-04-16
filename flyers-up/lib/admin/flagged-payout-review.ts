@@ -48,6 +48,9 @@ export type FlaggedPayoutReviewItem = {
   /** From queue.details (e.g. cron after releasePayout failure) */
   queueReleaseError?: string | null;
   queueReleaseNote?: string | null;
+  /** Last admin/cron payout release attempt (from queue.details). */
+  queueLastReleaseMessage?: string | null;
+  queueLastReleaseErrorPhase?: string | null;
   /** booking_payouts.status when joined */
   bookingPayoutRowStatus?: string | null;
   bookingPayoutBlockReason?: string | null;
@@ -227,6 +230,8 @@ async function attachPayoutReviewQueueMetadata(
       queueInternalNote: string | null;
       queueReleaseError: string | null;
       queueReleaseNote: string | null;
+      queueLastReleaseMessage: string | null;
+      queueLastReleaseErrorPhase: string | null;
     }
   >();
   for (const r of qrows ?? []) {
@@ -234,12 +239,16 @@ async function attachPayoutReviewQueueMetadata(
     const d = row.details ?? {};
     const releaseErr = d.release_error;
     const note = d.note;
+    const lastMsg = d.last_release_message;
+    const lastPhase = d.last_release_error_phase;
     qm.set(row.booking_id, {
       queueStatus: row.status,
       queueHoldReason: typeof d.hold_reason === 'string' ? d.hold_reason : null,
       queueInternalNote: typeof d.internal_note === 'string' ? d.internal_note : null,
       queueReleaseError: typeof releaseErr === 'string' ? releaseErr : null,
       queueReleaseNote: typeof note === 'string' ? note : null,
+      queueLastReleaseMessage: typeof lastMsg === 'string' ? lastMsg : null,
+      queueLastReleaseErrorPhase: typeof lastPhase === 'string' ? lastPhase : null,
     });
   }
   return items.map((item) => {
@@ -252,6 +261,8 @@ async function attachPayoutReviewQueueMetadata(
       queueInternalNote: q?.queueInternalNote ?? null,
       queueReleaseError: q?.queueReleaseError ?? null,
       queueReleaseNote: q?.queueReleaseNote ?? null,
+      queueLastReleaseMessage: q?.queueLastReleaseMessage ?? null,
+      queueLastReleaseErrorPhase: q?.queueLastReleaseErrorPhase ?? null,
       bookingPayoutRowStatus: bp?.status ?? null,
       bookingPayoutBlockReason: bp?.payout_block_reason ?? null,
     };
