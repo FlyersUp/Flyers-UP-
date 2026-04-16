@@ -96,6 +96,7 @@ export async function sendUnifiedReceiptEmailDeposit(params: {
       ${lineRow('Deposit received', formatMoney(r.depositPaidCents, r.currency), true)}
       ${lineRow('Remaining balance', formatMoney(r.remainingDueCents, r.currency))}
     </table>
+    ${r.subtotalExplanation ? `<p style="margin:12px 0 0;font-size:12px;color:#52525b;line-height:1.45;">${escapeHtml(r.subtotalExplanation)}</p>` : ''}
     ${pricingNotesHtml(r)}
     <p style="margin:20px 0 0;font-size:13px;color:#52525b;">You will receive a single combined receipt by email when the remaining balance is paid.</p>
   `;
@@ -135,6 +136,7 @@ export async function sendUnifiedReceiptEmailFinal(params: {
       ${lineRow('Total paid', formatMoney(r.totalPaidCents, r.currency), true)}
       ${r.refundedTotalCents > 0 ? lineRow('Refunded (total)', formatMoney(r.refundedTotalCents, r.currency)) : ''}
     </table>
+    ${r.subtotalExplanation ? `<p style="margin:12px 0 0;font-size:12px;color:#52525b;line-height:1.45;">${escapeHtml(r.subtotalExplanation)}</p>` : ''}
     ${pricingNotesHtml(r)}
     <p style="margin:20px 0 0;font-size:13px;color:#52525b;">Keep this email for your records. Flyers Up is your official receipt for this marketplace booking.</p>
   `;

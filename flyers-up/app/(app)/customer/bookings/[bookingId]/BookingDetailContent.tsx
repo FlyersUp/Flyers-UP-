@@ -48,6 +48,7 @@ import { BookingRebookCard } from '@/components/bookings/customer/booking-detail
 import { BookingSafetyLinks } from '@/components/bookings/customer/booking-detail/BookingSafetyLinks';
 import { BookingDetailActionBar } from '@/components/bookings/customer/booking-detail/BookingDetailActionBar';
 import { cn } from '@/lib/cn';
+import type { ReceiptSubtotalExplanationInput } from '@/lib/bookings/receipt-subtotal-explanation';
 
 export interface BookingDetailData {
   id: string;
@@ -125,6 +126,8 @@ export interface BookingDetailData {
   finalPaymentIntentStripeStatus?: string | null;
   finalPaymentIntentStripeLiveChecked?: boolean;
   payoutTransferId?: string | null;
+  /** Frozen pricing snapshot for hourly/subtotal copy on the payment summary. */
+  receiptPricingSnapshot?: Partial<ReceiptSubtotalExplanationInput> | null;
 }
 
 function toTrackBookingData(b: BookingDetailData): TrackBookingData {
@@ -181,6 +184,7 @@ function toTrackBookingData(b: BookingDetailData): TrackBookingData {
     finalPaymentIntentStripeStatus: b.finalPaymentIntentStripeStatus ?? null,
     finalPaymentIntentStripeLiveChecked: b.finalPaymentIntentStripeLiveChecked ?? undefined,
     payoutTransferId: b.payoutTransferId ?? null,
+    receiptPricingSnapshot: b.receiptPricingSnapshot ?? null,
   };
 }
 
@@ -568,6 +572,7 @@ export function BookingDetailContent({
                 layoutVariant="compact"
                 showOnPlatformReceiptTrust={showRebookStrip}
                 customerRefundFunding={customerMoney.customerRefundFunding}
+                receiptPricingSnapshot={fullBooking.receiptPricingSnapshot ?? null}
               />
             </section>
 

@@ -149,6 +149,16 @@ export async function loadUnifiedReceiptBookingInput(
         'fee_profile',
         'pricing_occupation_slug',
         'pricing_category_slug',
+        'charge_model',
+        'hourly_selected',
+        'flat_fee_selected',
+        'hourly_rate_cents',
+        'minimum_job_cents',
+        'flat_fee_cents',
+        'base_fee_cents',
+        'included_hours',
+        'overage_hourly_rate_cents',
+        'actual_hours_estimate',
       ].join(', ')
     )
     .eq('id', bookingId)
@@ -331,17 +341,28 @@ export async function loadUnifiedReceiptBookingInput(
 
   let serviceTitle = 'Service';
   let proName = 'Provider';
+  let proMinHours: number | null = null;
   const proId = b.pro_id as string | null;
   if (proId) {
     const { data: pro } = await admin
       .from('service_pros')
-      .select('display_name, category_id')
+      .select('display_name, category_id, user_id')
       .eq('id', proId)
       .maybeSingle();
     if (pro) {
       proName =
         String((pro as { display_name?: string }).display_name ?? 'Provider').trim() ||
         'Provider';
+      const proUserId = String((pro as { user_id?: string }).user_id ?? '').trim();
+      if (proUserId) {
+        const { data: pp } = await admin
+          .from('pro_profiles')
+          .select('min_hours')
+          .eq('user_id', proUserId)
+          .maybeSingle();
+        const mh = Number((pp as { min_hours?: number } | null)?.min_hours);
+        if (Number.isFinite(mh) && mh > 0) proMinHours = mh;
+      }
       const catId = (pro as { category_id?: string | null }).category_id;
       if (catId) {
         const { data: cat } = await admin
@@ -432,6 +453,22 @@ export async function loadUnifiedReceiptBookingInput(
     ledgerDepositPaidPaymentIntentId: ledger.latestDepositPaidPaymentIntentId,
     ledgerRemainingPaidPaymentIntentId: ledger.latestRemainingPaidPaymentIntentId,
     addonLineItems,
+    chargeModel: (b.charge_model as string | null) ?? null,
+    durationHours: typeof b.duration_hours === 'number' ? b.duration_hours : null,
+    hourlySelected:
+      b.hourly_selected === true ? true : b.hourly_selected === false ? false : null,
+    flatFeeSelected:
+      b.flat_fee_selected === true ? true : b.flat_fee_selected === false ? false : null,
+    hourlyRateCents: typeof b.hourly_rate_cents === 'number' ? b.hourly_rate_cents : null,
+    minimumJobCents: typeof b.minimum_job_cents === 'number' ? b.minimum_job_cents : null,
+    flatFeeCents: typeof b.flat_fee_cents === 'number' ? b.flat_fee_cents : null,
+    baseFeeCents: typeof b.base_fee_cents === 'number' ? b.base_fee_cents : null,
+    includedHours: typeof b.included_hours === 'number' ? b.included_hours : null,
+    overageHourlyRateCents:
+      typeof b.overage_hourly_rate_cents === 'number' ? b.overage_hourly_rate_cents : null,
+    actualHoursEstimate:
+      typeof b.actual_hours_estimate === 'number' ? b.actual_hours_estimate : null,
+    proMinHours,
   };
 
   return input;

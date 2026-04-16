@@ -10,6 +10,7 @@ import {
   coalesceBookingFinalPaymentIntentId,
   type BookingFinalPaymentIntentIdRow,
 } from '@/lib/bookings/money-state';
+import { computeReceiptSubtotalExplanation } from '@/lib/bookings/receipt-subtotal-explanation';
 
 export type UnifiedReceiptOverallStatus =
   | 'unpaid'
@@ -76,6 +77,8 @@ export interface UnifiedBookingReceipt {
   warnings: string[];
   /** Snapshotted add-ons at booking time (each price is included in serviceSubtotalCents). */
   addonLineItems: Array<{ title: string; priceCents: number }>;
+  /** Customer-facing line tying hourly/flat/hybrid to the work subtotal (null if unknown). */
+  subtotalExplanation: string | null;
 }
 
 function safeInt(n: unknown): number {
@@ -136,6 +139,20 @@ export interface UnifiedReceiptBookingInput {
   /** Latest successful remaining PI from booking_events.REMAINING_PAID. */
   ledgerRemainingPaidPaymentIntentId?: string | null;
   dynamicPricingReasons?: string[] | null;
+  /** Frozen booking pricing snapshot (hourly / hybrid / minimums). */
+  chargeModel?: string | null;
+  durationHours?: number | null;
+  hourlySelected?: boolean | null;
+  flatFeeSelected?: boolean | null;
+  hourlyRateCents?: number | null;
+  minimumJobCents?: number | null;
+  flatFeeCents?: number | null;
+  baseFeeCents?: number | null;
+  includedHours?: number | null;
+  overageHourlyRateCents?: number | null;
+  actualHoursEstimate?: number | null;
+  /** From `pro_profiles.min_hours` when hourly path. */
+  proMinHours?: number | null;
 }
 
 function normalizeCurrencyCode(raw: string | null | undefined): { code: string; normalizedFallback: boolean } {
@@ -393,6 +410,22 @@ export function buildUnifiedBookingReceipt(
     overallStatus = 'partially_paid';
   }
 
+  const subtotalExplanation = computeReceiptSubtotalExplanation({
+    serviceSubtotalCents,
+    chargeModel: input.chargeModel,
+    hourlySelected: input.hourlySelected,
+    flatFeeSelected: input.flatFeeSelected,
+    durationHours: input.durationHours,
+    hourlyRateCents: input.hourlyRateCents,
+    minimumJobCents: input.minimumJobCents,
+    flatFeeCents: input.flatFeeCents,
+    baseFeeCents: input.baseFeeCents,
+    includedHours: input.includedHours,
+    overageHourlyRateCents: input.overageHourlyRateCents,
+    proMinHours: input.proMinHours,
+    actualHoursEstimate: input.actualHoursEstimate,
+  });
+
   return {
     bookingId,
     bookingReference: ref,
@@ -437,6 +470,7 @@ export function buildUnifiedBookingReceipt(
     dynamicPricingReasons,
     warnings,
     addonLineItems: input.addonLineItems ?? [],
+    subtotalExplanation,
   };
 }
 

@@ -12,6 +12,12 @@ import { labelDynamicPricingReason } from '@/lib/bookings/dynamic-pricing-reason
 import { StayOnPlatformTrustCallout } from '@/components/retention/StayOnPlatformTrustCallout';
 import { CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT } from '@/lib/bookings/customer-payment-platform-hold-copy';
 import type { MoneyCustomerRefundFunding } from '@/lib/bookings/money-state';
+import type { ReceiptSubtotalExplanationInput } from '@/lib/bookings/receipt-subtotal-explanation';
+import {
+  computeReceiptSubtotalExplanation,
+  splitDepositDueNowCents,
+  splitFinalScheduledDueCents,
+} from '@/lib/bookings/receipt-subtotal-explanation';
 
 function refundFundingCaption(funding: MoneyCustomerRefundFunding): string | null {
   if (funding === 'none') return null;
@@ -121,6 +127,8 @@ export interface TrackBookingPaymentSummaryProps {
   showOnPlatformReceiptTrust?: boolean;
   /** From {@link getMoneyState} — distinguishes platform-balance vs booking-charge window refunds. */
   customerRefundFunding?: MoneyCustomerRefundFunding | null;
+  /** Booking row snapshot for hourly/subtotal explanation when JSON receipt is still loading. */
+  receiptPricingSnapshot?: Partial<ReceiptSubtotalExplanationInput> | null;
   className?: string;
 }
 
@@ -161,6 +169,7 @@ export function TrackBookingPaymentSummary({
   layoutVariant = 'full',
   showOnPlatformReceiptTrust = false,
   customerRefundFunding = null,
+  receiptPricingSnapshot = null,
   className = '',
 }: TrackBookingPaymentSummaryProps) {
   const tz = bookingTimezone?.trim() || DEFAULT_BOOKING_TIMEZONE;
@@ -236,6 +245,18 @@ export function TrackBookingPaymentSummary({
         serviceDate: serviceDate ?? null,
         serviceTime: serviceTime ?? null,
         address: address ?? null,
+        chargeModel: receiptPricingSnapshot?.chargeModel,
+        durationHours: receiptPricingSnapshot?.durationHours,
+        hourlySelected: receiptPricingSnapshot?.hourlySelected,
+        flatFeeSelected: receiptPricingSnapshot?.flatFeeSelected,
+        hourlyRateCents: receiptPricingSnapshot?.hourlyRateCents,
+        minimumJobCents: receiptPricingSnapshot?.minimumJobCents,
+        flatFeeCents: receiptPricingSnapshot?.flatFeeCents,
+        baseFeeCents: receiptPricingSnapshot?.baseFeeCents,
+        includedHours: receiptPricingSnapshot?.includedHours,
+        overageHourlyRateCents: receiptPricingSnapshot?.overageHourlyRateCents,
+        actualHoursEstimate: receiptPricingSnapshot?.actualHoursEstimate,
+        proMinHours: receiptPricingSnapshot?.proMinHours,
       }),
     [
       bookingId,
@@ -268,10 +289,19 @@ export function TrackBookingPaymentSummary({
       serviceDate,
       serviceTime,
       address,
+      receiptPricingSnapshot,
     ]
   );
 
   const receipt = apiReceipt ?? clientReceipt;
+
+  const subtotalExplanationLine = useMemo(() => {
+    if (receipt.subtotalExplanation) return receipt.subtotalExplanation;
+    return computeReceiptSubtotalExplanation({
+      serviceSubtotalCents: receipt.serviceSubtotalCents,
+      ...(receiptPricingSnapshot ?? {}),
+    });
+  }, [receipt.subtotalExplanation, receipt.serviceSubtotalCents, receiptPricingSnapshot]);
 
   /** When we have a quoted customer total (or API receipt), show full breakdown including $0.00 lines. */
   const showFullFeeBreakdown =
@@ -315,8 +345,8 @@ export function TrackBookingPaymentSummary({
   if (layoutVariant === 'compact') {
     const feesShown =
       receipt.feeTotalCents > 0 ? receipt.feeTotalCents : serviceFeesAggregateCents;
-    const depositPaidCents =
-      receipt.depositPhaseStatus === 'paid' ? receipt.depositScheduledCents : 0;
+    const depDueNow = splitDepositDueNowCents(receipt);
+    const afterDepositScheduled = splitFinalScheduledDueCents(receipt);
 
     return (
       <section
@@ -341,6 +371,9 @@ export function TrackBookingPaymentSummary({
               {lineMoney(receipt.serviceSubtotalCents)}
             </span>
           </div>
+          {subtotalExplanationLine ? (
+            <p className="text-[11px] leading-snug text-[#6A6A6A] dark:text-[#A1A8B3] -mt-1">{subtotalExplanationLine}</p>
+          ) : null}
           <div className="flex justify-between gap-3 min-w-0">
             <span className="text-[#6A6A6A] dark:text-[#A1A8B3] shrink-0">Marketplace fees</span>
             <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums text-right">
@@ -366,17 +399,31 @@ export function TrackBookingPaymentSummary({
 
           {receipt.isSplitPayment && (
             <>
-              {depositPaidCents > 0 && (
+              {depDueNow > 0 ? (
+                <div className="flex justify-between gap-3 min-w-0 pt-1">
+                  <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Deposit due now</span>
+                  <span className="font-semibold text-[#4A69BD] dark:text-[#7BA3E8] tabular-nums">
+                    {formatCents(depDueNow)}
+                  </span>
+                </div>
+              ) : null}
+              {receipt.depositPaidCents > 0 ? (
                 <div className="flex justify-between gap-3 min-w-0 pt-1">
                   <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Deposit paid</span>
                   <span className="font-semibold text-[#058954] tabular-nums">
-                    -{formatCents(depositPaidCents)}
+                    -{formatCents(receipt.depositPaidCents)}
                   </span>
                 </div>
-              )}
+              ) : null}
               <div className="flex justify-between gap-3 min-w-0">
-                <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Remaining due</span>
+                <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">After-service balance (scheduled)</span>
                 <span className="font-bold text-[#4A69BD] dark:text-[#7BA3E8] tabular-nums">
+                  {formatCents(afterDepositScheduled)}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3 min-w-0 pt-1 border-t border-black/[0.06] dark:border-white/[0.08]">
+                <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Total outstanding</span>
+                <span className="font-semibold text-[#111111] dark:text-[#F5F7FA] tabular-nums">
                   {formatCents(Math.max(0, receipt.remainingDueCents))}
                 </span>
               </div>
@@ -461,6 +508,9 @@ export function TrackBookingPaymentSummary({
             {lineMoney(receipt.serviceSubtotalCents)}
           </span>
         </div>
+        {subtotalExplanationLine ? (
+          <p className="text-[11px] leading-snug text-[#6A6A6A] dark:text-[#A1A8B3] -mt-2 mb-1">{subtotalExplanationLine}</p>
+        ) : null}
 
         <div className="flex justify-between gap-4">
           <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Service fee</span>
@@ -543,7 +593,13 @@ export function TrackBookingPaymentSummary({
         {receipt.isSplitPayment && (
           <>
             <div className="flex justify-between gap-4">
-              <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Deposit</span>
+              <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">
+                {receipt.depositPhaseStatus === 'paid'
+                  ? 'Deposit paid'
+                  : splitDepositDueNowCents(receipt) > 0
+                    ? 'Deposit due now'
+                    : 'Deposit'}
+              </span>
               <span
                 className={`font-medium tabular-nums ${
                   receipt.depositPhaseStatus === 'paid'
@@ -552,27 +608,33 @@ export function TrackBookingPaymentSummary({
                 }`}
               >
                 {receipt.depositScheduledCents > 0
-                  ? `${formatCents(receipt.depositScheduledCents)}${receipt.depositPhaseStatus === 'paid' ? ' (paid)' : ''}`
+                  ? formatCents(
+                      receipt.depositPhaseStatus === 'paid'
+                        ? receipt.depositPaidCents
+                        : splitDepositDueNowCents(receipt)
+                    )
                   : '—'}
               </span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Final payment</span>
+              <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">
+                {receipt.overallStatus === 'fully_paid' ? 'Final payment' : 'After-service balance (scheduled)'}
+              </span>
               <span className="font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums">
-                {receipt.remainingDueCents > 0 || receipt.remainingScheduledCents > 0
-                  ? formatCents(
-                      receipt.overallStatus === 'fully_paid'
-                        ? receipt.remainingPaidCents
-                        : Math.max(receipt.remainingDueCents, receipt.remainingScheduledCents)
-                    )
-                  : '—'}
+                {receipt.overallStatus === 'fully_paid'
+                  ? formatCents(receipt.remainingPaidCents)
+                  : receipt.remainingScheduledCents > 0 || splitFinalScheduledDueCents(receipt) > 0
+                    ? formatCents(splitFinalScheduledDueCents(receipt))
+                    : '—'}
               </span>
             </div>
           </>
         )}
 
         <div className="flex justify-between gap-4">
-          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">Remaining due</span>
+          <span className="text-[#6A6A6A] dark:text-[#A1A8B3]">
+            {receipt.isSplitPayment ? 'Total outstanding' : 'Remaining due'}
+          </span>
           <span className="font-semibold text-[#111111] dark:text-[#F5F7FA] tabular-nums">
             {receipt.remainingDueCents > 0 ? formatCents(receipt.remainingDueCents) : formatCents(0)}
           </span>

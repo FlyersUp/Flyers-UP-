@@ -73,7 +73,9 @@ export async function GET(
   }
 
   if (format === 'html') {
-    const html = renderBookingReceiptPrintHtml(receipt);
+    const bookingDetailsHref =
+      role === 'pro' ? `/pro/bookings/${id}` : `/customer/bookings/${id}`;
+    const html = renderBookingReceiptPrintHtml(receipt, { bookingDetailsHref });
     return new NextResponse(html, {
       status: 200,
       headers: {

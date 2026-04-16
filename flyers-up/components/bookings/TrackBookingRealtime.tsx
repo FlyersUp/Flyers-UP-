@@ -5,6 +5,7 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
 import { scheduleRemoveSupabaseChannel } from '@/lib/supabaseChannelCleanup';
 import type { PendingRescheduleInfo } from '@/lib/bookings/pending-reschedule';
+import type { ReceiptSubtotalExplanationInput } from '@/lib/bookings/receipt-subtotal-explanation';
 
 export interface TrackBookingData {
   id: string;
@@ -61,6 +62,7 @@ export interface TrackBookingData {
   finalPaymentIntentStripeStatus?: string | null;
   finalPaymentIntentStripeLiveChecked?: boolean;
   payoutTransferId?: string | null;
+  receiptPricingSnapshot?: Partial<ReceiptSubtotalExplanationInput> | null;
 }
 
 interface TrackBookingRealtimeProps {
