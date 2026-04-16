@@ -25,7 +25,15 @@ export type RemediationEventType =
   | 'stripe_connect_recovery_pending'
   | 'stripe_connect_recovery_not_applicable'
   | 'clawback_resolved'
-  | 'clawback_waived';
+  | 'clawback_waived'
+  | 'refund_batch_started'
+  | 'refund_leg_succeeded'
+  | 'refund_leg_failed'
+  | 'refund_batch_partial_failure'
+  | 'admin_review_required'
+  | 'remediation_required'
+  | 'remediation_resolved'
+  | 'remediation_waived';
 
 const insertRemediationEvent = async (
   admin: SupabaseClient,
@@ -238,6 +246,31 @@ async function mergePayoutReviewPostPayoutDetails(
   }
 }
 
+/**
+ * Append a single operational row (no idempotency). Used for batch/leg audit alongside payment_events.
+ */
+export async function appendRefundRemediationLedgerEvent(
+  admin: SupabaseClient,
+  row: {
+    bookingId: string;
+    eventType: RemediationEventType;
+    details?: Record<string, unknown>;
+    actorType?: 'system' | 'admin' | 'cron';
+    actorUserId?: string | null;
+  }
+): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await admin.from('booking_refund_remediation_events').insert({
+    booking_id: row.bookingId,
+    event_type: row.eventType,
+    details: row.details ?? {},
+    actor_type: row.actorType ?? 'system',
+    actor_user_id: row.actorUserId ?? null,
+    idempotency_key: null,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 export async function recordClawbackRemediationResolution(
   admin: SupabaseClient,
   input: {
@@ -247,19 +280,32 @@ export async function recordClawbackRemediationResolution(
     internalNote?: string | null;
   }
 ): Promise<{ ok: boolean; error?: string }> {
-  const eventType: RemediationEventType =
+  const legacyType: RemediationEventType =
     input.action === 'waive' ? 'clawback_waived' : 'clawback_resolved';
+  const primaryType: RemediationEventType =
+    input.action === 'waive' ? 'remediation_waived' : 'remediation_resolved';
 
-  const { error: evErr } = await admin.from('booking_refund_remediation_events').insert({
-    booking_id: input.bookingId,
-    event_type: eventType,
-    details: {
-      internal_note: input.internalNote?.trim() || null,
-      at: new Date().toISOString(),
+  const details = {
+    internal_note: input.internalNote?.trim() || null,
+    at: new Date().toISOString(),
+  };
+
+  const { error: evErr } = await admin.from('booking_refund_remediation_events').insert([
+    {
+      booking_id: input.bookingId,
+      event_type: primaryType,
+      details,
+      actor_type: 'admin',
+      actor_user_id: input.actorUserId,
     },
-    actor_type: 'admin',
-    actor_user_id: input.actorUserId,
-  });
+    {
+      booking_id: input.bookingId,
+      event_type: legacyType,
+      details: { ...details, mirror: 'legacy_clawback_event' },
+      actor_type: 'admin',
+      actor_user_id: input.actorUserId,
+    },
+  ]);
   if (evErr) return { ok: false, error: evErr.message };
 
   const clawback = input.action === 'waive' ? 'waived' : 'resolved';

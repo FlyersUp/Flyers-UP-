@@ -4,6 +4,8 @@ import { createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { requireAdminUser } from '@/app/(app)/admin/_admin';
 import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { loadAdminBookingPayoutCardData } from '@/lib/admin/flagged-payout-review';
+import { loadAdminMoneyControlState } from '@/lib/bookings/admin-money-control-state';
+import { AdminBookingMoneyControlPanel } from '@/components/admin/AdminBookingMoneyControlPanel';
 import { PayoutReviewIsland } from './PayoutReviewIsland';
 
 export const dynamic = 'force-dynamic';
@@ -44,6 +46,7 @@ export default async function AdminBookingDetailPage({
   const b = booking as Record<string, unknown>;
   const needsPayoutReview = b.requires_admin_review === true && b.payout_released !== true;
   const payoutCardData = needsPayoutReview ? await loadAdminBookingPayoutCardData(admin, id) : null;
+  const moneyControl = await loadAdminMoneyControlState(admin, id);
 
   return (
     <Layout title="Flyers Up – Admin · Booking">
@@ -71,6 +74,8 @@ export default async function AdminBookingDetailPage({
             </Link>
           </div>
         </div>
+
+        {moneyControl ? <AdminBookingMoneyControlPanel bookingId={id} state={moneyControl} /> : null}
 
         <section className="rounded-[18px] border border-hairline bg-surface p-4 shadow-card text-sm space-y-2">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">

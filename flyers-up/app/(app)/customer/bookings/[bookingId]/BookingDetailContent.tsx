@@ -332,7 +332,10 @@ export function BookingDetailContent({
           );
         }
 
-        const finalPaymentNote = finalPaymentReceiptNoteFromMoneyState(customerMoney);
+        const finalPaymentNote = finalPaymentReceiptNoteFromMoneyState(customerMoney, {
+          refundStatus: fullBooking.refundStatus ?? null,
+          paymentLifecycleStatus: fullBooking.paymentLifecycleStatus ?? null,
+        });
 
         const showCompletionHighlight =
           !!fullBooking.completion && (timelineKey === 'COMPLETED' || timelineKey === 'PAID');

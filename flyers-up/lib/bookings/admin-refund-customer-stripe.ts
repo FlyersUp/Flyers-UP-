@@ -8,13 +8,30 @@ export type AdminRefundCustomerStripeRefundRow = {
   amountCents: number;
 };
 
+export type AdminRefundLegResult =
+  | {
+      phase: 'final' | 'deposit';
+      pi: string;
+      ok: true;
+      refundId: string;
+      amountCents: number;
+    }
+  | { phase: 'final' | 'deposit'; pi: string; ok: false; reason: 'null_refund' };
+
 export type RunAdminRefundCustomerStripeRefundsResult =
   | {
       ok: true;
       refundIds: AdminRefundCustomerStripeRefundRow[];
       expectedRefundAttempts: number;
+      legs: AdminRefundLegResult[];
     }
-  | { ok: false; error: 'stripe_refund_failed' | 'stripe_refund_partial_failure' };
+  | {
+      ok: false;
+      error: 'stripe_refund_failed' | 'stripe_refund_partial_failure';
+      refundIds: AdminRefundCustomerStripeRefundRow[];
+      expectedRefundAttempts: number;
+      legs: AdminRefundLegResult[];
+    };
 
 /**
  * Stripe refund attempts for {@link runAdminRefundCustomer}: final PI (if any), then deposit PI when
@@ -32,12 +49,18 @@ export async function runAdminRefundCustomerStripeRefunds(input: {
   platformSnap: number;
   pricingSnap: string | null;
   payoutReleased: boolean;
+  /** Stripe metadata.resolution_type (default admin_refund_customer). */
+  resolutionType?: string;
+  /** When set, only these phases call Stripe (retry preflight). */
+  retryPhases?: ReadonlySet<'final' | 'deposit'>;
   /** Unit tests: avoid live Stripe while preserving call order and metadata shape. */
   refundPaymentIntent?: typeof refundPaymentIntentDefault;
 }): Promise<RunAdminRefundCustomerStripeRefundsResult> {
   const refundFn = input.refundPaymentIntent ?? refundPaymentIntentDefault;
   const id = input.bookingId;
   const refundType = input.payoutReleased ? 'after_payout' : 'before_payout';
+  const resolutionType = input.resolutionType ?? 'admin_refund_customer';
+  const retryPhases = input.retryPhases;
   const {
     piFinal,
     piDep,
@@ -50,14 +73,16 @@ export async function runAdminRefundCustomerStripeRefunds(input: {
   } = input;
 
   const refundIds: AdminRefundCustomerStripeRefundRow[] = [];
+  const legs: AdminRefundLegResult[] = [];
+
   try {
-    if (piFinal) {
+    if (piFinal && (!retryPhases || retryPhases.has('final'))) {
       const rid = await refundFn(
         piFinal,
         refundLifecycleMetadata({
           booking_id: id,
           refund_scope: 'full',
-          resolution_type: 'admin_refund_customer',
+          resolution_type: resolutionType,
           refunded_amount_cents: finalCents > 0 ? finalCents : 0,
           refund_type: refundType,
           refund_source_payment_phase: 'final',
@@ -70,22 +95,27 @@ export async function runAdminRefundCustomerStripeRefunds(input: {
         })
       );
       if (rid) {
-        refundIds.push({ pi: piFinal, refundId: rid, amountCents: finalCents > 0 ? finalCents : 0 });
+        const amount = finalCents > 0 ? finalCents : 0;
+        refundIds.push({ pi: piFinal, refundId: rid, amountCents: amount });
+        legs.push({ phase: 'final', pi: piFinal, ok: true, refundId: rid, amountCents: amount });
       } else {
         console.error('[runAdminRefundCustomer] refundPaymentIntent returned null', {
           bookingId: id,
           payment_intent: piFinal,
           phase: 'final',
         });
+        legs.push({ phase: 'final', pi: piFinal, ok: false, reason: 'null_refund' });
       }
+    } else if (piFinal && retryPhases && !retryPhases.has('final')) {
+      /* skipped — already refunded per preflight */
     }
-    if (piDep && piDep !== piFinal) {
+    if (piDep && piDep !== piFinal && (!retryPhases || retryPhases.has('deposit'))) {
       const rid = await refundFn(
         piDep,
         refundLifecycleMetadata({
           booking_id: id,
           refund_scope: 'full',
-          resolution_type: 'admin_refund_customer',
+          resolution_type: resolutionType,
           refunded_amount_cents: depCents > 0 ? depCents : 0,
           refund_type: refundType,
           refund_source_payment_phase: 'deposit',
@@ -98,22 +128,32 @@ export async function runAdminRefundCustomerStripeRefunds(input: {
         })
       );
       if (rid) {
-        refundIds.push({ pi: piDep, refundId: rid, amountCents: depCents > 0 ? depCents : 0 });
+        const amount = depCents > 0 ? depCents : 0;
+        refundIds.push({ pi: piDep, refundId: rid, amountCents: amount });
+        legs.push({ phase: 'deposit', pi: piDep, ok: true, refundId: rid, amountCents: amount });
       } else {
         console.error('[runAdminRefundCustomer] refundPaymentIntent returned null', {
           bookingId: id,
           payment_intent: piDep,
           phase: 'deposit',
         });
+        legs.push({ phase: 'deposit', pi: piDep, ok: false, reason: 'null_refund' });
       }
+    } else if (piDep && piDep !== piFinal && retryPhases && !retryPhases.has('deposit')) {
+      /* skipped */
     }
   } catch (e) {
     console.error('[runAdminRefundCustomer] stripe refund failed', id, e);
-    return { ok: false, error: 'stripe_refund_failed' };
+    return {
+      ok: false,
+      error: 'stripe_refund_failed',
+      refundIds,
+      expectedRefundAttempts: countExpectedRefundAttempts(piFinal, piDep, retryPhases),
+      legs,
+    };
   }
 
-  const expectedRefundAttempts =
-    (piFinal ? 1 : 0) + (piDep && piDep !== piFinal ? 1 : 0);
+  const expectedRefundAttempts = countExpectedRefundAttempts(piFinal, piDep, retryPhases);
   if (!refundBatchIsComplete(expectedRefundAttempts, refundIds.length)) {
     console.error('[runAdminRefundCustomer] stripe refund returned null or partial batch', {
       bookingId: id,
@@ -126,8 +166,22 @@ export async function runAdminRefundCustomerStripeRefunds(input: {
     return {
       ok: false,
       error: refundIds.length === 0 ? 'stripe_refund_failed' : 'stripe_refund_partial_failure',
+      refundIds,
+      expectedRefundAttempts,
+      legs,
     };
   }
 
-  return { ok: true, refundIds, expectedRefundAttempts };
+  return { ok: true, refundIds, expectedRefundAttempts, legs };
+}
+
+function countExpectedRefundAttempts(
+  piFinal: string | null,
+  piDep: string | null,
+  retryPhases?: ReadonlySet<'final' | 'deposit'>
+): number {
+  let n = 0;
+  if (piFinal && (!retryPhases || retryPhases.has('final'))) n += 1;
+  if (piDep && piDep !== piFinal && (!retryPhases || retryPhases.has('deposit'))) n += 1;
+  return n;
 }

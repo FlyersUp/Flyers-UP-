@@ -210,14 +210,16 @@ export function getProAutomatedPayoutStatusMessageFromMoney(
 ): string | null {
   if (!paidRemainingAt || !completedAt) return null;
   if (state.final !== 'final_paid') return null;
-  if (state.payout === 'payout_held') return null;
+  if (state.payout === 'payout_held') {
+    return 'Payout on hold — Flyers Up is reviewing before funds are released';
+  }
 
-  if (state.payout === 'payout_paid') return 'Payout sent';
+  if (state.payout === 'payout_paid') return 'Payout sent — funds paid out to your connected account';
   if (state.payout === 'payout_failed') {
     return 'Payout transfer did not complete — contact support if this persists';
   }
   if (state.payout === 'payout_processing') {
-    return 'Payout is processing';
+    return 'Payout sent — processing with Stripe';
   }
 
   const end = new Date(completedAt).getTime() + PAYOUT_AUTO_RELEASE_REVIEW_HOURS * MS_PER_HOUR;

@@ -255,3 +255,31 @@ export async function warnStuckPayoutsForCron(
 
   return { stuck };
 }
+
+/**
+ * Same stuck evaluation as the cron detector, for a single booking on admin surfaces.
+ */
+export async function evaluateAdminStuckPayoutForBooking(
+  admin: SupabaseClient,
+  bookingId: string,
+  opts?: { now?: Date; thresholdMs?: number }
+): Promise<StuckPayoutBooking | null> {
+  const { data: row, error } = await admin
+    .from('bookings')
+    .select(STUCK_CANDIDATE_SELECT)
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (error || !row) return null;
+
+  const r = row as unknown as Record<string, unknown>;
+  const now = opts?.now ?? new Date();
+  const nowMs = now.getTime();
+  const thresholdMs = opts?.thresholdMs ?? stuckPayoutThresholdMsFromEnv();
+  const snap = await getPayoutReleaseEligibilitySnapshot(admin, bookingId, { initiatedByAdmin: false });
+  return evaluateStuckPayoutFromPrefilteredRow({
+    row: r,
+    snapEligible: snap.eligible,
+    nowMs,
+    thresholdMs,
+  });
+}

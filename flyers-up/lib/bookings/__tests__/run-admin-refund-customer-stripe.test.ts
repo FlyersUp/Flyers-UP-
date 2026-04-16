@@ -17,8 +17,8 @@
  *
  * - {@link runAdminRefundCustomerStripeRefunds} — exact Stripe attempt + batch guard used by
  *   {@link runAdminRefundCustomer} (delegated 1:1).
- * - {@link runAdminRefundCustomer} — wiring + **no** `bookings.update` on partial batch failure
- *   when a test-only `refundPaymentIntent` stub is supplied.
+ * - {@link runAdminRefundCustomer} — wiring + **no** terminal refunded state on partial batch failure;
+ *   booking is flagged for admin review with `refund_status: partially_failed`.
  *
  * Full success path for `runAdminRefundCustomer` (ledger rows, payout queue, payment events) is
  * not duplicated here; it stays covered by production code calling the same batch helper plus
@@ -52,6 +52,95 @@ function baseStripeInput(overrides?: {
     payoutReleased: false,
     ...overrides,
   };
+}
+
+function mockAdminForRunAdminRefund(bookingRow: Record<string, unknown>, bookingUpdates: unknown[]) {
+  return {
+    from(table: string) {
+      if (table === 'bookings') {
+        return {
+          select(_cols: string) {
+            return {
+              eq(_col: string, _val: string) {
+                return {
+                  async maybeSingle() {
+                    return { data: bookingRow, error: null };
+                  },
+                };
+              },
+            };
+          },
+          update(payload: unknown) {
+            bookingUpdates.push(payload);
+            return {
+              eq() {
+                return Promise.resolve({ error: null });
+              },
+            };
+          },
+        };
+      }
+      if (table === 'booking_payment_events') {
+        return {
+          select() {
+            return {
+              eq() {
+                return {
+                  eq() {
+                    return {
+                      filter() {
+                        return { maybeSingle: async () => ({ data: null }) };
+                      },
+                      maybeSingle: async () => ({ data: null }),
+                    };
+                  },
+                  maybeSingle: async () => ({ data: null }),
+                };
+              },
+            };
+          },
+          insert() {
+            return Promise.resolve({ error: null });
+          },
+        };
+      }
+      if (table === 'booking_refund_remediation_events') {
+        return {
+          insert() {
+            return Promise.resolve({ error: null });
+          },
+        };
+      }
+      if (table === 'booking_refund_events') {
+        return {
+          select() {
+            return {
+              eq() {
+                return { maybeSingle: async () => ({ data: null }) };
+              },
+            };
+          },
+          insert() {
+            return {
+              select() {
+                return {
+                  maybeSingle: async () => ({ data: { id: 'ledger' }, error: null }),
+                };
+              },
+            };
+          },
+        };
+      }
+      if (table === 'booking_payment_summary') {
+        return {
+          upsert() {
+            return Promise.resolve({ error: null });
+          },
+        };
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+  } as unknown as SupabaseClient;
 }
 
 test('runAdminRefundCustomerStripeRefunds: one PI succeeds and one returns null → partial failure', async () => {
@@ -104,7 +193,7 @@ test('runAdminRefundCustomerStripeRefunds: both return null → stripe_refund_fa
   assert.equal(out.error, 'stripe_refund_failed');
 });
 
-test('runAdminRefundCustomer: partial multi-PI batch does not update booking and returns partial failure', async () => {
+test('runAdminRefundCustomer: partial multi-PI batch flags admin review and does not mark fully refunded', async () => {
   const bookingUpdates: unknown[] = [];
   const bookingRow = {
     id: BOOKING_ID,
@@ -129,34 +218,7 @@ test('runAdminRefundCustomer: partial multi-PI batch does not update booking and
     payout_transfer_id: null,
   };
 
-  const admin = {
-    from(table: string) {
-      if (table !== 'bookings') {
-        throw new Error(`unexpected table ${table}`);
-      }
-      return {
-        select(_cols: string) {
-          return {
-            eq(_col: string, _val: string) {
-              return {
-                async maybeSingle() {
-                  return { data: bookingRow, error: null };
-                },
-              };
-            },
-          };
-        },
-        update(payload: unknown) {
-          bookingUpdates.push(payload);
-          return {
-            eq() {
-              return Promise.resolve({ error: null });
-            },
-          };
-        },
-      };
-    },
-  } as unknown as SupabaseClient;
+  const admin = mockAdminForRunAdminRefund(bookingRow, bookingUpdates);
 
   const stderrLines: string[] = [];
   const origErr = console.error;
@@ -191,7 +253,12 @@ test('runAdminRefundCustomer: partial multi-PI batch does not update booking and
     );
 
     assert.deepEqual(result, { ok: false, error: 'stripe_refund_partial_failure' });
-    assert.equal(bookingUpdates.length, 0, 'must not write refunded terminal state on partial batch');
+    assert.equal(bookingUpdates.length, 1);
+    const patch = bookingUpdates[0] as Record<string, unknown>;
+    assert.equal(patch.refund_status, 'partially_failed');
+    assert.equal(patch.requires_admin_review, true);
+    assert.equal(patch.payout_blocked, true);
+    assert.equal(patch.payment_lifecycle_status, 'partially_refunded');
     assert.ok(
       stderrLines.some((line) => line.includes('[runAdminRefundCustomer] refundPaymentIntent returned null')),
       'expected per-PI null log'

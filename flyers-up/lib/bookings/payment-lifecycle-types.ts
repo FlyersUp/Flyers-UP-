@@ -95,7 +95,19 @@ export type BookingPaymentEventType =
   /** Post–payout refund: clawback / Connect recovery workflow opened (deduped per remediation idempotency). */
   | 'post_payout_refund_remediation_opened'
   /** Admin marked pro clawback remediation resolved or waived. */
-  | 'pro_clawback_remediation_resolved';
+  | 'pro_clawback_remediation_resolved'
+  /** Multi-PI admin refund batch: started (before Stripe legs). */
+  | 'refund_batch_started'
+  /** One leg of a multi-PI refund returned a Stripe refund id. */
+  | 'refund_leg_succeeded'
+  /** One leg did not yield a refund id (metadata/Stripe). */
+  | 'refund_leg_failed'
+  /** Expected legs > succeeded legs — booking must not be marked fully refunded. */
+  | 'refund_batch_partial_failure'
+  /** Ops explicitly flagged or system flagged manual review on money movement. */
+  | 'admin_review_required'
+  /** Post–payout refund triggered clawback / Connect recovery tracking (companion to remediation_session). */
+  | 'remediation_required';
 
 const PAYMENT_STATUSES: ReadonlySet<string> = new Set<BookingPaymentStatus>([
   'unpaid',

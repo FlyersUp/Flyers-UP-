@@ -1,8 +1,31 @@
 import type { CustomerPaymentCardKind } from '@/lib/bookings/customer-payment-card-normalize';
 import type { MoneyState } from '@/lib/bookings/money-state';
 
+export type FinalPaymentReceiptNoteOpts = {
+  refundStatus?: string | null;
+  paymentLifecycleStatus?: string | null;
+};
+
 /** Context line for the receipt / pricing card from {@link MoneyState}. */
-export function finalPaymentReceiptNoteFromMoneyState(state: MoneyState): string | null {
+export function finalPaymentReceiptNoteFromMoneyState(
+  state: MoneyState,
+  opts?: FinalPaymentReceiptNoteOpts
+): string | null {
+  const rs = String(opts?.refundStatus ?? '').toLowerCase();
+  const lc = String(opts?.paymentLifecycleStatus ?? '').toLowerCase();
+  if (rs === 'partially_failed') {
+    return 'Refund partially completed — Flyers Up is finishing the remaining amount. You are not charged twice.';
+  }
+  if (rs === 'pending' || lc === 'refund_pending') {
+    return 'Refund initiated — it can take a few business days for your bank to show the credit.';
+  }
+  if (state.customerRefund === 'full' && (rs === 'succeeded' || lc === 'refunded')) {
+    return 'Refund completed — thanks for your patience while your bank posts the credit.';
+  }
+  if (state.customerRefund === 'partial' && (rs === 'succeeded' || lc === 'partially_refunded')) {
+    return 'Partial refund completed — your statement timing is set by your bank.';
+  }
+
   if (state.customerCardVariant === 'unknown_balance') {
     return 'Payment status unclear — use the actions below or contact support';
   }

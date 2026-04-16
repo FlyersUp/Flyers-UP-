@@ -160,6 +160,15 @@ export function ProBookingDetailRealtimePane({
         <div className="mt-3">
           <BookingStatusPill status={booking.status} />
         </div>
+        {booking.proClawbackRemediationStatus === 'open' ? (
+          <div className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/90 dark:bg-amber-950/35 dark:border-amber-800/50 px-4 py-3 text-sm text-amber-950 dark:text-amber-100">
+            <p className="font-semibold">Remediation under review</p>
+            <p className="mt-1 text-xs leading-relaxed opacity-95">
+              A customer refund touched this booking after a payout had already been sent. Flyers Up is tracking any
+              balance adjustment — you do not need to take action unless our team contacts you.
+            </p>
+          </div>
+        ) : null}
       </header>
 
       <section className="mb-6">

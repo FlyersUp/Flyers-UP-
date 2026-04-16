@@ -25,7 +25,17 @@ function formatCents(cents: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 }
 
-function statusBadgeClass(status: UnifiedReceiptOverallStatus): string {
+function statusBadgeClass(
+  status: UnifiedReceiptOverallStatus,
+  refundStatus: string | null | undefined
+): string {
+  const rs = String(refundStatus ?? '').toLowerCase();
+  if (rs === 'pending') {
+    return 'bg-sky-500/15 text-sky-900 dark:text-sky-100 border-sky-500/25';
+  }
+  if (rs === 'partially_failed' || rs === 'failed') {
+    return 'bg-amber-500/15 text-amber-900 dark:text-amber-100 border-amber-500/25';
+  }
   switch (status) {
     case 'fully_paid':
       return 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 border-emerald-500/25';
@@ -49,12 +59,23 @@ function statusLabel(status: UnifiedReceiptOverallStatus): string {
     case 'partially_paid':
       return 'Partially paid';
     case 'refunded':
-      return 'Refunded';
+      return 'Refund completed';
     case 'partially_refunded':
-      return 'Partially refunded';
+      return 'Partial refund completed';
     default:
       return 'Payment pending';
   }
+}
+
+function receiptBadgeLabel(
+  overall: UnifiedReceiptOverallStatus,
+  refundStatus: string | null | undefined
+): string {
+  const rs = String(refundStatus ?? '').toLowerCase();
+  if (rs === 'pending') return 'Refund initiated';
+  if (rs === 'partially_failed') return 'Refund partially failed';
+  if (rs === 'failed') return 'Refund did not finish';
+  return statusLabel(overall);
 }
 
 export interface TrackBookingPaymentSummaryProps {
@@ -307,9 +328,9 @@ export function TrackBookingPaymentSummary({
             Payment summary
           </h2>
           <span
-            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusBadgeClass(receipt.overallStatus)}`}
+            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusBadgeClass(receipt.overallStatus, refundStatus)}`}
           >
-            {statusLabel(receipt.overallStatus)}
+            {receiptBadgeLabel(receipt.overallStatus, refundStatus)}
           </span>
         </div>
 
@@ -420,9 +441,9 @@ export function TrackBookingPaymentSummary({
           Receipt
         </h2>
         <span
-          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadgeClass(receipt.overallStatus)}`}
+          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadgeClass(receipt.overallStatus, refundStatus)}`}
         >
-          {statusLabel(receipt.overallStatus)}
+          {receiptBadgeLabel(receipt.overallStatus, refundStatus)}
         </span>
       </div>
 

@@ -177,6 +177,8 @@ export interface BookingDetails {
   refundAfterPayout?: boolean | null;
   /** Marketplace payment lifecycle (e.g. payout_on_hold). */
   paymentLifecycleStatus?: string | null;
+  /** Post–payout refund clawback workflow: none | open | resolved | waived. */
+  proClawbackRemediationStatus?: string | null;
   /** Payout paused for manual review (see payout cron / admin tools). */
   requiresAdminReview?: boolean | null;
   /** DB hold reason for payout; used only for calm UI mapping, never shown raw. */
@@ -1160,6 +1162,8 @@ export async function getBookingById(bookingId: string): Promise<BookingDetails 
       payoutReleased: d.payout_released === true,
       refundAfterPayout: (d as { refund_after_payout?: boolean }).refund_after_payout === true,
       paymentLifecycleStatus: (d.payment_lifecycle_status as string | null | undefined) ?? null,
+      proClawbackRemediationStatus:
+        (d as { pro_clawback_remediation_status?: string | null }).pro_clawback_remediation_status ?? null,
       requiresAdminReview: d.requires_admin_review === true,
       payoutHoldReason: (d.payout_hold_reason as string | null | undefined) ?? null,
       suspiciousCompletion: d.suspicious_completion === true,

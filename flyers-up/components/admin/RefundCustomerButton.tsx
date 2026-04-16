@@ -57,7 +57,13 @@ export function RefundCustomerButton({ bookingId, onRefunded, className, buttonC
       };
       if (!res.ok || json.ok === false) {
         const err = json.error ?? res.statusText;
-        setMessage({ type: 'err', text: typeof err === 'string' ? err : 'Refund failed' });
+        const human =
+          err === 'stripe_refund_partial_failure'
+            ? 'Partial refund: one charge was refunded in Stripe but another leg failed. Use Money control → Retry customer refund after reconciling in Stripe.'
+            : typeof err === 'string'
+              ? err
+              : 'Refund failed';
+        setMessage({ type: 'err', text: human });
         return;
       }
       setRefundReason('');

@@ -10,6 +10,8 @@ import {
   type BookingFinalPaymentIntentIdRow,
 } from '@/lib/bookings/money-state';
 import { RefundRemediationAdminPanel } from '@/components/admin/RefundRemediationAdminPanel';
+import { AdminBookingMoneyControlPanel } from '@/components/admin/AdminBookingMoneyControlPanel';
+import { loadAdminMoneyControlState } from '@/lib/bookings/admin-money-control-state';
 import { getBookingCanonicalStripeSummary } from '@/lib/stripe/get-booking-canonical-stripe-summary';
 
 export const dynamic = 'force-dynamic';
@@ -96,6 +98,7 @@ export default async function AdminBookingPaymentsAuditPage({
 
   const receipt = await getBookingReceipt(admin, id);
   const canonicalStripe = await getBookingCanonicalStripeSummary(admin, id);
+  const moneyControl = await loadAdminMoneyControlState(admin, id);
 
   return (
     <Layout title="Flyers Up – Admin · Booking payments">
@@ -114,6 +117,8 @@ export default async function AdminBookingPaymentsAuditPage({
           <p className="text-muted">Booking not found.</p>
         ) : (
           <>
+            {moneyControl ? <AdminBookingMoneyControlPanel bookingId={id} state={moneyControl} /> : null}
+
             <section className="rounded-[18px] border border-hairline bg-surface p-4 shadow-card space-y-2 text-sm">
               <h2 className="font-medium">Email provider</h2>
               <p className="text-muted">
@@ -146,7 +151,10 @@ export default async function AdminBookingPaymentsAuditPage({
             </section>
 
             {canonicalStripe ? (
-              <section className="rounded-[18px] border border-hairline bg-surface p-4 shadow-card space-y-2 text-sm">
+              <section
+                id="admin-canonical-stripe"
+                className="rounded-[18px] border border-hairline bg-surface p-4 shadow-card space-y-2 text-sm scroll-mt-24"
+              >
                 <h2 className="font-medium">Canonical Stripe metadata (debug)</h2>
                 <p className="text-xs text-muted leading-relaxed">
                   Rebuilt from this booking row using the same helpers as production (not live Stripe API objects).
