@@ -14,6 +14,7 @@ import {
   proEnRouteDepositBlockedResponse,
   proEnRouteScheduleBlockedResponse,
 } from '@/lib/bookings/pro-en-route-readiness';
+import { hasJobCompletionRowForAwaitingRemaining } from '@/lib/bookings/job-completion-awaiting-remaining-gate';
 
 type AllowedDbStatus = 'accepted' | 'pro_en_route' | 'in_progress' | 'awaiting_remaining_payment';
 
