@@ -91,6 +91,7 @@ function getInitials(name: string): string {
 
 export default function CustomerDashboard() {
   const router = useRouter();
+  const launchMode = useLaunchMode();
   const [userName, setUserName] = useState('Account');
   const [userId, setUserId] = useState<string | null>(null);
   /** idle: no session yet; shell: session ok, profile or route still resolving; ready: dashboard data may load */
