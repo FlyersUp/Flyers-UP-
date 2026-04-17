@@ -7,11 +7,11 @@
  */
 
 import { createAdminSupabaseClient } from '@/lib/supabaseServer';
+import { FEATURE_LAUNCH_MODE_KEY } from '@/lib/launchModeEnv';
 
 export const ITIN_FEATURE_FLAG_KEY = 'FEATURE_ITIN_ONBOARDING' as const;
 
-/** Env + `feature_flags.key`; used by {@link isLaunchModeEnabled}. */
-export const FEATURE_LAUNCH_MODE_KEY = 'FEATURE_LAUNCH_MODE' as const;
+export { FEATURE_LAUNCH_MODE_KEY };
 
 export function envFlagEnabled(flagName: string): boolean {
   // Server-side env flag. For client-side gating, call the API route.
@@ -70,18 +70,6 @@ export async function isLaunchModeEnabled(): Promise<boolean> {
   }
   if (await dbLaunchModeExplicitlyDisabled()) return false;
   return true;
-}
-
-/**
- * Sync hint for client bundles: set `NEXT_PUBLIC_FEATURE_LAUNCH_MODE` to mirror
- * `FEATURE_LAUNCH_MODE`, or rely on default ON when both are unset.
- */
-export function isLaunchModeEnabledSync(): boolean {
-  const pub = process.env.NEXT_PUBLIC_FEATURE_LAUNCH_MODE;
-  const server = process.env.FEATURE_LAUNCH_MODE;
-  const v = String((pub !== undefined && pub !== '' ? pub : server) ?? '').toLowerCase().trim();
-  if (v === '') return true;
-  return !['false', '0', 'no', 'off'].includes(v);
 }
 
 /**

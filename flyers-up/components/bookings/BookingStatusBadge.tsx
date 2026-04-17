@@ -1,6 +1,6 @@
 'use client';
 
-import { isLaunchModeEnabledSync } from '@/lib/featureFlags';
+import { isLaunchModeEnabledSync } from '@/lib/launchModeEnv';
 import { launchModeCustomerBookingLabel, launchModeProBookingLabel } from '@/lib/bookings/launch-mode-status-labels';
 
 /** DB statuses that map to UI. Treat requested and pending as equivalent. */

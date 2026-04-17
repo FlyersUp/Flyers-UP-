@@ -12,7 +12,7 @@ import {
   type PaymentHeldBookingSignals,
 } from '@/lib/bookings/payment-held-ui-state';
 import type { PaymentTimelineModel } from '@/lib/bookings/payment-timeline';
-import { isLaunchModeEnabledSync } from '@/lib/featureFlags';
+import { isLaunchModeEnabledSync } from '@/lib/launchModeEnv';
 
 export type MoneyPresentationBadgeTone =
   | 'scheduled'
