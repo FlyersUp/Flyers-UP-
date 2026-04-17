@@ -96,7 +96,7 @@ describe('getMoneyState — final payment', () => {
     assert.strictEqual(m.payout, 'payout_held');
   });
 
-  it('post_review_auto_pending + succeeded PI is final_paid (stale amount_remaining / lagging lifecycle)', () => {
+  it('final_pending_after_completion + succeeded PI is final_paid (stale amount_remaining / lagging lifecycle)', () => {
     const m = getMoneyState(
       {
         ...depositPaidBase,
@@ -109,7 +109,7 @@ describe('getMoneyState — final payment', () => {
       { finalPaymentIntentStatus: 'succeeded' },
       Date.parse('2026-01-03T12:00:00Z')
     );
-    assert.strictEqual(m.raw.kind, 'post_review_auto_pending');
+    assert.strictEqual(m.raw.kind, 'final_pending_after_completion');
     assert.strictEqual(m.final, 'final_paid');
   });
 });
@@ -121,7 +121,7 @@ describe('getMoneyState — payout', () => {
     payoutReleased: false,
   };
 
-  it('payout_held when requires_admin_review', () => {
+  it('requires_admin_review does not map to payout_held (ops flag only)', () => {
     const m = getMoneyState(
       {
         ...paidCustomer,
@@ -131,7 +131,7 @@ describe('getMoneyState — payout', () => {
       {},
       Date.now()
     );
-    assert.strictEqual(m.payout, 'payout_held');
+    assert.strictEqual(m.payout, 'payout_scheduled');
   });
 
   it('payout_failed when requires_admin_review but DB payout_status is failed (retry path)', () => {
@@ -235,7 +235,7 @@ describe('getMoneyState — golden flow', () => {
     customerReviewDeadlineAt: '2026-01-02T12:00:00Z',
   };
 
-  it('Deposit → final processing → final paid → held → scheduled → processing → paid', () => {
+  it('Deposit → final processing → final paid → scheduled (incl. requires_admin_review) → processing → paid', () => {
     let m = getMoneyState(
       {
         id: 'golden-bk',
@@ -293,7 +293,7 @@ describe('getMoneyState — golden flow', () => {
       {},
       Date.parse('2026-01-01T16:00:00Z')
     );
-    assert.strictEqual(m.payout, 'payout_held');
+    assert.strictEqual(m.payout, 'payout_scheduled');
 
     m = getMoneyState(
       {

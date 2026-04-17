@@ -9,7 +9,8 @@ export interface JobCompletionModalProps {
   bookingId: string;
 }
 
-const MIN_PHOTOS = 2;
+/** Encouraged for trust / disputes; not required for completion or payout (Version B). */
+const RECOMMENDED_AFTER_PHOTOS = 2;
 
 export function JobCompletionModal({
   isOpen,
@@ -51,10 +52,6 @@ export function JobCompletionModal({
   };
 
   const handleSubmit = async () => {
-    if (photoUrls.length < MIN_PHOTOS) {
-      setError(`Please upload at least ${MIN_PHOTOS} after photos`);
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
@@ -96,7 +93,7 @@ export function JobCompletionModal({
         <div className="space-y-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-[#111] mb-2">
-              After photos (min {MIN_PHOTOS} required)
+              After photos (recommended {RECOMMENDED_AFTER_PHOTOS}+)
             </label>
             <div className="grid grid-cols-3 gap-2">
               {photoUrls.map((url, i) => (
@@ -156,7 +153,7 @@ export function JobCompletionModal({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={loading || photoUrls.length < MIN_PHOTOS}
+            disabled={loading}
             className="flex-1 py-3 rounded-xl bg-[#B2FBA5] text-black font-semibold hover:opacity-95 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? 'Completing…' : 'Complete Job'}

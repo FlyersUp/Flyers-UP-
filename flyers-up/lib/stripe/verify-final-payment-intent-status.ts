@@ -62,7 +62,7 @@ export function deriveRequiresLiveFinalPaymentIntentRead(
   if (!String(input.finalPaymentIntentId ?? '').trim()) return false;
   const raw = deriveCustomerRemainingPaymentUiState(input, nowMs);
   return (
-    raw.kind === 'post_review_auto_pending' ||
+    raw.kind === 'final_pending_after_completion' ||
     raw.kind === 'processing' ||
     raw.kind === 'requires_action'
   );
@@ -71,7 +71,7 @@ export function deriveRequiresLiveFinalPaymentIntentRead(
 /**
  * When the booking is in a final-payment phase with a stored PI id, load live PaymentIntent.status from Stripe.
  * Skips the network call when there is no PI, unless {@link deriveRequiresLiveFinalPaymentIntentRead} says the
- * customer remaining-payment derive needs PI truth (e.g. `post_review_auto_pending` with a stale lifecycle).
+ * customer remaining-payment derive needs PI truth (e.g. `final_pending_after_completion` with a stale lifecycle).
  */
 export async function resolveFinalPaymentIntentStripeSnapshotForCustomerUi(input: {
   paymentLifecycleStatus: string | null | undefined;

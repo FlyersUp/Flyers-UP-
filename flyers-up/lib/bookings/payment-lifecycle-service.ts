@@ -24,8 +24,8 @@ import {
   refundPaymentIntentPartial,
 } from '@/lib/stripe/server';
 import { runAdminRefundCustomerStripeRefunds } from '@/lib/bookings/admin-refund-customer-stripe';
-import { isPayoutEligible } from '@/lib/bookings/state-machine';
 import { resolveMilestonePayoutGate } from '@/lib/bookings/multi-day-payout';
+import { evaluateVersionBPayoutEligibility } from '@/lib/bookings/version-b-payout';
 import { resolveProPayoutTransferCents } from '@/lib/bookings/booking-payout-economics';
 import { evaluatePayoutRiskForPro } from '@/lib/payoutRisk';
 import type {
@@ -69,6 +69,17 @@ import {
   logBookingPaymentEvent,
   type LogBookingPaymentEventInput,
 } from '@/lib/bookings/booking-payment-event-log';
+
+/**
+ * When true, {@link handleFinalPaymentSucceeded} / zero-final {@link markBookingCompleted} will not
+ * call {@link releasePayout} — used by integration tests that exercise the payout-release cron path.
+ */
+let skipImmediatePayoutReleaseForTest = false;
+
+/** @internal Integration tests only */
+export function setSkipImmediatePayoutReleaseForTest(skip: boolean): void {
+  skipImmediatePayoutReleaseForTest = skip;
+}
 import {
   emitAdminRefundBatchFailureClosed,
   emitAdminRefundBatchStarted,
@@ -383,7 +394,8 @@ export async function markBookingCompleted(admin: AdminClient, input: {
 
   const finalAmt =
     Number(row.final_amount_cents ?? row.remaining_amount_cents ?? row.amount_remaining ?? 0) || 0;
-  const reviewDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  /** Version B: off-session final charge is attempted immediately — no 24h wait before charging. */
+  const reviewDeadline = new Date().toISOString();
 
   const patch: Record<string, unknown> = {
     service_status: 'completed',
@@ -406,8 +418,17 @@ export async function markBookingCompleted(admin: AdminClient, input: {
       eventType: 'final_charge_scheduled',
       phase: 'final',
       status: 'scheduled',
-      metadata: { completed_by: input.completedByUserId, review_deadline_at: reviewDeadline },
+      metadata: { completed_by: input.completedByUserId, review_deadline_at: reviewDeadline, version_b: true },
     });
+    try {
+      await attemptFinalCharge(admin, {
+        bookingId: input.bookingId,
+        skipReviewWindow: true,
+        actorUserId: input.completedByUserId,
+      });
+    } catch (e) {
+      console.warn('[markBookingCompleted] attemptFinalCharge failed', input.bookingId, e);
+    }
   } else {
     const ev = await evaluatePayoutEligibility(admin, input.bookingId);
     if (ev.eligible) {
@@ -428,13 +449,24 @@ export async function markBookingCompleted(admin: AdminClient, input: {
         status: 'ready',
         metadata: { reason: 'zero_final' },
       });
+      await tryReleasePayoutImmediatelyAfterEligible(admin, {
+        bookingId: input.bookingId,
+        actorUserId: input.completedByUserId,
+        logTag: 'markBookingCompleted',
+      });
     }
   }
 }
 
 export async function attemptFinalCharge(
   admin: AdminClient,
-  input: { bookingId: string; initiatedByAdmin?: boolean; actorUserId?: string | null }
+  input: {
+    bookingId: string;
+    initiatedByAdmin?: boolean;
+    /** When true, do not block on `customer_review_deadline_at` (Version B immediate charge at completion). */
+    skipReviewWindow?: boolean;
+    actorUserId?: string | null;
+  }
 ): Promise<{ ok: boolean; code?: string }> {
   const s = stripeClient();
   if (!s) return { ok: false, code: 'no_stripe' };
@@ -543,7 +575,13 @@ export async function attemptFinalCharge(
   }
 
   const deadline = row.customer_review_deadline_at as string | null;
-  if (deadline && new Date(deadline).getTime() > Date.now() && !input.initiatedByAdmin) {
+  const skipReviewWindow = input.skipReviewWindow === true;
+  if (
+    deadline &&
+    new Date(deadline).getTime() > Date.now() &&
+    !input.initiatedByAdmin &&
+    !skipReviewWindow
+  ) {
     return { ok: false, code: 'review_window' };
   }
 
@@ -818,6 +856,11 @@ export async function handleFinalPaymentSucceeded(
       status: 'ready',
       metadata: { after: 'final_payment_succeeded' },
     });
+    await tryReleasePayoutImmediatelyAfterEligible(admin, {
+      bookingId,
+      actorUserId: null,
+      logTag: 'handleFinalPaymentSucceeded',
+    });
   } else {
     await logBookingPaymentEvent(admin, {
       bookingId,
@@ -1017,8 +1060,9 @@ export type PayoutReleaseResult = {
 
 /**
  * Eligibility for Stripe transfer (cron auto-release or admin approve_payout).
- * Differs from {@link evaluatePayoutEligibility}: uses post-completion review window for automatic
- * release, optional admin bypass for confirmation/photos/suspicious flags, and enforces Connect readiness.
+ * Differs from {@link evaluatePayoutEligibility}: supports {@link getPayoutReleaseEligibilitySnapshot}
+ * `initiatedByAdmin` bypass for suspicious-completion and Stripe charges-enabled checks while still
+ * enforcing dispute/refund/milestone/Connect destination and pro compliance holds.
  */
 export async function evaluatePayoutTransferEligibility(
   admin: AdminClient,
@@ -1069,7 +1113,12 @@ export async function reconcileStalePayoutOnHoldForCompletionEvidence(
   if (r.payout_released === true) return false;
   const lc = String(r.payment_lifecycle_status ?? '').toLowerCase();
   const hold = String(r.payout_hold_reason ?? '').trim().toLowerCase();
-  if (lc !== 'payout_on_hold' || hold !== 'insufficient_completion_evidence') return false;
+  if (
+    lc !== 'payout_on_hold' ||
+    (hold !== 'insufficient_completion_evidence' && hold !== 'booking_not_completed')
+  ) {
+    return false;
+  }
   if (r.admin_hold === true) return false;
   const disputeClear =
     r.dispute_status == null ||
@@ -1138,7 +1187,7 @@ export async function evaluatePayoutEligibility(
         'payout_blocked',
         'payout_hold_reason',
         'stripe_destination_account_id',
-        'service_pros(stripe_account_id, user_id)',
+        'service_pros(stripe_account_id, user_id, stripe_charges_enabled)',
       ].join(', ')
     )
     .eq('id', bookingId)
@@ -1171,67 +1220,71 @@ export async function evaluatePayoutEligibility(
   }
 
   const isMultiFlag = row.is_multi_day === true;
-  const gate = await resolveMilestonePayoutGate(admin, bookingId, isMultiFlag);
-  if (gate.fetchError) {
-    return { eligible: false, holdReason: 'insufficient_completion_evidence' };
-  }
-
-  const base = isPayoutEligible({
-    status: String(row.status ?? ''),
-    payment_lifecycle_status: (row.payment_lifecycle_status as string | null | undefined) ?? null,
-    arrived_at: (row.arrived_at as string) ?? null,
-    started_at: (row.started_at as string) ?? null,
-    completed_at: (row.completed_at as string) ?? null,
-    customer_confirmed: row.customer_confirmed === true,
-    auto_confirm_at: (row.auto_confirm_at as string) ?? null,
-    dispute_open: row.dispute_open === true,
-    cancellation_reason: (row.cancellation_reason as string) ?? null,
-    paid_deposit_at: (row.paid_deposit_at as string) ?? null,
-    paid_remaining_at: (row.paid_remaining_at as string) ?? null,
-    refund_status: (row.refund_status as string) ?? null,
-    suspicious_completion: row.suspicious_completion === true,
-    is_multi_day: gate.enforceMilestoneGate,
-    multi_day_schedule_ok: gate.scheduleOk,
-  });
-
-  if (!base.eligible) {
-    const r = base.reason ?? '';
-    if (r.includes('not arrived')) return { eligible: false, holdReason: 'insufficient_completion_evidence' };
-    if (r.includes('Dispute')) return { eligible: false, holdReason: 'dispute_open' };
-    if (r.includes('no-show')) return { eligible: false, holdReason: 'no_show_review' };
-    if (r.includes('Suspicious')) return { eligible: false, holdReason: 'fraud_review' };
-    if (r.includes('Payment not complete')) return { eligible: false, holdReason: 'missing_final_payment' };
-    if (r.includes('confirm')) return { eligible: false, holdReason: 'insufficient_completion_evidence' };
-    return { eligible: false, holdReason: 'insufficient_completion_evidence' };
-  }
-
-  const { data: jc } = await admin
-    .from('job_completions')
-    .select('after_photo_urls, booking_id')
-    .eq('booking_id', bookingId)
-    .maybeSingle();
-  const rawUrls = (jc as { after_photo_urls?: string[] } | null)?.after_photo_urls ?? [];
-  const validCount = countValidJobCompletionAfterPhotoUrls(rawUrls);
-  if (validCount < 2) {
-    return { eligible: false, holdReason: 'insufficient_completion_evidence' };
-  }
-
-  const dest =
-    (row.stripe_destination_account_id as string) ??
-    ((row.service_pros as { stripe_account_id?: string })?.stripe_account_id ?? '');
-  if (!dest) {
-    return { eligible: false, holdReason: 'missing_payment_method' };
-  }
+  const milestoneGate = await resolveMilestonePayoutGate(admin, bookingId, isMultiFlag);
 
   const proUser = (row.service_pros as { user_id?: string })?.user_id;
+  let proPayoutsOnHold = false;
   if (proUser) {
     const risk = await evaluatePayoutRiskForPro(proUser);
-    if (risk.payoutsOnHold) {
-      return { eligible: false, holdReason: 'fraud_review' };
-    }
+    proPayoutsOnHold = risk.payoutsOnHold;
+  }
+
+  const snap = evaluateVersionBPayoutEligibility(row, {
+    initiatedByAdmin: false,
+    milestoneGate: {
+      fetchError: milestoneGate.fetchError,
+      enforceMilestoneGate: milestoneGate.enforceMilestoneGate,
+      scheduleOk: milestoneGate.scheduleOk,
+    },
+    proPayoutsOnHold,
+  });
+
+  if (!snap.eligible) {
+    return { eligible: false, holdReason: snap.holdReason };
   }
 
   return { eligible: true, holdReason: 'none' };
+}
+
+/**
+ * Idempotent Connect transfer attempt after the booking row is already `payout_ready` / eligible.
+ * Skipped in integration tests via {@link setSkipImmediatePayoutReleaseForTest}; cron retries failures.
+ */
+async function tryReleasePayoutImmediatelyAfterEligible(
+  admin: AdminClient,
+  input: { bookingId: string; actorUserId?: string | null; logTag: string }
+): Promise<void> {
+  if (skipImmediatePayoutReleaseForTest) return;
+  const out = await releasePayout(admin, {
+    bookingId: input.bookingId,
+    actorUserId: input.actorUserId ?? null,
+  });
+  if (!out.ok) {
+    console.warn(`[${input.logTag}] immediate releasePayout failed`, input.bookingId, {
+      code: out.code,
+      message: out.message,
+      errorPhase: out.errorPhase,
+    });
+    /** `already_released` is benign (duplicate handler); do not spam ops event log. */
+    if (out.code !== 'already_released') {
+      try {
+        await logBookingPaymentEvent(admin, {
+          bookingId: input.bookingId,
+          eventType: 'payout_blocked',
+          phase: 'payout',
+          status: 'immediate_release_failed',
+          metadata: {
+            source: input.logTag,
+            release_code: out.code ?? null,
+            release_message: out.message ?? null,
+            error_phase: out.errorPhase ?? null,
+          },
+        });
+      } catch (e) {
+        console.warn('[tryReleasePayoutImmediatelyAfterEligible] booking_payment_events insert failed', e);
+      }
+    }
+  }
 }
 
 export async function releasePayout(
@@ -1272,6 +1325,8 @@ export async function releasePayout(
     'fraud_review',
     'no_show_review',
     'customer_refunded',
+    'booking_not_completed',
+    'insufficient_completion_evidence',
   ]);
   if (
     !initiatedByAdmin &&
@@ -1500,6 +1555,18 @@ export async function releasePayout(
     actorType: input.initiatedByAdmin ? 'admin' : 'system',
     actorUserId: input.actorUserId ?? null,
   });
+
+  const proUserId = (row.service_pros as { user_id?: string } | null | undefined)?.user_id;
+  if (proUserId) {
+    void createNotificationEvent({
+      userId: proUserId,
+      type: NOTIFICATION_TYPES.PAYOUT_SENT,
+      bookingId: input.bookingId,
+      basePath: 'pro',
+      dedupeKey: `payout_sent:${input.bookingId}:${transferId}`,
+      dedupeWindowSeconds: 86400 * 14,
+    });
+  }
 
   return { ok: true, transferId, releaseOutcome, stripeTransferStatus };
 }

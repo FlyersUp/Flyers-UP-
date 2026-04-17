@@ -18,16 +18,21 @@
 
 import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
-import { Suspense, use, useEffect, useState } from 'react';
+import { Suspense, use, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
+import {
+  EmbeddedPaymentSection,
+  type ExpressCheckoutClickEvent,
+} from '@/components/checkout/EmbeddedPaymentSection';
 import { BookingSummaryDeposit, type QuoteBreakdown } from '@/components/checkout/BookingSummaryDeposit';
 import { DepositPayBar } from '@/components/checkout/DepositPayBar';
 import { BookingLoadErrorPage } from '@/components/checkout/BookingLoadErrorPage';
 import { QuickRulesSheet } from '@/components/booking/QuickRulesSheet';
 import { bookingConfirmedPath } from '@/lib/bookings/booking-routes';
 import { CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT } from '@/lib/bookings/customer-payment-platform-hold-copy';
+import { confirmEmbeddedPayment } from '@/lib/stripe/confirm-embedded-payment';
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -102,32 +107,43 @@ function CheckoutForm({
   const [loading, setLoading] = useState(false);
   const [quickRulesOpen, setQuickRulesOpen] = useState(false);
   const isFinal = isFinalCheckoutPhase(quoteData.quote);
+  const paymentConfirmLockRef = useRef(false);
+  const expressResolveRef = useRef<(() => void) | null>(null);
+  const expressRejectRef = useRef<(() => void) | null>(null);
 
-  const doSubmit = async () => {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.flyersup.app';
+  const returnUrl = `${origin}${bookingConfirmedPath(bookingId, { phase: isFinal ? 'final' : undefined })}`;
+
+  const runConfirmPayment = async () => {
+    if (paymentConfirmLockRef.current) return;
     if (!stripe || !elements) return;
-
+    paymentConfirmLockRef.current = true;
     setLoading(true);
     onPaymentError('');
-
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.flyersup.app';
-    const returnUrl = `${origin}${bookingConfirmedPath(bookingId, { phase: isFinal ? 'final' : undefined })}`;
-
-    const { error: confirmError } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: returnUrl,
-        receipt_email: undefined,
-      },
-    });
-
-    setLoading(false);
-
-    if (confirmError) {
-      onPaymentError(confirmError.message ?? 'Payment failed');
-      return;
+    try {
+      const result = await confirmEmbeddedPayment({ stripe, elements, returnUrl });
+      if (!result.ok) {
+        onPaymentError(result.message);
+        return;
+      }
+      onSuccess();
+    } finally {
+      paymentConfirmLockRef.current = false;
+      setLoading(false);
     }
+  };
 
-    onSuccess();
+  const handleExpressCheckoutClick = (event: ExpressCheckoutClickEvent) => {
+    void (async () => {
+      const { hasSeenQuickRules } = await import('@/components/booking/QuickRulesSheet');
+      if (hasSeenQuickRules()) {
+        event.resolve();
+        return;
+      }
+      expressResolveRef.current = event.resolve;
+      expressRejectRef.current = event.reject;
+      setQuickRulesOpen(true);
+    })();
   };
 
   const handleSubmit = async () => {
@@ -136,28 +152,43 @@ function CheckoutForm({
       setQuickRulesOpen(true);
       return;
     }
-    await doSubmit();
+    await runConfirmPayment();
   };
 
   const handleQuickRulesContinue = () => {
+    if (expressResolveRef.current) {
+      const r = expressResolveRef.current;
+      expressResolveRef.current = null;
+      expressRejectRef.current = null;
+      r();
+      return;
+    }
+    void runConfirmPayment();
+  };
+
+  const handleQuickRulesClose = () => {
+    if (expressRejectRef.current) {
+      try {
+        expressRejectRef.current();
+      } catch {
+        /* ignore */
+      }
+    }
+    expressResolveRef.current = null;
+    expressRejectRef.current = null;
     setQuickRulesOpen(false);
-    void doSubmit();
   };
 
   const amountCents = resolveCheckoutPayCents(quoteData.quote, quoteData.paymentAmounts);
 
   return (
     <>
-      <div
-        className="rounded-[20px] border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.25)]"
-        role="region"
-        aria-labelledby="payment-method-heading"
-      >
-        <h2 id="payment-method-heading" className="mb-4 text-sm font-semibold text-[#2d3436] dark:text-white">
-          Payment method
-        </h2>
-        <PaymentElement options={{ layout: 'tabs' }} />
-      </div>
+      <EmbeddedPaymentSection
+        variant="checkout"
+        onConfirmPayment={runConfirmPayment}
+        onExpressCheckoutClick={handleExpressCheckoutClick}
+        paymentElementOptions={{ layout: 'tabs' }}
+      />
 
       <DepositPayBar
         amountCents={amountCents}
@@ -172,7 +203,7 @@ function CheckoutForm({
       <QuickRulesSheet
         open={quickRulesOpen}
         onContinue={handleQuickRulesContinue}
-        onClose={() => setQuickRulesOpen(false)}
+        onClose={handleQuickRulesClose}
       />
     </>
   );

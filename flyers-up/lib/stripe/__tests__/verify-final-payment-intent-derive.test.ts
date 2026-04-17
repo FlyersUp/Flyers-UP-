@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deriveRequiresLiveFinalPaymentIntentRead } from '../verify-final-payment-intent-status';
 
-test('deriveRequiresLiveFinalPaymentIntentRead is true for post_review + final PI', () => {
+test('deriveRequiresLiveFinalPaymentIntentRead is true for final_pending_after_completion + final PI', () => {
   assert.equal(
     deriveRequiresLiveFinalPaymentIntentRead(
       {

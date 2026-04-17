@@ -28,8 +28,10 @@ export default async function AdminPaymentsPayoutReviewPage() {
             ) : null}
           </div>
           <p className="mt-1 text-sm text-muted">
-            Flagged bookings (<code className="text-xs">requires_admin_review</code>) do not auto-release. Approve
-            releases the Stripe transfer when the server confirms eligibility — same checks as automatic payout.
+            Flagged bookings (<code className="text-xs">requires_admin_review</code>) are surfaced for disputes,
+            risk holds, missing Connect setup, failed transfers, and similar. Eligible payouts still auto-release on
+            cron; <strong>Release payout</strong> appears only for explicit holds or transfer failures (retry), not for
+            routine review-only flags.
           </p>
         </div>
 

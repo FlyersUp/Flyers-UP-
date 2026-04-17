@@ -28,7 +28,7 @@ test('deposit paid, job not complete → before_completion', () => {
   assert.equal(s.kind, 'before_completion');
 });
 
-test('completed, final_pending, before deadline → review_window_auto', () => {
+test('completed + final_pending → final_pending_after_completion (Version B: pay remaining now, no review countdown)', () => {
   const s = deriveCustomerRemainingPaymentUiState(
     {
       ...base,
@@ -39,10 +39,10 @@ test('completed, final_pending, before deadline → review_window_auto', () => {
     },
     Date.parse('2026-01-01T20:00:00Z')
   );
-  assert.equal(s.kind, 'review_window_auto');
+  assert.equal(s.kind, 'final_pending_after_completion');
 });
 
-test('completed, after deadline → post_review_auto_pending', () => {
+test('completed, after deadline → final_pending_after_completion', () => {
   const s = deriveCustomerRemainingPaymentUiState(
     {
       ...base,
@@ -52,7 +52,7 @@ test('completed, after deadline → post_review_auto_pending', () => {
     },
     Date.parse('2026-01-03T12:00:00Z')
   );
-  assert.equal(s.kind, 'post_review_auto_pending');
+  assert.equal(s.kind, 'final_pending_after_completion');
 });
 
 test('final_processing → processing', () => {

@@ -13,4 +13,8 @@ describe('assertPayoutHoldReason', () => {
   it('accepts customer_refunded', () => {
     assert.strictEqual(assertPayoutHoldReason('customer_refunded'), 'customer_refunded');
   });
+
+  it('accepts booking_not_completed', () => {
+    assert.strictEqual(assertPayoutHoldReason('booking_not_completed'), 'booking_not_completed');
+  });
 });

@@ -65,6 +65,7 @@ function isKnownPayoutHoldReason(v: string): v is PayoutHoldReason {
       'fraud_review',
       'no_show_review',
       'insufficient_completion_evidence',
+      'booking_not_completed',
       'admin_hold',
       'waiting_post_completion_review',
       'payout_blocked',

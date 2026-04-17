@@ -303,7 +303,8 @@ export function JobNextAction({ booking, onUpdated, jobId }: JobNextActionProps)
         {showCompletionModalCta ? (
           <>
             <p className="text-xs text-muted">
-              Add at least 2 after photos to mark the job complete and request the remaining balance.
+              Mark the job complete to request the remaining balance. After photos are recommended for trust but not
+              required for payout once the customer pays in full.
             </p>
             <button
               type="button"

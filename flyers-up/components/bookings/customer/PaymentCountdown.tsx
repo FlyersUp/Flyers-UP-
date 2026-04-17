@@ -30,7 +30,7 @@ export function PaymentCountdown({ deadlineIso, className = '' }: PaymentCountdo
   if (!Number.isFinite(deadlineMs)) {
     return (
       <p className={`text-sm font-medium text-[#111111] dark:text-[#F5F7FA] tabular-nums ${className}`}>
-        Auto-charge available soon
+        Final payment
       </p>
     );
   }
@@ -41,7 +41,7 @@ export function PaymentCountdown({ deadlineIso, className = '' }: PaymentCountdo
         className={`text-sm font-medium text-[#6A6A6A] dark:text-[#A1A8B3] tabular-nums min-h-[1.25rem] ${className}`}
         aria-hidden
       >
-        Auto-charging after review window
+        Final payment timing
       </p>
     );
   }

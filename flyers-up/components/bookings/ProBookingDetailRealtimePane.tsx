@@ -6,7 +6,6 @@ import { BookingProgressTracker } from '@/components/bookings/BookingProgressTra
 import { MultiDayBookingProgressSection } from '@/components/bookings/MultiDayBookingProgressSection';
 import { ProMilestonePlanForm } from '@/components/bookings/ProMilestonePlanForm';
 import { ProJobCompletedCard } from '@/components/bookings/ProJobCompletedCard';
-import { PayoutTimeline } from '@/components/bookings/PayoutTimeline';
 import { ProYouGotPaidCard } from '@/components/bookings/ProYouGotPaidCard';
 import { JobNextAction } from '@/components/jobs/JobNextAction';
 import { PaymentStatusModule } from '@/components/booking/PaymentStatusModule';
@@ -25,14 +24,8 @@ import {
   computeProYouGotPaidVisibleFromMoney,
   proPayoutStripeToMoneySnapshot,
 } from '@/lib/bookings/pro-payout-display';
-import {
-  getMoneyPresentation,
-  getProAutomatedPayoutStatusMessageFromMoney,
-  getProPayoutTimelineActiveIndex,
-  getProPayoutTimelineTransferFailed,
-  shouldShowPaymentHeldFromMoneyState,
-} from '@/lib/bookings/money-presentation';
-import { PaymentHeldProCard } from '@/components/payments/payment-held';
+import { buildSimplePayoutStateInputFromProBooking, deriveSimplePayoutState } from '@/lib/bookings/pro-simple-payout-ui';
+import { ProPayoutStatusCard } from '@/components/bookings/ProPayoutStatusCard';
 import { useProPayoutStripeVerify } from '@/hooks/useProPayoutStripeVerify';
 import { useMemo, type Dispatch, type SetStateAction } from 'react';
 
@@ -89,7 +82,6 @@ export function ProBookingDetailRealtimePane({
     'awaiting_customer_confirmation',
   ].includes(booking.status);
 
-  const customerFinalPaid = moneyState.final === 'final_paid';
   const proEarnings = Math.max(
     0,
     (booking.amountTotal ?? 0) - (booking.platformFeeCents ?? 0) - (booking.refundedTotalCents ?? 0)
@@ -97,36 +89,10 @@ export function ProBookingDetailRealtimePane({
 
   const showYouGotPaid = computeProYouGotPaidVisibleFromMoney(proEarnings, moneyState);
 
-  const automatedPayoutHint =
-    customerFinalPaid && booking.completedAt
-      ? getProAutomatedPayoutStatusMessageFromMoney(
-          moneyState,
-          booking.completedAt,
-          booking.paidRemainingAt ?? null
-        )
-      : null;
-
-  const holdSignals = {
-    payoutReleased: booking.payoutReleased ?? null,
-    paymentLifecycleStatus: booking.paymentLifecycleStatus ?? null,
-    requiresAdminReview: booking.requiresAdminReview ?? null,
-    payoutHoldReason: booking.payoutHoldReason ?? null,
-    suspiciousCompletion: booking.suspiciousCompletion ?? null,
-    suspiciousCompletionReason: booking.suspiciousCompletionReason ?? null,
-    adminHold: booking.adminHold ?? null,
-    payoutStatus: booking.payoutStatus ?? null,
-  };
-  const heldTimelineTimestamps = {
-    deposit: booking.paidDepositAt ?? booking.paidAt ?? null,
-    completed: booking.completedAt ?? null,
-  };
-  const showProPaymentHeldOrDelayedCard =
-    moneyState.final === 'final_paid' &&
-    (shouldShowPaymentHeldFromMoneyState(moneyState) ||
-      (moneyState.payout === 'payout_failed' && booking.requiresAdminReview === true));
-  const paymentHeldProPresentation = showProPaymentHeldOrDelayedCard
-    ? getMoneyPresentation(moneyState, 'pro', { holdSignals, heldTimelineTimestamps })
-    : null;
+  const proPayoutUi = useMemo(
+    () => deriveSimplePayoutState(buildSimplePayoutStateInputFromProBooking(booking, moneyState, payoutStripe)),
+    [booking, moneyState, payoutStripe]
+  );
 
   return (
     <>
@@ -237,26 +203,13 @@ export function ProBookingDetailRealtimePane({
 
       <section className="mb-6">
         <h2 className="text-base font-semibold text-text mb-4">Payment</h2>
-        {paymentHeldProPresentation ? (
-          <div className="mb-4">
-            <PaymentHeldProCard
-              presentation={paymentHeldProPresentation}
-              detailsHref={`/pro/jobs/${bookingId}`}
-              supportHref="/support"
-            />
-          </div>
-        ) : null}
-        {!showProPaymentHeldOrDelayedCard ? (
-          <div className="mb-4">
-            <PayoutTimeline
-              activeStepIndex={getProPayoutTimelineActiveIndex(moneyState)}
-              transferFailed={getProPayoutTimelineTransferFailed(moneyState)}
-            />
-            {automatedPayoutHint ? (
-              <p className="mt-2 text-xs text-muted text-center">{automatedPayoutHint}</p>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="mb-4">
+          <ProPayoutStatusCard
+            state={proPayoutUi.state}
+            holdUiKey={proPayoutUi.holdUiKey}
+            notReadyReason={proPayoutUi.notReadyReason}
+          />
+        </div>
         <div className="space-y-4">
           <BookingPaymentStatusCard
             status={booking.status}

@@ -12,7 +12,6 @@ import {
   type PaymentHeldBookingSignals,
 } from '@/lib/bookings/payment-held-ui-state';
 import type { PaymentTimelineModel } from '@/lib/bookings/payment-timeline';
-import { PAYOUT_AUTO_RELEASE_REVIEW_HOURS } from '@/lib/bookings/state-machine';
 
 export type MoneyPresentationBadgeTone =
   | 'scheduled'
@@ -57,8 +56,6 @@ export type MoneyUiPresentation = {
   heldProTimeline: PaymentHeldTimelineItem[] | null;
   whyCallout: { headline: string; body: string } | null;
 };
-
-const MS_PER_HOUR = 60 * 60 * 1000;
 
 function toneToBadge(tone: MoneyUiTone): MoneyPresentationBadgeTone {
   switch (tone) {
@@ -203,28 +200,19 @@ export function getProPayoutTimelineTransferFailed(state: MoneyState): boolean {
   return state.final === 'final_paid' && state.payout === 'payout_failed';
 }
 
+/**
+ * Legacy one-liner under the old payout timeline. Pro booking UI now uses {@link ProPayoutStatusCard}
+ * + {@link deriveSimplePayoutState}; keep this returning null so copy stays in one place.
+ */
 export function getProAutomatedPayoutStatusMessageFromMoney(
   state: MoneyState,
   completedAt?: string | null,
   paidRemainingAt?: string | null
 ): string | null {
-  if (!paidRemainingAt || !completedAt) return null;
-  if (state.final !== 'final_paid') return null;
-  if (state.payout === 'payout_held') {
-    return 'Payout on hold — Flyers Up is reviewing before funds are released';
-  }
-
-  if (state.payout === 'payout_paid') return 'Payout sent — funds paid out to your connected account';
-  if (state.payout === 'payout_failed') {
-    return 'Payout transfer did not complete — contact support if this persists';
-  }
-  if (state.payout === 'payout_processing') {
-    return 'Payout sent — processing with Stripe';
-  }
-
-  const end = new Date(completedAt).getTime() + PAYOUT_AUTO_RELEASE_REVIEW_HOURS * MS_PER_HOUR;
-  if (Date.now() < end) return 'Payout will follow after the review window';
-  return 'Payout is being released — check back shortly';
+  void state;
+  void completedAt;
+  void paidRemainingAt;
+  return null;
 }
 
 function buildCustomerPresentation(state: MoneyState): MoneyUiPresentation {

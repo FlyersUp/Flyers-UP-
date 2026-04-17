@@ -314,8 +314,8 @@ function mapRawToFinalPhase(
       return 'before_completion';
     case 'review_window_auto':
       return 'final_review_window';
-    case 'post_review_auto_pending':
-      // After the review window, derive stays `post_review_auto_pending` while DB lifecycle may
+    case 'final_pending_after_completion':
+      // After completion, derive stays `final_pending_after_completion` while DB lifecycle may
       // still lag (e.g. `final_pending`). If the final PI already succeeded in Stripe, funds are on
       // the platform account — do not show `final_due` / "pay again"; align with PI + settlement flags.
       return mapProcessingToFinalPhase(input, remainingCents, stripe);
@@ -362,7 +362,7 @@ function computePayoutPhase(
 
   const lc = String(booking.paymentLifecycleStatus ?? '').trim().toLowerCase();
   if (booking.payoutReleased !== true && lc === 'payout_on_hold') return 'payout_held';
-  if (booking.requiresAdminReview === true) return 'payout_held';
+  /** `requires_admin_review` is ops visibility only — it must not imply funds are held in MoneyState. */
   if (booking.payoutReleased !== true) return 'payout_scheduled';
 
   if (transferChecked && isStripeTransferPaid(ts)) return 'payout_paid';
@@ -415,7 +415,7 @@ function computeCustomerCardVariant(
   }
   if (
     final === 'final_due' &&
-    raw.kind === 'post_review_auto_pending' &&
+    raw.kind === 'final_pending_after_completion' &&
     !hasExplicitNewLifecycleColumns(booking)
   ) {
     return 'legacy_pending_manual';

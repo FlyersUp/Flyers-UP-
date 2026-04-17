@@ -252,7 +252,7 @@ export function normalizeCustomerPaymentCard(
     if (hasExplicitNewLifecycleColumns(input)) {
       return {
         kind: 'post_review_due',
-        normalizeBranch: 'derive:post_review_balance_due',
+        normalizeBranch: 'derive:final_pending_balance_due',
         remainingCents,
         countdownDeadlineIso: null,
         raw,

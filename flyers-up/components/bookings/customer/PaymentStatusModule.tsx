@@ -51,7 +51,7 @@ export interface PaymentStatusModuleProps {
   paymentStatus?: string;
   finalPaymentStatus?: string | null;
   paymentDueAt?: string | null;
-  /** When set, shows “Auto-charging in …” during review window before balance is due. */
+  /** When set, may show a countdown for final payment timing (Version B: pay remaining balance when prompted). */
   customerReviewDeadlineAt?: string | null;
   amountDeposit?: number | null;
   amountRemaining?: number | null;

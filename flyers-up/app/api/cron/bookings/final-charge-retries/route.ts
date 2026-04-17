@@ -13,6 +13,7 @@ export const dynamic = 'force-dynamic';
 
 const LOG = '[cron/bookings/final-charge-retries]';
 
+/** Retries off-session final charge after `payment_failed`; does not decide payout timing. */
 export async function GET(req: NextRequest) {
   const authErr = requireCronSecret(req);
   if (authErr) {

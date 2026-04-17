@@ -43,11 +43,38 @@ export function payoutReviewLooksLikeStripeTransferIssue(item: FlaggedPayoutRevi
 
 export type AdminPayoutReleaseCtaMode = 'approve' | 'retry' | 'hidden';
 
+/**
+ * “Release payout” is for exception paths only: transfer failure (retry), explicit holds,
+ * or lifecycle/queue states that indicate a payout is blocked — not routine
+ * `requires_admin_review` rows that cron can auto-release when otherwise ready.
+ */
 export function getAdminPayoutReleaseCtaMode(item: FlaggedPayoutReviewItem): AdminPayoutReleaseCtaMode {
   if (isBookingRefundedForAdminPayoutActions(item)) return 'hidden';
   if (item.payoutReleased === true) return 'hidden';
   if (flaggedPayoutReviewNeedsTransferRetry(item)) return 'retry';
-  return 'approve';
+
+  const rs = String(item.refundStatus ?? '').toLowerCase();
+  if (rs === 'pending') return 'hidden';
+
+  const ds = String(item.disputeStatus ?? 'none').trim().toLowerCase();
+  if (item.disputeOpen === true || (ds !== '' && ds !== 'none')) return 'hidden';
+
+  const lc = String(item.paymentLifecycleStatus ?? '').toLowerCase();
+  const hold = String(item.payoutHoldReason ?? '').trim().toLowerCase();
+  const meaningfulHold =
+    hold !== '' && hold !== 'none' && hold !== 'already_released';
+  const onHoldLifecycle =
+    lc === 'payout_on_hold' || lc === 'requires_customer_action' || lc === 'payment_failed';
+  const qs = String(item.queueStatus ?? '').toLowerCase();
+  const queueHeld = qs === 'held' || qs === 'escalated';
+
+  if (item.payoutBlocked === true) return 'approve';
+  if (onHoldLifecycle) return 'approve';
+  if (meaningfulHold) return 'approve';
+  if (queueHeld) return 'approve';
+  if (item.suspiciousCompletion === true) return 'approve';
+
+  return 'hidden';
 }
 
 /** Short pill for scanning the queue (orthogonal to payout_review_queue.status). */

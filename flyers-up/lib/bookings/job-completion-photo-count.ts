@@ -1,6 +1,6 @@
 /**
  * Counts completion "after" photo URLs that satisfy payout evidence rules.
- * Keep in sync with {@link buildPayoutReleaseEligibilitySnapshot} photo proof.
+ * Used for auto-confirm / ops tooling; automatic payout release does not gate on photo count.
  */
 export function countValidJobCompletionAfterPhotoUrls(urls: unknown): number {
   if (!Array.isArray(urls)) return 0;

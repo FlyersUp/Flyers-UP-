@@ -1,16 +1,44 @@
 /**
- * Payout-release cron: DB pre-filter for rows that *might* need a Stripe Connect transfer.
+ * Payout-release cron: DB pre-filter for rows that *might* need a Stripe Connect transfer **retry**
+ * (or legacy rows with no synchronous release path).
  *
  * Selection is **payment-lifecycle-driven** (not `bookings.status` / `service_status`):
  * - Primary: `payment_lifecycle_status` in {@link PAYOUT_RELEASE_CRON_LIFECYCLE_SCAN}
  * - Legacy: `payment_lifecycle_status` null with `final_payment_status = PAID` (older rows)
  *
- * Further gates (photos, timestamps, Connect, risk, admin review) live in
+ * {@link payoutReleaseCronShouldAttemptAfterImmediateGrace} skips very fresh `payout_eligible_at` rows so
+ * {@link handleFinalPaymentSucceeded} can run {@link releasePayout} first without racing this job.
+ *
+ * Further gates (timestamps, milestones, Connect, risk; not `requires_admin_review`) live in
  * {@link getPayoutReleaseEligibilitySnapshot} / {@link releasePayout}.
  */
 
+/** Seconds after `payout_eligible_at` before cron may attempt (immediate release runs first). */
+export const PAYOUT_RELEASE_CRON_IMMEDIATE_GRACE_SEC = 90;
+
 /** Final money recorded in lifecycle columns — cron should evaluate transfer eligibility. */
 export const PAYOUT_RELEASE_CRON_LIFECYCLE_SCAN = ['payout_ready', 'final_paid'] as const;
+
+/**
+ * Returns false for rows that just became `payout_ready` (fresh `payout_eligible_at`) so the synchronous
+ * {@link releasePayout} path from final settlement is not double-invoked. Legacy rows without
+ * `payout_eligible_at` are always allowed.
+ */
+export function payoutReleaseCronShouldAttemptAfterImmediateGrace(
+  row: Record<string, unknown>,
+  nowMs: number = Date.now()
+): boolean {
+  const lc = String(row.payment_lifecycle_status ?? '').trim();
+  const finalPaid = String((row as { final_payment_status?: string | null }).final_payment_status ?? '').toUpperCase() === 'PAID';
+  const legacyNullLifecycle = (!lc || lc === 'null') && finalPaid;
+  if (legacyNullLifecycle) return true;
+
+  const eligibleAt = (row as { payout_eligible_at?: string | null }).payout_eligible_at;
+  if (eligibleAt == null || !String(eligibleAt).trim()) return true;
+  const ts = Date.parse(String(eligibleAt));
+  if (!Number.isFinite(ts)) return true;
+  return nowMs - ts >= PAYOUT_RELEASE_CRON_IMMEDIATE_GRACE_SEC * 1000;
+}
 
 /**
  * PostgREST `.or()` filter:

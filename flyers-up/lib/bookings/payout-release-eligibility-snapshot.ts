@@ -3,17 +3,15 @@
  *
  * Uses `payment_lifecycle_status`, `final_payment_status`, and payout columns — not
  * `bookings.status` or `service_status` — to classify where the booking sits in the payout
- * pipeline. `bookings.status` is passed into {@link isPayoutEligible} only for arrival/start/completion
- * and post-completion review timing; when lifecycle is `payout_ready` / `final_paid` / etc.,
- * {@link isPayoutEligible} skips the early-workflow blocklist on `status` so money truth wins.
+ * pipeline. Operational gates use {@link evaluateVersionBPayoutEligibility} (Version B); there is no
+ * post-completion review window or completion-photo requirement on the automatic path.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { isPayoutEligible, PAYOUT_AUTO_RELEASE_REVIEW_HOURS } from '@/lib/bookings/state-machine';
+import { evaluateVersionBPayoutEligibility } from '@/lib/bookings/version-b-payout';
 import { resolveMilestonePayoutGate } from '@/lib/bookings/multi-day-payout';
 import { evaluatePayoutRiskForPro } from '@/lib/payoutRisk';
 import type { PayoutHoldReason } from '@/lib/bookings/payment-lifecycle-types';
-import { countValidJobCompletionAfterPhotoUrls } from '@/lib/bookings/job-completion-photo-count';
 
 export const PAYOUT_TRANSFER_SNAPSHOT_SELECT_FIELDS = [
   'id',
@@ -64,10 +62,6 @@ export type PayoutReleaseEligibilitySnapshot = {
 export type PayoutReleaseSnapshotBuildContext = {
   initiatedByAdmin: boolean;
   milestoneGate: { fetchError: boolean; enforceMilestoneGate: boolean; scheduleOk: boolean };
-  /** From `job_completions` when cron enforces photo proof; null = not loaded / admin bypass. */
-  jobCompletion: { after_photo_urls?: string[]; booking_id?: string } | null;
-  /** When `initiatedByAdmin`, photo proof is skipped — set `skipPhotoProof: true`. */
-  skipPhotoProof: boolean;
   proPayoutsOnHold: boolean;
 };
 
@@ -106,39 +100,8 @@ export function resolvePayoutReleaseLifecyclePhase(row: Record<string, unknown> 
   return 'pre_final_settlement';
 }
 
-function mapSmReasonToHold(smReason: string): { hold: PayoutHoldReason; missing: string[]; flag: boolean } {
-  const r = smReason;
-  if (r.includes('review window has not passed')) {
-    return { hold: 'waiting_post_completion_review', missing: ['post_completion_review_window'], flag: false };
-  }
-  if (r.includes('Dispute')) return { hold: 'dispute_open', missing: ['dispute_clear'], flag: true };
-  if (r.includes('no-show')) return { hold: 'no_show_review', missing: ['no_show_policy'], flag: true };
-  if (r.includes('Suspicious') || r.includes('admin review')) {
-    return { hold: 'fraud_review', missing: ['suspicious_completion_review'], flag: true };
-  }
-  if (r.includes('Payment not complete') || r.includes('deposit or remaining')) {
-    return { hold: 'missing_final_payment', missing: ['deposit_and_remaining_paid'], flag: false };
-  }
-  if (r.includes('Refund already processed')) {
-    return { hold: 'customer_refunded', missing: ['not_fully_refunded'], flag: false };
-  }
-  if (r.includes('Refund')) return { hold: 'refund_pending', missing: ['refund_not_pending'], flag: true };
-  if (r.includes('not in')) return { hold: 'insufficient_completion_evidence', missing: ['workflow_status'], flag: false };
-  if (r.includes('not arrived') || r.includes('not been started') || r.includes('not been completed')) {
-    return {
-      hold: 'insufficient_completion_evidence',
-      missing: ['arrived_started_completed_timestamps'],
-      flag: false,
-    };
-  }
-  if (r.includes('Multi-day')) {
-    return { hold: 'insufficient_completion_evidence', missing: ['multi_day_milestones'], flag: true };
-  }
-  return { hold: 'insufficient_completion_evidence', missing: ['payout_operational_gates'], flag: false };
-}
-
 /**
- * Pure evaluation from an already-loaded booking row + async-derived context (milestones, photos, risk).
+ * Pure evaluation from an already-loaded booking row + async-derived context (milestones, risk).
  * Prefer {@link getPayoutReleaseEligibilitySnapshot} from routes/cron.
  */
 export function buildPayoutReleaseEligibilitySnapshot(
@@ -197,18 +160,6 @@ export function buildPayoutReleaseEligibilitySnapshot(
     };
   }
 
-  if (!ctx.initiatedByAdmin && row.requires_admin_review === true) {
-    missing.push('admin_review_cleared');
-    return {
-      eligible: false,
-      reason: 'Booking requires admin review before automatic payout.',
-      lifecyclePhase: resolvePayoutReleaseLifecyclePhase(row),
-      holdReason: 'admin_review_required',
-      flagForAdminReview: false,
-      missingRequirements: missing,
-    };
-  }
-
   if (row.admin_hold === true) {
     missing.push('admin_hold_released');
     return {
@@ -261,106 +212,20 @@ export function buildPayoutReleaseEligibilitySnapshot(
     };
   }
 
-  if (ctx.milestoneGate.fetchError) {
-    missing.push('milestone_data');
-    return {
-      eligible: false,
-      reason: 'Could not verify multi-day milestone schedule.',
-      lifecyclePhase: 'final_settled_awaiting_transfer',
-      holdReason: 'insufficient_completion_evidence',
-      flagForAdminReview: true,
-      missingRequirements: missing,
-    };
-  }
-
-  const sm = isPayoutEligible({
-    status: String(row.status ?? ''),
-    payment_lifecycle_status: (row.payment_lifecycle_status as string | null | undefined) ?? null,
-    arrived_at: (row.arrived_at as string) ?? null,
-    started_at: (row.started_at as string) ?? null,
-    completed_at: (row.completed_at as string) ?? null,
-    customer_confirmed: row.customer_confirmed === true,
-    auto_confirm_at: (row.auto_confirm_at as string) ?? null,
-    dispute_open: row.dispute_open === true,
-    cancellation_reason: (row.cancellation_reason as string) ?? null,
-    paid_deposit_at: (row.paid_deposit_at as string) ?? null,
-    paid_remaining_at: (row.paid_remaining_at as string) ?? null,
-    refund_status: (row.refund_status as string) ?? null,
-    suspicious_completion: row.suspicious_completion === true,
-    is_multi_day: ctx.milestoneGate.enforceMilestoneGate,
-    multi_day_schedule_ok: ctx.milestoneGate.scheduleOk,
-    adminTransferOverride: ctx.initiatedByAdmin,
-    autoReleaseAfterCompletionHours: ctx.initiatedByAdmin ? null : PAYOUT_AUTO_RELEASE_REVIEW_HOURS,
+  const vb = evaluateVersionBPayoutEligibility(row, {
+    initiatedByAdmin: ctx.initiatedByAdmin,
+    milestoneGate: ctx.milestoneGate,
+    proPayoutsOnHold: ctx.proPayoutsOnHold,
   });
 
-  if (!sm.eligible) {
-    const mapped = mapSmReasonToHold(sm.reason ?? '');
-    missing.push(...mapped.missing);
+  if (!vb.eligible) {
+    missing.push(...vb.missingRequirements);
     return {
       eligible: false,
-      reason: sm.reason ?? 'Payout operational gates not satisfied.',
+      reason: vb.reason,
       lifecyclePhase: 'final_settled_awaiting_transfer',
-      holdReason: mapped.hold,
-      flagForAdminReview: mapped.flag,
-      missingRequirements: missing,
-    };
-  }
-
-  if (!ctx.skipPhotoProof) {
-    const jc = ctx.jobCompletion;
-    const rawUrls = (jc?.after_photo_urls ?? []) as string[];
-    const validUrlsCount = countValidJobCompletionAfterPhotoUrls(rawUrls);
-    const bid = String(row.id ?? '');
-    if (validUrlsCount < 2 || String(jc?.booking_id ?? '') !== bid) {
-      missing.push('two_valid_completion_photos');
-      return {
-        eligible: false,
-        reason: 'At least two valid completion photos are required.',
-        lifecyclePhase: 'final_settled_awaiting_transfer',
-        holdReason: 'insufficient_completion_evidence',
-        flagForAdminReview: true,
-        missingRequirements: missing,
-      };
-    }
-  }
-
-  const dest =
-    (row.stripe_destination_account_id as string) ??
-    ((row.service_pros as { stripe_account_id?: string })?.stripe_account_id ?? '');
-  if (!dest || !String(dest).trim()) {
-    missing.push('stripe_connect_destination_account');
-    return {
-      eligible: false,
-      reason: 'Pro has no Stripe Connect destination account.',
-      lifecyclePhase: 'final_settled_awaiting_transfer',
-      holdReason: 'missing_payment_method',
-      flagForAdminReview: true,
-      missingRequirements: missing,
-    };
-  }
-
-  const chargesOn =
-    (row.service_pros as { stripe_charges_enabled?: boolean })?.stripe_charges_enabled === true;
-  if (!ctx.initiatedByAdmin && !chargesOn) {
-    missing.push('stripe_charges_enabled');
-    return {
-      eligible: false,
-      reason: 'Pro Stripe account cannot receive charges yet.',
-      lifecyclePhase: 'final_settled_awaiting_transfer',
-      holdReason: 'missing_payment_method',
-      flagForAdminReview: true,
-      missingRequirements: missing,
-    };
-  }
-
-  if (ctx.proPayoutsOnHold) {
-    missing.push('pro_payout_not_on_compliance_hold');
-    return {
-      eligible: false,
-      reason: 'Pro payout is on compliance hold.',
-      lifecyclePhase: 'final_settled_awaiting_transfer',
-      holdReason: 'fraud_review',
-      flagForAdminReview: true,
+      holdReason: vb.holdReason,
+      flagForAdminReview: vb.flagForAdminReview,
       missingRequirements: missing,
     };
   }
@@ -376,7 +241,7 @@ export function buildPayoutReleaseEligibilitySnapshot(
 }
 
 /**
- * Loads booking + milestone gate + completion photos + risk, then returns a payout eligibility snapshot.
+ * Loads booking + milestone gate + pro risk, then returns a payout eligibility snapshot.
  * This is the canonical entry for cron and should stay aligned with {@link evaluatePayoutTransferEligibility}.
  */
 export async function getPayoutReleaseEligibilitySnapshot(
@@ -395,25 +260,13 @@ export async function getPayoutReleaseEligibilitySnapshot(
     return buildPayoutReleaseEligibilitySnapshot(null, {
       initiatedByAdmin,
       milestoneGate: { fetchError: false, enforceMilestoneGate: false, scheduleOk: true },
-      jobCompletion: null,
-      skipPhotoProof: initiatedByAdmin,
       proPayoutsOnHold: false,
     });
   }
 
   const row = b as unknown as Record<string, unknown>;
   const isMultiFlag = row.is_multi_day === true;
-  const gate = await resolveMilestonePayoutGate(admin, bookingId, isMultiFlag);
-
-  let jobCompletion: { after_photo_urls?: string[]; booking_id?: string } | null = null;
-  if (!initiatedByAdmin) {
-    const { data: jc } = await admin
-      .from('job_completions')
-      .select('after_photo_urls, booking_id')
-      .eq('booking_id', bookingId)
-      .maybeSingle();
-    jobCompletion = (jc as { after_photo_urls?: string[]; booking_id?: string }) ?? null;
-  }
+  const milestoneGate = await resolveMilestonePayoutGate(admin, bookingId, isMultiFlag);
 
   const proUser = (row.service_pros as { user_id?: string })?.user_id;
   let proPayoutsOnHold = false;
@@ -425,12 +278,10 @@ export async function getPayoutReleaseEligibilitySnapshot(
   return buildPayoutReleaseEligibilitySnapshot(row, {
     initiatedByAdmin,
     milestoneGate: {
-      fetchError: gate.fetchError,
-      enforceMilestoneGate: gate.enforceMilestoneGate,
-      scheduleOk: gate.scheduleOk,
+      fetchError: milestoneGate.fetchError,
+      enforceMilestoneGate: milestoneGate.enforceMilestoneGate,
+      scheduleOk: milestoneGate.scheduleOk,
     },
-    jobCompletion,
-    skipPhotoProof: initiatedByAdmin,
     proPayoutsOnHold,
   });
 }

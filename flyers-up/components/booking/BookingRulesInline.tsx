@@ -21,7 +21,7 @@ const RULES = [
   {
     icon: CheckCircle2,
     title: 'Auto-confirm',
-    text: 'If you don\'t confirm within 24 hours (after remaining is paid), the system auto-confirms.',
+    text: 'After the remaining balance is paid, confirm completion when prompted — or the booking auto-confirms if you don’t.',
   },
 ];
 

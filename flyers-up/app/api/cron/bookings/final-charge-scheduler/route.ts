@@ -8,11 +8,17 @@ import {
   reconcileBookingForFinalAutoCharge,
   resetStaleFinalProcessingBookings,
 } from '@/lib/bookings/final-charge-candidates';
+import { runStaleFinalPaymentCustomerReminders } from '@/lib/bookings/stale-final-payment-reminder';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const LOG = '[cron/bookings/final-charge-scheduler]';
+
+/**
+ * This route only **retries** final charges and **nudges** customers on stale unpaid balances.
+ * It does **not** decide when a payout should start; payout timing stays in lifecycle + release APIs.
+ */
 
 export async function GET(req: NextRequest) {
   const authErr = requireCronSecret(req);
@@ -46,6 +52,13 @@ export async function GET(req: NextRequest) {
   let attempted = 0;
   const results: { id: string; ok: boolean; code?: string }[] = [];
 
+  let staleFinalReminders = { notified: 0, scanned: 0 };
+  try {
+    staleFinalReminders = await runStaleFinalPaymentCustomerReminders(admin);
+  } catch (e) {
+    console.error(LOG, 'stale final payment reminders failed', e);
+  }
+
   for (const id of allIds) {
     const isLegacyOnly = !primary.includes(id);
     if (isLegacyOnly) {
@@ -65,6 +78,7 @@ export async function GET(req: NextRequest) {
     attempted,
     candidates: allIds.length,
     resetStaleFinalProcessing: resetCount,
+    staleFinalPaymentReminders: staleFinalReminders,
     sample: results.slice(0, 20),
   });
 }

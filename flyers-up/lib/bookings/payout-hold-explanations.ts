@@ -101,6 +101,20 @@ export function getPayoutHoldExplanation(
     };
   }
 
+  if (r === 'booking_not_completed') {
+    return {
+      code: 'payout_booking_not_completed',
+      title: 'Payout waiting on job completion details',
+      pro_message:
+        'This payout is on hold until the job shows arrival, start, and completion, and any multi-day milestones are satisfied. Check the booking timeline or contact support.',
+      customer_message:
+        'Payout to the pro is waiting on a few job completion details. You do not need to do anything unless we contact you.',
+      severity: 'warning',
+      action_required: 'verify',
+      can_admin_override: true,
+    };
+  }
+
   if (r === 'insufficient_completion_evidence' && context.missingAfterPhotos) {
     return {
       code: 'payout_flagged_missing_photos',

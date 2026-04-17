@@ -1,6 +1,6 @@
 /**
  * POST /api/bookings/[bookingId]/complete
- * Pro submits job completion with 2 after photos (required before payment release).
+ * Pro submits job completion. After photos are optional (Version B: payout gates do not require photos).
  * Sets suspicious_completion when start->complete duration is below category minimum.
  */
 import { NextResponse } from 'next/server';
@@ -12,8 +12,6 @@ import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import { getMinimumDurationMinutes } from '@/lib/bookings/category-rules';
 import { allMilestonesReadyForProFinalCompletion } from '@/lib/bookings/milestone-workflow';
 import { markBookingCompleted } from '@/lib/bookings/payment-lifecycle-service';
-
-const MIN_AFTER_PHOTOS = 2;
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,12 +32,6 @@ export async function POST(
   }
 
   const urls = Array.isArray(body.after_photo_urls) ? body.after_photo_urls : [];
-  if (urls.length < MIN_AFTER_PHOTOS) {
-    return NextResponse.json(
-      { error: `At least ${MIN_AFTER_PHOTOS} after photos required` },
-      { status: 400 }
-    );
-  }
 
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -199,7 +191,7 @@ export async function POST(
       actorUserId: user.id,
       bookingId: id,
       titleOverride: 'Pro finished',
-      bodyOverride: 'Confirm completion to release payout — or it auto-confirms in 24h',
+      bodyOverride: 'The pro marked this job complete. Pay any remaining balance when prompted — payout to the pro runs after you are paid in full.',
       basePath: 'customer',
     });
   }

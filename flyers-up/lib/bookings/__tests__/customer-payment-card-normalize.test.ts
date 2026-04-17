@@ -25,10 +25,10 @@ test('legacy: post-review balance without lifecycle columns → pending_manual',
   );
   assert.equal(n.kind, 'pending_manual');
   assert.equal(n.normalizeBranch, 'legacy:post_review_no_lifecycle_columns');
-  assert.equal(n.raw.kind, 'post_review_auto_pending');
+  assert.equal(n.raw.kind, 'final_pending_after_completion');
 });
 
-test('new booking: inside 24h review window → scheduled with countdown ISO', () => {
+test('Version B: final_pending before review deadline → pay remaining now (no countdown-as-gate)', () => {
   const deadline = '2026-01-02T10:00:00Z';
   const n = normalizeCustomerPaymentCard(
     {
@@ -38,9 +38,9 @@ test('new booking: inside 24h review window → scheduled with countdown ISO', (
     },
     Date.parse('2026-01-01T20:00:00Z')
   );
-  assert.equal(n.kind, 'scheduled');
-  assert.equal(n.normalizeBranch, 'derive:review_window_auto');
-  assert.equal(n.countdownDeadlineIso, deadline);
+  assert.equal(n.kind, 'post_review_due');
+  assert.equal(n.normalizeBranch, 'derive:final_pending_balance_due');
+  assert.equal(n.countdownDeadlineIso, null);
 });
 
 test('new booking: past window with lifecycle columns → post_review_due (not in-flight Stripe charge)', () => {
@@ -53,7 +53,7 @@ test('new booking: past window with lifecycle columns → post_review_due (not i
     Date.parse('2026-01-02T12:00:00Z')
   );
   assert.equal(n.kind, 'post_review_due');
-  assert.equal(n.normalizeBranch, 'derive:post_review_balance_due');
+  assert.equal(n.normalizeBranch, 'derive:final_pending_balance_due');
 });
 
 test('final payment failed → action_required', () => {

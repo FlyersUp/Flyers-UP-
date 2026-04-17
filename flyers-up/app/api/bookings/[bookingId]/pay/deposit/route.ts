@@ -4,7 +4,7 @@
  *
  * CRITICAL: Deposit is charged to platform (no transfer_data). Pro does NOT receive
  * funds until verified arrival, start, completion, and customer/auto confirmation.
- * Funds are held by platform until release-payouts cron runs after eligibility.
+ * Funds are held by the platform until paid-in-full + eligibility; payout transfer runs immediately when eligible, with cron as retry/backstop.
  */
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';

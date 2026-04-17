@@ -10,11 +10,6 @@ function ctxBase(overrides: Partial<PayoutReleaseSnapshotBuildContext> = {}): Pa
   return {
     initiatedByAdmin: false,
     milestoneGate: { fetchError: false, enforceMilestoneGate: false, scheduleOk: true },
-    jobCompletion: {
-      after_photo_urls: ['https://cdn.example/p1.jpg', 'https://cdn.example/p2.jpg'],
-      booking_id: 'b1',
-    },
-    skipPhotoProof: false,
     proPayoutsOnHold: false,
     ...overrides,
   };
@@ -61,17 +56,16 @@ describe('buildPayoutReleaseEligibilitySnapshot', () => {
     assert.deepEqual(snap.missingRequirements, []);
   });
 
-  it('final_paid + requires_admin_review → not eligible', () => {
+  it('final_paid + requires_admin_review no longer blocks automatic eligibility', () => {
     const snap = buildPayoutReleaseEligibilitySnapshot(
       baseRow({ requires_admin_review: true }),
       ctxBase()
     );
-    assert.equal(snap.eligible, false);
-    assert.equal(snap.holdReason, 'admin_review_required');
-    assert.ok(snap.missingRequirements.includes('admin_review_cleared'));
+    assert.equal(snap.eligible, true);
+    assert.equal(snap.holdReason, 'none');
   });
 
-  it('final_paid + post-completion review window not passed → not eligible', () => {
+  it('final_paid + recent completion + no customer confirm → still eligible (no 24h review window)', () => {
     const recent = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const snap = buildPayoutReleaseEligibilitySnapshot(
       baseRow({
@@ -85,9 +79,8 @@ describe('buildPayoutReleaseEligibilitySnapshot', () => {
       }),
       ctxBase()
     );
-    assert.equal(snap.eligible, false);
-    assert.equal(snap.holdReason, 'waiting_post_completion_review');
-    assert.ok(snap.missingRequirements.includes('post_completion_review_window'));
+    assert.equal(snap.eligible, true);
+    assert.equal(snap.holdReason, 'none');
   });
 
   it('final_paid + no Connect destination → not eligible', () => {
@@ -113,6 +106,21 @@ describe('buildPayoutReleaseEligibilitySnapshot', () => {
     assert.ok(snap.missingRequirements.includes('not_customer_refunded'));
   });
 
+  it('final_paid + suspicious_completion blocks non-admin automatic path', () => {
+    const snap = buildPayoutReleaseEligibilitySnapshot(baseRow({ suspicious_completion: true }), ctxBase());
+    assert.equal(snap.eligible, false);
+    assert.equal(snap.holdReason, 'fraud_review');
+  });
+
+  it('admin + suspicious_completion → eligible (admin transfer bypass)', () => {
+    const snap = buildPayoutReleaseEligibilitySnapshot(
+      baseRow({ suspicious_completion: true }),
+      ctxBase({ initiatedByAdmin: true })
+    );
+    assert.equal(snap.eligible, true);
+    assert.deepEqual(snap.missingRequirements, []);
+  });
+
   it('admin + payout_on_hold + insufficient_completion_evidence + final settled → eligible when operational gates pass', () => {
     const snap = buildPayoutReleaseEligibilitySnapshot(
       baseRow({
@@ -120,7 +128,7 @@ describe('buildPayoutReleaseEligibilitySnapshot', () => {
         payout_hold_reason: 'insufficient_completion_evidence',
         final_payment_status: 'PAID',
       }),
-      ctxBase({ initiatedByAdmin: true, skipPhotoProof: true })
+      ctxBase({ initiatedByAdmin: true })
     );
     assert.equal(snap.eligible, true);
     assert.deepEqual(snap.missingRequirements, []);

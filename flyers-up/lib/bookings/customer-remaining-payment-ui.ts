@@ -126,7 +126,8 @@ export type CustomerRemainingPaymentUiState =
   | { kind: 'none' }
   | { kind: 'before_completion'; remainingCents: number }
   | { kind: 'review_window_auto'; remainingCents: number; deadlineMs: number }
-  | { kind: 'post_review_auto_pending'; remainingCents: number }
+  /** Job complete; final balance not yet settled (no “review window” gate in Version B). */
+  | { kind: 'final_pending_after_completion'; remainingCents: number }
   | { kind: 'processing'; remainingCents: number }
   | { kind: 'success' }
   | { kind: 'failed'; remainingCents: number }
@@ -205,6 +206,11 @@ export function deriveCustomerRemainingPaymentUiState(
     return { kind: 'before_completion', remainingCents };
   }
 
+  /** Version B: once work is complete, remaining balance is payable immediately (no 24h “review before charge” UI). */
+  if (lc === 'final_pending') {
+    return { kind: 'final_pending_after_completion', remainingCents };
+  }
+
   const deadlineIso = input.customerReviewDeadlineAt || input.remainingDueAt || null;
   const deadlineMs = deadlineIso ? new Date(deadlineIso).getTime() : NaN;
 
@@ -212,10 +218,10 @@ export function deriveCustomerRemainingPaymentUiState(
     if (nowMs < deadlineMs) {
       return { kind: 'review_window_auto', remainingCents, deadlineMs };
     }
-    return { kind: 'post_review_auto_pending', remainingCents };
+    return { kind: 'final_pending_after_completion', remainingCents };
   }
 
-  return { kind: 'post_review_auto_pending', remainingCents };
+  return { kind: 'final_pending_after_completion', remainingCents };
 }
 
 export function deriveCustomerRemainingPaymentUiStateNow(

@@ -29,6 +29,7 @@ import {
 import { createNotificationEvent } from '@/lib/notifications';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/types';
 import type { NotificationType } from '@/lib/notifications/types';
+import { hasJobCompletionRowForAwaitingRemaining } from '@/lib/bookings/job-completion-awaiting-remaining-gate';
 import {
   canProMarkBookingEnRoute,
   evaluateEnRouteScheduleGate,
@@ -153,20 +154,19 @@ export async function PATCH(
     const currentDbStatus = String(booking.status);
     const nextDbStatus = apiNextStatusToDb(nextStatus as NextStatusAction);
 
-    // Job completion: COMPLETED requires job_completions with 2+ photos (payment release gate)
+    // awaiting_remaining_payment: require job_completions row (POST .../complete; photos optional)
     if (nextDbStatus === 'awaiting_remaining_payment') {
       const { data: completion } = await admin
         .from('job_completions')
-        .select('id, after_photo_urls')
+        .select('id')
         .eq('booking_id', id)
         .maybeSingle();
-      const urls = (completion as { after_photo_urls?: string[] } | null)?.after_photo_urls ?? [];
-      if (!completion || urls.length < 2) {
+      if (!hasJobCompletionRowForAwaitingRemaining(completion)) {
         return NextResponse.json(
           {
-            error: 'Job completion photos required before marking complete',
-            code: 'completion_photos_required',
-            hint: 'Call POST /api/bookings/[id]/complete with at least 2 after photos',
+            error: 'Job completion must be recorded before this status',
+            code: 'completion_required',
+            hint: 'Call POST /api/bookings/[id]/complete first',
           },
           { status: 409 }
         );

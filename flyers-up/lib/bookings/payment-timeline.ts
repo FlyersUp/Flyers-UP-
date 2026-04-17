@@ -38,7 +38,7 @@ export function timelineForRemainingPaymentState(
         autoCharge: 'current',
         paid: 'upcoming',
       };
-    case 'post_review_auto_pending':
+    case 'final_pending_after_completion':
       return {
         deposit: 'complete',
         completed: 'complete',

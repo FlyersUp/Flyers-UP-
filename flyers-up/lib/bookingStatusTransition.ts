@@ -1,7 +1,8 @@
 /**
  * Server-side booking status transition logic.
  * Used by PATCH /api/jobs/[jobId]/status and POST /api/bookings/[bookingId]/* endpoints.
- * Enforces: in_progress requires job_arrivals; awaiting_remaining_payment requires job_completions (2+ photos).
+ * Enforces: in_progress requires job_arrivals; awaiting_remaining_payment requires a job_completions row
+ * (from POST .../complete — after photos optional for Version B).
  */
 
 import { NextResponse } from 'next/server';
@@ -104,21 +105,20 @@ export async function transitionBookingStatus(
     }
   }
 
-  // awaiting_remaining_payment: require job_completions with 2+ photos
+  // awaiting_remaining_payment: require job_completions row (POST .../complete; photos optional)
   if (nextDbStatus === 'awaiting_remaining_payment') {
     const admin = createAdminSupabaseClient();
     const { data: completion } = await admin
       .from('job_completions')
-      .select('after_photo_urls')
+      .select('id')
       .eq('booking_id', bookingId)
       .maybeSingle();
-    const urls = (completion as { after_photo_urls?: string[] } | null)?.after_photo_urls ?? [];
-    if (!completion || urls.length < 2) {
+    if (!hasJobCompletionRowForAwaitingRemaining(completion)) {
       return NextResponse.json(
         {
-          error: 'Job completion photos required before marking complete',
-          code: 'completion_photos_required',
-          hint: 'Call POST /api/bookings/[id]/complete with at least 2 after photos',
+          error: 'Job completion must be recorded before this status',
+          code: 'completion_required',
+          hint: 'Call POST /api/bookings/[id]/complete first',
         },
         { status: 409 }
       );

@@ -31,7 +31,7 @@ export function setHasSeenQuickRules(): void {
 const BULLETS = [
   'After the Pro accepts, you have 30 minutes to pay the deposit or the booking cancels.',
   'You pay the remaining balance after the Pro marks the job complete.',
-  "If you don't confirm within 24 hours (after remaining is paid), the system auto-confirms.",
+  "After the remaining balance is paid, confirm completion when prompted — or the booking auto-confirms if you don’t.",
 ];
 
 interface QuickRulesSheetProps {

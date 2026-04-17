@@ -6,9 +6,11 @@
  */
 import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useRef, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
+import { EmbeddedPaymentSection } from '@/components/checkout/EmbeddedPaymentSection';
+import { confirmEmbeddedPayment } from '@/lib/stripe/confirm-embedded-payment';
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -42,49 +44,51 @@ type BookingSummary = {
 
 function AuthorizeForm({
   bookingId,
-  summary,
   onSuccess,
 }: {
   bookingId: string;
-  summary: BookingSummary;
   onSuccess: () => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const paymentConfirmLockRef = useRef(false);
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.flyersup.app';
+  const returnUrl = `${origin}/customer/bookings/${bookingId}`;
+
+  const runConfirmPayment = async () => {
+    if (paymentConfirmLockRef.current) return;
+    if (!stripe || !elements) return;
+    paymentConfirmLockRef.current = true;
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await confirmEmbeddedPayment({ stripe, elements, returnUrl });
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      onSuccess();
+    } finally {
+      paymentConfirmLockRef.current = false;
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements) return;
-
-    setLoading(true);
-    setError(null);
-
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.flyersup.app';
-    const returnUrl = `${origin}/customer/bookings/${bookingId}`;
-
-    const { error: confirmError } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: returnUrl,
-        receipt_email: undefined,
-      },
-    });
-
-    setLoading(false);
-
-    if (confirmError) {
-      setError(confirmError.message ?? 'Authorization failed');
-      return;
-    }
-
-    onSuccess();
+    await runConfirmPayment();
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" aria-label="Card authorization">
-      <PaymentElement options={{ layout: 'tabs' }} />
+      <EmbeddedPaymentSection
+        variant="authorize"
+        onConfirmPayment={runConfirmPayment}
+        paymentElementOptions={{ layout: 'tabs' }}
+      />
       {error && (
         <div className="p-3 rounded-lg bg-danger/10 border border-danger/30 text-sm text-danger">
           {error}
@@ -92,7 +96,7 @@ function AuthorizeForm({
       )}
       <button
         type="submit"
-        disabled={!stripe || loading}
+        disabled={!stripe || !elements || loading}
         className="w-full h-11 rounded-full text-sm font-semibold text-black bg-[#FFC067] hover:brightness-95 disabled:opacity-60 transition-all"
       >
         {loading ? 'Authorizing…' : 'Authorize card'}
@@ -247,7 +251,6 @@ export default function AuthorizePage({
             >
               <AuthorizeForm
                 bookingId={bookingId}
-                summary={summary}
                 onSuccess={() => {
                   window.location.href = `/customer/bookings/${bookingId}`;
                 }}

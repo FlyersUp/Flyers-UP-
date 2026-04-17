@@ -13,6 +13,8 @@ export type FlaggedPayoutReviewItem = {
   paymentLifecycleStatus: string | null;
   /** Bookings.payout_status — e.g. failed after a transfer attempt */
   payoutStatus?: string | null;
+  /** Bookings.payout_blocked — hard block until cleared or admin exception release */
+  payoutBlocked?: boolean | null;
   payoutReleased?: boolean | null;
   payoutTransferId?: string | null;
   stripeTransferId?: string | null;
@@ -169,6 +171,7 @@ async function enrichBookingRowsToItems(
       payoutTransferId: (b.payout_transfer_id as string) ?? null,
       stripeTransferId: (b.stripe_transfer_id as string) ?? null,
       payoutHoldReason: (b.payout_hold_reason as string) ?? null,
+      payoutBlocked: b.payout_blocked === true,
       completedAt: completed,
       startedAt: started,
       serviceDate: (b.service_date as string) ?? null,

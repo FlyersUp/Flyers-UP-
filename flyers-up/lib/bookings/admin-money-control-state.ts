@@ -64,8 +64,8 @@ export type AdminMoneyRemediationStatus =
 export type AdminMoneyClawbackStatus = 'none' | 'open' | 'resolved' | 'waived' | 'unknown';
 
 /**
- * Operator-facing “needs attention” layer: distinct from stuck payout cron signal
- * (which skips `requires_admin_review` rows on purpose).
+ * Operator-facing “needs attention” layer: distinct from stuck payout detector
+ * (which excludes `requires_admin_review` rows from the “silent auto-miss” list on purpose).
  */
 export type AdminMoneyAttentionCategory =
   | 'no_attention_needed'

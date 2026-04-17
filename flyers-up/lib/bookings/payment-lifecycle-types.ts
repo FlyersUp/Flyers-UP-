@@ -53,12 +53,14 @@ export type PayoutHoldReason =
   | 'fraud_review'
   | 'no_show_review'
   | 'insufficient_completion_evidence'
+  /** Version B: job / milestone prerequisites not satisfied (replaces broad insufficient_completion_evidence for new writes). */
+  | 'booking_not_completed'
   | 'admin_hold'
   | 'waiting_post_completion_review'
   | 'payout_blocked'
   | 'already_released'
   | 'refund_pending'
-  /** Cron/safety: booking flagged for manual review — no auto-release until admin clears or approves payout. */
+  /** Legacy / ops queue label — not a Version B automatic payout gate; use `admin_hold` for a real pause. */
   | 'admin_review_required'
   /** Customer was fully refunded; payout must not run. */
   | 'customer_refunded';
@@ -142,6 +144,7 @@ export function assertPayoutHoldReason(v: string): PayoutHoldReason {
     'fraud_review',
     'no_show_review',
     'insufficient_completion_evidence',
+    'booking_not_completed',
     'admin_hold',
     'waiting_post_completion_review',
     'payout_blocked',

@@ -19,7 +19,7 @@ function state(partial: Partial<MoneyState>): MoneyState {
     payout: 'inactive',
     remainingCents: 0,
     reviewDeadlineIso: null,
-    raw: { kind: 'post_review_auto_pending', remainingCents: 0 },
+    raw: { kind: 'final_pending_after_completion', remainingCents: 0 },
     customerRefund: 'none',
     refundAfterProPayout: false,
     customerRefundFunding: 'none',
@@ -185,7 +185,7 @@ describe('customer timeline from presentation only', () => {
     const m = state({
       final: 'final_due',
       payout: 'inactive',
-      raw: { kind: 'post_review_auto_pending', remainingCents: 100 },
+      raw: { kind: 'final_pending_after_completion', remainingCents: 100 },
     });
     const pres = getMoneyPresentation(m, 'customer');
     const fromHelper = customerPaymentTimelineModelFromPresentation(m, pres);
