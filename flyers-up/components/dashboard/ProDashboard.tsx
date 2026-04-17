@@ -29,6 +29,7 @@ import type { CalendarEvent } from '@/lib/calendar/event-from-booking';
 import { DateTime } from 'luxon';
 import { DEFAULT_BOOKING_TIMEZONE, todayIsoInBookingTimezone } from '@/lib/datetime';
 import { isProCommittedScheduleStatus } from '@/lib/bookings/pro-dashboard-bookings';
+import { useLaunchMode } from '@/hooks/useLaunchMode';
 
 type PendingRequest = {
   id: string;
@@ -230,6 +231,7 @@ function PendingRequestCard({
 }
 
 export default function ProDashboard({ userName, proId }: { userName: string; proId?: string | null }) {
+  const launchMode = useLaunchMode();
   const [menuOpen, setMenuOpen] = useState(false);
   const [jobs, setJobs] = useState<Booking[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
@@ -315,6 +317,7 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
   }, [fetchPendingRequests]);
 
   useEffect(() => {
+    if (launchMode) return;
     let mounted = true;
     const today = todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE);
     const to =
@@ -328,7 +331,7 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
       .catch(() => {})
       .finally(() => {});
     return () => { mounted = false; };
-  }, []);
+  }, [launchMode]);
 
   useEffect(() => {
     let mounted = true;
@@ -560,10 +563,10 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
                   <div className="font-semibold text-text">No jobs today</div>
                   <div className="text-sm text-muted mt-1">When you accept work, it will show here.</div>
                   <Link
-                    href="/pro/requests"
+                    href={launchMode ? '/pro/jobs' : '/pro/requests'}
                     className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
                   >
-                    Check requests <ChevronRight size={16} />
+                    {launchMode ? 'View jobs' : 'Check requests'} <ChevronRight size={16} />
                   </Link>
                 </div>
               </DashboardCard>
@@ -571,12 +574,14 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
           </section>
 
           {/* 2b. MINI SCHEDULE */}
-          <section>
-            <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
-              Schedule
-            </h2>
-            <MiniScheduleWidget events={calendarEvents} mode="pro" detailHref="/pro/calendar" />
-          </section>
+          {!launchMode ? (
+            <section>
+              <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+                Schedule
+              </h2>
+              <MiniScheduleWidget events={calendarEvents} mode="pro" detailHref="/pro/calendar" />
+            </section>
+          ) : null}
 
           {/* 3. PENDING REQUESTS */}
           <section>
@@ -668,12 +673,14 @@ export default function ProDashboard({ userName, proId }: { userName: string; pr
                 >
                   View all bookings →
                 </Link>
-                <Link
-                  href="/pro/recurring"
-                  className="block text-sm font-medium text-muted hover:text-text transition-colors mt-1"
-                >
-                  Recurring clients →
-                </Link>
+                {!launchMode ? (
+                  <Link
+                    href="/pro/recurring"
+                    className="block text-sm font-medium text-muted hover:text-text transition-colors mt-1"
+                  >
+                    Recurring clients →
+                  </Link>
+                ) : null}
               </div>
             ) : (
               <DashboardCard>

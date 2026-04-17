@@ -29,6 +29,10 @@ const withPWA = require("next-pwa")({
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_FEATURE_LAUNCH_MODE:
+      process.env.NEXT_PUBLIC_FEATURE_LAUNCH_MODE ?? process.env.FEATURE_LAUNCH_MODE ?? '',
+  },
   images: {
     remotePatterns: process.env.NEXT_PUBLIC_SUPABASE_URL
       ? [

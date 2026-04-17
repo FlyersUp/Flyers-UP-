@@ -9,6 +9,7 @@ import { normalizeUuidOrNull } from '@/lib/isUuid';
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useLaunchMode } from '@/hooks/useLaunchMode';
 
 /**
  * Job Status Timeline - Operational timeline card
@@ -16,9 +17,15 @@ import { useRouter } from 'next/navigation';
 export default function JobTimelinePage({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = use(params);
   const router = useRouter();
+  const launchMode = useLaunchMode();
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    if (!launchMode) return;
+    router.replace('/pro?coming_soon=1');
+  }, [launchMode, router]);
 
   useEffect(() => {
     let mounted = true;

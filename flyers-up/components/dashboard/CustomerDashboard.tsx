@@ -29,6 +29,7 @@ import type { CalendarEvent } from '@/lib/calendar/event-from-booking';
 import { perfLog, perfLoggingEnabled } from '@/lib/perfBoot';
 import { DateTime } from 'luxon';
 import { DEFAULT_BOOKING_TIMEZONE, todayIsoInBookingTimezone } from '@/lib/datetime';
+import { useLaunchMode } from '@/hooks/useLaunchMode';
 
 type ActiveBooking = {
   id: string;
@@ -107,6 +108,12 @@ export default function CustomerDashboard() {
 
   const [favorites, setFavorites] = useState<FavoritePro[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(true);
+
+  useEffect(() => {
+    if (!launchMode) return;
+    setRequestsLoading(false);
+    setFavoritesLoading(false);
+  }, [launchMode]);
 
   useEffect(() => {
     const guard = async () => {
@@ -227,7 +234,7 @@ export default function CustomerDashboard() {
   }, [boot]);
 
   useEffect(() => {
-    if (boot !== 'ready' || !userId) return;
+    if (boot !== 'ready' || !userId || launchMode) return;
     let mounted = true;
     (async () => {
       try {
@@ -253,10 +260,10 @@ export default function CustomerDashboard() {
     return () => {
       mounted = false;
     };
-  }, [boot, userId]);
+  }, [boot, userId, launchMode]);
 
   useEffect(() => {
-    if (boot !== 'ready') return;
+    if (boot !== 'ready' || launchMode) return;
     let mounted = true;
     const today = todayIsoInBookingTimezone(DEFAULT_BOOKING_TIMEZONE);
     const to =
@@ -269,10 +276,10 @@ export default function CustomerDashboard() {
       })
       .catch(() => {});
     return () => { mounted = false; };
-  }, [boot]);
+  }, [boot, launchMode]);
 
   useEffect(() => {
-    if (boot !== 'ready') return;
+    if (boot !== 'ready' || launchMode) return;
     let mounted = true;
     fetch('/api/customer/favorites', { cache: 'no-store' })
       .then((r) => r.json())
@@ -286,7 +293,7 @@ export default function CustomerDashboard() {
     return () => {
       mounted = false;
     };
-  }, [boot]);
+  }, [boot, launchMode]);
 
   if (boot === 'idle') {
     return (
@@ -393,14 +400,17 @@ export default function CustomerDashboard() {
           </section>
 
           {/* 1b. MINI SCHEDULE */}
-          <section>
-            <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
-              Schedule
-            </h2>
-            <MiniScheduleWidget events={calendarEvents} mode="customer" detailHref="/customer/calendar" />
-          </section>
+          {!launchMode ? (
+            <section>
+              <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+                Schedule
+              </h2>
+              <MiniScheduleWidget events={calendarEvents} mode="customer" detailHref="/customer/calendar" />
+            </section>
+          ) : null}
 
           {/* 2. PENDING REQUESTS */}
+          {!launchMode ? (
           <section>
             <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
               Pending requests
@@ -462,6 +472,7 @@ export default function CustomerDashboard() {
               </DashboardCard>
             )}
           </section>
+          ) : null}
 
           {/* 3. PAST BOOKINGS */}
           <section>
@@ -525,6 +536,7 @@ export default function CustomerDashboard() {
           </section>
 
           {/* 4. SAVED PROS (optional) */}
+          {!launchMode ? (
           <section>
             <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
               Saved pros
@@ -587,6 +599,7 @@ export default function CustomerDashboard() {
               </DashboardCard>
             )}
           </section>
+          ) : null}
         </div>
       </CustomerPageShell>
     </AppLayout>

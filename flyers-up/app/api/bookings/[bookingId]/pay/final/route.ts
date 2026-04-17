@@ -54,6 +54,7 @@ import {
   getMoneyState,
   type BookingFinalPaymentIntentIdRow,
 } from '@/lib/bookings/money-state';
+import { isLaunchModeEnabled } from '@/lib/featureFlags';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -390,7 +391,80 @@ export async function POST(
     const areaDemandScore = resolveAreaDemandScoreFromBooking();
     const supplyTightnessScore = resolveSupplyTightnessScoreFromBooking();
 
-    if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
+    const launchMode = await isLaunchModeEnabled();
+
+    if (launchMode) {
+      amountTotal = paymentAmounts.totalAmountCents;
+      amountRemaining = Math.max(0, paymentAmounts.remainingAmountCents);
+      const bSnap = booking as {
+        pricing_version?: string | null;
+        service_fee_cents?: number | null;
+        convenience_fee_cents?: number | null;
+        protection_fee_cents?: number | null;
+        subtotal_cents?: number | null;
+        original_subtotal_cents?: number | null;
+        demand_fee_cents?: number | null;
+        promo_discount_cents?: number | null;
+      };
+      const depPct = safeDepositPercentFromAmounts(amountDeposit, amountTotal);
+      const subtotalGuessFromStored = Math.max(
+        0,
+        Number(bSnap.subtotal_cents ?? bSnap.original_subtotal_cents ?? 0) ||
+          Math.max(0, amountTotal - Number((booking as { amount_platform_fee?: number }).amount_platform_fee ?? 0))
+      );
+      const hasFrozen =
+        typeof bSnap.pricing_version === 'string' &&
+        bSnap.pricing_version.trim().length > 0 &&
+        typeof bSnap.service_fee_cents === 'number' &&
+        typeof bSnap.convenience_fee_cents === 'number' &&
+        typeof bSnap.protection_fee_cents === 'number';
+      if (!hasFrozen) {
+        logCustomerFinalPaymentRouteError('launch_mode_pricing_snapshot_missing', { bookingId: id, userId: user.id });
+        return jsonBody(
+          {
+            error: 'Booking pricing snapshot is unavailable. Contact support.',
+            checkoutState: 'not_eligible',
+            code: 'PRICING_SNAPSHOT_REQUIRED',
+          },
+          409
+        );
+      }
+      try {
+        pricing = computeBookingPricing({
+          serviceSubtotalCents: subtotalGuessFromStored,
+          depositPercent: depPct,
+          frozenCoreFeesCents: {
+            serviceFeeCents: bSnap.service_fee_cents!,
+            convenienceFeeCents: bSnap.convenience_fee_cents!,
+            protectionFeeCents: bSnap.protection_fee_cents!,
+          },
+          demandFeeCents: Number(bSnap.demand_fee_cents ?? 0),
+          promoDiscountCents: Number(bSnap.promo_discount_cents ?? 0),
+        });
+      } catch (e) {
+        logCustomerFinalPaymentRouteError('launch_mode_compute_booking_pricing_failed', {
+          bookingId: id,
+          message: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined,
+        });
+        return jsonBody(
+          {
+            error: 'Unable to compute pricing for this payment.',
+            checkoutState: 'server_error',
+            code: 'PRICING_COMPUTE_ERROR',
+          },
+          500
+        );
+      }
+      const rem = Math.round(amountRemaining);
+      pricing = {
+        ...pricing,
+        finalChargeCents: rem,
+        depositChargeCents: Math.max(0, amountTotal - rem),
+        customerTotalCents: amountTotal,
+      };
+      lastDynamicPricingReasons = [];
+    } else if (!Number.isFinite(amountRemaining) || amountRemaining <= 0) {
       const { data: proRowForQuote } = await admin
         .from('service_pros')
         .select('user_id, display_name, category_id, occupation_id, occupations(slug)')
@@ -484,7 +558,7 @@ export async function POST(
       );
     }
 
-    if (!pricing) {
+    if (!launchMode && !pricing) {
       const subtotalGuessFromStored = Math.max(0, amountTotal - Number(booking.amount_platform_fee ?? 0));
       const bFall = booking as {
         pricing_version?: string | null;

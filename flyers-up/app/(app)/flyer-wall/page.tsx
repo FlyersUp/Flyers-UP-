@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SideMenu } from '@/components/ui/SideMenu';
 import { useTranslations } from 'next-intl';
+import { useLaunchMode } from '@/hooks/useLaunchMode';
 
 const PAGE_SIZE = 12;
 
@@ -20,6 +21,7 @@ function getRotation(index: number): number {
 export default function FlyerWallPage() {
   const t = useTranslations('flyerWall');
   const router = useRouter();
+  const launchMode = useLaunchMode();
   const [ready, setReady] = useState(false);
   const [role, setRole] = useState<'customer' | 'pro'>('customer');
   const [userName, setUserName] = useState('Account');
@@ -33,6 +35,11 @@ export default function FlyerWallPage() {
 
   const isPro = role === 'pro';
   const layoutMode = isPro ? 'pro' : 'customer';
+
+  useEffect(() => {
+    if (!launchMode || !ready) return;
+    router.replace(isPro ? '/pro?coming_soon=1' : '/customer?coming_soon=1');
+  }, [launchMode, ready, isPro, router]);
 
   useEffect(() => {
     const guard = async () => {

@@ -6,9 +6,13 @@
  */
 import { useState } from 'react';
 import { BookingRulesInline } from './BookingRulesInline';
+import { useLaunchMode } from '@/hooks/useLaunchMode';
 
 export function BookingRulesAccordion() {
+  const launchMode = useLaunchMode();
   const [open, setOpen] = useState(false);
+
+  if (launchMode) return null;
 
   return (
     <div className="rounded-2xl border border-black/5 overflow-hidden bg-white shadow-sm">

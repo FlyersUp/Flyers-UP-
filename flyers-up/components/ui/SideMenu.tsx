@@ -9,6 +9,7 @@ import { useTranslations } from 'next-intl';
 import { supabase } from '@/lib/supabaseClient';
 import { useGuidanceContext } from '@/contexts/GuidanceContext';
 import { ProGrowthMenuSection } from '@/components/ui/ProGrowthMenuSection';
+import { useLaunchMode } from '@/hooks/useLaunchMode';
 
 type Role = 'customer' | 'pro';
 
@@ -177,6 +178,20 @@ const SUBTITLE_COLORS = {
 
 const NEUTRAL_SUBTITLE = '#6A644D';
 
+function sideMenuHrefHiddenInLaunchMode(href: string | null | undefined): boolean {
+  if (!href) return false;
+  const h = href.split('?')[0] ?? '';
+  if (h.startsWith('/customer/requests')) return true;
+  if (h.startsWith('/customer/recurring')) return true;
+  if (h.startsWith('/customer/request')) return true;
+  if (h.startsWith('/pro/requests')) return true;
+  if (h.startsWith('/pro/recurring')) return true;
+  if (h.startsWith('/pro/growth')) return true;
+  if (h === '/flyer-wall' || h === '/leaderboard' || h === '/top-pros' || h === '/demand') return true;
+  if (h === '/pro/dashboard') return true;
+  return false;
+}
+
 function Section({
   title,
   items,
@@ -314,6 +329,7 @@ export function SideMenu({
 
   const t = useTranslations();
   const guidance = useGuidanceContext();
+  const launchMode = useLaunchMode();
   const roleLabel = role === 'pro' ? t('sidebar.roleLabelPro') : t('sidebar.roleLabelCustomer');
   const baseSections = role === 'pro' ? PRO_SECTIONS : CUSTOMER_SECTIONS;
   const subtitleColor = SUBTITLE_COLORS[role];
@@ -322,7 +338,18 @@ export function SideMenu({
   const adminSection: MenuSection[] = isCanonicalAdmin
     ? [{ titleKey: 'sidebar.admin', items: [{ labelKey: 'sidebar.switchToAdmin', href: '/admin' }] }]
     : [];
-  const sections = [...adminSection, ...baseSections];
+  const filteredBase = launchMode
+    ? baseSections
+        .map((s) => ({
+          ...s,
+          items: s.items.filter((it) => !sideMenuHrefHiddenInLaunchMode(it.href)),
+        }))
+        .filter((s) => {
+          if (launchMode && s.titleKey === 'sidebar.growth') return false;
+          return s.items.length > 0;
+        })
+    : baseSections;
+  const sections = [...adminSection, ...filteredBase];
   const getLabel = (key: string) => t(key);
 
   async function handleLogout() {

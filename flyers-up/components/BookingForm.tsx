@@ -24,6 +24,7 @@ import { QuickRulesSheet, hasSeenQuickRules } from '@/components/booking/QuickRu
 import { DEFAULT_BOOKING_TIMEZONE, earliestCustomerBookableDateIso } from '@/lib/datetime';
 import { CustomerProAvailabilityCalendar } from '@/components/booking/CustomerProAvailabilityCalendar';
 import { ProPackagesPicker } from '@/components/booking/ProPackagesPicker';
+import { useLaunchMode } from '@/hooks/useLaunchMode';
 
 interface Subcategory {
   id: string;
@@ -65,6 +66,7 @@ export default function BookingForm({
   recurringFromUrl = false,
 }: BookingFormProps) {
   const router = useRouter();
+  const launchMode = useLaunchMode();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
@@ -135,10 +137,27 @@ export default function BookingForm({
   }, [pro.id, initialSubcategorySlug, effectiveServiceSlug]);
 
   useEffect(() => {
+    if (launchMode) {
+      setSelectedPackageId(null);
+    }
+  }, [launchMode]);
+
+  useEffect(() => {
+    if (!launchMode || subcategories.length !== 1) return;
+    setFormData((prev) =>
+      prev.subcategoryId ? prev : { ...prev, subcategoryId: subcategories[0]!.id }
+    );
+  }, [launchMode, subcategories]);
+
+  useEffect(() => {
     const cat = effectiveServiceSlug ?? pro.categorySlug;
     if (!cat) return;
+    if (launchMode) {
+      setAddons([]);
+      return;
+    }
     getActiveAddonsForPro(pro.id, cat).then(setAddons);
-  }, [pro.id, pro.categorySlug, effectiveServiceSlug]);
+  }, [pro.id, pro.categorySlug, effectiveServiceSlug, launchMode]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -174,7 +193,8 @@ export default function BookingForm({
         setIsSubmitting(false);
         return;
       }
-      if (subcategories.length > 0 && !selectedPackageId && !formData.subcategoryId) {
+      const pkgId = launchMode ? null : selectedPackageId;
+      if (subcategories.length > 0 && !pkgId && !formData.subcategoryId) {
         setError('Please select a service type');
         setIsSubmitting(false);
         return;
@@ -186,10 +206,10 @@ export default function BookingForm({
         formData.time,
         formData.address,
         formData.notes,
-        Array.from(selectedAddonIds),
-        selectedPackageId ? null : formData.subcategoryId || null,
+        launchMode ? [] : Array.from(selectedAddonIds),
+        pkgId ? null : formData.subcategoryId || null,
         previousBookingId || null,
-        selectedPackageId
+        pkgId
       );
       if (!result.success) {
         setError(result.error || 'Failed to create booking. Please try again.');
@@ -234,12 +254,13 @@ export default function BookingForm({
       );
       return;
     }
-    if (subcategories.length > 0 && !selectedPackageId && !formData.subcategoryId) {
+    const pkgIdPre = launchMode ? null : selectedPackageId;
+    if (subcategories.length > 0 && !pkgIdPre && !formData.subcategoryId) {
       setError('Please select a service type');
       return;
     }
 
-    if (forceQuickRules || !hasSeenQuickRules()) {
+    if (!launchMode && (forceQuickRules || !hasSeenQuickRules())) {
       pendingSubmitRef.current = true;
       setQuickRulesOpen(true);
       return;
@@ -257,7 +278,7 @@ export default function BookingForm({
 
   return (
     <form onSubmit={handleSubmit} className="min-w-0 max-w-full space-y-6 pb-2">
-      {recurringFromUrl ? (
+      {!launchMode && recurringFromUrl ? (
         <div className="rounded-2xl border border-sky-200/50 bg-sky-50/80 dark:border-sky-800/40 dark:bg-sky-950/25 px-4 py-3 text-sm text-[#1e3a5f] dark:text-sky-100/90">
           <p className="font-medium">Interested in a regular schedule?</p>
           <p className="text-xs mt-1 text-[#4b5563] dark:text-sky-100/75 leading-relaxed">
@@ -280,27 +301,29 @@ export default function BookingForm({
         </div>
       )}
 
-      <div className="space-y-3 rounded-[20px] border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
-        <ProPackagesPicker
-          proId={pro.id}
-          selectedPackageId={selectedPackageId}
-          onSelectPackageId={setSelectedPackageId}
-        />
-        {selectedPackageId ? (
-          <p className="text-xs text-muted/90 rounded-lg bg-surface2/60 border border-border/60 px-3 py-2">
-            Service type is hidden because this package defines what you&apos;re booking. Clear the package if you prefer
-            to choose a specific service type instead.
-          </p>
-        ) : null}
-        {selectedPackageId ? (
-          <Link
-            href={`/customer/recurring/new?proId=${encodeURIComponent(pro.id)}&packageId=${encodeURIComponent(selectedPackageId)}`}
-            className="inline-block text-sm font-medium text-[hsl(var(--accent-customer))] hover:underline"
-          >
-            Request a recurring schedule with this package
-          </Link>
-        ) : null}
-      </div>
+      {!launchMode ? (
+        <div className="space-y-3 rounded-[20px] border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
+          <ProPackagesPicker
+            proId={pro.id}
+            selectedPackageId={selectedPackageId}
+            onSelectPackageId={setSelectedPackageId}
+          />
+          {selectedPackageId ? (
+            <p className="text-xs text-muted/90 rounded-lg bg-surface2/60 border border-border/60 px-3 py-2">
+              Service type is hidden because this package defines what you&apos;re booking. Clear the package if you prefer
+              to choose a specific service type instead.
+            </p>
+          ) : null}
+          {selectedPackageId ? (
+            <Link
+              href={`/customer/recurring/new?proId=${encodeURIComponent(pro.id)}&packageId=${encodeURIComponent(selectedPackageId)}`}
+              className="inline-block text-sm font-medium text-[hsl(var(--accent-customer))] hover:underline"
+            >
+              Request a recurring schedule with this package
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* Subcategory / service type — not needed when a package defines scope */}
       {subcategories.length > 0 && !selectedPackageId && (
@@ -333,7 +356,7 @@ export default function BookingForm({
       )}
 
       {/* Add-ons - optional extras the pro offers */}
-      {addons.length > 0 && (
+      {!launchMode && addons.length > 0 && (
         <div>
           <label className="mb-1 block text-sm font-semibold text-[#2d3436] dark:text-white">
             Add-ons
@@ -460,11 +483,13 @@ export default function BookingForm({
         By submitting, you agree to the service terms. The pro will confirm your booking shortly.
       </p>
 
-      <QuickRulesSheet
-        open={quickRulesOpen}
-        onContinue={handleQuickRulesContinue}
-        onClose={() => setQuickRulesOpen(false)}
-      />
+      {!launchMode ? (
+        <QuickRulesSheet
+          open={quickRulesOpen}
+          onContinue={handleQuickRulesContinue}
+          onClose={() => setQuickRulesOpen(false)}
+        />
+      ) : null}
     </form>
   );
 }

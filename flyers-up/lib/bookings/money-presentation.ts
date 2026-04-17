@@ -12,6 +12,7 @@ import {
   type PaymentHeldBookingSignals,
 } from '@/lib/bookings/payment-held-ui-state';
 import type { PaymentTimelineModel } from '@/lib/bookings/payment-timeline';
+import { isLaunchModeEnabledSync } from '@/lib/featureFlags';
 
 export type MoneyPresentationBadgeTone =
   | 'scheduled'
@@ -56,6 +57,62 @@ export type MoneyUiPresentation = {
   heldProTimeline: PaymentHeldTimelineItem[] | null;
   whyCallout: { headline: string; body: string } | null;
 };
+
+function launchModeCustomerShort(state: MoneyState): string {
+  if (state.final === 'final_paid') return 'Completed';
+  if (
+    state.final === 'final_due' ||
+    state.final === 'final_failed' ||
+    state.final === 'final_requires_action' ||
+    state.final === 'final_processing' ||
+    state.final === 'final_review_window'
+  ) {
+    return 'Pay balance';
+  }
+  if (state.final === 'before_completion') return 'Job in progress';
+  return 'Deposit due';
+}
+
+function launchModeProShort(state: MoneyState): string {
+  if (
+    state.payout === 'payout_processing' ||
+    state.payout === 'payout_paid' ||
+    state.payout === 'payout_scheduled' ||
+    state.payout === 'payout_failed' ||
+    state.payout === 'payout_held'
+  ) {
+    return 'Getting paid';
+  }
+  if (
+    state.final === 'final_due' ||
+    state.final === 'final_review_window' ||
+    state.final === 'final_processing' ||
+    state.final === 'final_requires_action' ||
+    state.final === 'final_failed'
+  ) {
+    return 'Completed';
+  }
+  if (state.final === 'before_completion') return 'In progress';
+  if (state.final === 'final_paid') return 'Getting paid';
+  return 'Upcoming job';
+}
+
+function collapseMoneyPresentationForLaunch(
+  pres: MoneyUiPresentation,
+  view: MoneyPresentationView,
+  state: MoneyState
+): MoneyUiPresentation {
+  const short = view === 'customer' ? launchModeCustomerShort(state) : launchModeProShort(state);
+  return {
+    ...pres,
+    badge: short,
+    title: short,
+    subtitle: '',
+    body: '',
+    ctaSecondary: null,
+    whyCallout: null,
+  };
+}
 
 function toneToBadge(tone: MoneyUiTone): MoneyPresentationBadgeTone {
   switch (tone) {
@@ -604,13 +661,18 @@ export function getMoneyPresentation(
   view: MoneyPresentationView,
   options?: GetMoneyPresentationOptions
 ): MoneyUiPresentation {
+  let pres: MoneyUiPresentation;
   if (view === 'customer' && state.payout === 'payout_held' && state.final === 'final_paid') {
-    return buildCustomerHeldPresentation(state, options);
+    pres = buildCustomerHeldPresentation(state, options);
+  } else if (view === 'customer') {
+    pres = buildCustomerPresentation(state);
+  } else {
+    pres = buildProPresentation(state, options);
   }
-  if (view === 'customer') {
-    return buildCustomerPresentation(state);
+  if (isLaunchModeEnabledSync()) {
+    return collapseMoneyPresentationForLaunch(pres, view, state);
   }
-  return buildProPresentation(state, options);
+  return pres;
 }
 
 /** Show Payment Held hero when money engine says payout is held. */

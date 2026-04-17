@@ -1,5 +1,8 @@
 'use client';
 
+import { isLaunchModeEnabledSync } from '@/lib/featureFlags';
+import { launchModeCustomerBookingLabel, launchModeProBookingLabel } from '@/lib/bookings/launch-mode-status-labels';
+
 /** DB statuses that map to UI. Treat requested and pending as equivalent. */
 const ACTIVE_STATUSES = [
   'requested', 'pending', 'accepted', 'payment_required', 'deposit_paid', 'pro_en_route', 'on_the_way', 'in_progress', 'completed_pending_payment', 'awaiting_payment', 'awaiting_remaining_payment', 'awaiting_customer_confirmation',
@@ -31,6 +34,8 @@ const STATUS_LABELS: Record<string, string> = {
 export interface BookingStatusBadgeProps {
   status: string;
   className?: string;
+  /** Customer vs pro copy when launch mode collapses labels. */
+  perspective?: 'customer' | 'pro';
 }
 
 /**
@@ -40,9 +45,13 @@ export interface BookingStatusBadgeProps {
  * - Terminal (cancelled/declined): muted
  * - Pending: muted
  */
-export function BookingStatusBadge({ status, className = '' }: BookingStatusBadgeProps) {
+export function BookingStatusBadge({ status, className = '', perspective = 'customer' }: BookingStatusBadgeProps) {
   const s = (status || '').toLowerCase();
-  const label = STATUS_LABELS[s] ?? status.replaceAll('_', ' ');
+  const label = isLaunchModeEnabledSync()
+    ? perspective === 'pro'
+      ? launchModeProBookingLabel(s)
+      : launchModeCustomerBookingLabel(s)
+    : STATUS_LABELS[s] ?? status.replaceAll('_', ' ');
 
   let bg: string;
   if (COMPLETED_STATUSES.includes(s as typeof COMPLETED_STATUSES[number]) || s === 'awaiting_payment' || s === 'completed_pending_payment' || s === 'paid' || s === 'fully_paid' || s === 'awaiting_customer_confirmation') {

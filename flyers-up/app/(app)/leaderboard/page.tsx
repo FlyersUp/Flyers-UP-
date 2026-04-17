@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { SideMenu } from '@/components/ui/SideMenu';
 import { useTranslations } from 'next-intl';
 import { Star } from 'lucide-react';
+import { LaunchModeClientRedirect } from '@/components/launch-mode/LaunchModeClientRedirect';
 
 export default function LeaderboardPage() {
   const t = useTranslations('leaderboard');
@@ -55,6 +56,7 @@ export default function LeaderboardPage() {
   if (!ready) {
     return (
       <AppLayout mode="pro">
+        <LaunchModeClientRedirect href="/pro?coming_soon=1" />
         <div className="min-h-[40vh] flex items-center justify-center">
           <p className="text-sm text-muted/70">{t('loading')}</p>
         </div>
@@ -64,6 +66,7 @@ export default function LeaderboardPage() {
 
   return (
     <AppLayout mode="pro">
+      <LaunchModeClientRedirect href="/pro?coming_soon=1" />
       <div className="min-h-screen bg-[#F5F5F5]">
         <div className="sticky top-0 z-20 bg-[#F5F5F5]/95 backdrop-blur-sm border-b border-black/10">
           <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between gap-3">

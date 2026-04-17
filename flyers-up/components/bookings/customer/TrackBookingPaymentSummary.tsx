@@ -18,6 +18,8 @@ import {
   splitDepositDueNowCents,
   splitFinalScheduledDueCents,
 } from '@/lib/bookings/receipt-subtotal-explanation';
+import { useLaunchMode } from '@/hooks/useLaunchMode';
+import { launchModeCustomerBookingLabel } from '@/lib/bookings/launch-mode-status-labels';
 
 function refundFundingCaption(funding: MoneyCustomerRefundFunding): string | null {
   if (funding === 'none') return null;
@@ -172,6 +174,7 @@ export function TrackBookingPaymentSummary({
   receiptPricingSnapshot = null,
   className = '',
 }: TrackBookingPaymentSummaryProps) {
+  const launchMode = useLaunchMode();
   const tz = bookingTimezone?.trim() || DEFAULT_BOOKING_TIMEZONE;
   const [computedDeposit, setComputedDeposit] = useState<number | null>(null);
   const [apiReceipt, setApiReceipt] = useState<UnifiedBookingReceipt | null>(null);
@@ -295,6 +298,14 @@ export function TrackBookingPaymentSummary({
 
   const receipt = apiReceipt ?? clientReceipt;
 
+  const paymentStatusBadgeText = useMemo(() => {
+    if (!launchMode) return receiptBadgeLabel(receipt.overallStatus, refundStatus);
+    const rs = String(refundStatus ?? '').toLowerCase();
+    if (rs === 'pending') return 'Refund initiated';
+    if (rs === 'partially_failed' || rs === 'failed') return 'Refund issue';
+    return launchModeCustomerBookingLabel(status);
+  }, [launchMode, receipt.overallStatus, refundStatus, status]);
+
   const subtotalExplanationLine = useMemo(() => {
     if (receipt.subtotalExplanation) return receipt.subtotalExplanation;
     return computeReceiptSubtotalExplanation({
@@ -360,7 +371,7 @@ export function TrackBookingPaymentSummary({
           <span
             className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusBadgeClass(receipt.overallStatus, refundStatus)}`}
           >
-            {receiptBadgeLabel(receipt.overallStatus, refundStatus)}
+            {paymentStatusBadgeText}
           </span>
         </div>
 
@@ -490,7 +501,7 @@ export function TrackBookingPaymentSummary({
         <span
           className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadgeClass(receipt.overallStatus, refundStatus)}`}
         >
-          {receiptBadgeLabel(receipt.overallStatus, refundStatus)}
+            {paymentStatusBadgeText}
         </span>
       </div>
 
@@ -566,7 +577,7 @@ export function TrackBookingPaymentSummary({
           </div>
         )}
 
-        {receipt.dynamicPricingReasons.length > 0 && (
+        {!launchMode && receipt.dynamicPricingReasons.length > 0 && (
           <div className="rounded-xl bg-black/[0.03] dark:bg-white/[0.04] px-3 py-2.5">
             <p className="text-xs font-medium text-[#6A6A6A] dark:text-[#A1A8B3] mb-1.5">
               What affected your price

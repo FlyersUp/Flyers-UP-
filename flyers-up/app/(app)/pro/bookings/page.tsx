@@ -148,7 +148,7 @@ function ProBookingsContent() {
                             </div>
                           )}
                         </div>
-                        <BookingStatusBadge status={b.status} />
+                        <BookingStatusBadge status={b.status} perspective="pro" />
                       </div>
                       <div className="mt-3 text-sm text-black/60">View booking →</div>
                     </div>

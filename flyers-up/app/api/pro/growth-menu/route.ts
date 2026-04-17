@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { computeProfileStrengthV1 } from '@/lib/pro/profile-strength';
 import { buildGrowthMenuResponse } from '@/lib/pro/build-growth-menu';
+import { isLaunchModeEnabled } from '@/lib/featureFlags';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,6 +30,26 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  if (await isLaunchModeEnabled()) {
+    return NextResponse.json(
+      {
+        ok: true as const,
+        items: [],
+        profileStrength: { score: 0, maxScore: 100 as const, items: [] },
+        insights: {
+          unlocked: false,
+          completedJobsCount: 0,
+          totalJobsCount: 0,
+          engagedJobsCount: 0,
+          unlockRequiresCompleted: 1,
+          unlockRequiresTotalBookings: 3,
+        },
+        launchMode: true,
+      },
+      { headers: { 'Cache-Control': 'private, no-store, max-age=0' } }
+    );
   }
 
   const admin = createAdminSupabaseClient();

@@ -24,22 +24,6 @@
     {
       "path": "/api/cron/auto-confirm",
       "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/milestone-auto-confirm",
-      "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/recurring-generate-bookings",
-      "schedule": "0 1 * * *"
-    },
-    {
-      "path": "/api/cron/bookings/final-charge-scheduler",
-      "schedule": "0 5 * * *"
-    },
-    {
-      "path": "/api/cron/bookings/final-charge-retries",
-      "schedule": "30 5 * * *"
     }
   ]
 }

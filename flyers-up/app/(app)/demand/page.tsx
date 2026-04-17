@@ -12,6 +12,7 @@ import { useProPresence } from '@/hooks/useProPresence';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { useLaunchMode } from '@/hooks/useLaunchMode';
 
 type BoardService = {
   serviceSlug: string;
@@ -55,6 +56,7 @@ function formatSurgeBadge(mult: number): string {
 
 export default function DemandPage() {
   const router = useRouter();
+  const launchMode = useLaunchMode();
   const [tab, setTab] = useState<'board' | 'heatmap'>('board');
   const [isPro, setIsPro] = useState(false);
   const [ready, setReady] = useState(false);
@@ -81,6 +83,11 @@ export default function DemandPage() {
   const [availableServices, setAvailableServices] = useState<{ slug: string; name: string }[]>([]);
 
   useProPresence({ enabled: isPro });
+
+  useEffect(() => {
+    if (!launchMode || !ready) return;
+    router.replace(isPro ? '/pro?coming_soon=1' : '/customer?coming_soon=1');
+  }, [launchMode, ready, isPro, router]);
 
   useEffect(() => {
     fetch('/api/marketplace/services', { cache: 'no-store' })
