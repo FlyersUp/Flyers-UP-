@@ -118,7 +118,7 @@ async function main() {
     }
 
     for (const raw of rows) {
-      const row = flattenBookingPayoutAmount(raw as Record<string, unknown>);
+      const row = flattenBookingPayoutAmount(raw as unknown as Record<string, unknown>);
       const actual =
         Number(row.transferred_total_cents ?? 0) ||
         Number(row.booking_payouts_amount_cents ?? 0) ||
