@@ -1,15 +1,19 @@
 /**
  * Launch-simple automatic Stripe Connect payout gates (cron + lifecycle).
  *
- * Does **not** enforce: post-completion review window, customer confirmation timing,
- * or completion-photo counts. Those belong to product UX, not money release.
- *
  * Still blocks auto payout on: refund pending, suspicious completion (non-admin),
- * multi-day milestone schedule, arrival/start/completion timestamps, pro no-show cancel,
- * missing Connect destination, charges-disabled (non-admin), pro-level payout compliance hold.
+ * multi-day milestone schedule, arrival/start/completion timestamps, **24h cooling after
+ * completed_at** (non-admin), **protected-category after-photo evidence** (non-admin),
+ * pro no-show cancel, missing Connect destination, charges-disabled (non-admin),
+ * pro-level payout compliance hold.
  */
 
+import { getCategoryRule } from '@/lib/bookings/category-rules';
+import { countValidJobCompletionAfterPhotoUrls } from '@/lib/bookings/job-completion-photo-count';
 import type { PayoutHoldReason } from '@/lib/bookings/payment-lifecycle-types';
+
+/** Non-admin automatic transfers wait this long after `completed_at` (Option A cron release). */
+export const PAYOUT_AUTO_RELEASE_MIN_MS_AFTER_COMPLETION = 24 * 60 * 60 * 1000;
 
 export type SimplePayoutMilestoneCtx = {
   fetchError: boolean;
@@ -21,6 +25,19 @@ export type SimplePayoutTransferCtx = {
   initiatedByAdmin: boolean;
   milestoneGate: SimplePayoutMilestoneCtx;
   proPayoutsOnHold: boolean;
+  /** Wall clock for cooling-period checks; defaults to `Date.now()`. */
+  nowMs?: number;
+  /**
+   * `bookings.pricing_category_slug` — when {@link getCategoryRule} requires before/after photos,
+   * {@link validAfterPhotoUrls} must include at least two valid URLs (non-admin).
+   */
+  pricingCategorySlug?: string | null;
+  /** Raw `job_completions.after_photo_urls` (optional; avoids an extra DB round-trip when caller already fetched). */
+  afterPhotoUrls?: unknown;
+  /**
+   * Pre-computed valid after-photo count; when set, overrides counting from `afterPhotoUrls`.
+   */
+  validAfterPhotoCount?: number;
 };
 
 export type SimplePayoutGateSnapshot =
@@ -116,6 +133,44 @@ export function evaluateSimplePayoutTransferGate(
       flagForAdminReview: false,
       missingRequirements: missing,
     };
+  }
+
+  const completedMs = Date.parse(String(completedAt));
+  const nowMs = ctx.nowMs ?? Date.now();
+  if (
+    !ctx.initiatedByAdmin &&
+    Number.isFinite(completedMs) &&
+    nowMs - completedMs < PAYOUT_AUTO_RELEASE_MIN_MS_AFTER_COMPLETION
+  ) {
+    missing.push('payout_completion_cooling_period');
+    return {
+      eligible: false,
+      reason: 'Automatic payout releases no sooner than 24 hours after the job is marked complete.',
+      holdReason: 'booking_not_completed',
+      flagForAdminReview: false,
+      missingRequirements: missing,
+    };
+  }
+
+  const slug =
+    ctx.pricingCategorySlug ??
+    ((row as { pricing_category_slug?: string | null }).pricing_category_slug ?? null);
+  const rule = getCategoryRule(slug);
+  if (!ctx.initiatedByAdmin && rule.requiresBeforeAfterPhotos) {
+    const n =
+      typeof ctx.validAfterPhotoCount === 'number'
+        ? ctx.validAfterPhotoCount
+        : countValidJobCompletionAfterPhotoUrls(ctx.afterPhotoUrls);
+    if (n < 2) {
+      missing.push('protected_category_after_photos');
+      return {
+        eligible: false,
+        reason: 'This service category requires at least two after photos before automatic payout.',
+        holdReason: 'insufficient_completion_evidence',
+        flagForAdminReview: true,
+        missingRequirements: missing,
+      };
+    }
   }
 
   if (String(row.cancellation_reason ?? '') === 'pro_no_show') {

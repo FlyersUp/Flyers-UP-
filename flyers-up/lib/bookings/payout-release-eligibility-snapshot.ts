@@ -3,15 +3,18 @@
  *
  * Uses `payment_lifecycle_status`, `final_payment_status`, and payout columns — not
  * `bookings.status` or `service_status` — to classify where the booking sits in the payout
- * pipeline. Operational gates use {@link evaluateVersionBPayoutEligibility} (Version B); there is no
- * post-completion review window or completion-photo requirement on the automatic path.
+ * pipeline. Operational gates use {@link evaluateVersionBPayoutEligibility} (Version B), including
+ * a **24h cooling period** after `completed_at`, **`requires_admin_review`**, dispute/refund safety,
+ * Connect readiness, and **protected-category after-photo evidence** (via category rules).
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { evaluateVersionBPayoutEligibility } from '@/lib/bookings/version-b-payout';
+import { countValidJobCompletionAfterPhotoUrls } from '@/lib/bookings/job-completion-photo-count';
 import { resolveMilestonePayoutGate } from '@/lib/bookings/multi-day-payout';
 import { evaluatePayoutRiskForPro } from '@/lib/payoutRisk';
 import type { PayoutHoldReason } from '@/lib/bookings/payment-lifecycle-types';
+import { resolvePayoutEvidenceCategorySlug } from '@/lib/bookings/payout-evidence-category';
 
 export const PAYOUT_TRANSFER_SNAPSHOT_SELECT_FIELDS = [
   'id',
@@ -36,8 +39,9 @@ export const PAYOUT_TRANSFER_SNAPSHOT_SELECT_FIELDS = [
   'payout_blocked',
   'payout_hold_reason',
   'requires_admin_review',
+  'pricing_category_slug',
   'stripe_destination_account_id',
-  'service_pros(stripe_account_id, user_id, stripe_charges_enabled)',
+  'service_pros(stripe_account_id, user_id, stripe_charges_enabled, service_categories(slug))',
 ] as const;
 
 export type PayoutReleaseLifecyclePhase =
@@ -63,6 +67,10 @@ export type PayoutReleaseSnapshotBuildContext = {
   initiatedByAdmin: boolean;
   milestoneGate: { fetchError: boolean; enforceMilestoneGate: boolean; scheduleOk: boolean };
   proPayoutsOnHold: boolean;
+  /** Wall clock for cooling-period evaluation; defaults to `Date.now()` in the async entrypoint. */
+  evaluationTimeMs?: number;
+  /** Valid after-photo count from `job_completions` (protected categories). */
+  validAfterPhotoCount?: number;
 };
 
 function paidFinalSettled(row: Record<string, unknown>): boolean {
@@ -200,6 +208,18 @@ export function buildPayoutReleaseEligibilitySnapshot(
     };
   }
 
+  if (!ctx.initiatedByAdmin && row.requires_admin_review === true) {
+    missing.push('admin_review_cleared');
+    return {
+      eligible: false,
+      reason: 'Booking is flagged for manual payout review.',
+      lifecyclePhase: 'final_settled_awaiting_transfer',
+      holdReason: 'admin_review_required',
+      flagForAdminReview: true,
+      missingRequirements: missing,
+    };
+  }
+
   if (!ctx.initiatedByAdmin && row.payout_blocked === true) {
     missing.push('payout_not_blocked');
     return {
@@ -216,6 +236,9 @@ export function buildPayoutReleaseEligibilitySnapshot(
     initiatedByAdmin: ctx.initiatedByAdmin,
     milestoneGate: ctx.milestoneGate,
     proPayoutsOnHold: ctx.proPayoutsOnHold,
+    nowMs: ctx.evaluationTimeMs ?? Date.now(),
+    pricingCategorySlug: resolvePayoutEvidenceCategorySlug(row),
+    validAfterPhotoCount: ctx.validAfterPhotoCount ?? 0,
   });
 
   if (!vb.eligible) {
@@ -261,6 +284,8 @@ export async function getPayoutReleaseEligibilitySnapshot(
       initiatedByAdmin,
       milestoneGate: { fetchError: false, enforceMilestoneGate: false, scheduleOk: true },
       proPayoutsOnHold: false,
+      evaluationTimeMs: Date.now(),
+      validAfterPhotoCount: 0,
     });
   }
 
@@ -275,6 +300,15 @@ export async function getPayoutReleaseEligibilitySnapshot(
     proPayoutsOnHold = risk.payoutsOnHold;
   }
 
+  const { data: jc } = await admin
+    .from('job_completions')
+    .select('after_photo_urls')
+    .eq('booking_id', bookingId)
+    .maybeSingle();
+  const validAfterPhotoCount = countValidJobCompletionAfterPhotoUrls(
+    (jc as { after_photo_urls?: unknown } | null)?.after_photo_urls
+  );
+
   return buildPayoutReleaseEligibilitySnapshot(row, {
     initiatedByAdmin,
     milestoneGate: {
@@ -283,5 +317,7 @@ export async function getPayoutReleaseEligibilitySnapshot(
       scheduleOk: milestoneGate.scheduleOk,
     },
     proPayoutsOnHold,
+    evaluationTimeMs: Date.now(),
+    validAfterPhotoCount,
   });
 }

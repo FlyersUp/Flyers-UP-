@@ -25,9 +25,11 @@ import {
 } from '@/lib/stripe/server';
 import { runAdminRefundCustomerStripeRefunds } from '@/lib/bookings/admin-refund-customer-stripe';
 import { resolveMilestonePayoutGate } from '@/lib/bookings/multi-day-payout';
-import { evaluateVersionBPayoutEligibility } from '@/lib/bookings/version-b-payout';
-import { resolveProPayoutTransferCents } from '@/lib/bookings/booking-payout-economics';
-import { evaluatePayoutRiskForPro } from '@/lib/payoutRisk';
+import {
+  resolveProPayoutTransferCents,
+  resolveProServiceSubtotalCents,
+  type BookingEconomicsRow,
+} from '@/lib/bookings/booking-payout-economics';
 import type {
   BookingPaymentEventType,
   BookingPaymentStatus,
@@ -430,14 +432,20 @@ export async function markBookingCompleted(admin: AdminClient, input: {
       console.warn('[markBookingCompleted] attemptFinalCharge failed', input.bookingId, e);
     }
   } else {
-    const ev = await evaluatePayoutEligibility(admin, input.bookingId);
-    if (ev.eligible) {
+    const payoutSnap = await getPayoutReleaseEligibilitySnapshot(admin, input.bookingId, {
+      initiatedByAdmin: false,
+    });
+    const payoutPatch = resolvePayoutLifecyclePatchAfterFinalPayment({
+      eligible: payoutSnap.eligible,
+      holdReason: payoutSnap.holdReason,
+      missingRequirements: payoutSnap.missingRequirements,
+    });
+    const markPayoutReady = payoutPatch.payment_lifecycle_status === 'payout_ready';
+    if (markPayoutReady) {
       await admin
         .from('bookings')
         .update({
-          payment_lifecycle_status: 'payout_ready',
-          payout_blocked: false,
-          payout_hold_reason: 'none',
+          ...payoutPatch,
           payout_eligible_at: new Date().toISOString(),
         })
         .eq('id', input.bookingId);
@@ -446,8 +454,12 @@ export async function markBookingCompleted(admin: AdminClient, input: {
         bookingId: input.bookingId,
         eventType: 'payout_ready',
         phase: 'payout',
-        status: 'ready',
-        metadata: { reason: 'zero_final' },
+        status: payoutSnap.eligible ? 'ready' : 'delayed',
+        metadata: {
+          reason: 'zero_final',
+          holdReason: payoutSnap.eligible ? undefined : payoutSnap.holdReason,
+          missingRequirements: payoutSnap.eligible ? undefined : payoutSnap.missingRequirements,
+        },
       });
       await tryReleasePayoutImmediatelyAfterEligible(admin, {
         bookingId: input.bookingId,
@@ -804,7 +816,7 @@ export async function handleFinalPaymentSucceeded(
       amount_paid_cents: newPaid,
       /**
        * Do not set `payment_lifecycle_status` here: remainder settlement is `final_payment_status` + timestamps;
-       * the follow-up update applies {@link resolvePayoutLifecyclePatchAfterFinalPayment} from {@link evaluatePayoutEligibility}.
+       * the follow-up update applies {@link resolvePayoutLifecyclePatchAfterFinalPayment} from the payout snapshot.
        */
       status: nextBookingStatus,
       status_history: nextHistory,
@@ -838,17 +850,22 @@ export async function handleFinalPaymentSucceeded(
     });
   }
 
-  const ev = await evaluatePayoutEligibility(admin, bookingId);
-  const payoutPatch = resolvePayoutLifecyclePatchAfterFinalPayment(ev);
+  const payoutSnap = await getPayoutReleaseEligibilitySnapshot(admin, bookingId, { initiatedByAdmin: false });
+  const payoutPatch = resolvePayoutLifecyclePatchAfterFinalPayment({
+    eligible: payoutSnap.eligible,
+    holdReason: payoutSnap.holdReason,
+    missingRequirements: payoutSnap.missingRequirements,
+  });
+  const markPayoutReady = payoutPatch.payment_lifecycle_status === 'payout_ready';
   await admin
     .from('bookings')
     .update({
       ...payoutPatch,
-      ...(ev.eligible ? { payout_eligible_at: now } : {}),
+      ...(markPayoutReady ? { payout_eligible_at: now } : {}),
     })
     .eq('id', bookingId);
 
-  if (ev.eligible) {
+  if (payoutSnap.eligible) {
     await logBookingPaymentEvent(admin, {
       bookingId,
       eventType: 'payout_ready',
@@ -864,11 +881,22 @@ export async function handleFinalPaymentSucceeded(
   } else {
     await logBookingPaymentEvent(admin, {
       bookingId,
-      eventType: 'payout_blocked',
+      eventType: markPayoutReady ? 'payout_ready' : 'payout_blocked',
       phase: 'payout',
-      status: 'blocked',
-      metadata: { reason: ev.holdReason },
+      status: markPayoutReady ? 'delayed' : 'blocked',
+      metadata: {
+        reason: payoutSnap.holdReason,
+        missingRequirements: payoutSnap.missingRequirements,
+        lifecyclePhase: payoutSnap.lifecyclePhase,
+      },
     });
+    if (markPayoutReady) {
+      await tryReleasePayoutImmediatelyAfterEligible(admin, {
+        bookingId,
+        actorUserId: null,
+        logTag: 'handleFinalPaymentSucceeded',
+      });
+    }
   }
 
   await syncBookingPaymentSummary(admin, bookingId);
@@ -1160,90 +1188,14 @@ export async function reconcileStalePayoutOnHoldForCompletionEvidence(
 export async function evaluatePayoutEligibility(
   admin: AdminClient,
   bookingId: string
-): Promise<{ eligible: boolean; holdReason: PayoutHoldReason }> {
-  const { data: b, error } = await admin
-    .from('bookings')
-    .select(
-      [
-        'id',
-        'status',
-        'arrived_at',
-        'started_at',
-        'completed_at',
-        'customer_confirmed',
-        'auto_confirm_at',
-        'dispute_open',
-        'cancellation_reason',
-        'paid_deposit_at',
-        'paid_remaining_at',
-        'refund_status',
-        'suspicious_completion',
-        'is_multi_day',
-        'payout_released',
-        'admin_hold',
-        'dispute_status',
-        'payment_lifecycle_status',
-        'final_payment_status',
-        'payout_blocked',
-        'payout_hold_reason',
-        'stripe_destination_account_id',
-        'service_pros(stripe_account_id, user_id, stripe_charges_enabled)',
-      ].join(', ')
-    )
-    .eq('id', bookingId)
-    .maybeSingle();
-
-  if (error || !b) {
-    return { eligible: false, holdReason: 'missing_final_payment' };
-  }
-
-  const row = b as unknown as Record<string, unknown>;
-  if (row.payout_released === true) {
-    return { eligible: false, holdReason: 'none' };
-  }
-  if (row.admin_hold === true) {
-    return { eligible: false, holdReason: 'admin_hold' };
-  }
-  if (String(row.dispute_status ?? 'none') !== 'none' || row.dispute_open === true) {
-    return { eligible: false, holdReason: 'dispute_open' };
-  }
-
-  const lc = String(row.payment_lifecycle_status ?? '');
-  const finalPaidLegacy =
-    String((row as { final_payment_status?: string }).final_payment_status ?? '').toUpperCase() === 'PAID';
-  const paidFinal =
-    lc === 'paid' ||
-    ['final_paid', 'payout_ready', 'payout_sent'].includes(lc) ||
-    finalPaidLegacy;
-  if (!paidFinal) {
-    return { eligible: false, holdReason: 'missing_final_payment' };
-  }
-
-  const isMultiFlag = row.is_multi_day === true;
-  const milestoneGate = await resolveMilestonePayoutGate(admin, bookingId, isMultiFlag);
-
-  const proUser = (row.service_pros as { user_id?: string })?.user_id;
-  let proPayoutsOnHold = false;
-  if (proUser) {
-    const risk = await evaluatePayoutRiskForPro(proUser);
-    proPayoutsOnHold = risk.payoutsOnHold;
-  }
-
-  const snap = evaluateVersionBPayoutEligibility(row, {
-    initiatedByAdmin: false,
-    milestoneGate: {
-      fetchError: milestoneGate.fetchError,
-      enforceMilestoneGate: milestoneGate.enforceMilestoneGate,
-      scheduleOk: milestoneGate.scheduleOk,
-    },
-    proPayoutsOnHold,
-  });
-
-  if (!snap.eligible) {
-    return { eligible: false, holdReason: snap.holdReason };
-  }
-
-  return { eligible: true, holdReason: 'none' };
+): Promise<{ eligible: boolean; holdReason: PayoutHoldReason; missingRequirements: string[] }> {
+  const snap = await getPayoutReleaseEligibilitySnapshot(admin, bookingId, { initiatedByAdmin: false });
+  if (snap.eligible) return { eligible: true, holdReason: 'none', missingRequirements: [] };
+  return {
+    eligible: false,
+    holdReason: snap.holdReason,
+    missingRequirements: snap.missingRequirements,
+  };
 }
 
 /**
@@ -1381,8 +1333,17 @@ export async function releasePayout(
         'pro_id',
         'total_amount_cents',
         'amount_total',
+        'customer_total_cents',
         'amount_subtotal',
+        'subtotal_cents',
+        'pro_earnings_cents',
+        'fee_total_cents',
+        'service_fee_cents',
+        'convenience_fee_cents',
+        'protection_fee_cents',
+        'demand_fee_cents',
         'customer_fees_retained_cents',
+        'platform_fee_cents',
         'amount_platform_fee',
         'refunded_total_cents',
         'amount_refunded_cents',
@@ -1394,6 +1355,8 @@ export async function releasePayout(
         'stripe_payment_intent_deposit_id',
         'deposit_payment_intent_id',
         'payout_released',
+        'stripe_transfer_id',
+        'payout_transfer_id',
         'pricing_version',
         'deposit_amount_cents',
         'amount_deposit',
@@ -1416,6 +1379,27 @@ export async function releasePayout(
   }
 
   const row = b as unknown as Record<string, unknown>;
+  const xferOnRow =
+    String((row as { stripe_transfer_id?: string | null }).stripe_transfer_id ?? '').trim() ||
+    String((row as { payout_transfer_id?: string | null }).payout_transfer_id ?? '').trim();
+  if (xferOnRow) {
+    console.info(
+      JSON.stringify({
+        tag: 'payout_release',
+        event: 'skipped_duplicate_existing_booking_transfer_id',
+        booking_id: input.bookingId,
+        transfer_id: xferOnRow,
+      })
+    );
+    return {
+      ok: false,
+      code: 'already_released',
+      message: 'A Stripe transfer id is already stored on this booking.',
+      errorPhase: 'pre_stripe',
+      transferId: xferOnRow,
+    };
+  }
+
   const dest =
     (row.stripe_destination_account_id as string) ??
     ((row.service_pros as { stripe_account_id?: string })?.stripe_account_id ?? '');
@@ -1429,15 +1413,54 @@ export async function releasePayout(
     };
   }
 
-  const subtotalCents = Number(row.amount_subtotal ?? 0) || 0;
-  const { payoutCents: netToPro } = resolveProPayoutTransferCents({
+  const economicsRow = {
     total_amount_cents: row.total_amount_cents as number | null,
     amount_total: row.amount_total as number | null,
+    customer_total_cents: row.customer_total_cents as number | null,
+    fee_total_cents: row.fee_total_cents as number | null,
+    service_fee_cents: row.service_fee_cents as number | null,
+    convenience_fee_cents: row.convenience_fee_cents as number | null,
+    protection_fee_cents: row.protection_fee_cents as number | null,
+    demand_fee_cents: row.demand_fee_cents as number | null,
+    subtotal_cents: row.subtotal_cents as number | null,
+    pro_earnings_cents: row.pro_earnings_cents as number | null,
     customer_fees_retained_cents: row.customer_fees_retained_cents as number | null,
+    platform_fee_cents: row.platform_fee_cents as number | null,
     amount_platform_fee: row.amount_platform_fee as number | null,
     refunded_total_cents: (row.amount_refunded_cents ?? row.refunded_total_cents) as number | null,
-    amount_subtotal: subtotalCents > 0 ? subtotalCents : null,
-  });
+    amount_subtotal: row.amount_subtotal as number | null,
+  } satisfies BookingEconomicsRow;
+
+  const payoutRes = resolveProPayoutTransferCents(economicsRow);
+  const netToPro = payoutRes.payoutCents;
+  const proSubtotalForMeta = resolveProServiceSubtotalCents(economicsRow);
+
+  console.info(
+    JSON.stringify({
+      tag: 'payout_release',
+      event: 'transfer_amount_computed',
+      booking_id: input.bookingId,
+      total_amount_cents: economicsRow.total_amount_cents,
+      amount_total: economicsRow.amount_total,
+      refunded_total_cents: economicsRow.refunded_total_cents,
+      fee_total_cents: economicsRow.fee_total_cents,
+      service_fee_cents: economicsRow.service_fee_cents,
+      convenience_fee_cents: economicsRow.convenience_fee_cents,
+      protection_fee_cents: economicsRow.protection_fee_cents,
+      demand_fee_cents: economicsRow.demand_fee_cents,
+      subtotal_cents: economicsRow.subtotal_cents,
+      pro_earnings_cents: economicsRow.pro_earnings_cents,
+      amount_subtotal: economicsRow.amount_subtotal,
+      customer_fees_retained_cents: economicsRow.customer_fees_retained_cents,
+      platform_fee_cents: economicsRow.platform_fee_cents,
+      amount_platform_fee: economicsRow.amount_platform_fee,
+      marketplace_fees_retained_cents: payoutRes.marketplaceFeesRetainedCents,
+      pro_service_subtotal_cents: proSubtotalForMeta,
+      transfer_amount_cents: netToPro,
+      capped_to_subtotal: payoutRes.cappedToSubtotal,
+      payout_warnings: payoutRes.warnings,
+    })
+  );
 
   if (netToPro <= 0) {
     return {
@@ -1456,7 +1479,6 @@ export async function releasePayout(
   const totalCents = Number(row.total_amount_cents ?? row.amount_total ?? 0) || 0;
   const depRow = Number(row.deposit_amount_cents ?? row.amount_deposit ?? 0) || 0;
   const finRow = Number(row.final_amount_cents ?? row.remaining_amount_cents ?? 0) || 0;
-  const platformFee = Number(row.amount_platform_fee ?? 0) || 0;
   const pricingVersion =
     typeof row.pricing_version === 'string' ? row.pricing_version : null;
 
@@ -1465,13 +1487,73 @@ export async function releasePayout(
     linked_final_payment_intent_id: finalPi,
     payout_amount_cents: netToPro,
     pro_id: String(row.pro_id ?? ''),
-    subtotal_cents: subtotalCents,
+    subtotal_cents: proSubtotalForMeta,
     total_amount_cents: totalCents,
-    platform_fee_cents: platformFee,
+    platform_fee_cents: payoutRes.marketplaceFeesRetainedCents,
     deposit_amount_cents: depRow,
     final_amount_cents: finRow,
     pricing_version: pricingVersion,
   });
+
+  const { data: preRace } = await admin
+    .from('bookings')
+    .select('payout_released, stripe_transfer_id, payout_transfer_id')
+    .eq('id', input.bookingId)
+    .maybeSingle();
+  const pr = preRace as {
+    payout_released?: boolean;
+    stripe_transfer_id?: string | null;
+    payout_transfer_id?: string | null;
+  } | null;
+  if (!pr || pr.payout_released === true) {
+    return {
+      ok: false,
+      code: 'already_released',
+      message: 'Payout state changed before transfer creation (race with another worker).',
+      errorPhase: 'pre_stripe',
+      transferId: null,
+    };
+  }
+  const raceXfer =
+    String(pr.stripe_transfer_id ?? '').trim() || String(pr.payout_transfer_id ?? '').trim();
+  if (raceXfer) {
+    console.info(
+      JSON.stringify({
+        tag: 'payout_release',
+        event: 'skipped_duplicate_race_booking_transfer_id',
+        booking_id: input.bookingId,
+        transfer_id: raceXfer,
+      })
+    );
+    return {
+      ok: false,
+      code: 'already_released',
+      message: 'Transfer id appeared on booking before createTransfer (idempotent skip).',
+      errorPhase: 'pre_stripe',
+      transferId: raceXfer,
+    };
+  }
+  try {
+    const { data: bpRace } = await admin
+      .from('booking_payouts')
+      .select('stripe_transfer_id')
+      .eq('booking_id', input.bookingId)
+      .maybeSingle();
+    const bpTid = String(
+      (bpRace as { stripe_transfer_id?: string | null } | null)?.stripe_transfer_id ?? ''
+    ).trim();
+    if (bpTid) {
+      return {
+        ok: false,
+        code: 'already_released',
+        message: 'booking_payouts gained a transfer id before createTransfer.',
+        errorPhase: 'pre_stripe',
+        transferId: bpTid,
+      };
+    }
+  } catch {
+    // booking_payouts optional
+  }
 
   const created = await createTransfer({
     amount: netToPro,
@@ -1483,6 +1565,15 @@ export async function releasePayout(
   });
 
   if (created.outcome === 'failure') {
+    console.info(
+      JSON.stringify({
+        tag: 'payout_release',
+        event: 'stripe_transfer_failed',
+        booking_id: input.bookingId,
+        stripe_code: created.code,
+        message: created.message,
+      })
+    );
     if (created.code === 'stripe_not_configured') {
       return {
         ok: false,
@@ -2318,12 +2409,20 @@ export async function resolveDispute(
     }
   }
 
-  const ev = await evaluatePayoutEligibility(admin, bookingId);
+  const postDisputeSnap = await getPayoutReleaseEligibilitySnapshot(admin, bookingId, {
+    initiatedByAdmin: false,
+  });
+  const softPayoutDelayOnly =
+    !postDisputeSnap.eligible &&
+    ((postDisputeSnap.holdReason === 'booking_not_completed' &&
+      postDisputeSnap.missingRequirements.includes('payout_completion_cooling_period')) ||
+      postDisputeSnap.holdReason === 'admin_review_required');
+  const payoutHardBlocked = !postDisputeSnap.eligible && !softPayoutDelayOnly;
   await admin
     .from('bookings')
     .update({
-      payout_blocked: !ev.eligible,
-      payout_hold_reason: ev.eligible ? 'none' : assertPayoutHoldReason(ev.holdReason),
+      payout_blocked: payoutHardBlocked,
+      payout_hold_reason: payoutHardBlocked ? assertPayoutHoldReason(postDisputeSnap.holdReason) : 'none',
     })
     .eq('id', bookingId);
 

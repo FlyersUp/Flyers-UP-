@@ -1,6 +1,7 @@
 /**
  * Counts completion "after" photo URLs that satisfy payout evidence rules.
- * Used for auto-confirm / ops tooling; automatic payout release does not gate on photo count.
+ * Used for auto-confirm, ops tooling, and **protected-category automatic payout** gates
+ * ({@link evaluateSimplePayoutTransferGate}).
  */
 export function countValidJobCompletionAfterPhotoUrls(urls: unknown): number {
   if (!Array.isArray(urls)) return 0;

@@ -38,3 +38,32 @@ test('payout lifecycle patch: ineligible → payout_on_hold with reason', () => 
     }
   );
 });
+
+test('payout lifecycle patch: 24h cooling only → payout_ready (transfer still gated elsewhere)', () => {
+  assert.deepEqual(
+    resolvePayoutLifecyclePatchAfterFinalPayment({
+      eligible: false,
+      holdReason: 'booking_not_completed',
+      missingRequirements: ['payout_completion_cooling_period'],
+    }),
+    {
+      payment_lifecycle_status: 'payout_ready',
+      payout_blocked: false,
+      payout_hold_reason: 'none',
+    }
+  );
+});
+
+test('payout lifecycle patch: admin_review_required → payout_ready', () => {
+  assert.deepEqual(
+    resolvePayoutLifecyclePatchAfterFinalPayment({
+      eligible: false,
+      holdReason: 'admin_review_required',
+    }),
+    {
+      payment_lifecycle_status: 'payout_ready',
+      payout_blocked: false,
+      payout_hold_reason: 'none',
+    }
+  );
+});

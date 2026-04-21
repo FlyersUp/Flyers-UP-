@@ -11,6 +11,8 @@ function ctxBase(overrides: Partial<PayoutReleaseSnapshotBuildContext> = {}): Pa
     initiatedByAdmin: false,
     milestoneGate: { fetchError: false, enforceMilestoneGate: false, scheduleOk: true },
     proPayoutsOnHold: false,
+    evaluationTimeMs: Date.now(),
+    validAfterPhotoCount: 2,
     ...overrides,
   };
 }
@@ -42,6 +44,7 @@ function baseRow(overrides: Record<string, unknown> = {}): Record<string, unknow
     payout_blocked: false,
     payout_hold_reason: 'none',
     requires_admin_review: false,
+    pricing_category_slug: null,
     stripe_destination_account_id: null,
     service_pros: { stripe_account_id: 'acct_test_123', user_id: 'pro-user-1', stripe_charges_enabled: true },
     ...overrides,
@@ -56,16 +59,16 @@ describe('buildPayoutReleaseEligibilitySnapshot', () => {
     assert.deepEqual(snap.missingRequirements, []);
   });
 
-  it('final_paid + requires_admin_review no longer blocks automatic eligibility', () => {
+  it('final_paid + requires_admin_review blocks automatic eligibility', () => {
     const snap = buildPayoutReleaseEligibilitySnapshot(
       baseRow({ requires_admin_review: true }),
       ctxBase()
     );
-    assert.equal(snap.eligible, true);
-    assert.equal(snap.holdReason, 'none');
+    assert.equal(snap.eligible, false);
+    assert.equal(snap.holdReason, 'admin_review_required');
   });
 
-  it('final_paid + recent completion + no customer confirm → still eligible (no 24h review window)', () => {
+  it('final_paid + completion younger than 24h blocks automatic eligibility', () => {
     const recent = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const snap = buildPayoutReleaseEligibilitySnapshot(
       baseRow({
@@ -77,10 +80,52 @@ describe('buildPayoutReleaseEligibilitySnapshot', () => {
         auto_confirm_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
         customer_confirmed: false,
       }),
-      ctxBase()
+      ctxBase({ evaluationTimeMs: Date.now() })
     );
-    assert.equal(snap.eligible, true);
-    assert.equal(snap.holdReason, 'none');
+    assert.equal(snap.eligible, false);
+    assert.equal(snap.holdReason, 'booking_not_completed');
+    assert.ok(snap.missingRequirements.includes('payout_completion_cooling_period'));
+  });
+
+  it('protected category requires two valid after photos (non-admin)', () => {
+    const completed = new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString();
+    const snap = buildPayoutReleaseEligibilitySnapshot(
+      baseRow({
+        pricing_category_slug: 'cleaning',
+        completed_at: completed,
+        arrived_at: completed,
+        started_at: completed,
+        paid_deposit_at: completed,
+        paid_remaining_at: completed,
+      }),
+      ctxBase({ validAfterPhotoCount: 1 })
+    );
+    assert.equal(snap.eligible, false);
+    assert.equal(snap.holdReason, 'insufficient_completion_evidence');
+    assert.ok(snap.missingRequirements.includes('protected_category_after_photos'));
+  });
+
+  it('protected category slug falls back to pro service_categories when pricing_category_slug is null', () => {
+    const completed = new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString();
+    const snap = buildPayoutReleaseEligibilitySnapshot(
+      baseRow({
+        pricing_category_slug: null,
+        completed_at: completed,
+        arrived_at: completed,
+        started_at: completed,
+        paid_deposit_at: completed,
+        paid_remaining_at: completed,
+        service_pros: {
+          stripe_account_id: 'acct_test_123',
+          user_id: 'pro-user-1',
+          stripe_charges_enabled: true,
+          service_categories: { slug: 'cleaning' },
+        },
+      }),
+      ctxBase({ validAfterPhotoCount: 1 })
+    );
+    assert.equal(snap.eligible, false);
+    assert.equal(snap.holdReason, 'insufficient_completion_evidence');
   });
 
   it('final_paid + no Connect destination → not eligible', () => {

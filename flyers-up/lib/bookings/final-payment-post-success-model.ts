@@ -47,12 +47,35 @@ export type PayoutLifecyclePatch = {
   payout_hold_reason: PayoutHoldReason;
 };
 
-/** Maps {@link evaluatePayoutEligibility} result to the second lifecycle write after remainder succeeds. */
+/**
+ * Maps post-final payout snapshot / eligibility to the lifecycle write after remainder succeeds.
+ * Keeps `payout_ready` when the only blockers are **time-based cooling** or **admin review flags**
+ * so Option A cron continues to scan the booking while transfer stays gated in
+ * {@link evaluatePayoutTransferEligibility}.
+ */
 export function resolvePayoutLifecyclePatchAfterFinalPayment(ev: {
   eligible: boolean;
   holdReason: PayoutHoldReason;
+  missingRequirements?: string[];
 }): PayoutLifecyclePatch {
   if (ev.eligible) {
+    return {
+      payment_lifecycle_status: 'payout_ready',
+      payout_blocked: false,
+      payout_hold_reason: 'none',
+    };
+  }
+  const coolingOnly =
+    ev.holdReason === 'booking_not_completed' &&
+    Boolean(ev.missingRequirements?.includes('payout_completion_cooling_period'));
+  if (coolingOnly) {
+    return {
+      payment_lifecycle_status: 'payout_ready',
+      payout_blocked: false,
+      payout_hold_reason: 'none',
+    };
+  }
+  if (ev.holdReason === 'admin_review_required') {
     return {
       payment_lifecycle_status: 'payout_ready',
       payout_blocked: false,

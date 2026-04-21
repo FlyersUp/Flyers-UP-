@@ -16,6 +16,8 @@ function ctxBase(): PayoutReleaseSnapshotBuildContext {
     initiatedByAdmin: false,
     milestoneGate: { fetchError: false, enforceMilestoneGate: false, scheduleOk: true },
     proPayoutsOnHold: false,
+    evaluationTimeMs: Date.now(),
+    validAfterPhotoCount: 2,
   };
 }
 

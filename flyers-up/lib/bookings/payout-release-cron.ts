@@ -18,6 +18,11 @@ import {
 import { getPayoutReleaseEligibilitySnapshot } from '@/lib/bookings/payout-release-eligibility-snapshot';
 import type { PayoutHoldReason } from '@/lib/bookings/payment-lifecycle-types';
 import { warnStuckPayoutsForCron } from '@/lib/bookings/stuck-payout-detector';
+import {
+  logPayoutCronEvent,
+  payoutCronFailureReasonFromSnapshot,
+  type PayoutCronFailureReason,
+} from '@/lib/bookings/payout-cron-telemetry';
 
 export type PayoutReleaseCronResult = {
   released: number;
@@ -29,6 +34,8 @@ export type PayoutReleaseCronResult = {
   skipped_immediate_grace: number;
   /** `releasePayout` returned `already_released` (webhook or prior run won the race) — not a failure. */
   skipped_already_released: number;
+  /** Snapshot said not eligible (re-checked in code; SQL prefilter is not authoritative). */
+  skipped_ineligible: number;
   /** Post-run: eligible + unreleased past grace (see {@link findStuckPayoutBookings}). */
   stuck_payout_count: number;
   stuck_payout_sample: string[];
@@ -147,7 +154,18 @@ async function flagForManualPayoutReview(
   }
 }
 
+function transferFailureReason(code: string | undefined): PayoutCronFailureReason {
+  const c = String(code ?? '').toLowerCase();
+  if (c === 'already_released') return 'duplicate_already_released';
+  if (c === 'transfer_failed' || c === 'stripe_api_error') return 'stripe_transfer_failure';
+  if (c === 'no_destination') return 'missing_connected_account';
+  return 'other';
+}
+
 export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<PayoutReleaseCronResult> {
+  const runStartedAt = new Date().toISOString();
+  logPayoutCronEvent({ event: 'cron_start', at: runStartedAt });
+
   const { data: candidates, error } = await admin
     .from('bookings')
     .select(
@@ -157,7 +175,10 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
     .eq('payout_released', false)
     .not('refund_status', 'eq', 'pending')
     .not('paid_deposit_at', 'is', null)
-    .not('paid_remaining_at', 'is', null);
+    .not('paid_remaining_at', 'is', null)
+    // Cheap prefilter: eligibility still requires completed_at for transfer. Imported/legacy rows with
+    // null completed_at are skipped here — backfill completed_at (or a service-completed timestamp) before launch.
+    .not('completed_at', 'is', null);
 
   if (error) {
     console.error('[payout-release-cron] query failed', error);
@@ -169,6 +190,7 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
   let flagged = 0;
   let skippedImmediateGrace = 0;
   let skippedAlreadyReleased = 0;
+  let skippedIneligible = 0;
 
   for (const row of candidates ?? []) {
     const bookingId = row.id as string;
@@ -176,49 +198,91 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
     const r = row as unknown as Record<string, unknown>;
     if (!payoutReleaseCronShouldAttemptAfterImmediateGrace(r)) {
       skippedImmediateGrace++;
+      logPayoutCronEvent({
+        event: 'payout_skipped',
+        booking_id: bookingId,
+        reason: 'immediate_release_grace',
+      });
       continue;
     }
     const snap = await getPayoutReleaseEligibilitySnapshot(admin, bookingId, { initiatedByAdmin: false });
-    if (snap.eligible) {
-      const out = await releasePayout(admin, { bookingId });
-      if (out.ok) {
-        await admin.from('booking_events').insert({
-          booking_id: bookingId,
-          type: 'PAYOUT_RELEASED',
-          data: { transfer_id: out.transferId, via: 'payout_release_cron' },
-        });
-        released++;
-      } else if (out.code === 'already_released') {
-        /** Webhook / synchronous path set `payout_released` between cron query and transfer — idempotent. */
-        skippedAlreadyReleased++;
-      } else {
-        failed++;
-        const hold = payoutHoldReasonFromFailedRelease(out);
-        await flagForManualPayoutReview(admin, bookingId, hold, {
-          release_error: out.code ?? 'unknown',
-          note: 'Automatic transfer attempt failed; needs admin or retry',
-        });
+    if (!snap.eligible) {
+      skippedIneligible++;
+      logPayoutCronEvent({
+        event: 'payout_skipped',
+        booking_id: bookingId,
+        failure_reason: payoutCronFailureReasonFromSnapshot(snap),
+        hold_reason: snap.holdReason,
+        lifecycle_phase: snap.lifecyclePhase,
+        missing_requirements: snap.missingRequirements,
+      });
+      if (snap.flagForAdminReview) {
+        await flagForManualPayoutReview(admin, bookingId, snap.holdReason);
         flagged++;
-        if (
-          proUserId &&
-          (out.code === 'transfer_failed' || out.code === 'no_destination' || out.code === 'transfer_failed_partial')
-        ) {
-          void createNotificationEvent({
-            userId: proUserId,
-            type: NOTIFICATION_TYPES.PAYOUT_FAILED,
-            bookingId,
-            titleOverride: 'Payout issue',
-            bodyOverride: 'We could not process your payout. Please contact support.',
-            basePath: 'pro',
-          });
-        }
       }
       continue;
     }
 
-    if (snap.flagForAdminReview) {
-      await flagForManualPayoutReview(admin, bookingId, snap.holdReason);
+    logPayoutCronEvent({
+      event: 'payout_eligible',
+      booking_id: bookingId,
+      lifecycle_phase: snap.lifecyclePhase,
+    });
+
+    const out = await releasePayout(admin, { bookingId });
+    if (out.ok) {
+      await admin.from('booking_events').insert({
+        booking_id: bookingId,
+        type: 'PAYOUT_RELEASED',
+        data: { transfer_id: out.transferId, via: 'payout_release_cron' },
+      });
+      released++;
+      logPayoutCronEvent({
+        event: 'payout_released',
+        booking_id: bookingId,
+        transfer_id: out.transferId ?? null,
+        release_outcome: out.releaseOutcome ?? null,
+      });
+    } else if (out.code === 'already_released') {
+      skippedAlreadyReleased++;
+      logPayoutCronEvent({
+        event: 'payout_skipped',
+        booking_id: bookingId,
+        failure_reason: 'duplicate_already_released',
+        release_code: out.code,
+        transfer_id: out.transferId ?? null,
+      });
+    } else {
+      failed++;
+      const fr = transferFailureReason(out.code);
+      logPayoutCronEvent({
+        event: 'payout_failed',
+        booking_id: bookingId,
+        failure_reason: fr,
+        release_code: out.code ?? null,
+        error_phase: out.errorPhase ?? null,
+        message: out.message ?? null,
+        transfer_id: out.transferId ?? null,
+      });
+      const hold = payoutHoldReasonFromFailedRelease(out);
+      await flagForManualPayoutReview(admin, bookingId, hold, {
+        release_error: out.code ?? 'unknown',
+        note: 'Automatic transfer attempt failed; needs admin or retry',
+      });
       flagged++;
+      if (
+        proUserId &&
+        (out.code === 'transfer_failed' || out.code === 'no_destination' || out.code === 'transfer_failed_partial')
+      ) {
+        void createNotificationEvent({
+          userId: proUserId,
+          type: NOTIFICATION_TYPES.PAYOUT_FAILED,
+          bookingId,
+          titleOverride: 'Payout issue',
+          bodyOverride: 'We could not process your payout. Please contact support.',
+          basePath: 'pro',
+        });
+      }
     }
   }
 
@@ -228,14 +292,30 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
     limit: 25,
   });
 
-  return {
+  const result: PayoutReleaseCronResult = {
     released,
     failed,
     flagged,
     total: candidates?.length ?? 0,
     skipped_immediate_grace: skippedImmediateGrace,
     skipped_already_released: skippedAlreadyReleased,
+    skipped_ineligible: skippedIneligible,
     stuck_payout_count: stuck.length,
     stuck_payout_sample: stuck.map((s) => s.bookingId).slice(0, 12),
   };
+
+  logPayoutCronEvent({
+    event: 'cron_end',
+    at: new Date().toISOString(),
+    candidate_count: result.total,
+    released: result.released,
+    failed: result.failed,
+    flagged: result.flagged,
+    skipped_immediate_grace: result.skipped_immediate_grace,
+    skipped_already_released: result.skipped_already_released,
+    skipped_ineligible: result.skipped_ineligible,
+    stuck_payout_count: result.stuck_payout_count,
+  });
+
+  return result;
 }

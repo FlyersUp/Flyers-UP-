@@ -5,7 +5,11 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { resolveProPayoutTransferCents } from '@/lib/bookings/booking-payout-economics';
+import {
+  resolveProPayoutTransferCents,
+  resolveProServiceSubtotalCents,
+  type BookingEconomicsRow,
+} from '@/lib/bookings/booking-payout-economics';
 import {
   appendLifecyclePaymentIntentMetadata,
   refundLifecycleMetadata,
@@ -23,7 +27,16 @@ const BOOKING_SELECT = [
   'pro_id',
   'subtotal_cents',
   'amount_subtotal',
+  'pro_earnings_cents',
   'total_amount_cents',
+  'amount_total',
+  'customer_total_cents',
+  'fee_total_cents',
+  'service_fee_cents',
+  'convenience_fee_cents',
+  'protection_fee_cents',
+  'demand_fee_cents',
+  'customer_fees_retained_cents',
   'platform_fee_cents',
   'amount_platform_fee',
   'deposit_amount_cents',
@@ -93,13 +106,36 @@ export function buildBookingCanonicalStripeSummaryFromRow(
   const title = opts.serviceTitle ?? 'Flyers Up booking';
   const p = rowToParts(row, opts.depositPaymentIntentId, opts.finalPaymentIntentId);
 
+  const economicsRow = {
+    total_amount_cents: p.total,
+    amount_total: row.amount_total as number | null,
+    customer_total_cents: row.customer_total_cents as number | null,
+    fee_total_cents: row.fee_total_cents as number | null,
+    service_fee_cents: row.service_fee_cents as number | null,
+    convenience_fee_cents: row.convenience_fee_cents as number | null,
+    protection_fee_cents: row.protection_fee_cents as number | null,
+    demand_fee_cents: row.demand_fee_cents as number | null,
+    subtotal_cents: row.subtotal_cents as number | null,
+    pro_earnings_cents: row.pro_earnings_cents as number | null,
+    customer_fees_retained_cents: row.customer_fees_retained_cents as number | null,
+    platform_fee_cents: row.platform_fee_cents as number | null,
+    amount_platform_fee: row.amount_platform_fee as number | null,
+    refunded_total_cents: (row.amount_refunded_cents ?? row.refunded_total_cents) as number | null,
+    amount_subtotal: row.amount_subtotal as number | null,
+  } satisfies BookingEconomicsRow;
+
+  const payoutRes = resolveProPayoutTransferCents(economicsRow);
+  const canonicalSub = resolveProServiceSubtotalCents(economicsRow);
+  const subForMeta = canonicalSub > 0 ? canonicalSub : p.sub;
+  const feeForMeta = payoutRes.marketplaceFeesRetainedCents;
+
   const depStripe = buildBookingPaymentIntentStripeFields({
     bookingId: p.bookingId,
     customerId: p.customerId,
     proId: p.proId,
     paymentPhase: 'deposit',
     serviceTitle: title,
-    pricing: { subtotal_cents: p.sub, pricing_version: p.pv },
+    pricing: { subtotal_cents: subForMeta, pricing_version: p.pv },
   });
   Object.assign(
     depStripe.metadata,
@@ -109,8 +145,8 @@ export function buildBookingCanonicalStripeSummaryFromRow(
         customer_id: p.customerId,
         pro_id: p.proId,
         pricing_version: p.pv,
-        subtotal_cents: p.sub,
-        platform_fee_cents: p.plat,
+        subtotal_cents: subForMeta,
+        platform_fee_cents: feeForMeta,
         deposit_amount_cents: p.dep,
         final_amount_cents: p.fin,
         total_amount_cents: p.total,
@@ -125,7 +161,7 @@ export function buildBookingCanonicalStripeSummaryFromRow(
     proId: p.proId,
     paymentPhase: 'remaining',
     serviceTitle: title,
-    pricing: { subtotal_cents: p.sub, pricing_version: p.pv },
+    pricing: { subtotal_cents: subForMeta, pricing_version: p.pv },
   });
   Object.assign(
     finStripe.metadata,
@@ -135,8 +171,8 @@ export function buildBookingCanonicalStripeSummaryFromRow(
         customer_id: p.customerId,
         pro_id: p.proId,
         pricing_version: p.pv,
-        subtotal_cents: p.sub,
-        platform_fee_cents: p.plat,
+        subtotal_cents: subForMeta,
+        platform_fee_cents: feeForMeta,
         deposit_amount_cents: p.dep,
         final_amount_cents: p.fin,
         total_amount_cents: p.total,
@@ -147,21 +183,14 @@ export function buildBookingCanonicalStripeSummaryFromRow(
     )
   );
 
-  const { payoutCents } = resolveProPayoutTransferCents({
-    total_amount_cents: p.total,
-    amount_platform_fee: p.plat,
-    refunded_total_cents: (row.amount_refunded_cents ?? row.refunded_total_cents) as number | null,
-    amount_subtotal: p.sub,
-  });
-
   const transferMeta = transferLifecycleStripeMetadata({
     booking_id: p.bookingId,
     linked_final_payment_intent_id: opts.finalPaymentIntentId,
-    payout_amount_cents: payoutCents,
+    payout_amount_cents: payoutRes.payoutCents,
     pro_id: p.proId,
-    subtotal_cents: p.sub,
+    subtotal_cents: subForMeta,
     total_amount_cents: p.total,
-    platform_fee_cents: p.plat,
+    platform_fee_cents: feeForMeta,
     deposit_amount_cents: p.dep,
     final_amount_cents: p.fin,
     pricing_version: p.pv,
@@ -174,9 +203,9 @@ export function buildBookingCanonicalStripeSummaryFromRow(
     refunded_amount_cents: p.fin > 0 ? p.fin : 0,
     refund_type: 'before_payout',
     refund_source_payment_phase: 'final',
-    subtotal_cents: p.sub,
+    subtotal_cents: subForMeta,
     total_amount_cents: p.total,
-    platform_fee_cents: p.plat,
+    platform_fee_cents: feeForMeta,
     deposit_amount_cents: p.dep,
     final_amount_cents: p.fin,
     pricing_version: p.pv,

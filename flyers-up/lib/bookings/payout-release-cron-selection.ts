@@ -3,21 +3,24 @@
  * (or legacy rows with no synchronous release path).
  *
  * Selection is **payment-lifecycle-driven** (not `bookings.status` / `service_status`):
- * - Primary: `payment_lifecycle_status` in {@link PAYOUT_RELEASE_CRON_LIFECYCLE_SCAN}
+ * - Primary: `payment_lifecycle_status` in {@link PAYOUT_RELEASE_CRON_LIFECYCLE_SCAN} (includes `paid`
+ *   when that value is used as a settled-remainder lifecycle — avoids missing rows the eligibility layer
+ *   would still treat as final-settled)
  * - Legacy: `payment_lifecycle_status` null with `final_payment_status = PAID` (older rows)
  *
  * {@link payoutReleaseCronShouldAttemptAfterImmediateGrace} skips very fresh `payout_eligible_at` rows so
  * {@link handleFinalPaymentSucceeded} can run {@link releasePayout} first without racing this job.
  *
- * Further gates (timestamps, milestones, Connect, risk; not `requires_admin_review`) live in
- * {@link getPayoutReleaseEligibilitySnapshot} / {@link releasePayout}.
+ * Further gates (24h cooling, `requires_admin_review`, milestones, Connect, risk, protected-category
+ * photos, disputes, …) live in {@link getPayoutReleaseEligibilitySnapshot} / {@link releasePayout}.
+ * The cron query also requires `completed_at` as a cheap prefilter (always re-validated in code).
  */
 
 /** Seconds after `payout_eligible_at` before cron may attempt (immediate release runs first). */
 export const PAYOUT_RELEASE_CRON_IMMEDIATE_GRACE_SEC = 90;
 
 /** Final money recorded in lifecycle columns — cron should evaluate transfer eligibility. */
-export const PAYOUT_RELEASE_CRON_LIFECYCLE_SCAN = ['payout_ready', 'final_paid'] as const;
+export const PAYOUT_RELEASE_CRON_LIFECYCLE_SCAN = ['payout_ready', 'final_paid', 'paid'] as const;
 
 /**
  * Returns false for rows that just became `payout_ready` (fresh `payout_eligible_at`) so the synchronous
@@ -42,7 +45,7 @@ export function payoutReleaseCronShouldAttemptAfterImmediateGrace(
 
 /**
  * PostgREST `.or()` filter:
- * - (lifecycle in payout_ready|final_paid) OR
+ * - (lifecycle in payout_ready|final_paid|paid) OR
  * - (lifecycle unset AND final_payment_status PAID) for legacy rows.
  */
 export function payoutReleaseCronCandidateOrFilter(): string {

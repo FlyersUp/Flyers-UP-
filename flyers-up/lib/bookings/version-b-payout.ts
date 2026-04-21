@@ -36,6 +36,10 @@ export type VersionBPayoutEligibilityContext = {
   initiatedByAdmin: boolean;
   milestoneGate: SimplePayoutMilestoneCtx;
   proPayoutsOnHold: boolean;
+  nowMs?: number;
+  pricingCategorySlug?: string | null;
+  afterPhotoUrls?: unknown;
+  validAfterPhotoCount?: number;
 };
 
 export type VersionBPayoutEligibilityResult =
@@ -179,6 +183,10 @@ export function evaluateVersionBPayoutEligibility(
     initiatedByAdmin: ctx.initiatedByAdmin,
     milestoneGate: ctx.milestoneGate,
     proPayoutsOnHold: ctx.proPayoutsOnHold,
+    nowMs: ctx.nowMs,
+    pricingCategorySlug: ctx.pricingCategorySlug,
+    afterPhotoUrls: ctx.afterPhotoUrls,
+    validAfterPhotoCount: ctx.validAfterPhotoCount,
   };
   const gate = evaluateSimplePayoutTransferGate(row, gateCtx);
 

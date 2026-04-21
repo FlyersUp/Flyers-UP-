@@ -3,6 +3,9 @@
  * (same eligibility as payout-release cron) but `payout_released` is still false after a grace period.
  *
  * Use for admin visibility and cron warnings — not a substitute for fixing root cause in cron/selection.
+ * Candidate discovery uses {@link payoutReleaseCronCandidateOrFilter} (aligned with the payout-release cron).
+ * Rows that are **paid in Stripe/DB** but sit in a non-scanned lifecycle state may still need a future
+ * “money reconciliation” or broader stuck scan; see ops runbooks.
  *
  * **Threshold:** `STUCK_PAYOUT_THRESHOLD_HOURS` (default 6). Age is measured from `payout_eligible_at` when set,
  * otherwise `paid_remaining_at`. Customer final-review must be over: `customer_review_deadline_at` absent or ≤ now.
