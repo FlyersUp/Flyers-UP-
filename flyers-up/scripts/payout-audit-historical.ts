@@ -10,6 +10,7 @@
  *
  * Output: JSON to stdout — `{ summary, definite_overpayments, likely_safe, needs_manual_review, remediation }`.
  * Does not modify any rows.
+ * Ops workflow: see scripts/PAYOUT_AUDIT_RUNBOOK.md
  *
  * Sample summary shape:
  * {
