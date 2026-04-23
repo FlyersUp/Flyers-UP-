@@ -694,6 +694,189 @@ export interface Database {
           created_at?: string;
         };
       };
+      category_borough_status: {
+        Row: {
+          id: string;
+          occupation_slug: string;
+          borough_slug: string;
+          active_pro_count: number;
+          visible_state: 'strong' | 'weak' | 'inactive';
+          is_customer_visible: boolean;
+          force_hidden: boolean;
+          force_visible: boolean;
+          last_checked_at: string;
+          ops_note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          occupation_slug: string;
+          borough_slug: string;
+          active_pro_count?: number;
+          visible_state: 'strong' | 'weak' | 'inactive';
+          is_customer_visible?: boolean;
+          force_hidden?: boolean;
+          force_visible?: boolean;
+          last_checked_at?: string;
+          ops_note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          occupation_slug?: string;
+          borough_slug?: string;
+          active_pro_count?: number;
+          visible_state?: 'strong' | 'weak' | 'inactive';
+          is_customer_visible?: boolean;
+          force_hidden?: boolean;
+          force_visible?: boolean;
+          last_checked_at?: string;
+          ops_note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      match_requests: {
+        Row: {
+          id: string;
+          customer_id: string;
+          occupation_slug: string;
+          borough_slug: string;
+          preferred_time: string | null;
+          urgency: 'asap' | 'today' | 'flexible';
+          notes: string | null;
+          status:
+            | 'pending_review'
+            | 'candidate_selected'
+            | 'offer_sent'
+            | 'accepted'
+            | 'declined'
+            | 'expired'
+            | 'matched'
+            | 'fallback_needed';
+          matched_pro_id: string | null;
+          booking_id: string | null;
+          matched_by_user_id: string | null;
+          matched_at?: string | null;
+          outreach_cap?: number;
+          outreach_attempt_count?: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          customer_id: string;
+          occupation_slug: string;
+          borough_slug: string;
+          preferred_time?: string | null;
+          urgency: 'asap' | 'today' | 'flexible';
+          notes?: string | null;
+          status?:
+            | 'pending_review'
+            | 'candidate_selected'
+            | 'offer_sent'
+            | 'accepted'
+            | 'declined'
+            | 'expired'
+            | 'matched'
+            | 'fallback_needed';
+          matched_pro_id?: string | null;
+          booking_id?: string | null;
+          matched_by_user_id?: string | null;
+          matched_at?: string | null;
+          outreach_cap?: number;
+          outreach_attempt_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          customer_id?: string;
+          occupation_slug?: string;
+          borough_slug?: string;
+          preferred_time?: string | null;
+          urgency?: 'asap' | 'today' | 'flexible';
+          notes?: string | null;
+          status?:
+            | 'pending_review'
+            | 'candidate_selected'
+            | 'offer_sent'
+            | 'accepted'
+            | 'declined'
+            | 'expired'
+            | 'matched'
+            | 'fallback_needed';
+          matched_pro_id?: string | null;
+          booking_id?: string | null;
+          matched_by_user_id?: string | null;
+          matched_at?: string | null;
+          outreach_cap?: number;
+          outreach_attempt_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      match_outreach_log: {
+        Row: {
+          id: string;
+          match_request_id: string;
+          pro_id: string;
+          outreach_channel: 'push' | 'sms' | 'manual';
+          outreach_status:
+            | 'not_contacted'
+            | 'push_sent'
+            | 'sms_sent'
+            | 'viewed'
+            | 'accepted'
+            | 'declined'
+            | 'no_response';
+          sent_at: string;
+          responded_at: string | null;
+          notes: string | null;
+          created_by_user_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          match_request_id: string;
+          pro_id: string;
+          outreach_channel: 'push' | 'sms' | 'manual';
+          outreach_status?:
+            | 'not_contacted'
+            | 'push_sent'
+            | 'sms_sent'
+            | 'viewed'
+            | 'accepted'
+            | 'declined'
+            | 'no_response';
+          sent_at?: string;
+          responded_at?: string | null;
+          notes?: string | null;
+          created_by_user_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          match_request_id?: string;
+          pro_id?: string;
+          outreach_channel?: 'push' | 'sms' | 'manual';
+          outreach_status?:
+            | 'not_contacted'
+            | 'push_sent'
+            | 'sms_sent'
+            | 'viewed'
+            | 'accepted'
+            | 'declined'
+            | 'no_response';
+          sent_at?: string;
+          responded_at?: string | null;
+          notes?: string | null;
+          created_by_user_id?: string | null;
+          created_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;

@@ -1,0 +1,22 @@
+/** Hybrid marketplace UI — customer (mobile-first) + admin (desktop-first) */
+export { HybridAppHeader } from '@/components/hybrid/AppHeader';
+export { MobileHero } from '@/components/hybrid/MobileHero';
+export { HybridSearchBar } from '@/components/hybrid/SearchBar';
+export { TrustBadgeRow } from '@/components/hybrid/TrustBadgeRow';
+export { ServiceChips } from '@/components/hybrid/ServiceChips';
+export { HybridProCard } from '@/components/hybrid/ProCard';
+export { AvailabilityAlertCard } from '@/components/hybrid/AvailabilityAlertCard';
+export { HybridMatchRequestForm } from '@/components/hybrid/MatchRequestForm';
+export { RequestStatusTimeline } from '@/components/hybrid/RequestStatusTimeline';
+export { FloatingActionFab } from '@/components/hybrid/FloatingActionFab';
+export { AdminSidebar } from '@/components/hybrid/AdminSidebar';
+export { AdminKpiCard } from '@/components/hybrid/AdminKpiCard';
+export { AdminPageShell } from '@/components/hybrid/AdminPageShell';
+export { MatchQueueTable } from '@/components/hybrid/MatchQueueTable';
+export { MatchQueueScreen } from '@/components/hybrid/MatchQueueScreen';
+export { CandidateProCard } from '@/components/hybrid/CandidateProCard';
+export { BoroughHealthMatrix } from '@/components/hybrid/BoroughHealthMatrix';
+export { BoroughHealthScreen } from '@/components/hybrid/BoroughHealthScreen';
+export { ProAvailabilityTable } from '@/components/hybrid/ProAvailabilityTable';
+export { ProAvailabilityScreen } from '@/components/hybrid/ProAvailabilityScreen';
+export { MatchRequestDetailScreen } from '@/components/hybrid/MatchRequestDetailScreen';

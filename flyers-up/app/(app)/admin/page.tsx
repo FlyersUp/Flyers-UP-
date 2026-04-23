@@ -28,6 +28,7 @@ import {
   MessageSquare,
   Flag,
   Scale,
+  UserPlus,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -201,6 +202,30 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           title: 'Marketplace',
           description: 'Surge pricing, heatmap, job claims & controls.',
           icon: <Store className="h-4 w-4" />,
+        },
+        {
+          href: '/admin/hybrid/match-queue',
+          title: 'Concierge match queue',
+          description: 'Manual matchmaking requests: rank pros, outreach log, assign.',
+          icon: <UserPlus className="h-4 w-4" />,
+        },
+        {
+          href: '/admin/hybrid/borough-health',
+          title: 'Borough health',
+          description: 'Occupation vitality matrix, STRONG / WEAK / INACTIVE, signals.',
+          icon: <ShieldCheck className="h-4 w-4" />,
+        },
+        {
+          href: '/admin/hybrid/pro-availability',
+          title: 'Pro availability',
+          description: 'Matchable pros, active week, paused — ops toggles.',
+          icon: <Users className="h-4 w-4" />,
+        },
+        {
+          href: '/admin/hybrid/category-health',
+          title: 'Gate overrides (table)',
+          description: 'Force visible/hidden + ops notes on live rows.',
+          icon: <FileText className="h-4 w-4" />,
         },
       ],
     },

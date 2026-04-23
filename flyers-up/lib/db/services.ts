@@ -3,6 +3,8 @@
  * Use createServerSupabaseClient or createAdminSupabaseClient.
  */
 
+import { isProMatchableForCustomerListing } from '@/lib/marketplace/proMatchable';
+
 export interface Service {
   id: string;
   slug: string;
@@ -198,7 +200,9 @@ export async function getMarketplacePros(
 
     const { data: pros, error } = await supabase
       .from('service_pros')
-      .select('id, user_id, display_name, bio, rating, review_count, starting_price, location, logo_url, business_hours, service_radius')
+      .select(
+        'id, user_id, display_name, bio, rating, review_count, starting_price, location, logo_url, business_hours, service_radius, is_verified, is_paused, is_active_this_week, closed_at, last_confirmed_available_at, last_matched_at, recent_response_score'
+      )
       .in('id', ids)
       .eq('available', true)
       .order('rating', { ascending: false })
@@ -211,6 +215,18 @@ export async function getMarketplacePros(
 
     let prosList = (pros ?? []) as Record<string, unknown>[];
     prosList = await filterMarketplaceProsExcludeClosedAccounts(prosList);
+    prosList = prosList.filter((p) =>
+      isProMatchableForCustomerListing({
+        is_verified: Boolean(p.is_verified),
+        is_paused: Boolean(p.is_paused),
+        is_active_this_week: p.is_active_this_week != null ? Boolean(p.is_active_this_week) : false,
+        available: p.available != null ? Boolean(p.available) : true,
+        closed_at: p.closed_at != null ? String(p.closed_at) : null,
+        last_confirmed_available_at: p.last_confirmed_available_at != null ? String(p.last_confirmed_available_at) : null,
+        last_matched_at: p.last_matched_at != null ? String(p.last_matched_at) : null,
+        recent_response_score: p.recent_response_score as number | string | null,
+      })
+    );
     const profilePhotoUrls = await getProfilePhotoUrlsForPros(supabase, prosList);
     return prosList.map((p) => ({
       id: p.id,
@@ -237,7 +253,9 @@ export async function getMarketplacePros(
 
   const { data: prosData, error: prosError } = await supabase
     .from('service_pros')
-    .select('id, user_id, display_name, bio, rating, review_count, starting_price, location, logo_url, business_hours, service_radius')
+    .select(
+      'id, user_id, display_name, bio, rating, review_count, starting_price, location, logo_url, business_hours, service_radius, is_verified, is_paused, is_active_this_week, closed_at, last_confirmed_available_at, last_matched_at, recent_response_score'
+    )
     .or(orFilter)
     .eq('available', true)
     .order('rating', { ascending: false })
@@ -250,6 +268,18 @@ export async function getMarketplacePros(
 
   let prosList = (prosData ?? []) as Record<string, unknown>[];
   prosList = await filterMarketplaceProsExcludeClosedAccounts(prosList);
+  prosList = prosList.filter((p) =>
+    isProMatchableForCustomerListing({
+      is_verified: Boolean(p.is_verified),
+      is_paused: Boolean(p.is_paused),
+      is_active_this_week: p.is_active_this_week != null ? Boolean(p.is_active_this_week) : false,
+      available: p.available != null ? Boolean(p.available) : true,
+      closed_at: p.closed_at != null ? String(p.closed_at) : null,
+      last_confirmed_available_at: p.last_confirmed_available_at != null ? String(p.last_confirmed_available_at) : null,
+      last_matched_at: p.last_matched_at != null ? String(p.last_matched_at) : null,
+      recent_response_score: p.recent_response_score as number | string | null,
+    })
+  );
   const profilePhotoUrls = await getProfilePhotoUrlsForPros(supabase, prosList);
   return prosList.map((p) => ({
     id: p.id,

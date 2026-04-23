@@ -6,6 +6,8 @@ import Image from 'next/image';
 import { use, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser } from '@/lib/api';
+import { useCategoryGate, visibleStateFromGate } from '@/hooks/useCategoryGate';
+import { NYC_BOROUGH_OPTIONS, boroughLabelFromSlug } from '@/lib/marketplace/nycBoroughs';
 import {
   ArrowLeft,
   BadgeCheck,
@@ -99,6 +101,9 @@ export default function ServiceProListPage({ params }: { params: Promise<{ slug:
   const [sortBy, setSortBy] = useState<SortKey>('recommended');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [showFilters, setShowFilters] = useState(false);
+  const [boroughSlug, setBoroughSlug] = useState('brooklyn');
+  const { state: gateState } = useCategoryGate(slug, boroughSlug);
+  const gateMode = visibleStateFromGate(gateState);
   const [onlyTopRated, setOnlyTopRated] = useState(false);
   const [onlyAvailabilityPosted, setOnlyAvailabilityPosted] = useState(false);
   const [maxStartingPrice, setMaxStartingPrice] = useState<number | null>(null);
@@ -258,6 +263,28 @@ export default function ServiceProListPage({ params }: { params: Promise<{ slug:
               <div className="min-w-0 flex-1">
                 <h1 className="text-lg font-semibold text-text truncate">{serviceName}</h1>
                 <p className="text-xs text-muted">Browse trusted local pros</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <label className="text-[11px] text-muted whitespace-nowrap" htmlFor="borough-select">
+                    Borough
+                  </label>
+                  <select
+                    id="borough-select"
+                    value={boroughSlug}
+                    onChange={(e) => setBoroughSlug(e.target.value)}
+                    className="h-8 rounded-lg border border-border bg-surface px-2 text-xs text-text"
+                  >
+                    {NYC_BOROUGH_OPTIONS.map((b) => (
+                      <option key={b.slug} value={b.slug}>
+                        {b.label}
+                      </option>
+                    ))}
+                  </select>
+                  {gateMode !== 'legacy' && gateMode !== 'unlisted' ? (
+                    <span className="text-[11px] rounded-full bg-surface2 px-2 py-0.5 text-muted">
+                      Supply: {gateMode}
+                    </span>
+                  ) : null}
+                </div>
               </div>
             </div>
 
@@ -424,6 +451,50 @@ export default function ServiceProListPage({ params }: { params: Promise<{ slug:
           </div>
 
           <div className="py-4">
+            {gateMode === 'unlisted' ? (
+              <div className="rounded-2xl border border-border bg-surface p-8 text-center space-y-3">
+                <h2 className="text-lg font-semibold text-text">Not available in {boroughLabelFromSlug(boroughSlug)}</h2>
+                <p className="text-sm text-muted">
+                  This service is hidden in this borough right now (supply gate). Try another borough or request help
+                  finding a pro.
+                </p>
+                <Link
+                  href={`/customer/match?serviceSlug=${encodeURIComponent(slug)}&borough=${encodeURIComponent(boroughSlug)}`}
+                  className="inline-flex rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accentContrast hover:opacity-95"
+                >
+                  Request this service
+                </Link>
+              </div>
+            ) : null}
+
+            {gateMode === 'weak' ? (
+              <div className="mb-5 rounded-2xl border-2 border-accent/50 bg-accent/10 p-5 shadow-sm">
+                <p className="text-base font-bold text-text">Limited supply in {boroughLabelFromSlug(boroughSlug)}</p>
+                <p className="mt-2 text-sm text-muted leading-relaxed">
+                  Fewer verified pros are online for this category right now. Getting matched is the fastest path — we
+                  shortlist responders and keep booking below if you prefer to self-serve.
+                </p>
+                <Link
+                  href={`/customer/match?serviceSlug=${encodeURIComponent(slug)}&borough=${encodeURIComponent(boroughSlug)}`}
+                  className="mt-4 flex w-full items-center justify-center rounded-xl bg-accent px-4 py-3.5 text-center text-base font-bold text-accentContrast shadow-sm hover:opacity-95"
+                >
+                  Get matched (recommended)
+                </Link>
+              </div>
+            ) : null}
+
+            {gateMode === 'strong' ? (
+              <div className="mb-3 text-right">
+                <Link
+                  href={`/customer/match?serviceSlug=${encodeURIComponent(slug)}&borough=${encodeURIComponent(boroughSlug)}`}
+                  className="text-xs font-medium text-accent hover:underline"
+                >
+                  Need help choosing? Get matched
+                </Link>
+              </div>
+            ) : null}
+
+            {gateMode === 'unlisted' ? null : (
             <div className="flex items-center justify-between gap-3 mb-3">
               <p className="text-sm text-muted">
                 {loading ? 'Loading results…' : `${filteredPros.length} pro${filteredPros.length === 1 ? '' : 's'} near ${locationQuery || 'you'}`}
@@ -488,12 +559,20 @@ export default function ServiceProListPage({ params }: { params: Promise<{ slug:
                 </div>
               </div>
             ) : filteredPros.length === 0 ? (
-              <div className="rounded-2xl border border-border bg-surface p-8 text-center">
+              <div className="rounded-2xl border border-border bg-surface p-8 text-center space-y-3">
                 <h2 className="text-lg font-semibold text-text">No matching pros</h2>
                 <p className="text-sm text-muted mt-1">
                   Try removing filters or searching another service nearby.
                 </p>
-                <div className="mt-4 flex items-center justify-center gap-2">
+                {(gateMode === 'strong' || gateMode === 'weak' || gateMode === 'legacy') && (
+                  <Link
+                    href={`/customer/match?serviceSlug=${encodeURIComponent(slug)}&borough=${encodeURIComponent(boroughSlug)}`}
+                    className="inline-flex w-full max-w-sm justify-center rounded-xl bg-accent px-4 py-3 text-sm font-bold text-accentContrast hover:opacity-95"
+                  >
+                    Get matched — we&apos;ll find a vetted pro
+                  </Link>
+                )}
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -509,7 +588,7 @@ export default function ServiceProListPage({ params }: { params: Promise<{ slug:
                   </button>
                   <Link
                     href="/occupations"
-                    className="rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-accentContrast hover:opacity-95"
+                    className="rounded-xl border border-border px-3 py-2 text-sm font-semibold text-text hover:bg-surface2"
                   >
                     Browse occupations
                   </Link>
@@ -521,6 +600,7 @@ export default function ServiceProListPage({ params }: { params: Promise<{ slug:
                   <ProResultCard key={pro.id} pro={pro} slug={slug} selectedSubcategorySlug={selectedSubcategorySlug} />
                 ))}
               </div>
+            )
             )}
           </div>
         </div>
