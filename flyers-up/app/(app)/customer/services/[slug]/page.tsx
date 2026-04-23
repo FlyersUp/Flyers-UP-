@@ -495,29 +495,32 @@ export default function ServiceProListPage({ params }: { params: Promise<{ slug:
             ) : null}
 
             {gateMode === 'unlisted' ? null : (
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <p className="text-sm text-muted">
-                {loading ? 'Loading results…' : `${filteredPros.length} pro${filteredPros.length === 1 ? '' : 's'} near ${locationQuery || 'you'}`}
-              </p>
-              <div className="relative">
-                <SlidersHorizontal className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortKey)}
-                  className="h-9 pl-8 pr-8 rounded-lg border border-border bg-surface text-sm text-text appearance-none focus:outline-none focus:ring-2 focus:ring-accent/25"
-                  aria-label="Sort results"
-                >
-                  {SORT_OPTIONS.map((opt) => (
-                    <option key={opt.key} value={opt.key}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+              <>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <p className="text-sm text-muted">
+                    {loading
+                      ? 'Loading results…'
+                      : `${filteredPros.length} pro${filteredPros.length === 1 ? '' : 's'} near ${locationQuery || 'you'}`}
+                  </p>
+                  <div className="relative">
+                    <SlidersHorizontal className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as SortKey)}
+                      className="h-9 pl-8 pr-8 rounded-lg border border-border bg-surface text-sm text-text appearance-none focus:outline-none focus:ring-2 focus:ring-accent/25"
+                      aria-label="Sort results"
+                    >
+                      {SORT_OPTIONS.map((opt) => (
+                        <option key={opt.key} value={opt.key}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-            {error ? (
+                {error ? (
               <div className="rounded-2xl border border-red-200 dark:border-red-900/40 bg-red-50/70 dark:bg-red-950/20 p-5">
                 <h2 className="text-base font-semibold text-red-800 dark:text-red-300">Couldn&apos;t load marketplace</h2>
                 <p className="text-sm text-red-700 dark:text-red-400 mt-1">{error}</p>
@@ -595,12 +598,18 @@ export default function ServiceProListPage({ params }: { params: Promise<{ slug:
                 </div>
               </div>
             ) : (
-              <div className="space-y-3">
-                {filteredPros.map((pro) => (
-                  <ProResultCard key={pro.id} pro={pro} slug={slug} selectedSubcategorySlug={selectedSubcategorySlug} />
-                ))}
-              </div>
-            )
+                  <div className="space-y-3">
+                    {filteredPros.map((pro) => (
+                      <ProResultCard
+                        key={pro.id}
+                        pro={pro}
+                        slug={slug}
+                        selectedSubcategorySlug={selectedSubcategorySlug}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
