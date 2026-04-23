@@ -9,6 +9,9 @@ export interface ProAvailabilityTableProps {
   rows: ProAvailabilityRow[];
   onToggleActiveWeek?: (id: string, value: boolean) => void;
   onTogglePaused?: (id: string, value: boolean) => void;
+  pendingIds?: Set<string>;
+  /** Row ids that recently saved successfully (brief confirmation). */
+  savedIds?: Set<string>;
   className?: string;
 }
 
@@ -16,6 +19,8 @@ export function ProAvailabilityTable({
   rows,
   onToggleActiveWeek,
   onTogglePaused,
+  pendingIds,
+  savedIds,
   className,
 }: ProAvailabilityTableProps) {
   return (
@@ -33,6 +38,7 @@ export function ProAvailabilityTable({
               <th className="px-4 py-3 text-center">Active week</th>
               <th className="px-4 py-3 text-center">Paused</th>
               <th className="px-4 py-3 text-center">Matchable</th>
+              <th className="px-3 py-3 text-center w-[72px]">Save</th>
             </tr>
           </thead>
           <tbody>
@@ -72,10 +78,16 @@ export function ProAvailabilityTable({
                     checked={r.activeThisWeek}
                     onCheckedChange={(v) => onToggleActiveWeek?.(r.id, v)}
                     aria-label={`Active this week ${r.name}`}
+                    disabled={pendingIds?.has(r.id)}
                   />
                 </td>
                 <td className="px-4 py-3 text-center">
-                  <Switch checked={r.paused} onCheckedChange={(v) => onTogglePaused?.(r.id, v)} aria-label={`Paused ${r.name}`} />
+                  <Switch
+                    checked={r.paused}
+                    onCheckedChange={(v) => onTogglePaused?.(r.id, v)}
+                    aria-label={`Paused ${r.name}`}
+                    disabled={pendingIds?.has(r.id)}
+                  />
                 </td>
                 <td className="px-4 py-3 text-center">
                   <span
@@ -86,6 +98,15 @@ export function ProAvailabilityTable({
                   >
                     {r.matchable ? 'Yes' : 'No'}
                   </span>
+                </td>
+                <td className="px-3 py-3 text-center align-middle">
+                  {savedIds?.has(r.id) ? (
+                    <span className="inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-100">
+                      Saved
+                    </span>
+                  ) : (
+                    <span className="text-text-3">—</span>
+                  )}
                 </td>
               </tr>
             ))}
