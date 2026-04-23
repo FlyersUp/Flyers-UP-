@@ -23,7 +23,7 @@ export interface MatchCandidateProRow {
   jobs_completed: number | null;
   manual_match_priority: number | null;
   last_matched_at: string | null;
-  last_confirmed_available_at?: string | null;
+  last_confirmed_available_at: string | null;
   available: boolean | null;
   closed_at: string | null;
 }

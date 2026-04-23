@@ -113,7 +113,10 @@ function MatchRequestFormInner() {
             <label className="block text-xs font-medium text-muted mb-1">Borough</label>
             <select
               value={boroughSlug}
-              onChange={(e) => setBoroughSlug(e.target.value)}
+              onChange={(e) => {
+                const next = normalizeBoroughSlug(e.target.value);
+                if (next) setBoroughSlug(next);
+              }}
               className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text"
             >
               {NYC_BOROUGH_OPTIONS.map((o) => (
