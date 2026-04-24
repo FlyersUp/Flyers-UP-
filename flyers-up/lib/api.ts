@@ -1737,17 +1737,6 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
     categorySlug = undefined;
   }
 
-  const addonResult = await validateActiveAddonsForProCategory(
-    supabase,
-    proUserId,
-    categorySlug,
-    selectedAddonIds
-  );
-  if (!addonResult.ok) {
-    throw new Error(addonResult.error);
-  }
-  const validatedAddons = addonResult.addons;
-
   let pkgRowForScope: Record<string, unknown> | null = null;
   if (pkgIdTrim) {
     const { data: pkg, error: pkgErr } = await supabase
@@ -1766,6 +1755,21 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
     }
     pkgRowForScope = pkg as Record<string, unknown>;
   }
+
+  const pkgSubScope =
+    (pkgRowForScope?.service_subcategory_id as string | null | undefined)?.trim() || null;
+
+  const addonResult = await validateActiveAddonsForProCategory(
+    supabase,
+    proUserId,
+    categorySlug,
+    selectedAddonIds,
+    { subcategoryScopeId: pkgSubScope }
+  );
+  if (!addonResult.ok) {
+    throw new Error(addonResult.error);
+  }
+  const validatedAddons = addonResult.addons;
 
   const startingPriceCents = Math.round(Number(proRowFull.starting_price ?? 0) * 100);
   const scope = buildNotesAndPackageSnapshotForRequest({
@@ -3520,13 +3524,14 @@ export async function getActiveAddonsForPro(proId: string, serviceCategory: stri
       return [];
     }
 
-    return (data || []).map(addon => ({
+    return (data || []).map((addon) => ({
       id: addon.id,
       proId: addon.pro_id,
       serviceCategory: addon.service_category,
       title: addon.title,
       priceCents: addon.price_cents,
       isActive: addon.is_active,
+      description: (addon as { description?: string | null }).description ?? null,
       createdAt: addon.created_at,
       updatedAt: addon.updated_at,
     }));

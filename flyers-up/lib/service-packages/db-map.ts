@@ -3,7 +3,7 @@ import { normalizeDeliverables } from '@/lib/service-packages/validation';
 
 /** PostgREST select list — avoids `select('*')` on service_packages. */
 export const SERVICE_PACKAGE_DB_SELECT =
-  'id, pro_user_id, title, short_description, base_price_cents, estimated_duration_minutes, deliverables, max_recurring_customer_slots, is_active, sort_order, created_at, updated_at';
+  'id, pro_user_id, title, short_description, base_price_cents, estimated_duration_minutes, deliverables, max_recurring_customer_slots, service_subcategory_id, compare_at_cents, is_active, sort_order, created_at, updated_at';
 
 export function mapServicePackageRow(row: Record<string, unknown>): ServicePackageRow {
   return {
@@ -19,6 +19,16 @@ export function mapServicePackageRow(row: Record<string, unknown>): ServicePacka
     deliverables: normalizeDeliverables(row.deliverables),
     max_recurring_customer_slots: (() => {
       const v = row.max_recurring_customer_slots;
+      if (v == null || v === '') return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    })(),
+    service_subcategory_id:
+      row.service_subcategory_id == null || row.service_subcategory_id === ''
+        ? null
+        : String(row.service_subcategory_id),
+    compare_at_cents: (() => {
+      const v = row.compare_at_cents;
       if (v == null || v === '') return null;
       const n = Number(v);
       return Number.isFinite(n) ? n : null;

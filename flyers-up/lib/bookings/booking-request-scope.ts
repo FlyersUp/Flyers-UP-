@@ -18,11 +18,22 @@ export type ValidatedBookingAddon = {
   price_cents: number;
 };
 
+export function addonRowEligibleForSubcategory(
+  row: { service_subcategory_id?: string | null },
+  subcategoryScopeId: string | null | undefined
+): boolean {
+  const scoped = row.service_subcategory_id?.trim() || null;
+  if (!scoped) return true;
+  const sub = subcategoryScopeId?.trim() || null;
+  return sub != null && scoped === sub;
+}
+
 export async function validateActiveAddonsForProCategory(
   supabase: SupabaseClient,
   proUserId: string,
   categorySlug: string | undefined,
-  selectedAddonIds: string[]
+  selectedAddonIds: string[],
+  opts?: { subcategoryScopeId?: string | null }
 ): Promise<{ ok: true; addons: ValidatedBookingAddon[] } | { ok: false; error: string }> {
   if (!selectedAddonIds.length) return { ok: true, addons: [] };
   if (!categorySlug) {
@@ -31,7 +42,7 @@ export async function validateActiveAddonsForProCategory(
 
   const { data: activeAddons, error: addonsErr } = await supabase
     .from('service_addons')
-    .select('id, title, price_cents')
+    .select('id, title, price_cents, service_subcategory_id')
     .eq('pro_id', proUserId)
     .eq('service_category', categorySlug)
     .eq('is_active', true);
@@ -40,7 +51,15 @@ export async function validateActiveAddonsForProCategory(
     return { ok: false, error: 'Could not validate add-ons. Please try again.' };
   }
 
-  const picked = (activeAddons || []).filter((a) => selectedAddonIds.includes(a.id));
+  const scope = opts?.subcategoryScopeId?.trim() || null;
+  const eligible = (activeAddons || []).filter((a) =>
+    addonRowEligibleForSubcategory(
+      { service_subcategory_id: (a as { service_subcategory_id?: string | null }).service_subcategory_id },
+      scope
+    )
+  );
+
+  const picked = eligible.filter((a) => selectedAddonIds.includes(a.id));
   if (picked.length !== selectedAddonIds.length) {
     return { ok: false, error: 'One or more selected add-ons are no longer available.' };
   }

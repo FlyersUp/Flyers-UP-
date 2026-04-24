@@ -3,20 +3,12 @@
 /**
  * Booking Form Component
  * Handles the booking request submission
- * 
- * Uses Supabase for creating bookings.
- * Shows Quick Rules sheet on first booking request.
- * 
- * FUTURE IMPROVEMENTS:
- * - Add form validation library (e.g., react-hook-form + zod)
- * - Add date/time picker component
- * - Add address autocomplete
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getCurrentUser, getActiveAddonsForPro, type ServicePro, type ServiceAddon } from '@/lib/api';
+import { getCurrentUser, type ServicePro } from '@/lib/api';
 import { createBookingWithPayment } from '@/app/actions/bookings';
 import { trackGaEvent } from '@/lib/analytics/trackGa';
 import { trackProductAnalyticsEvent } from '@/lib/analytics/productEvents';
@@ -25,6 +17,11 @@ import { DEFAULT_BOOKING_TIMEZONE, earliestCustomerBookableDateIso } from '@/lib
 import { CustomerProAvailabilityCalendar } from '@/components/booking/CustomerProAvailabilityCalendar';
 import { ProPackagesPicker } from '@/components/booking/ProPackagesPicker';
 import { useLaunchMode } from '@/hooks/useLaunchMode';
+import type { ServicePackagePublic } from '@/types/service-packages';
+import { BookingRequestPriceSummary } from '@/components/booking/BookingRequestPriceSummary';
+import { computeMarketplaceFees, resolveMarketplacePricingVersionForBooking } from '@/lib/pricing/fees';
+import { getFeeProfileForOccupationSlug } from '@/lib/pricing/category-config';
+import { applyMinimumBookingSubtotal } from '@/lib/pricing/config';
 
 interface Subcategory {
   id: string;
@@ -34,23 +31,23 @@ interface Subcategory {
   sort_order?: number;
 }
 
+type BookingOptionAddon = {
+  id: string;
+  title: string;
+  description: string | null;
+  price_cents: number;
+  service_subcategory_id: string | null;
+};
+
 interface BookingFormProps {
   pro: ServicePro;
-  /** Pre-select subcategory when coming from marketplace (e.g. ?subcategorySlug=30-min-walk) */
   initialSubcategorySlug?: string;
-  /** Service context when coming from marketplace (e.g. ?serviceSlug=pet-care) - filters subcategories and add-ons */
   serviceSlug?: string;
-  /** Pre-fill address (e.g. from Rebook Same Pro) */
   initialAddress?: string;
-  /** Pre-fill notes (e.g. from Rebook Same Pro) */
   initialNotes?: string;
-  /** Previous booking ID when rebooking - records rebook_event on success */
   previousBookingId?: string;
-  /** Force Quick Rules sheet to show (for testing) */
   forceQuickRules?: boolean;
-  /** Pre-select a service package (e.g. from pro profile link) */
   initialPackageId?: string;
-  /** From ?recurring=1 — surfaces recurring entry without changing pricing */
   recurringFromUrl?: boolean;
 }
 
@@ -70,12 +67,15 @@ export default function BookingForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [addons, setAddons] = useState<ServiceAddon[]>([]);
+  const [bookingAddons, setBookingAddons] = useState<BookingOptionAddon[]>([]);
+  const [bookingPackages, setBookingPackages] = useState<ServicePackagePublic[]>([]);
+  const [occupationSlugForFees, setOccupationSlugForFees] = useState<string | null>(null);
+  const [bookingOptionsLoading, setBookingOptionsLoading] = useState(() => !launchMode);
+  const [customerUserId, setCustomerUserId] = useState<string | null>(null);
   const [selectedAddonIds, setSelectedAddonIds] = useState<Set<string>>(new Set());
   const [quickRulesOpen, setQuickRulesOpen] = useState(false);
   const pendingSubmitRef = useRef(false);
 
-  // Form state
   const [formData, setFormData] = useState({
     date: '',
     time: '',
@@ -84,7 +84,6 @@ export default function BookingForm({
     subcategoryId: '' as string,
   });
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(initialPackageId?.trim() || null);
-  /** Pro calendar IANA zone from availability APIs — keeps min date aligned with server slot logic. */
   const [bookingWallTimezone, setBookingWallTimezone] = useState(DEFAULT_BOOKING_TIMEZONE);
 
   const sameDayEnabled = Boolean(pro.sameDayAvailable);
@@ -124,7 +123,6 @@ export default function BookingForm({
         if (data?.ok && Array.isArray(data.subcategories)) {
           const subs = data.subcategories as Subcategory[];
           setSubcategories(subs);
-          // Pre-select from URL when coming from marketplace (e.g. pet-care 30-min-walk)
           if (initialSubcategorySlug && subs.length > 0) {
             const match = subs.find((s) => s.slug === initialSubcategorySlug);
             if (match) {
@@ -149,24 +147,177 @@ export default function BookingForm({
     );
   }, [launchMode, subcategories]);
 
+  const selectedPackage = useMemo(
+    () => bookingPackages.find((p) => p.id === selectedPackageId) ?? null,
+    [bookingPackages, selectedPackageId]
+  );
+
+  const effectiveSubcategoryIdForOptions =
+    formData.subcategoryId ||
+    (selectedPackage?.service_subcategory_id?.trim() ? selectedPackage.service_subcategory_id : '');
+
   useEffect(() => {
-    const cat = effectiveServiceSlug ?? pro.categorySlug;
-    if (!cat) return;
     if (launchMode) {
-      setAddons([]);
+      setBookingAddons([]);
+      setBookingPackages([]);
+      setOccupationSlugForFees(null);
+      setBookingOptionsLoading(false);
       return;
     }
-    getActiveAddonsForPro(pro.id, cat).then(setAddons);
-  }, [pro.id, pro.categorySlug, effectiveServiceSlug, launchMode]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+    let cancelled = false;
+    const load = async () => {
+      setBookingOptionsLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (effectiveServiceSlug) params.set('serviceSlug', effectiveServiceSlug);
+        if (effectiveSubcategoryIdForOptions) params.set('subcategoryId', effectiveSubcategoryIdForOptions);
+        const qs = params.toString();
+        const res = await fetch(
+          `/api/pros/${encodeURIComponent(pro.id)}/booking-options${qs ? `?${qs}` : ''}`,
+          { credentials: 'include' }
+        );
+        const j = await res.json();
+        if (cancelled) return;
+        if (res.ok && j.ok) {
+          setBookingAddons(Array.isArray(j.addons) ? j.addons : []);
+          setBookingPackages(Array.isArray(j.packages) ? j.packages : []);
+          setOccupationSlugForFees(typeof j.occupationSlug === 'string' ? j.occupationSlug : null);
+        } else {
+          setBookingAddons([]);
+          setBookingPackages([]);
+        }
+      } catch {
+        if (!cancelled) {
+          setBookingAddons([]);
+          setBookingPackages([]);
+        }
+      } finally {
+        if (!cancelled) setBookingOptionsLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [pro.id, effectiveServiceSlug, effectiveSubcategoryIdForOptions, launchMode]);
+
+  useEffect(() => {
+    const allowed = new Set(bookingAddons.map((a) => a.id));
+    setSelectedAddonIds((prev) => {
+      const next = new Set([...prev].filter((id) => allowed.has(id)));
+      return next.size === prev.size && [...prev].every((id) => next.has(id)) ? prev : next;
+    });
+  }, [bookingAddons]);
+
+  useEffect(() => {
+    let mounted = true;
+    void getCurrentUser().then((u) => {
+      if (mounted) setCustomerUserId(u?.id ?? null);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const minDate = earliestCustomerBookableDateIso(sameDayEnabled, bookingWallTimezone);
+
+  const selectedSubcategoryName = subcategories.find((s) => s.id === formData.subcategoryId)?.name ?? 'Service';
+
+  const addonLinesForSummary = useMemo(() => {
+    return [...selectedAddonIds]
+      .map((id) => {
+        const a = bookingAddons.find((x) => x.id === id);
+        return a ? { id: a.id, title: a.title, priceCents: a.price_cents } : null;
+      })
+      .filter(Boolean) as { id: string; title: string; priceCents: number }[];
+  }, [selectedAddonIds, bookingAddons]);
+
+  const primaryPricingLine = useMemo(() => {
+    if (selectedPackage) {
+      return { label: `Package · ${selectedPackage.title}`, cents: selectedPackage.base_price_cents };
+    }
+    return {
+      label: `Service · ${selectedSubcategoryName}`,
+      cents: Math.round(Number(pro.startingPrice ?? 0) * 100),
+    };
+  }, [selectedPackage, selectedSubcategoryName, pro.startingPrice]);
+
+  const quickRulesReview = useMemo(() => {
+    if (launchMode) return null;
+    const rawBase = Math.max(0, primaryPricingLine.cents);
+    const addonsSum = addonLinesForSummary.reduce((s, a) => s + a.priceCents, 0);
+    const rawSubtotal = rawBase + addonsSum;
+    const minApply = applyMinimumBookingSubtotal({
+      rawSubtotalCents: rawSubtotal,
+      occupationSlug: occupationSlugForFees,
+    });
+    if (!minApply.ok) {
+      return <p className="text-sm text-red-800">{minApply.error}</p>;
+    }
+    const fees = computeMarketplaceFees(
+      minApply.enforcedSubtotalCents,
+      resolveMarketplacePricingVersionForBooking({ customerId: customerUserId }),
+      getFeeProfileForOccupationSlug(occupationSlugForFees)
+    );
+    const fmt = (c: number) =>
+      (Math.max(0, c) / 100).toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    return (
+      <div className="space-y-3 text-sm text-[#111] dark:text-[#F5F7FA]">
+        <p className="text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-white/50">
+          Request summary
+        </p>
+        <div className="flex justify-between gap-2">
+          <span className="text-black/70 dark:text-white/70 shrink min-w-0">{primaryPricingLine.label}</span>
+          <span className="font-semibold tabular-nums shrink-0">{fmt(rawBase)}</span>
+        </div>
+        {addonLinesForSummary.length > 0 ? (
+          <ul className="space-y-1 border-t border-black/10 dark:border-white/10 pt-2">
+            {addonLinesForSummary.map((a) => (
+              <li key={a.id} className="flex justify-between gap-2">
+                <span className="text-black/70 dark:text-white/70">Add-on · {a.title}</span>
+                <span className="tabular-nums">+{fmt(a.priceCents)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="border-t border-black/10 dark:border-white/10 pt-2 space-y-1">
+          <div className="flex justify-between">
+            <span className="text-black/70 dark:text-white/70">Subtotal (pro)</span>
+            <span className="font-semibold tabular-nums">{fmt(minApply.enforcedSubtotalCents)}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-black/60 dark:text-white/55">Marketplace fees</span>
+            <span className="tabular-nums">{fmt(fees.totalFeeCents)}</span>
+          </div>
+          <div className="flex justify-between font-bold pt-1">
+            <span>Your total</span>
+            <span className="text-[#4A69BD] dark:text-[#7BA3E8] tabular-nums">{fmt(fees.totalCustomerCents)}</span>
+          </div>
+          <div className="flex justify-between text-xs text-black/60 dark:text-white/55">
+            <span>Pro earnings (estimate)</span>
+            <span className="tabular-nums font-medium">{fmt(fees.proEarningsCents)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }, [
+    launchMode,
+    primaryPricingLine,
+    addonLinesForSummary,
+    occupationSlugForFees,
+    customerUserId,
+  ]);
 
   const doSubmit = async () => {
     setIsSubmitting(true);
@@ -241,7 +392,6 @@ export default function BookingForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate before showing rules sheet
     if (!formData.date || !formData.time || !formData.address) {
       setError('Please fill in all required fields');
       return;
@@ -276,6 +426,14 @@ export default function BookingForm({
     }
   };
 
+  const hasSubcategorySelection = Boolean(
+    formData.subcategoryId || selectedPackage?.service_subcategory_id?.trim()
+  );
+  const showAddonsSection =
+    !launchMode &&
+    bookingAddons.length > 0 &&
+    (subcategories.length === 0 || hasSubcategorySelection);
+
   return (
     <form onSubmit={handleSubmit} className="min-w-0 max-w-full space-y-6 pb-2">
       {!launchMode && recurringFromUrl ? (
@@ -286,7 +444,9 @@ export default function BookingForm({
           </p>
           <Link
             href={`/customer/recurring/new?proId=${encodeURIComponent(pro.id)}`}
-            onClick={() => trackProductAnalyticsEvent('recurring_booking_started', { pro_id: pro.id, surface: 'booking_form_banner' })}
+            onClick={() =>
+              trackProductAnalyticsEvent('recurring_booking_started', { pro_id: pro.id, surface: 'booking_form_banner' })
+            }
             className="inline-block mt-2 text-sm font-semibold text-[#4A69BD] dark:text-[#7BA3E8] hover:underline"
           >
             Open recurring setup
@@ -294,24 +454,101 @@ export default function BookingForm({
         </div>
       ) : null}
 
-      {/* Error message */}
       {error && (
         <div className="rounded-2xl border border-red-200/80 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
           {error}
         </div>
       )}
 
-      {!launchMode ? (
+      {subcategories.length > 0 && !selectedPackageId && (
+        <div className="space-y-3 rounded-[20px] border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
+          <label className="block text-sm font-semibold text-[#2d3436] dark:text-white">Service type *</label>
+          <div className="space-y-2">
+            {subcategories.map((sub) => (
+              <label
+                key={sub.id}
+                className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#E5E7EB] bg-white p-3 transition-colors hover:border-[#4A69BD]/25 hover:bg-[#F5F6F8]/80 has-[:checked]:border-[#4A69BD] has-[:checked]:bg-[#4A69BD]/8 dark:border-white/12 dark:bg-[#14161c] dark:hover:bg-white/5 dark:has-[:checked]:border-[#4A69BD] dark:has-[:checked]:bg-[#4A69BD]/15"
+              >
+                <input
+                  type="radio"
+                  name="subcategoryId"
+                  value={sub.id}
+                  checked={formData.subcategoryId === sub.id}
+                  onChange={() => {
+                    setSelectedPackageId(null);
+                    setFormData((prev) => ({ ...prev, subcategoryId: sub.id }));
+                  }}
+                  className="mt-1 w-4 h-4 shrink-0 text-accent border-border focus:ring-accent"
+                />
+                <span className="min-w-0">
+                  <span className="text-text font-medium">{sub.name}</span>
+                  {sub.description ? (
+                    <span className="block text-sm text-muted mt-0.5 leading-snug">{sub.description}</span>
+                  ) : null}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showAddonsSection ? (
+        <div className="space-y-3 rounded-[20px] border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
+          <label className="block text-sm font-semibold text-[#2d3436] dark:text-white">Add-ons</label>
+          <p className="text-xs text-[#6B7280] dark:text-white/55">Pick any extras — totals update instantly below.</p>
+          <div className="space-y-2">
+            {bookingAddons.map((addon) => (
+              <label
+                key={addon.id}
+                className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#E5E7EB] bg-white p-3 transition-colors hover:border-[#4A69BD]/25 hover:bg-[#F5F6F8]/80 has-[:checked]:border-[#4A69BD] has-[:checked]:bg-[#4A69BD]/8 dark:border-white/12 dark:bg-[#14161c] dark:hover:bg-white/5 dark:has-[:checked]:border-[#4A69BD] dark:has-[:checked]:bg-[#4A69BD]/15"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedAddonIds.has(addon.id)}
+                  onChange={() => {
+                    const next = new Set(selectedAddonIds);
+                    if (next.has(addon.id)) next.delete(addon.id);
+                    else next.add(addon.id);
+                    setSelectedAddonIds(next);
+                  }}
+                  className="mt-1 w-4 h-4 shrink-0 text-accent border-border focus:ring-accent rounded"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="text-text font-medium">{addon.title}</span>
+                  {addon.description ? (
+                    <span className="block text-sm text-muted mt-0.5 leading-snug">{addon.description}</span>
+                  ) : null}
+                </span>
+                <span className="text-sm font-semibold text-[#4A69BD] dark:text-[#7BA3E8] shrink-0 tabular-nums">
+                  +${(addon.price_cents / 100).toFixed(2)}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {!launchMode && (bookingOptionsLoading || bookingPackages.length > 0) ? (
         <div className="space-y-3 rounded-[20px] border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
           <ProPackagesPicker
-            proId={pro.id}
-            selectedPackageId={selectedPackageId}
-            onSelectPackageId={setSelectedPackageId}
-          />
+              proId={pro.id}
+              selectedPackageId={selectedPackageId}
+              onSelectPackageId={(id) => {
+                setSelectedPackageId(id);
+                if (id) {
+                  const p = bookingPackages.find((x) => x.id === id);
+                  if (p?.service_subcategory_id && subcategories.some((s) => s.id === p.service_subcategory_id)) {
+                    setFormData((prev) => ({ ...prev, subcategoryId: p.service_subcategory_id! }));
+                  }
+                }
+              }}
+              externalPackages={bookingPackages}
+              externalLoading={bookingOptionsLoading}
+            />
           {selectedPackageId ? (
             <p className="text-xs text-muted/90 rounded-lg bg-surface2/60 border border-border/60 px-3 py-2">
-              Service type is hidden because this package defines what you&apos;re booking. Clear the package if you prefer
-              to choose a specific service type instead.
+              This package sets your scope and price. Clear it above if you prefer to choose a single service type
+              instead.
             </p>
           ) : null}
           {selectedPackageId ? (
@@ -325,74 +562,8 @@ export default function BookingForm({
         </div>
       ) : null}
 
-      {/* Subcategory / service type — not needed when a package defines scope */}
-      {subcategories.length > 0 && !selectedPackageId && (
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-[#2d3436] dark:text-white">
-            Service type *
-          </label>
-          <div className="space-y-2">
-            {subcategories.map((sub) => (
-              <label
-                key={sub.id}
-                className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#E5E7EB] bg-white p-3 transition-colors hover:border-[#4A69BD]/25 hover:bg-[#F5F6F8]/80 has-[:checked]:border-[#4A69BD] has-[:checked]:bg-[#4A69BD]/8 dark:border-white/12 dark:bg-[#14161c] dark:hover:bg-white/5 dark:has-[:checked]:border-[#4A69BD] dark:has-[:checked]:bg-[#4A69BD]/15"
-              >
-                <input
-                  type="radio"
-                  name="subcategoryId"
-                  value={sub.id}
-                  checked={formData.subcategoryId === sub.id}
-                  onChange={() => setFormData((prev) => ({ ...prev, subcategoryId: sub.id }))}
-                  className="w-4 h-4 text-accent border-border focus:ring-accent"
-                />
-                <span className="text-text font-medium">{sub.name}</span>
-                {sub.description && (
-                  <span className="text-sm text-muted">— {sub.description}</span>
-                )}
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Add-ons - optional extras the pro offers */}
-      {!launchMode && addons.length > 0 && (
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-[#2d3436] dark:text-white">
-            Add-ons
-          </label>
-          <p className="mb-2 text-xs text-[#6B7280] dark:text-white/55">Optional extras to include with your booking</p>
-          <div className="space-y-2">
-            {addons.map((addon) => (
-              <label
-                key={addon.id}
-                className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-white p-3 transition-colors hover:border-[#4A69BD]/25 hover:bg-[#F5F6F8]/80 has-[:checked]:border-[#4A69BD] has-[:checked]:bg-[#4A69BD]/8 dark:border-white/12 dark:bg-[#14161c] dark:hover:bg-white/5 dark:has-[:checked]:border-[#4A69BD] dark:has-[:checked]:bg-[#4A69BD]/15"
-              >
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedAddonIds.has(addon.id)}
-                    onChange={() => {
-                      const next = new Set(selectedAddonIds);
-                      if (next.has(addon.id)) next.delete(addon.id);
-                      else next.add(addon.id);
-                      setSelectedAddonIds(next);
-                    }}
-                    className="w-4 h-4 text-accent border-border focus:ring-accent rounded"
-                  />
-                  <span className="text-text font-medium">{addon.title}</span>
-                </div>
-                <span className="text-sm font-medium text-text">
-                  +${((addon.priceCents ?? 0) / 100).toFixed(2)}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div>
-        <p className="mb-2 block text-sm font-semibold text-[#2d3436] dark:text-white">Availability *</p>
+      <div className="space-y-3 rounded-[20px] border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_rgba(74,105,189,0.06)] dark:border-white/10 dark:bg-[#1a1d24] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
+        <p className="block text-sm font-semibold text-[#2d3436] dark:text-white">Availability *</p>
         <CustomerProAvailabilityCalendar
           proId={pro.id}
           selectedDate={formData.date}
@@ -436,7 +607,6 @@ export default function BookingForm({
         />
       </div>
 
-      {/* Address field */}
       <div>
         <label htmlFor="address" className="mb-1 block text-sm font-semibold text-[#2d3436] dark:text-white">
           Service Address *
@@ -453,7 +623,6 @@ export default function BookingForm({
         />
       </div>
 
-      {/* Notes field */}
       <div>
         <label htmlFor="notes" className="mb-1 block text-sm font-semibold text-[#2d3436] dark:text-white">
           Additional Notes
@@ -469,7 +638,15 @@ export default function BookingForm({
         />
       </div>
 
-      {/* Submit button */}
+      {!launchMode && (formData.subcategoryId || selectedPackageId) ? (
+        <BookingRequestPriceSummary
+          occupationSlug={occupationSlugForFees}
+          customerUserId={customerUserId}
+          primaryLine={primaryPricingLine}
+          addonLines={addonLinesForSummary}
+        />
+      ) : null}
+
       <button
         type="submit"
         disabled={isSubmitting}
@@ -478,7 +655,6 @@ export default function BookingForm({
         {isSubmitting ? 'Submitting...' : 'Request Booking'}
       </button>
 
-      {/* Info text */}
       <p className="text-center text-xs text-[#6B7280] dark:text-white/55">
         By submitting, you agree to the service terms. The pro will confirm your booking shortly.
       </p>
@@ -488,6 +664,7 @@ export default function BookingForm({
           open={quickRulesOpen}
           onContinue={handleQuickRulesContinue}
           onClose={() => setQuickRulesOpen(false)}
+          bookingReview={quickRulesReview}
         />
       ) : null}
     </form>

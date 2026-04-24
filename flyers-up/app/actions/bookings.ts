@@ -111,7 +111,6 @@ export async function createBookingWithPayment(
     }
 
     // Validate subcategoryId if provided (must be one this pro offers).
-    // Package bookings define scope server-side; never store a subcategory alongside a selected package.
     let validatedSubcategoryId: string | null = null;
     const willUsePackage = Boolean(selectedPackageId?.trim());
     if (!willUsePackage && subcategoryId?.trim()) {
@@ -160,26 +159,6 @@ export async function createBookingWithPayment(
     const proUserId = String((proRow as { user_id: string }).user_id);
     const startingPriceCents = Math.round(Number((proRow as any).starting_price ?? 0) * 100);
 
-    const addonResult = await validateActiveAddonsForProCategory(
-      supabase,
-      proUserId,
-      categorySlug,
-      selectedAddonIds
-    );
-    if (!addonResult.ok) {
-      if (selectedAddonIds.length > 0) {
-        void recordServerErrorEvent({
-          message: 'Booking create: add-on validation failed',
-          severity: 'error',
-          route: 'action:createBookingWithPayment',
-          userId: user.id,
-          meta: { proId, selectedAddonCount: selectedAddonIds.length, error: addonResult.error },
-        });
-      }
-      return { success: false, error: addonResult.error };
-    }
-    const validatedAddons = addonResult.addons;
-
     let pkgRowForScope: Record<string, unknown> | null = null;
     const pkgIdTrim = selectedPackageId?.trim() ?? '';
     if (pkgIdTrim) {
@@ -201,7 +180,49 @@ export async function createBookingWithPayment(
         return { success: false, error: 'This package has an invalid price. Contact the pro or book without a package.' };
       }
       pkgRowForScope = pkg;
+
+      const pkgSub = (pkg.service_subcategory_id as string | null | undefined)?.trim() || null;
+      if (pkgSub) {
+        const { data: pkgLink } = await supabase
+          .from('pro_service_subcategories')
+          .select('subcategory_id')
+          .eq('pro_id', proId)
+          .eq('subcategory_id', pkgSub)
+          .maybeSingle();
+        if (!pkgLink?.subcategory_id) {
+          return { success: false, error: 'Selected package is not available for this pro.' };
+        }
+        if (validatedSubcategoryId && validatedSubcategoryId !== pkgSub) {
+          return { success: false, error: 'This package does not match the selected service type.' };
+        }
+        if (!validatedSubcategoryId) {
+          validatedSubcategoryId = pkgSub;
+        }
+      }
     }
+
+    const addonScopeSubcategoryId = validatedSubcategoryId ?? null;
+
+    const addonResult = await validateActiveAddonsForProCategory(
+      supabase,
+      proUserId,
+      categorySlug,
+      selectedAddonIds,
+      { subcategoryScopeId: addonScopeSubcategoryId }
+    );
+    if (!addonResult.ok) {
+      if (selectedAddonIds.length > 0) {
+        void recordServerErrorEvent({
+          message: 'Booking create: add-on validation failed',
+          severity: 'error',
+          route: 'action:createBookingWithPayment',
+          userId: user.id,
+          meta: { proId, selectedAddonCount: selectedAddonIds.length, error: addonResult.error },
+        });
+      }
+      return { success: false, error: addonResult.error };
+    }
+    const validatedAddons = addonResult.addons;
 
     const scope = buildNotesAndPackageSnapshotForRequest({
       packageRow: pkgRowForScope,

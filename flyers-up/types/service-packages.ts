@@ -12,6 +12,10 @@ export type ServicePackageRow = {
   deliverables: string[];
   /** Cap on distinct recurring customers for this package; null = no package-specific cap. */
   max_recurring_customer_slots: number | null;
+  /** When set, package is offered only for this marketplace service type. */
+  service_subcategory_id: string | null;
+  /** Optional list price (cents) for a "You save …" badge when greater than base_price_cents. */
+  compare_at_cents: number | null;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -61,6 +65,8 @@ export function rowToPublic(row: ServicePackageRow): ServicePackagePublic {
     estimated_duration_minutes,
     deliverables,
     max_recurring_customer_slots,
+    service_subcategory_id,
+    compare_at_cents,
     is_active,
     sort_order,
   } = row;
@@ -72,6 +78,8 @@ export function rowToPublic(row: ServicePackageRow): ServicePackagePublic {
     estimated_duration_minutes,
     deliverables,
     max_recurring_customer_slots,
+    service_subcategory_id,
+    compare_at_cents,
     is_active,
     sort_order,
   };

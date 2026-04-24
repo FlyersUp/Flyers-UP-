@@ -5,7 +5,7 @@
  * 3 bullets + "I understand" checkbox. Buttons: Continue, View full rules.
  * Only shown once per user (localStorage: has_seen_quick_rules).
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
 
@@ -38,9 +38,11 @@ interface QuickRulesSheetProps {
   open: boolean;
   onContinue: () => void;
   onClose: () => void;
+  /** Optional booking recap (service, add-ons, totals) shown above the acknowledgement checkbox. */
+  bookingReview?: ReactNode;
 }
 
-export function QuickRulesSheet({ open, onContinue, onClose }: QuickRulesSheetProps) {
+export function QuickRulesSheet({ open, onContinue, onClose, bookingReview }: QuickRulesSheetProps) {
   const [understood, setUnderstood] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -116,6 +118,11 @@ export function QuickRulesSheet({ open, onContinue, onClose }: QuickRulesSheetPr
             </li>
           ))}
         </ul>
+        {bookingReview ? (
+          <div className="mb-5 max-h-[40vh] overflow-y-auto rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-[#1D2128] p-4">
+            {bookingReview}
+          </div>
+        ) : null}
         <label className="flex items-center gap-3 p-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/50 dark:bg-[#1D2128] cursor-pointer mb-6">
           <input
             type="checkbox"
