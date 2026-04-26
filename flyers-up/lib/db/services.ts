@@ -44,6 +44,10 @@ export interface MarketplacePro {
   service_radius: number | null;
   category_slug: string;
   category_name: string;
+  id_verified?: boolean;
+  jobs_completed?: number;
+  avg_response_minutes?: number | null;
+  avg_rating?: number | null;
 }
 
 /** Create a Supabase client - pass from route/action. */
@@ -201,7 +205,7 @@ export async function getMarketplacePros(
     const { data: pros, error } = await supabase
       .from('service_pros')
       .select(
-        'id, user_id, display_name, bio, rating, review_count, starting_price, location, logo_url, business_hours, service_radius, is_verified, is_paused, is_active_this_week, closed_at, last_confirmed_available_at, last_matched_at, recent_response_score'
+        'id, user_id, display_name, bio, rating, review_count, starting_price, location, logo_url, business_hours, service_radius, identity_verified, jobs_completed, is_verified, is_paused, is_active_this_week, closed_at, last_confirmed_available_at, last_matched_at, recent_response_score'
       )
       .in('id', ids)
       .eq('available', true)
@@ -243,6 +247,10 @@ export async function getMarketplacePros(
       service_radius: p.service_radius ?? null,
       category_slug: service.slug,
       category_name: service.name,
+      id_verified: Boolean(p.identity_verified ?? p.is_verified ?? false),
+      jobs_completed: Number(p.jobs_completed ?? 0),
+      avg_response_minutes: null,
+      avg_rating: Number(p.review_count ?? 0) > 0 ? Number(p.rating) : null,
     })) as MarketplacePro[];
   }
 
@@ -254,7 +262,7 @@ export async function getMarketplacePros(
   const { data: prosData, error: prosError } = await supabase
     .from('service_pros')
     .select(
-      'id, user_id, display_name, bio, rating, review_count, starting_price, location, logo_url, business_hours, service_radius, is_verified, is_paused, is_active_this_week, closed_at, last_confirmed_available_at, last_matched_at, recent_response_score'
+      'id, user_id, display_name, bio, rating, review_count, starting_price, location, logo_url, business_hours, service_radius, identity_verified, jobs_completed, is_verified, is_paused, is_active_this_week, closed_at, last_confirmed_available_at, last_matched_at, recent_response_score'
     )
     .or(orFilter)
     .eq('available', true)
@@ -296,6 +304,10 @@ export async function getMarketplacePros(
     service_radius: p.service_radius ?? null,
     category_slug: service.slug,
     category_name: service.name,
+    id_verified: Boolean(p.identity_verified ?? p.is_verified ?? false),
+    jobs_completed: Number(p.jobs_completed ?? 0),
+    avg_response_minutes: null,
+    avg_rating: Number(p.review_count ?? 0) > 0 ? Number(p.rating) : null,
   })) as MarketplacePro[];
 }
 

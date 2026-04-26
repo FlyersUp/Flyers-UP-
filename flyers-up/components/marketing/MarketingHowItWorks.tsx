@@ -49,7 +49,7 @@ export function MarketingHowItWorks() {
             <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-market-orange text-base font-bold text-white md:mx-0">
               {n}
             </div>
-            <div className="mx-auto mb-4 flex h-fit w-fit items-center justify-center rounded-full bg-market-cloud p-4 text-market-slate ring-1 ring-market-line md:mx-0">
+            <div className="mx-auto mb-4 flex h-fit w-fit items-center justify-center rounded-full bg-blue-50 p-4 text-market-slate ring-1 ring-market-line md:mx-0">
               <Icon className="h-8 w-8 sm:h-9 sm:w-9" />
             </div>
             <h3 className="text-lg font-semibold text-market-slate">{title}</h3>

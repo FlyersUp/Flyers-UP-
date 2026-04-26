@@ -17,6 +17,10 @@ export type ProProfilePro = {
   serviceRadius?: number | null;
   maxDistanceMinutes?: number | null;
   startingPrice?: number;
+  idVerified?: boolean;
+  jobsCompleted?: number;
+  avgResponseMinutes?: number | null;
+  avgRating?: number | null;
 };
 
 interface ProProfileCardProps {
@@ -46,6 +50,13 @@ export default function ProProfileCard({ pro, profileHref, bookHref, messageHref
   });
 
   const isNew = pro.rating == null || pro.reviewsCount == null || pro.reviewsCount === 0;
+  const jobsCompleted = Number(pro.jobsCompleted ?? 0);
+  const hasResponseTime = typeof pro.avgResponseMinutes === 'number' && Number.isFinite(pro.avgResponseMinutes);
+  const hasReviews =
+    pro.avgRating != null &&
+    Number.isFinite(pro.avgRating) &&
+    pro.reviewsCount != null &&
+    pro.reviewsCount > 0;
 
   return (
     <article
@@ -95,6 +106,31 @@ export default function ProProfileCard({ pro, profileHref, bookHref, messageHref
 
         {/* Description */}
         <p className="text-sm text-black/70 line-clamp-1 mb-2">{taglineStr}</p>
+
+        <div className="mb-3 mt-3 grid grid-cols-1 gap-1.5 text-xs text-black/60 sm:grid-cols-2">
+          {pro.idVerified === true ? (
+            <span className="rounded-md bg-emerald-50 px-2.5 py-1 font-medium text-emerald-700 ring-1 ring-emerald-100">
+              ID Verified
+            </span>
+          ) : (
+            <span className="rounded-md bg-black/5 px-2.5 py-1">ID not verified</span>
+          )}
+          {jobsCompleted > 0 ? (
+            <span className="rounded-md bg-black/5 px-2.5 py-1">{jobsCompleted} jobs completed</span>
+          ) : (
+            <span className="rounded-md bg-black/5 px-2.5 py-1">New on Flyers Up</span>
+          )}
+          {hasResponseTime ? (
+            <span className="rounded-md bg-black/5 px-2.5 py-1">Responds in ~{Math.max(1, Math.round(pro.avgResponseMinutes ?? 0))} min</span>
+          ) : null}
+          {hasReviews ? (
+            <span className="rounded-md bg-black/5 px-2.5 py-1">
+              ⭐ {(pro.avgRating ?? 0).toFixed(1)} ({pro.reviewsCount} reviews)
+            </span>
+          ) : (
+            <span className="rounded-md bg-black/5 px-2.5 py-1">No reviews yet</span>
+          )}
+        </div>
 
         {/* Secondary: hours */}
         <p className="text-xs text-black/50 mb-1">{availabilityStr}</p>

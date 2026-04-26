@@ -2,9 +2,8 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
 import { MapPin } from 'lucide-react';
-import { formatTagline, formatAvailability } from './flyerStyles';
+import { formatAvailability } from './flyerStyles';
 
 export type BulletinFlyerPro = {
   id: string;
@@ -19,6 +18,10 @@ export type BulletinFlyerPro = {
   sameDayAvailable?: boolean;
   newReviewsCount?: number;
   justBecameAvailable?: boolean;
+  idVerified?: boolean;
+  jobsCompleted?: number;
+  avgResponseMinutes?: number | null;
+  avgRating?: number | null;
 };
 
 interface BulletinFlyerCardProps {
@@ -45,34 +48,18 @@ function formatPriceRange(price?: number | null): string {
 }
 
 export function BulletinFlyerCard({ pro, profileHref, rotation = 0 }: BulletinFlyerCardProps) {
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const [showNewLabel, setShowNewLabel] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setPrefersReducedMotion(mq.matches);
-    const handler = () => setPrefersReducedMotion(mq.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-
-  useEffect(() => {
-    if (pro.newReviewsCount || pro.justBecameAvailable) {
-      setShowNewLabel(true);
-      const t = setTimeout(() => setShowNewLabel(false), 3000);
-      return () => clearTimeout(t);
-    }
-  }, [pro.newReviewsCount, pro.justBecameAvailable]);
-
-  const taglineStr = formatTagline(pro);
+  const showNewLabel = Boolean(pro.newReviewsCount || pro.justBecameAvailable);
   const availabilityStr = formatAvailability(pro.availability);
   const priceStr = formatPriceRange(pro.startingPrice);
   const availabilityStatus = pro.sameDayAvailable ? 'Available Today' : availabilityStr;
+  const jobsCompleted = Number(pro.jobsCompleted ?? 0);
+  const hasResponseTime = typeof pro.avgResponseMinutes === 'number' && Number.isFinite(pro.avgResponseMinutes);
+  const hasReviews = pro.avgRating != null && pro.reviewsCount != null && pro.reviewsCount > 0;
 
   return (
     <article
       className={`group relative w-full max-w-[280px] justify-self-center transition-all duration-300 ${
-        prefersReducedMotion ? '' : 'hover:-translate-y-1 hover:shadow-xl'
+        'hover:-translate-y-1 hover:shadow-xl'
       }`}
       style={{
         transform: `rotate(${rotation}deg)`,
@@ -141,14 +128,21 @@ export function BulletinFlyerCard({ pro, profileHref, rotation = 0 }: BulletinFl
         </span>
 
         <div className="flex items-center gap-1.5 mb-1">
-          {pro.rating != null && pro.reviewsCount != null && pro.reviewsCount > 0 ? (
+          {hasReviews ? (
             <>
               <span className="text-amber-500 text-sm">⭐</span>
-              <span className="text-sm font-medium text-[#111]">{pro.rating.toFixed(1)}</span>
+              <span className="text-sm font-medium text-[#111]">{(pro.avgRating ?? pro.rating ?? 0).toFixed(1)}</span>
+              <span className="text-xs text-black/50">({pro.reviewsCount} reviews)</span>
             </>
           ) : (
-            <span className="text-xs text-black/50">New</span>
+            <span className="text-xs text-black/50">No reviews yet</span>
           )}
+        </div>
+
+        <div className="mb-2 grid grid-cols-1 gap-1 text-[11px] text-black/60">
+          {pro.idVerified === true ? <span>ID Verified</span> : null}
+          <span>{jobsCompleted > 0 ? `${jobsCompleted} jobs completed` : 'New on Flyers Up'}</span>
+          {hasResponseTime ? <span>Responds in ~{Math.max(1, Math.round(pro.avgResponseMinutes ?? 0))} min</span> : null}
         </div>
 
         {pro.location && (

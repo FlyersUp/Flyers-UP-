@@ -107,6 +107,10 @@ export interface ServicePro {
   businessHours?: string | null;
   serviceRadius?: number | null;
   sameDayAvailable?: boolean;
+  idVerified?: boolean;
+  jobsCompleted?: number;
+  avgResponseMinutes?: number | null;
+  avgRating?: number | null;
 }
 
 export interface PublicProProfile extends ServicePro {
@@ -789,6 +793,16 @@ export async function getProsByCategory(
     profilePhotoUrl: profilePhotoUrls.get(pro.user_id) ?? null,
     businessHours: pro.business_hours || null,
     serviceRadius: pro.service_radius ?? null,
+    idVerified: Boolean(pro.identity_verified ?? pro.is_verified ?? false),
+    jobsCompleted: Number(pro.jobs_completed ?? 0),
+    avgResponseMinutes:
+      typeof pro.avg_response_minutes === 'number' && Number.isFinite(pro.avg_response_minutes)
+        ? Number(pro.avg_response_minutes)
+        : null,
+    avgRating:
+      typeof pro.rating === 'number' && Number.isFinite(pro.rating)
+        ? Number(pro.rating)
+        : null,
   }));
 }
 

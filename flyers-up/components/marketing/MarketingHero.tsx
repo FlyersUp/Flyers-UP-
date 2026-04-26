@@ -1,7 +1,7 @@
 import { HeroIllustration } from '@/components/marketing/HeroIllustration';
 import { MarketingButton } from '@/components/marketing/ui/Button';
 
-const TRUST_BAR_ITEMS = ['Verified Pros', 'Upfront Pricing', 'Clear Expectations', 'Secure Payments'] as const;
+const TRUST_BAR_ITEMS = ['ID Verified', 'Jobs Completed', 'Response Time', 'Real Reviews'] as const;
 
 export function MarketingHero() {
   return (
@@ -12,7 +12,7 @@ export function MarketingHero() {
             Hire reliable local pros without the usual stress.
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-lg text-market-charcoal sm:text-xl">
-            Verified pros, clear pricing, and a simple step-by-step process—from request to completion.
+            Clear trust signals, straightforward pricing, and a simple step-by-step process from request to completion.
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
             <MarketingButton
@@ -34,17 +34,16 @@ export function MarketingHero() {
             No commitment. Compare options. Hire only when you&apos;re ready.
           </p>
           <div
-            className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm font-semibold text-market-slate"
+            className="mt-8 flex flex-wrap items-center justify-center gap-2 text-sm font-semibold text-market-slate"
             role="list"
             aria-label="Trust highlights"
           >
-            {TRUST_BAR_ITEMS.map((label, i) => (
-              <span key={label} className="flex items-center gap-x-3" role="listitem">
-                {i > 0 ? (
-                  <span className="text-market-slate" aria-hidden>
-                    ·
-                  </span>
-                ) : null}
+            {TRUST_BAR_ITEMS.map((label) => (
+              <span
+                key={label}
+                className="inline-flex items-center rounded-full border border-market-line/90 bg-white px-3 py-1.5 shadow-[0_2px_10px_rgba(45,52,54,0.07)]"
+                role="listitem"
+              >
                 <span>{label}</span>
               </span>
             ))}

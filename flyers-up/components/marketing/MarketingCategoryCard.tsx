@@ -31,7 +31,7 @@ export function MarketingCategoryCard({
         </div>
         <h3 className="mt-4 text-lg font-semibold text-market-slate">{name}</h3>
         <p className="mt-1 text-sm leading-relaxed text-market-charcoal">
-          {subtext ?? 'Verified pros. Clear pricing.'}
+          {subtext ?? 'ID verified profiles, jobs completed on Flyers Up, and real customer reviews.'}
         </p>
       </MarketingCard>
     </Link>

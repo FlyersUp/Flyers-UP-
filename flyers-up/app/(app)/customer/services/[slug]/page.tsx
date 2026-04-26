@@ -40,6 +40,10 @@ interface MarketplacePro {
   business_hours: string | null;
   service_radius: number | null;
   bio: string | null;
+  id_verified?: boolean;
+  jobs_completed?: number;
+  avg_response_minutes?: number | null;
+  avg_rating?: number | null;
 }
 
 type SortKey = 'recommended' | 'rating_desc' | 'price_asc' | 'price_desc' | 'reviews_desc';
@@ -628,6 +632,9 @@ function ProResultCard({
   selectedSubcategorySlug: string | null;
 }) {
   const photo = pro.profile_photo_url || pro.logo_url;
+  const jobsCompleted = Number(pro.jobs_completed ?? 0);
+  const hasResponseTime = typeof pro.avg_response_minutes === 'number' && Number.isFinite(pro.avg_response_minutes);
+  const hasReviews = (pro.review_count ?? 0) > 0;
 
   const bookHref = useMemo(() => {
     const base = `/book/${encodeURIComponent(pro.id)}`;
@@ -665,12 +672,23 @@ function ProResultCard({
           </div>
 
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-            <span className="inline-flex items-center gap-1 text-text">
-              <Star size={14} className="text-amber-500 fill-amber-500" />
-              <span className="font-semibold">{pro.rating.toFixed(1)}</span>
-              <span className="text-muted">({pro.review_count})</span>
-            </span>
+            {hasReviews ? (
+              <span className="inline-flex items-center gap-1 text-text">
+                <Star size={14} className="text-amber-500 fill-amber-500" />
+                <span className="font-semibold">{(pro.avg_rating ?? pro.rating).toFixed(1)}</span>
+                <span className="text-muted">({pro.review_count} reviews)</span>
+              </span>
+            ) : (
+              <span className="text-muted">No reviews yet</span>
+            )}
             <span className="text-text font-semibold">From ${pro.starting_price}</span>
+          </div>
+
+          <div className="mt-2 grid grid-cols-1 gap-1 text-xs text-muted sm:grid-cols-2">
+            {pro.id_verified === true ? <span>ID Verified</span> : null}
+            <span>{jobsCompleted > 0 ? `${jobsCompleted} jobs completed` : 'New on Flyers Up'}</span>
+            {hasResponseTime ? <span>Responds in ~{Math.max(1, Math.round(pro.avg_response_minutes ?? 0))} min</span> : null}
+            {hasReviews ? null : <span>No reviews yet</span>}
           </div>
 
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">

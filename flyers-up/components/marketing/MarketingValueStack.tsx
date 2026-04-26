@@ -1,10 +1,10 @@
 import { MarketingSection } from '@/components/marketing/ui/Section';
 
 const items = [
-  { title: 'Verified Pros', body: 'Every pro is reviewed before joining.' },
+  { title: 'ID Verified', body: 'Identity checks are shown on pro profiles when completed.' },
   { title: 'Transparent Pricing', body: 'Know costs upfront.' },
   { title: 'Clear Expectations', body: 'No surprises during the job.' },
-  { title: 'Secure Payments', body: 'Protected transactions.' },
+  { title: 'Real Customer Reviews', body: 'Reviews come from completed Flyers Up jobs.' },
   { title: 'Simple Booking Flow', body: 'From request to completion in one place.' },
 ] as const;
 

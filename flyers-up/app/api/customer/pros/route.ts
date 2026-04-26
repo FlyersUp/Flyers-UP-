@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from('service_pros')
-    .select('id, user_id, display_name, bio, category_id, service_area_zip, rating, review_count, starting_price, location, same_day_available')
+    .select('id, user_id, display_name, bio, category_id, service_area_zip, rating, review_count, starting_price, location, same_day_available, identity_verified, jobs_completed')
     .eq('category_id', category.id)
     .eq('available', true)
     .order('rating', { ascending: false })
@@ -89,6 +89,19 @@ export async function GET(request: NextRequest) {
   }
 
   const proIds = rawProsOpen.map((p: { id: string }) => p.id);
+  const { data: perfRows } = await admin
+    .from('pro_performance_snapshot')
+    .select('pro_id, avg_response_minutes, avg_rating')
+    .in('pro_id', proIds);
+  const perfByPro = new Map(
+    (perfRows ?? []).map((r: { pro_id: string; avg_response_minutes?: number | null; avg_rating?: number | null }) => [
+      r.pro_id,
+      {
+        avgResponseMinutes: r.avg_response_minutes ?? null,
+        avgRating: r.avg_rating ?? null,
+      },
+    ])
+  );
   const { data: reliabilityRows } = await admin
     .from('pro_reliability')
     .select('pro_id, reliability_score, no_show_count_30d, booking_restriction_level')
@@ -104,7 +117,7 @@ export async function GET(request: NextRequest) {
     ])
   );
 
-  let filtered = rawProsOpen.filter((p: { id: string }) => {
+  const filtered = rawProsOpen.filter((p: { id: string }) => {
     const rel = relByPro.get(p.id);
     if (rel?.restricted) return false; // threshold breach: block from search
     if (availableToday && (rel?.noShowCount ?? 0) >= NO_SHOW_THRESHOLD_URGENT) return false; // repeated no-shows disable urgent
@@ -122,20 +135,33 @@ export async function GET(request: NextRequest) {
   });
   prosWithRel.sort((a: { _rankScore: number }, b: { _rankScore: number }) => b._rankScore - a._rankScore);
 
-  const pros = prosWithRel.map((p: any) => ({
-    id: p.id,
-    userId: p.user_id,
-    name: p.display_name ?? 'Pro',
-    bio: p.bio ?? '',
-    categorySlug: category.slug,
-    categoryName: category.name,
-    rating: Number(p.rating) ?? 0,
-    reviewCount: Number(p.review_count) ?? 0,
-    startingPrice: Number(p.starting_price) ?? 0,
-    location: p.location || p.service_area_zip || '',
-    serviceAreaZip: p.service_area_zip ?? null,
-    sameDayAvailable: Boolean(p.same_day_available),
-  }));
+  const pros = prosWithRel.map((p: any) => {
+    const perf = perfByPro.get(p.id);
+    return {
+      id: p.id,
+      userId: p.user_id,
+      name: p.display_name ?? 'Pro',
+      bio: p.bio ?? '',
+      categorySlug: category.slug,
+      categoryName: category.name,
+      rating: Number(p.rating) ?? 0,
+      reviewCount: Number(p.review_count) ?? 0,
+      startingPrice: Number(p.starting_price) ?? 0,
+      location: p.location || p.service_area_zip || '',
+      serviceAreaZip: p.service_area_zip ?? null,
+      sameDayAvailable: Boolean(p.same_day_available),
+      id_verified: Boolean(p.identity_verified ?? false),
+      jobs_completed: Number(p.jobs_completed ?? 0),
+      avg_response_minutes:
+        typeof perf?.avgResponseMinutes === 'number' && Number.isFinite(perf.avgResponseMinutes)
+          ? Number(perf.avgResponseMinutes)
+          : null,
+      avg_rating:
+        typeof perf?.avgRating === 'number' && Number.isFinite(perf.avgRating)
+          ? Number(perf.avgRating)
+          : null,
+    };
+  });
 
   return Response.json(
     { ok: true, pros, categoryName: category.name },
