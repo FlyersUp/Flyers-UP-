@@ -338,6 +338,7 @@ export interface Database {
           last_failure_message?: string | null;
           requires_customer_action_at?: string | null;
           payment_failed_at?: string | null;
+          final_charge_id?: string | null;
           amount_refunded_cents?: number | null;
           amount_paid_cents?: number | null;
           refund_after_payout?: boolean | null;
@@ -350,6 +351,7 @@ export interface Database {
           issue_summary?: string | null;
           admin_hold?: boolean | null;
           admin_hold_reason?: string | null;
+          payout_failure_reason?: string | null;
         };
         Insert: {
           id?: string;
@@ -425,6 +427,7 @@ export interface Database {
           last_failure_message?: string | null;
           requires_customer_action_at?: string | null;
           payment_failed_at?: string | null;
+          final_charge_id?: string | null;
           amount_refunded_cents?: number | null;
           amount_paid_cents?: number | null;
           refund_after_payout?: boolean | null;
@@ -437,6 +440,7 @@ export interface Database {
           issue_summary?: string | null;
           admin_hold?: boolean | null;
           admin_hold_reason?: string | null;
+          payout_failure_reason?: string | null;
         };
         Update: {
           id?: string;
@@ -512,6 +516,7 @@ export interface Database {
           last_failure_message?: string | null;
           requires_customer_action_at?: string | null;
           payment_failed_at?: string | null;
+          final_charge_id?: string | null;
           amount_refunded_cents?: number | null;
           amount_paid_cents?: number | null;
           refund_after_payout?: boolean | null;
@@ -524,6 +529,7 @@ export interface Database {
           issue_summary?: string | null;
           admin_hold?: boolean | null;
           admin_hold_reason?: string | null;
+          payout_failure_reason?: string | null;
         };
       };
       booking_payment_intent_stripe_fees: {

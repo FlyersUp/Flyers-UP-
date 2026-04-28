@@ -13,6 +13,14 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   const authErr = requireCronSecret(req);
   if (authErr) return authErr;
+  const expectedAuth = `Bearer ${process.env.CRON_SECRET ?? ''}`;
+  if (req.headers.get('authorization') !== expectedAuth) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const ua = req.headers.get('user-agent');
+  if (ua && !ua.toLowerCase().includes('vercel-cron')) {
+    return NextResponse.json({ error: 'Unauthorized cron user-agent' }, { status: 401 });
+  }
 
   const admin = createSupabaseAdmin();
   try {
