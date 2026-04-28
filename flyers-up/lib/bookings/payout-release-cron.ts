@@ -12,6 +12,7 @@ type BookingCandidate = {
   pro_earnings_cents: number | null;
   stripe_transfer_id: string | null;
   payout_status: string | null;
+  payout_needs_admin_review?: boolean | null;
   dispute_open: boolean | null;
   dispute_status: string | null;
   refund_status: string | null;
@@ -37,6 +38,7 @@ export type PayoutReleaseCronResult = {
   skipped_ineligible: number;
   stuck_payout_count: number;
   stuck_payout_sample: string[];
+  stuck: number;
 };
 
 function asBookingCandidate(row: unknown): BookingCandidate {
@@ -76,18 +78,51 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
   if (!stripe) {
     throw new Error('STRIPE_SECRET_KEY is not configured.');
   }
+  const now = new Date().toISOString();
+  const stuckCutoffIso = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+
+  const { data: stuckRows, error: stuckSelectError } = await admin
+    .from('bookings')
+    .select('id')
+    .eq('payout_status', 'payout_processing')
+    .is('stripe_transfer_id', null)
+    .not('payout_processing_started_at', 'is', null)
+    .lt('payout_processing_started_at', stuckCutoffIso);
+
+  if (stuckSelectError) {
+    throw new Error(`Failed to detect stuck payouts: ${stuckSelectError.message}`);
+  }
+
+  const stuckIds = (stuckRows ?? []).map((row) => String((row as { id: string }).id));
+  if (stuckIds.length > 0) {
+    const { error: stuckUpdateError } = await admin
+      .from('bookings')
+      .update({
+        payout_status: 'payout_stuck',
+        payout_needs_admin_review: true,
+        payout_stuck_detected_at: now,
+        payout_failure_reason: 'Payout stuck in processing for more than 15 minutes',
+      })
+      .in('id', stuckIds)
+      .is('stripe_transfer_id', null)
+      .eq('payout_status', 'payout_processing');
+    if (stuckUpdateError) {
+      throw new Error(`Failed to mark stuck payouts: ${stuckUpdateError.message}`);
+    }
+  }
 
   const { data, error } = await admin
     .from('bookings')
     .select(
-      'id, pro_id, status, service_status, paid_deposit_at, paid_remaining_at, final_payment_status, pro_earnings_cents, stripe_transfer_id, payout_status, dispute_open, dispute_status, refund_status, payout_blocked, fraud_review, admin_hold, currency, final_charge_id, service_pros!inner(stripe_account_id)'
+      'id, pro_id, status, service_status, paid_deposit_at, paid_remaining_at, final_payment_status, pro_earnings_cents, stripe_transfer_id, payout_status, payout_needs_admin_review, dispute_open, dispute_status, refund_status, payout_blocked, fraud_review, admin_hold, currency, final_charge_id, service_pros!inner(stripe_account_id)'
     )
     .or('status.eq.completed,service_status.eq.completed')
     .not('paid_deposit_at', 'is', null)
     .not('paid_remaining_at', 'is', null)
     .gt('pro_earnings_cents', 0)
     .is('stripe_transfer_id', null)
-    .or('payout_status.is.null,payout_status.neq.payout_processing')
+    .or('payout_status.is.null,payout_status.not.in.(payout_processing,payout_stuck)')
+    .or('payout_needs_admin_review.is.false,payout_needs_admin_review.is.null')
     .or('dispute_open.is.false,dispute_open.is.null')
     .or('admin_hold.is.false,admin_hold.is.null')
     .or('fraud_review.is.false,fraud_review.is.null')
@@ -118,6 +153,8 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
       Number(booking.pro_earnings_cents ?? 0) > 0 &&
       !String(booking.stripe_transfer_id ?? '').trim() &&
       payoutStatus !== 'payout_processing' &&
+      payoutStatus !== 'payout_stuck' &&
+      booking.payout_needs_admin_review !== true &&
       hasNoDispute(booking) &&
       hasNoRefundPending(booking) &&
       hasNoHolds(booking) &&
@@ -133,11 +170,13 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
       .from('bookings')
       .update({
         payout_status: 'payout_processing',
+        payout_processing_started_at: now,
         payout_failure_reason: null,
       })
       .eq('id', bookingId)
       .is('stripe_transfer_id', null)
-      .or('payout_status.is.null,payout_status.neq.payout_processing')
+      .or('payout_status.is.null,payout_status.not.in.(payout_processing,payout_stuck)')
+      .or('payout_needs_admin_review.is.false,payout_needs_admin_review.is.null')
       .select('id')
       .maybeSingle();
 
@@ -174,6 +213,9 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
           payout_transfer_id: transfer.id,
           payout_status: 'paid',
           payout_released_at: now,
+          payout_processing_started_at: null,
+          payout_stuck_detected_at: null,
+          payout_needs_admin_review: false,
           payout_failure_reason: null,
         })
         .eq('id', bookingId);
@@ -196,6 +238,7 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
         .from('bookings')
         .update({
           payout_status: 'payout_failed',
+          payout_processing_started_at: null,
           payout_failure_reason: message.slice(0, 500),
         })
         .eq('id', bookingId);
@@ -213,7 +256,8 @@ export async function runPayoutReleaseCron(admin: SupabaseClient): Promise<Payou
     skipped_immediate_grace: 0,
     skipped_already_released: 0,
     skipped_ineligible: skipped,
-    stuck_payout_count: 0,
-    stuck_payout_sample: [],
+    stuck_payout_count: stuckIds.length,
+    stuck_payout_sample: stuckIds.slice(0, 12),
+    stuck: stuckIds.length,
   };
 }

@@ -98,6 +98,7 @@ export function FlaggedPayoutReviewPageClient() {
         const refunded = isBookingRefundedForAdminPayoutActions(item);
         const releaseMode = getAdminPayoutReleaseCtaMode(item);
         const transferRetry = flaggedPayoutReviewNeedsTransferRetry(item);
+        const isStuck = String(item.payoutStatus ?? '').toLowerCase() === 'payout_stuck';
         return (
         <article
           key={item.bookingId}
@@ -112,7 +113,9 @@ export function FlaggedPayoutReviewPageClient() {
                 >
                   {item.bookingId}
                 </Link>
-                <Pill tone="amber">Under review</Pill>
+                <Pill tone={item.payoutNeedsAdminReview ? 'red' : 'amber'}>
+                  {item.payoutNeedsAdminReview ? 'Needs admin review' : 'Under review'}
+                </Pill>
                 <Pill tone={scan.tone}>{scan.label}</Pill>
               </div>
               <p className="mt-1 text-xs text-muted">
@@ -133,7 +136,16 @@ export function FlaggedPayoutReviewPageClient() {
                   await refetch();
                 }}
               />
-              {releaseMode !== 'hidden' ? (
+              {isStuck ? (
+              <ApprovePayoutNowButton
+                bookingId={item.bookingId}
+                mode="retry_stuck"
+                onReleased={async () => {
+                  await refetch();
+                }}
+              />
+              ) : null}
+              {releaseMode !== 'hidden' && !isStuck ? (
               <ApprovePayoutNowButton
                 bookingId={item.bookingId}
                 mode={releaseMode === 'retry' ? 'retry' : 'approve'}
@@ -195,6 +207,14 @@ export function FlaggedPayoutReviewPageClient() {
             <div>
               <dt className="text-muted text-xs">Queue row status</dt>
               <dd className="font-mono text-xs">{item.queueStatus ?? '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-muted text-xs">Processing started</dt>
+              <dd className="text-xs">{item.payoutProcessingStartedAt ?? '—'}</dd>
+            </div>
+            <div className="sm:col-span-2">
+              <dt className="text-muted text-xs">Failure reason</dt>
+              <dd className="text-xs">{item.payoutFailureReason ?? '—'}</dd>
             </div>
             <div className="sm:col-span-2">
               <dt className="text-xs font-semibold uppercase tracking-wide text-text">System flag</dt>

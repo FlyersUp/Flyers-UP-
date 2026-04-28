@@ -21,6 +21,7 @@ export function flaggedPayoutReviewNeedsTransferRetry(item: FlaggedPayoutReviewI
 
   const ps = String(item.payoutStatus ?? '').toLowerCase();
   if (ps === 'failed') return true;
+  if (ps === 'payout_stuck') return true;
 
   const bps = String(item.bookingPayoutRowStatus ?? '').toLowerCase();
   if (bps === 'failed' || bps === 'reversed') return true;
@@ -34,7 +35,7 @@ export function flaggedPayoutReviewNeedsTransferRetry(item: FlaggedPayoutReviewI
 /** Signals that point to a Stripe Connect transfer failure (vs eligibility / booking-state blocks). */
 export function payoutReviewLooksLikeStripeTransferIssue(item: FlaggedPayoutReviewItem): boolean {
   const ps = String(item.payoutStatus ?? '').toLowerCase();
-  if (ps === 'failed') return true;
+  if (ps === 'failed' || ps === 'payout_stuck') return true;
   const bps = String(item.bookingPayoutRowStatus ?? '').toLowerCase();
   if (bps === 'failed' || bps === 'reversed') return true;
   const re = String(item.queueReleaseError ?? '').trim().toLowerCase();
@@ -89,6 +90,9 @@ export function getAdminPayoutReviewScanPill(item: FlaggedPayoutReviewItem): {
     return { label: 'Released', tone: 'emerald' };
   }
   if (flaggedPayoutReviewNeedsTransferRetry(item)) {
+    if (String(item.payoutStatus ?? '').toLowerCase() === 'payout_stuck') {
+      return { label: 'Needs admin review', tone: 'red' };
+    }
     return { label: 'Retry needed', tone: 'red' };
   }
   const qs = String(item.queueStatus ?? 'pending_review');

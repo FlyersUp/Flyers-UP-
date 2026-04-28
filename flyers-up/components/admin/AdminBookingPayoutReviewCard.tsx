@@ -45,6 +45,7 @@ export function AdminBookingPayoutReviewCard({ bookingId, data, onReleased, onHe
   const refunded = isBookingRefundedForAdminPayoutActions(data);
   const releaseMode = getAdminPayoutReleaseCtaMode(data);
   const transferRetry = flaggedPayoutReviewNeedsTransferRetry(data);
+  const isStuck = String(data.payoutStatus ?? '').toLowerCase() === 'payout_stuck';
 
   return (
     <section className="rounded-[18px] border border-amber-200/80 bg-amber-50/40 p-5 shadow-card dark:border-amber-900/40 dark:bg-amber-950/20">
@@ -66,7 +67,10 @@ export function AdminBookingPayoutReviewCard({ bookingId, data, onReleased, onHe
           <div className="flex flex-shrink-0 flex-wrap items-start justify-end gap-2">
             <KeepPayoutOnHoldButton bookingId={bookingId} onHeld={onHeld} />
             <RefundCustomerButton bookingId={bookingId} onRefunded={onRefunded} />
-            {releaseMode !== 'hidden' ? (
+            {isStuck ? (
+              <ApprovePayoutNowButton bookingId={bookingId} mode="retry_stuck" onReleased={onReleased} />
+            ) : null}
+            {releaseMode !== 'hidden' && !isStuck ? (
               <ApprovePayoutNowButton
                 bookingId={bookingId}
                 mode={releaseMode === 'retry' ? 'retry' : 'approve'}
@@ -85,6 +89,14 @@ export function AdminBookingPayoutReviewCard({ bookingId, data, onReleased, onHe
               : 'Payout release did not complete'}
           </p>
           <p className="mt-1 text-xs leading-relaxed opacity-95">{getAdminPayoutTransferFailureHelper(data)}</p>
+        </div>
+      ) : null}
+      {data.payoutNeedsAdminReview ? (
+        <div className="mt-3 rounded-xl border border-red-200 bg-red-50/90 p-3 text-sm text-red-950 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-100">
+          <p className="font-semibold">Needs admin review</p>
+          <p className="mt-1 text-xs leading-relaxed opacity-95">
+            Booking is blocked from automatic payout retry until an admin reviews and retries safely.
+          </p>
         </div>
       ) : null}
 
@@ -126,6 +138,14 @@ export function AdminBookingPayoutReviewCard({ bookingId, data, onReleased, onHe
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-muted">Payout status (DB)</dt>
           <dd className="mt-0.5 font-mono text-xs">{data.payoutStatus ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Processing started</dt>
+          <dd className="mt-0.5 text-xs">{data.payoutProcessingStartedAt ?? '—'}</dd>
+        </div>
+        <div className="sm:col-span-2">
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Failure reason</dt>
+          <dd className="mt-0.5 text-xs">{data.payoutFailureReason ?? '—'}</dd>
         </div>
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-muted">Queue row status</dt>

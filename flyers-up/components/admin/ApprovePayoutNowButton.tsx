@@ -14,7 +14,7 @@ type Props = {
   /**
    * `retry` after a failed transfer attempt — same server action as approve, clearer admin label.
    */
-  mode?: 'approve' | 'retry';
+  mode?: 'approve' | 'retry' | 'retry_stuck';
 };
 
 /**
@@ -35,7 +35,7 @@ export function ApprovePayoutNowButton({ bookingId, onReleased, className, mode 
       const res = await fetch(`/api/admin/bookings/${bookingId}/payment-lifecycle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'approve_payout' }),
+        body: JSON.stringify({ action: mode === 'retry_stuck' ? 'retry_payout' : 'approve_payout' }),
       });
       const json = (await res.json().catch(() => ({}))) as ApprovePayoutResponseJson;
       const resolved = resolveApprovePayoutMessage(res, json);
@@ -70,10 +70,10 @@ export function ApprovePayoutNowButton({ bookingId, onReleased, className, mode 
         }
       >
         {loading
-          ? mode === 'retry'
+          ? mode === 'retry' || mode === 'retry_stuck'
             ? 'Retrying…'
             : 'Releasing…'
-          : mode === 'retry'
+          : mode === 'retry' || mode === 'retry_stuck'
             ? 'Retry payout'
             : 'Approve & release payout now'}
       </button>

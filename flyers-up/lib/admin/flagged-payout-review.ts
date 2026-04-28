@@ -13,6 +13,10 @@ export type FlaggedPayoutReviewItem = {
   paymentLifecycleStatus: string | null;
   /** Bookings.payout_status — e.g. failed after a transfer attempt */
   payoutStatus?: string | null;
+  payoutFailureReason?: string | null;
+  payoutNeedsAdminReview?: boolean | null;
+  payoutProcessingStartedAt?: string | null;
+  payoutStuckDetectedAt?: string | null;
   /** Bookings.payout_blocked — hard block until cleared or admin exception release */
   payoutBlocked?: boolean | null;
   payoutReleased?: boolean | null;
@@ -86,6 +90,10 @@ const BOOKING_PAYOUT_REVIEW_SELECT = [
   'suspicious_completion',
   'suspicious_completion_reason',
   'payout_status',
+  'payout_failure_reason',
+  'payout_needs_admin_review',
+  'payout_processing_started_at',
+  'payout_stuck_detected_at',
   'payout_released',
   'payout_transfer_id',
   'stripe_transfer_id',
@@ -185,6 +193,10 @@ async function enrichBookingRowsToItems(
       status: (b.status as string) ?? null,
       paymentLifecycleStatus: (b.payment_lifecycle_status as string) ?? null,
       payoutStatus: (b.payout_status as string) ?? null,
+      payoutFailureReason: (b.payout_failure_reason as string) ?? null,
+      payoutNeedsAdminReview: b.payout_needs_admin_review === true,
+      payoutProcessingStartedAt: (b.payout_processing_started_at as string) ?? null,
+      payoutStuckDetectedAt: (b.payout_stuck_detected_at as string) ?? null,
       payoutReleased: b.payout_released === true,
       payoutTransferId: (b.payout_transfer_id as string) ?? null,
       stripeTransferId: (b.stripe_transfer_id as string) ?? null,
@@ -294,7 +306,7 @@ export async function loadFlaggedPayoutReviewsForAdmin(
   const { data: rows, error } = await admin
     .from('bookings')
     .select(BOOKING_PAYOUT_REVIEW_SELECT)
-    .eq('requires_admin_review', true)
+    .or('requires_admin_review.eq.true,payout_needs_admin_review.eq.true')
     .eq('payout_released', false)
     .order('completed_at', { ascending: false, nullsFirst: false });
 
@@ -313,7 +325,7 @@ export async function countFlaggedPayoutReviewsForAdmin(admin: SupabaseClient): 
   const { count, error } = await admin
     .from('bookings')
     .select('id', { count: 'exact', head: true })
-    .eq('requires_admin_review', true)
+    .or('requires_admin_review.eq.true,payout_needs_admin_review.eq.true')
     .eq('payout_released', false);
   if (error) {
     console.error('[countFlaggedPayoutReviewsForAdmin]', error);
@@ -331,7 +343,7 @@ export async function loadBookingPayoutReviewSnapshot(
     .from('bookings')
     .select(BOOKING_PAYOUT_REVIEW_SELECT)
     .eq('id', bookingId)
-    .eq('requires_admin_review', true)
+    .or('requires_admin_review.eq.true,payout_needs_admin_review.eq.true')
     .eq('payout_released', false)
     .maybeSingle();
 

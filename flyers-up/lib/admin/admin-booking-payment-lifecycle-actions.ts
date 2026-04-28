@@ -48,6 +48,33 @@ export type AdminPaymentLifecycleBody = {
   refundInternalNote?: string;
 };
 
+async function findExistingTransferForBooking(
+  stripeClient: Stripe,
+  bookingId: string
+): Promise<{ transferId: string; status: string | null } | null> {
+  const byGroup = await stripeClient.transfers.list({
+    transfer_group: `booking_${bookingId}`,
+    limit: 10,
+  });
+  const firstGroupMatch = byGroup.data.find((t) => typeof t.id === 'string' && t.id.trim().length > 0);
+  if (firstGroupMatch) {
+    const destinationPayment =
+      typeof firstGroupMatch.destination_payment === 'string'
+        ? firstGroupMatch.destination_payment
+        : null;
+    return { transferId: firstGroupMatch.id, status: destinationPayment };
+  }
+
+  const recent = await stripeClient.transfers.list({ limit: 100 });
+  const metaMatch = recent.data.find((t) => String(t.metadata?.booking_id ?? '') === bookingId);
+  if (metaMatch) {
+    const destinationPayment =
+      typeof metaMatch.destination_payment === 'string' ? metaMatch.destination_payment : null;
+    return { transferId: metaMatch.id, status: destinationPayment };
+  }
+  return null;
+}
+
 export type AdminPaymentLifecycleActionContext = {
   admin: SupabaseClient;
   bookingId: string;
@@ -231,6 +258,81 @@ export async function runAdminBookingPaymentLifecycleAction(
           amountTransferredCents: out.amountTransferredCents ?? 0,
           releaseOutcome: out.releaseOutcome ?? null,
           stripeTransferStatus: out.stripeTransferStatus ?? null,
+        },
+      };
+    }
+    case 'retry_payout': {
+      if (!ctx.stripeClient) {
+        return { status: 500, json: { ok: false, error: 'Stripe not configured' } };
+      }
+      const { data: booking, error: bookingErr } = await admin
+        .from('bookings')
+        .select('id, payout_status, stripe_transfer_id, payout_transfer_id, payout_needs_admin_review')
+        .eq('id', id)
+        .maybeSingle();
+      if (bookingErr || !booking) {
+        return { status: 404, json: { ok: false, error: 'not_found' } };
+      }
+      const row = booking as {
+        payout_status?: string | null;
+        stripe_transfer_id?: string | null;
+        payout_transfer_id?: string | null;
+        payout_needs_admin_review?: boolean | null;
+      };
+      const existingOnRow =
+        String(row.stripe_transfer_id ?? '').trim() || String(row.payout_transfer_id ?? '').trim();
+      if (existingOnRow) {
+        return {
+          status: 200,
+          json: {
+            ok: true,
+            status: 'already_has_transfer',
+            transferId: existingOnRow,
+            message: 'Booking already has a payout transfer id; no reset performed.',
+          },
+        };
+      }
+
+      const existingStripeTransfer = await findExistingTransferForBooking(ctx.stripeClient, id);
+      if (existingStripeTransfer) {
+        const now = new Date().toISOString();
+        await admin
+          .from('bookings')
+          .update({
+            stripe_transfer_id: existingStripeTransfer.transferId,
+            payout_transfer_id: existingStripeTransfer.transferId,
+            payout_status: 'paid',
+            payout_released: true,
+            payout_released_at: now,
+            payout_needs_admin_review: false,
+            payout_processing_started_at: null,
+          })
+          .eq('id', id);
+        return {
+          status: 200,
+          json: {
+            ok: true,
+            status: 'resolved_existing_transfer',
+            transferId: existingStripeTransfer.transferId,
+            message: 'Existing Stripe transfer found and linked to booking; no new payout will be created.',
+          },
+        };
+      }
+
+      await admin
+        .from('bookings')
+        .update({
+          payout_status: 'payout_ready',
+          payout_needs_admin_review: false,
+          payout_processing_started_at: null,
+        })
+        .eq('id', id);
+      return {
+        status: 200,
+        json: {
+          ok: true,
+          status: 'payout_ready',
+          message: 'Payout reset to ready after Stripe transfer check. Cron can attempt release on next run.',
         },
       };
     }

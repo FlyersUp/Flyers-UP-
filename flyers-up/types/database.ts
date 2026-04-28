@@ -331,6 +331,9 @@ export interface Database {
           payout_transfer_id?: string | null;
           refunded_at?: string | null;
           customer_review_deadline_at?: string | null;
+          payout_processing_started_at?: string | null;
+          payout_stuck_detected_at?: string | null;
+          payout_needs_admin_review?: boolean | null;
           final_charge_attempted_at?: string | null;
           final_charge_retry_count?: number | null;
           final_payment_retry_reason?: string | null;
@@ -420,6 +423,9 @@ export interface Database {
           payout_transfer_id?: string | null;
           refunded_at?: string | null;
           customer_review_deadline_at?: string | null;
+          payout_processing_started_at?: string | null;
+          payout_stuck_detected_at?: string | null;
+          payout_needs_admin_review?: boolean | null;
           final_charge_attempted_at?: string | null;
           final_charge_retry_count?: number | null;
           final_payment_retry_reason?: string | null;
@@ -509,6 +515,9 @@ export interface Database {
           payout_transfer_id?: string | null;
           refunded_at?: string | null;
           customer_review_deadline_at?: string | null;
+          payout_processing_started_at?: string | null;
+          payout_stuck_detected_at?: string | null;
+          payout_needs_admin_review?: boolean | null;
           final_charge_attempted_at?: string | null;
           final_charge_retry_count?: number | null;
           final_payment_retry_reason?: string | null;
