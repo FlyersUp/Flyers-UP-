@@ -46,6 +46,7 @@ const baseReceipt = (over: Partial<UnifiedBookingReceipt>): UnifiedBookingReceip
   warnings: [],
   addonLineItems: [{ title: 'Deep clean', priceCents: 2000 }],
   ...over,
+  subtotalExplanation: over.subtotalExplanation ?? null,
 });
 
 describe('pricing-view-models', () => {

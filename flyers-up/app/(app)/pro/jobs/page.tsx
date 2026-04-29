@@ -72,6 +72,219 @@ function formatSurgeBadge(mult: number): string {
   return `+${pct}%`;
 }
 
+/** Pre-1.2: hide customer ZIP/radius browse until the feature ships */
+const CUSTOMER_REQUESTS_ENABLED = false;
+
+function OpenJobsUnifiedEmpty() {
+  return (
+    <div className="space-y-4">
+      <DashboardCard>
+        <div className="p-6 text-center">
+          <p className="text-base font-semibold text-gray-900 dark:text-white">No open jobs yet</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+            New jobs will appear here when customers book in your area.
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-3 max-w-md mx-auto">
+            Make sure your profile, ZIP code, and notifications are set up to get matched faster.
+          </p>
+        </div>
+      </DashboardCard>
+      <DashboardCard className="opacity-70 border-dashed">
+        <div className="p-4 text-center">
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Customer Requests (Coming Soon)</p>
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1.5">
+            Soon you&apos;ll be able to browse and accept nearby customer requests instantly.
+          </p>
+        </div>
+      </DashboardCard>
+    </div>
+  );
+}
+
+function CustomerRequestsSection({
+  filterMeta,
+  draftZip,
+  setDraftZip,
+  draftRadius,
+  setDraftRadius,
+  setAppliedZip,
+  setAppliedRadius,
+  customerLoading,
+  customerRequests,
+}: {
+  filterMeta: OpenJobFilterMeta | null;
+  draftZip: string;
+  setDraftZip: (v: string) => void;
+  draftRadius: number;
+  setDraftRadius: (v: number) => void;
+  setAppliedZip: (v: string) => void;
+  setAppliedRadius: (v: number) => void;
+  customerLoading: boolean;
+  customerRequests: CustomerJobRequest[];
+}) {
+  return (
+    <div className="mb-6 space-y-3">
+      <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Customer requests</h2>
+      <p className="text-xs text-gray-600 dark:text-gray-400">
+        Jobs customers post on the app. Filter by ZIP and how far you&apos;ll travel (
+        {filterMeta?.categoryName ?? 'your occupation'} only).
+      </p>
+      {filterMeta?.zipWarning && (
+        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100 text-sm">
+          {filterMeta.zipWarning}
+        </div>
+      )}
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">ZIP code</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={5}
+            value={draftZip}
+            onChange={(e) => setDraftZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
+            placeholder="Your ZIP"
+            className="w-28 px-3 py-2 rounded-lg bg-surface border border-border text-gray-900 dark:text-white text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Radius</label>
+          <select
+            value={draftRadius}
+            onChange={(e) => setDraftRadius(Number(e.target.value))}
+            className="px-3 py-2 rounded-lg bg-surface border border-border text-gray-900 dark:text-white text-sm"
+          >
+            {(filterMeta?.radiusOptions ?? [5, 10, 15, 25, 35, 50]).map((miles) => (
+              <option key={miles} value={miles}>
+                {miles} mi
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setAppliedZip(draftZip.replace(/\D/g, '').slice(0, 5));
+            setAppliedRadius(draftRadius);
+          }}
+          className="px-4 py-2 rounded-lg bg-[#FFC067] text-black font-semibold text-sm hover:opacity-95"
+        >
+          Apply filter
+        </button>
+      </div>
+      {!filterMeta?.profileZip && !filterMeta?.zip && (
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Add a service ZIP in Business settings to default your search, or enter a ZIP above.
+        </p>
+      )}
+      {customerLoading ? (
+        <DashboardSectionSkeleton />
+      ) : customerRequests.length === 0 ? (
+        <DashboardCard>
+          <div className="p-4 text-center text-sm text-gray-600 dark:text-gray-400">
+            No matching customer requests. Try a wider radius or a nearby ZIP.
+          </div>
+        </DashboardCard>
+      ) : (
+        <div className="space-y-2">
+          {customerRequests.map((r) => (
+            <Link key={r.id} href={`/pro/requests/${r.id}`}>
+              <DashboardCard>
+                <div className="p-4 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-900 dark:text-white">{r.title}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                      {r.location_zip && (
+                        <span className="font-medium text-gray-800 dark:text-gray-200">ZIP {r.location_zip} · </span>
+                      )}
+                      {r.location}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1 capitalize">{r.service_category.replace(/-/g, ' ')}</div>
+                  </div>
+                  <span className="text-muted shrink-0">→</span>
+                </div>
+              </DashboardCard>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MarketplaceBoard({
+  boardServices,
+  boardRequests,
+  claimingId,
+  onClaim,
+}: {
+  boardServices: BoardService[];
+  boardRequests: BoardRequest[];
+  claimingId: string | null;
+  onClaim: (requestId: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Marketplace board</h2>
+      <p className="text-xs text-gray-600 dark:text-gray-400 -mt-1 mb-1">
+        Quick-demand listings you can claim from the board.
+      </p>
+      {boardServices.map((svc) => (
+        <DashboardCard key={svc.serviceSlug}>
+          <div className="p-4">
+            <div className="font-semibold text-gray-900 dark:text-white">{formatServiceName(svc.serviceSlug)}</div>
+            <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-600 dark:text-gray-300">
+              <span>{svc.openRequests} open requests</span>
+              <span>•</span>
+              <span>{svc.prosOnline} pros online</span>
+              {svc.surgeMultiplier > 1 && (
+                <>
+                  <span>•</span>
+                  <span className="font-medium text-[#FFC067]">{formatSurgeBadge(svc.surgeMultiplier)} surge</span>
+                </>
+              )}
+            </div>
+            {(svc.basePriceMinCents != null || svc.basePriceMaxCents != null) && (
+              <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                Suggested: ${(svc.basePriceMinCents ?? 0) / 100}–${(svc.basePriceMaxCents ?? 0) / 100}
+              </div>
+            )}
+          </div>
+        </DashboardCard>
+      ))}
+
+      {boardRequests.length > 0 && (
+        <div className="mt-6">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">Demand listings</h2>
+          <div className="space-y-2">
+            {boardRequests.map((r) => (
+              <DashboardCard key={r.id}>
+                <div className="p-4 flex items-center justify-between gap-4">
+                  <div>
+                    <div className="font-medium text-gray-900 dark:text-white">{formatServiceName(r.service_slug)}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      {(r.borough || r.neighborhood) && `${r.borough ?? ''} ${r.neighborhood ?? ''}`.trim()}
+                      {r.final_price_cents > 0 && ` • $${r.final_price_cents / 100}`}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onClaim(r.id)}
+                    disabled={!!claimingId}
+                    className="shrink-0 px-4 py-2 rounded-lg bg-[#FFC067] text-black font-semibold text-sm hover:opacity-95 disabled:opacity-60"
+                  >
+                    {claimingId === r.id ? 'Claiming…' : 'Claim Job'}
+                  </button>
+                </div>
+              </DashboardCard>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProJobsPage() {
   const router = useRouter();
   const [tab, setTab] = useState<'incoming' | 'open'>('open');
@@ -151,7 +364,7 @@ export default function ProJobsPage() {
   }, [ready]);
 
   useEffect(() => {
-    if (!ready || tab !== 'open') return;
+    if (!ready || tab !== 'open' || !CUSTOMER_REQUESTS_ENABLED) return;
     setCustomerLoading(true);
     const qs = new URLSearchParams();
     const z = appliedZip.replace(/\D/g, '').slice(0, 5);
@@ -232,6 +445,14 @@ export default function ProJobsPage() {
       </AppLayout>
     );
   }
+
+  const hasMarketplaceListings = boardServices.length > 0 || boardRequests.length > 0;
+  const customerBlockingLoad = CUSTOMER_REQUESTS_ENABLED && customerLoading;
+  const showOpenJobsUnifiedEmpty =
+    !boardLoading &&
+    !customerBlockingLoad &&
+    (!CUSTOMER_REQUESTS_ENABLED || customerRequests.length === 0) &&
+    !hasMarketplaceListings;
 
   return (
     <AppLayout mode="pro">
@@ -336,172 +557,39 @@ export default function ProJobsPage() {
 
           {tab === 'open' && (
             <>
-              <div className="mb-6 space-y-3">
-                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                  Customer requests
-                </h2>
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Jobs customers post on the app. Filter by ZIP and how far you&apos;ll travel (
-                  {filterMeta?.categoryName ?? 'your occupation'} only).
-                </p>
-                {filterMeta?.zipWarning && (
-                  <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100 text-sm">
-                    {filterMeta.zipWarning}
-                  </div>
-                )}
-                <div className="flex flex-wrap items-end gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">ZIP code</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={5}
-                      value={draftZip}
-                      onChange={(e) => setDraftZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                      placeholder="Your ZIP"
-                      className="w-28 px-3 py-2 rounded-lg bg-surface border border-border text-gray-900 dark:text-white text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Radius</label>
-                    <select
-                      value={draftRadius}
-                      onChange={(e) => setDraftRadius(Number(e.target.value))}
-                      className="px-3 py-2 rounded-lg bg-surface border border-border text-gray-900 dark:text-white text-sm"
-                    >
-                      {(filterMeta?.radiusOptions ?? [5, 10, 15, 25, 35, 50]).map((miles) => (
-                        <option key={miles} value={miles}>
-                          {miles} mi
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAppliedZip(draftZip.replace(/\D/g, '').slice(0, 5));
-                      setAppliedRadius(draftRadius);
-                    }}
-                    className="px-4 py-2 rounded-lg bg-[#FFC067] text-black font-semibold text-sm hover:opacity-95"
-                  >
-                    Apply filter
-                  </button>
-                </div>
-                {!filterMeta?.profileZip && !filterMeta?.zip && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Add a service ZIP in Business settings to default your search, or enter a ZIP above.
-                  </p>
-                )}
-                {customerLoading ? (
-                  <DashboardSectionSkeleton />
-                ) : customerRequests.length === 0 ? (
-                  <DashboardCard>
-                    <div className="p-4 text-center text-sm text-gray-600 dark:text-gray-400">
-                      No matching customer requests. Try a wider radius or a nearby ZIP.
-                    </div>
-                  </DashboardCard>
-                ) : (
-                  <div className="space-y-2">
-                    {customerRequests.map((r) => (
-                      <Link key={r.id} href={`/pro/requests/${r.id}`}>
-                        <DashboardCard>
-                          <div className="p-4 flex items-center justify-between gap-4">
-                            <div className="min-w-0">
-                              <div className="font-medium text-gray-900 dark:text-white">{r.title}</div>
-                              <div className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
-                                {r.location_zip && <span className="font-medium text-gray-800 dark:text-gray-200">ZIP {r.location_zip} · </span>}
-                                {r.location}
-                              </div>
-                              <div className="text-xs text-gray-500 mt-1 capitalize">
-                                {r.service_category.replace(/-/g, ' ')}
-                              </div>
-                            </div>
-                            <span className="text-muted shrink-0">→</span>
-                          </div>
-                        </DashboardCard>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">
-                Marketplace board
-              </h2>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
-                Separate quick-demand listings (different from customer requests above).
-              </p>
-
-              {boardLoading ? (
-                <div className="space-y-4">
-                  <DashboardSectionSkeleton />
-                  <DashboardSectionSkeleton />
-                </div>
+              {showOpenJobsUnifiedEmpty ? (
+                <OpenJobsUnifiedEmpty />
               ) : (
-                <div className="space-y-4">
-                  {boardServices.map((svc) => (
-                    <DashboardCard key={svc.serviceSlug}>
-                      <div className="p-4">
-                        <div className="font-semibold text-gray-900 dark:text-white">{formatServiceName(svc.serviceSlug)}</div>
-                        <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-600 dark:text-gray-300">
-                          <span>{svc.openRequests} open requests</span>
-                          <span>•</span>
-                          <span>{svc.prosOnline} pros online</span>
-                          {svc.surgeMultiplier > 1 && (
-                            <>
-                              <span>•</span>
-                              <span className="font-medium text-[#FFC067]">{formatSurgeBadge(svc.surgeMultiplier)} surge</span>
-                            </>
-                          )}
-                        </div>
-                        {(svc.basePriceMinCents != null || svc.basePriceMaxCents != null) && (
-                          <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                            Suggested: ${(svc.basePriceMinCents ?? 0) / 100}–${(svc.basePriceMaxCents ?? 0) / 100}
-                          </div>
-                        )}
-                      </div>
-                    </DashboardCard>
-                  ))}
-
-                  {boardRequests.length > 0 && (
-                    <div className="mt-6">
-                      <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">
-                        Demand listings
-                      </h2>
-                      <div className="space-y-2">
-                        {boardRequests.map((r) => (
-                          <DashboardCard key={r.id}>
-                            <div className="p-4 flex items-center justify-between gap-4">
-                              <div>
-                                <div className="font-medium text-gray-900 dark:text-white">{formatServiceName(r.service_slug)}</div>
-                                <div className="text-sm text-gray-600 dark:text-gray-400">
-                                  {(r.borough || r.neighborhood) && `${r.borough ?? ''} ${r.neighborhood ?? ''}`.trim()}
-                                  {r.final_price_cents > 0 && ` • $${r.final_price_cents / 100}`}
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleClaim(r.id)}
-                                disabled={!!claimingId}
-                                className="shrink-0 px-4 py-2 rounded-lg bg-[#FFC067] text-black font-semibold text-sm hover:opacity-95 disabled:opacity-60"
-                              >
-                                {claimingId === r.id ? 'Claiming…' : 'Claim Job'}
-                              </button>
-                            </div>
-                          </DashboardCard>
-                        ))}
-                      </div>
+                <>
+                  {CUSTOMER_REQUESTS_ENABLED && (
+                    <CustomerRequestsSection
+                      filterMeta={filterMeta}
+                      draftZip={draftZip}
+                      setDraftZip={setDraftZip}
+                      draftRadius={draftRadius}
+                      setDraftRadius={setDraftRadius}
+                      setAppliedZip={setAppliedZip}
+                      setAppliedRadius={setAppliedRadius}
+                      customerLoading={customerLoading}
+                      customerRequests={customerRequests}
+                    />
+                  )}
+                  {boardLoading ? (
+                    <div className="space-y-4">
+                      <DashboardSectionSkeleton />
+                      <DashboardSectionSkeleton />
                     </div>
+                  ) : (
+                    hasMarketplaceListings && (
+                      <MarketplaceBoard
+                        boardServices={boardServices}
+                        boardRequests={boardRequests}
+                        claimingId={claimingId}
+                        onClaim={handleClaim}
+                      />
+                    )
                   )}
-
-                  {boardServices.length === 0 && !boardLoading && (
-                    <DashboardCard>
-                      <div className="p-6 text-center text-gray-600 dark:text-gray-400">
-                        No marketplace demand listings right now. Customer requests appear in the section above.
-                      </div>
-                    </DashboardCard>
-                  )}
-                </div>
+                </>
               )}
             </>
           )}
