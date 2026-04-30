@@ -9,6 +9,7 @@ import { ConversationCard, type ConversationCardItem } from '@/components/messag
 import { EmptyState } from '@/components/messages/EmptyState';
 import { localCalendarDateToYmd } from '@/lib/datetime';
 import { isAppleAppReviewAccountEmail } from '@/lib/appleAppReviewAccount';
+import Link from 'next/link';
 
 type ThreadRow = ConversationCardItem;
 
@@ -200,12 +201,12 @@ export default function CustomerMessagesPage() {
                   Create any booking as this account: the pro auto-accepts and sends a demo reply. Then open Messages again
                   or go to the booking&apos;s chat from its detail screen.
                 </p>
-                <a
+                <Link
                   href="/occupations"
                   className="mt-3 inline-flex items-center gap-1 font-medium text-amber-900 underline-offset-2 hover:underline dark:text-amber-50"
                 >
                   Browse services
-                </a>
+                </Link>
               </div>
             ) : (
               <EmptyState
