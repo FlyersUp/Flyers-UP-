@@ -30,6 +30,7 @@ import { perfLog, perfLoggingEnabled } from '@/lib/perfBoot';
 import { DateTime } from 'luxon';
 import { DEFAULT_BOOKING_TIMEZONE, todayIsoInBookingTimezone } from '@/lib/datetime';
 import { useLaunchMode } from '@/hooks/useLaunchMode';
+import { isAppleAppReviewAccountEmail } from '@/lib/appleAppReviewAccount';
 
 type ActiveBooking = {
   id: string;
@@ -66,7 +67,7 @@ type FavoritePro = {
 };
 
 const ACTIVE_STATUSES =
-  'requested,pending,accepted,payment_required,pro_en_route,on_the_way,in_progress,completed_pending_payment,awaiting_payment';
+  'requested,pending,accepted,payment_required,awaiting_deposit_payment,deposit_paid,pending_pro_acceptance,accepted_pending_payment,pro_en_route,on_the_way,in_progress,completed_pending_payment,awaiting_payment';
 const COMPLETED_STATUSES = 'completed,paid,awaiting_customer_confirmation';
 
 function formatStatus(s: string): string {
@@ -109,6 +110,8 @@ export default function CustomerDashboard() {
 
   const [favorites, setFavorites] = useState<FavoritePro[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(true);
+  /** Apple Review Demo Mode (reviewer@flyersup.app only) — friendlier empty states. */
+  const [appReviewReviewer, setAppReviewReviewer] = useState(false);
 
   useEffect(() => {
     if (!launchMode) return;
@@ -135,6 +138,7 @@ export default function CustomerDashboard() {
         router.replace(`/auth?next=%2Fcustomer&error=${encodeURIComponent('You are not signed in.')}`);
         return;
       }
+      setAppReviewReviewer(isAppleAppReviewAccountEmail(user.email ?? undefined));
       const fallbackName = (user.email ? user.email.split('@')[0] : 'Account') || 'Account';
       setUserName(fallbackName);
       setUserId(user.id);
@@ -387,13 +391,19 @@ export default function CustomerDashboard() {
             ) : (
               <DashboardCard>
                 <div className="p-5">
-                  <div className="font-semibold text-text">No active booking</div>
-                  <div className="text-sm text-muted mt-1">When you book a pro, it will show here.</div>
+                  <div className="font-semibold text-text">
+                    {appReviewReviewer ? 'Book a demo job (App Store review)' : 'No active booking'}
+                  </div>
+                  <div className="text-sm text-muted mt-1">
+                    {appReviewReviewer
+                      ? 'Location checks are relaxed and demo pros appear in listings. Pick any occupation to walk through booking, messaging, and tracking.'
+                      : 'When you book a pro, it will show here.'}
+                  </div>
                   <Link
                     href="/occupations"
                     className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
                   >
-                    Find a pro <ChevronRight size={16} />
+                    {appReviewReviewer ? 'Browse services' : 'Find a pro'} <ChevronRight size={16} />
                   </Link>
                 </div>
               </DashboardCard>
@@ -529,8 +539,14 @@ export default function CustomerDashboard() {
             ) : (
               <DashboardCard>
                 <div className="p-4">
-                  <div className="text-sm font-medium text-text">No past bookings</div>
-                  <div className="text-xs text-muted mt-0.5">Completed bookings will appear here.</div>
+                  <div className="text-sm font-medium text-text">
+                    {appReviewReviewer ? 'Past bookings (review account)' : 'No past bookings'}
+                  </div>
+                  <div className="text-xs text-muted mt-0.5">
+                    {appReviewReviewer
+                      ? 'Complete a booking with the demo flow, then use “Simulate next step” until completed — it will show here.'
+                      : 'Completed bookings will appear here.'}
+                  </div>
                 </div>
               </DashboardCard>
             )}
@@ -588,8 +604,14 @@ export default function CustomerDashboard() {
             ) : (
               <DashboardCard>
                 <div className="p-4">
-                  <div className="text-sm font-medium text-text">No saved pros yet</div>
-                  <div className="text-xs text-muted mt-0.5">Save pros for quick rebooking.</div>
+                  <div className="text-sm font-medium text-text">
+                    {appReviewReviewer ? 'Saved pros (optional for review)' : 'No saved pros yet'}
+                  </div>
+                  <div className="text-xs text-muted mt-0.5">
+                    {appReviewReviewer
+                      ? 'Book from a pro profile if you want to exercise favorites; otherwise skip this section.'
+                      : 'Save pros for quick rebooking.'}
+                  </div>
                   <Link
                     href="/occupations"
                     className="mt-2 inline-block text-sm text-accent hover:underline"

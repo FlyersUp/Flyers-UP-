@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { getClosedProfileUserIds } from '@/lib/pro/filter-marketplace-pros';
+import { isAppleAppReviewAccountEmail } from '@/lib/appleAppReviewAccount';
+import { fetchAppReviewDemoServicePros, mapDemoProToCustomerApiRow } from '@/lib/appReviewDemoSupply';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const zipcodes = require('zipcodes');
 
@@ -38,6 +40,13 @@ export async function GET(request: NextRequest) {
     return Response.json({ ok: true, pros: [], categoryName: null });
   }
 
+  const {
+    data: { user: sessionUser },
+  } = await supabase.auth.getUser();
+  // Apple Review Demo Mode (reviewer@flyersup.app only): ignore ZIP / radius / same-day supply filters.
+  const appleReviewDemoPros =
+    sessionUser?.email && isAppleAppReviewAccountEmail(sessionUser.email);
+
   const limit = 50;
 
   let query = supabase
@@ -48,11 +57,11 @@ export async function GET(request: NextRequest) {
     .order('rating', { ascending: false })
     .limit(limit);
 
-  if (availableToday) {
+  if (availableToday && !appleReviewDemoPros) {
     query = query.eq('same_day_available', true);
   }
 
-  if (zip) {
+  if (zip && !appleReviewDemoPros) {
     if (radiusMiles === 0) {
       query = query.eq('service_area_zip', zip);
     } else if (zip.length >= 5 && zipcodes.lookup(zip)) {
@@ -73,12 +82,18 @@ export async function GET(request: NextRequest) {
     return Response.json({ ok: false, pros: [], error: error.message }, { status: 500 });
   }
 
-  const rawPros = rows ?? [];
+  let rawPros = rows ?? [];
+  const admin = createAdminSupabaseClient();
+
+  if (appleReviewDemoPros && rawPros.length === 0) {
+    const demos = (await fetchAppReviewDemoServicePros(admin)).filter((p) => p.category_id === category.id);
+    rawPros = demos as typeof rawPros;
+  }
+
   if (rawPros.length === 0) {
     return Response.json({ ok: true, pros: [], categoryName: category.name });
   }
 
-  const admin = createAdminSupabaseClient();
   const closedUserIds = await getClosedProfileUserIds(
     admin,
     rawPros.map((p: { user_id: string }) => p.user_id)
@@ -118,6 +133,7 @@ export async function GET(request: NextRequest) {
   );
 
   const filtered = rawProsOpen.filter((p: { id: string }) => {
+    if (appleReviewDemoPros) return true;
     const rel = relByPro.get(p.id);
     if (rel?.restricted) return false; // threshold breach: block from search
     if (availableToday && (rel?.noShowCount ?? 0) >= NO_SHOW_THRESHOLD_URGENT) return false; // repeated no-shows disable urgent
@@ -135,7 +151,7 @@ export async function GET(request: NextRequest) {
   });
   prosWithRel.sort((a: { _rankScore: number }, b: { _rankScore: number }) => b._rankScore - a._rankScore);
 
-  const pros = prosWithRel.map((p: any) => {
+  let pros = prosWithRel.map((p: any) => {
     const perf = perfByPro.get(p.id);
     return {
       id: p.id,
@@ -162,6 +178,16 @@ export async function GET(request: NextRequest) {
           : null,
     };
   });
+
+  if (appleReviewDemoPros) {
+    const demos = await fetchAppReviewDemoServicePros(admin);
+    const seen = new Set(pros.map((x: { id: string }) => x.id));
+    for (const d of demos) {
+      if (d.category_id !== category.id || seen.has(d.id)) continue;
+      seen.add(d.id);
+      pros.push(mapDemoProToCustomerApiRow(d, { slug: category.slug, name: category.name }));
+    }
+  }
 
   return Response.json(
     { ok: true, pros, categoryName: category.name },

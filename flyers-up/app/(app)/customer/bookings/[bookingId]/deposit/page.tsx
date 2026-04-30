@@ -9,6 +9,7 @@
 import { AppLayout } from '@/components/layouts/AppLayout';
 import Link from 'next/link';
 import { Suspense, use, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
 import {
@@ -21,6 +22,10 @@ import { BookingLoadErrorPage } from '@/components/checkout/BookingLoadErrorPage
 import { QuickRulesSheet } from '@/components/booking/QuickRulesSheet';
 import { bookingConfirmedPath } from '@/lib/bookings/booking-routes';
 import { confirmEmbeddedPayment } from '@/lib/stripe/confirm-embedded-payment';
+import { supabase } from '@/lib/supabaseClient';
+import { isAppleAppReviewAccountEmail } from '@/lib/appleAppReviewAccount';
+import { isStripeTestPublishableKey } from '@/lib/stripe/isStripeTestPublishableKey';
+import { AppReviewTestPaymentBanner } from '@/components/apple-review/AppReviewTestPaymentBanner';
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
   : null;
@@ -157,6 +162,7 @@ function DepositPaymentForm({
 }
 
 function DepositContent({ bookingId }: { bookingId: string }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -164,6 +170,22 @@ function DepositContent({ bookingId }: { bookingId: string }) {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [showAppReviewPaymentCopy, setShowAppReviewPaymentCopy] = useState(false);
+  /** Apple Review Demo Mode (reviewer@flyersup.app only) — skip Stripe deposit and advance server-side. */
+  const [demoDepositBypass, setDemoDepositBypass] = useState(false);
+
+  useEffect(() => {
+    let m = true;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!m) return;
+      setShowAppReviewPaymentCopy(
+        isAppleAppReviewAccountEmail(data.user?.email) && isStripeTestPublishableKey()
+      );
+    });
+    return () => {
+      m = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -172,6 +194,7 @@ function DepositContent({ bookingId }: { bookingId: string }) {
       setError(null);
       setPaymentError(null);
       setErrorStatus(null);
+      setDemoDepositBypass(false);
 
       try {
         // 1. Pre-check: verify booking access
@@ -187,6 +210,13 @@ function DepositContent({ bookingId }: { bookingId: string }) {
           if (preCheckRes.status === 401) {
             setError('Session may have expired. Please sign in again.');
           }
+          setLoading(false);
+          return;
+        }
+
+        const preJson = (await preCheckRes.json()) as { booking?: { appReviewDemo?: boolean } };
+        if (preJson.booking?.appReviewDemo === true) {
+          setDemoDepositBypass(true);
           setLoading(false);
           return;
         }
@@ -255,9 +285,37 @@ function DepositContent({ bookingId }: { bookingId: string }) {
           Back to booking
         </Link>
 
+        {showAppReviewPaymentCopy ? <AppReviewTestPaymentBanner /> : null}
+
         <h1 className="mb-6 text-[1.5rem] font-semibold tracking-tight text-[#222] dark:text-white">
           Pay deposit
         </h1>
+
+        {!loading && demoDepositBypass && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+            <p className="font-semibold">App Store review — skip card entry</p>
+            <p className="mt-1 text-xs opacity-90">
+              Mark the deposit as collected for this demo booking only (no Stripe charge). You can keep using Stripe
+              test mode on non-demo bookings.
+            </p>
+            <button
+              type="button"
+              className="mt-3 w-full rounded-xl bg-amber-600 py-2.5 text-sm font-semibold text-white hover:opacity-95"
+              onClick={async () => {
+                const res = await fetch('/api/apple-review/demo-booking-step', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({ bookingId }),
+                });
+                const j = (await res.json()) as { ok?: boolean };
+                if (res.ok && j.ok) router.replace(`/customer/bookings/${bookingId}`);
+              }}
+            >
+              Continue without Stripe
+            </button>
+          </div>
+        )}
 
         {loading && (
           <div className="space-y-4 animate-pulse">
@@ -298,7 +356,12 @@ function DepositContent({ bookingId }: { bookingId: string }) {
           />
         )}
 
-        {!loading && !error && quoteData && clientSecret && stripePromise && (
+        {!loading &&
+          !error &&
+          !demoDepositBypass &&
+          quoteData &&
+          clientSecret &&
+          stripePromise && (
           <BookingSummaryDeposit
             proName={quoteData.proName}
             proPhotoUrl={quoteData.proPhotoUrl ?? null}

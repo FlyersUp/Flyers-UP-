@@ -9,6 +9,8 @@ import { DashboardCard } from '@/components/dashboard/DashboardCard';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { isAppleAppReviewAccountEmail } from '@/lib/appleAppReviewAccount';
 
 /** All non-terminal pipeline statuses (must stay in sync with booking flow / DB). */
 const ACTIVE_STATUSES = [
@@ -60,6 +62,8 @@ function CustomerBookingsContent() {
   const [activeTab, setActiveTab] = useState<BookingsTab>('active');
   const [loadError, setLoadError] = useState<'auth' | 'network' | 'server' | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  /** Apple Review Demo Mode (reviewer@flyersup.app only) */
+  const [appReviewReviewer, setAppReviewReviewer] = useState(false);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -74,6 +78,9 @@ function CustomerBookingsContent() {
       setLoading(true);
       setLoadError(null);
       try {
+        const { data: auth } = await supabase.auth.getUser();
+        setAppReviewReviewer(isAppleAppReviewAccountEmail(auth.user?.email));
+
         const reqInit = { cache: 'no-store' as const, credentials: 'include' as const };
         const [activeRes, completedRes, cancelledRes] = await Promise.all([
           // Do not filter by service_date: "Active" is workflow state (e.g. deposit paid on a past-dated booking still counts).
@@ -179,18 +186,22 @@ function CustomerBookingsContent() {
           <DashboardCard>
             <div className="p-4">
               <p className="font-semibold text-[#111]">
-                {activeTab === 'active'
-                  ? 'No active bookings'
-                  : activeTab === 'completed'
-                    ? 'No completed bookings'
-                    : 'No cancelled bookings'}
+                {appReviewReviewer && activeTab === 'active'
+                  ? 'App Store review — start a demo booking'
+                  : activeTab === 'active'
+                    ? 'No active bookings'
+                    : activeTab === 'completed'
+                      ? 'No completed bookings'
+                      : 'No cancelled bookings'}
               </p>
               <p className="mt-1 text-sm text-black/60">
-                {activeTab === 'active'
-                  ? 'When you book a pro, it will show up here.'
-                  : activeTab === 'completed'
-                    ? 'Your completed bookings will appear here.'
-                    : 'Cancelled bookings will appear here.'}
+                {appReviewReviewer && activeTab === 'active'
+                  ? 'Listings skip strict location checks for this account. Book any service; the request auto-accepts and you can advance tracking from the booking detail screen.'
+                  : activeTab === 'active'
+                    ? 'When you book a pro, it will show up here.'
+                    : activeTab === 'completed'
+                      ? 'Your completed bookings will appear here.'
+                      : 'Cancelled bookings will appear here.'}
               </p>
               {activeTab === 'active' && (
                 <>
@@ -198,7 +209,7 @@ function CustomerBookingsContent() {
                     href="/occupations"
                     className="mt-4 inline-block text-sm font-medium text-[#111] hover:underline"
                   >
-                    Browse occupations
+                    {appReviewReviewer ? 'Browse services' : 'Browse occupations'}
                   </Link>
                   <span className="mx-2 text-black/50">·</span>
                   <Link

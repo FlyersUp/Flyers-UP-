@@ -33,6 +33,8 @@ import { computeMarketplaceFees, resolveMarketplacePricingVersionForBooking } fr
 import { getSuggestedPriceCents } from '@/lib/pricing/suggestions';
 import { bookingLimiter } from '@/lib/rate-limit';
 import { headers } from 'next/headers';
+import { isAppleAppReviewAccountEmail } from '@/lib/appleAppReviewAccount';
+import { applyAppleReviewDemoPostCreate } from '@/lib/appReviewDemoBooking';
 
 type BookingStatus = 'requested' | 'accepted' | 'declined' | 'completed' | 'cancelled';
 
@@ -85,6 +87,9 @@ export async function createBookingWithPayment(
       return { success: false, error: 'Too many requests. Please try again shortly.' };
     }
 
+    // Apple Review Demo Mode (reviewer@flyersup.app only)
+    const isAppleReviewDemo = isAppleAppReviewAccountEmail(user.email ?? undefined);
+
     // 2) Validate pro exists + get pricing context.
     // Avoid service_categories join (service_pros can have multiple FKs to categories).
     const { data: proRow, error: proErr } = await supabase
@@ -105,7 +110,8 @@ export async function createBookingWithPayment(
     }
 
     const adminClient = createAdminSupabaseClient();
-    const customerBookable = await isServiceProBookableByCustomers(adminClient, proId);
+    const customerBookable =
+      isAppleReviewDemo || (await isServiceProBookableByCustomers(adminClient, proId));
     if (!customerBookable) {
       return { success: false, error: 'Service pro not available.' };
     }
@@ -114,14 +120,18 @@ export async function createBookingWithPayment(
     let validatedSubcategoryId: string | null = null;
     const willUsePackage = Boolean(selectedPackageId?.trim());
     if (!willUsePackage && subcategoryId?.trim()) {
-      const { data: link } = await supabase
-        .from('pro_service_subcategories')
-        .select('subcategory_id')
-        .eq('pro_id', proId)
-        .eq('subcategory_id', subcategoryId.trim())
-        .maybeSingle();
-      if (link?.subcategory_id) {
-        validatedSubcategoryId = link.subcategory_id;
+      if (isAppleReviewDemo) {
+        validatedSubcategoryId = subcategoryId.trim();
+      } else {
+        const { data: link } = await supabase
+          .from('pro_service_subcategories')
+          .select('subcategory_id')
+          .eq('pro_id', proId)
+          .eq('subcategory_id', subcategoryId.trim())
+          .maybeSingle();
+        if (link?.subcategory_id) {
+          validatedSubcategoryId = link.subcategory_id;
+        }
       }
     }
 
@@ -207,7 +217,7 @@ export async function createBookingWithPayment(
       supabase,
       proUserId,
       categorySlug,
-      selectedAddonIds,
+      isAppleReviewDemo ? [] : selectedAddonIds,
       { subcategoryScopeId: addonScopeSubcategoryId }
     );
     if (!addonResult.ok) {
@@ -324,72 +334,81 @@ export async function createBookingWithPayment(
     // 4b) Geocode address for arrival verification (best-effort)
     let addressLat: number | null = null;
     let addressLng: number | null = null;
-    try {
-      const coords = await geocodeAddress(address);
-      if (coords) {
-        addressLat = coords.lat;
-        addressLng = coords.lng;
+    if (!isAppleReviewDemo) {
+      try {
+        const coords = await geocodeAddress(address);
+        if (coords) {
+          addressLat = coords.lat;
+          addressLng = coords.lng;
+        }
+      } catch {
+        // ignore geocode failures
       }
-    } catch {
-      // ignore geocode failures
     }
 
-    let ctxAvail: Awaited<ReturnType<typeof loadComputeContextForProRange>> = null;
-    try {
-      ctxAvail = await loadComputeContextForProRange(adminClient, proId, date, date);
-    } catch (availErr) {
-      void recordServerErrorEvent({
-        message: 'Booking create: availability context load failed',
-        severity: 'error',
-        route: 'action:createBookingWithPayment',
-        userId: user.id,
-        meta: { proId, availErr: availErr instanceof Error ? availErr.message : String(availErr) },
+    let bookingTimezone = DEFAULT_BOOKING_TIMEZONE;
+    let windowUtc = proposedBookingUtcWindow(date, time, bookingTimezone, durationMinutes);
+
+    if (!isAppleReviewDemo) {
+      let ctxAvail: Awaited<ReturnType<typeof loadComputeContextForProRange>> = null;
+      try {
+        ctxAvail = await loadComputeContextForProRange(adminClient, proId, date, date);
+      } catch (availErr) {
+        void recordServerErrorEvent({
+          message: 'Booking create: availability context load failed',
+          severity: 'error',
+          route: 'action:createBookingWithPayment',
+          userId: user.id,
+          meta: { proId, availErr: availErr instanceof Error ? availErr.message : String(availErr) },
+        });
+        return { success: false, error: 'Unable to verify availability. Please try again shortly.' };
+      }
+      if (!ctxAvail) {
+        return { success: false, error: 'Unable to verify availability. Please try again.' };
+      }
+      const firstCheck = assertSlotBookable(date, time, durationMinutes, ctxAvail);
+      if (!firstCheck.ok) {
+        return { success: false, error: firstCheck.reason };
+      }
+      const ctxAvail2 = await loadComputeContextForProRange(adminClient, proId, date, date);
+      if (!ctxAvail2) {
+        return { success: false, error: 'Unable to verify availability. Please try again.' };
+      }
+      const secondCheck = assertSlotBookable(date, time, durationMinutes, ctxAvail2);
+      if (!secondCheck.ok) {
+        return { success: false, error: 'That time was just taken. Please pick another slot.' };
+      }
+
+      bookingTimezone = ctxAvail.zone;
+      windowUtc = proposedBookingUtcWindow(date, time, bookingTimezone, durationMinutes);
+      if (!windowUtc) {
+        return { success: false, error: 'Invalid date or time for booking.' };
+      }
+
+      const { data: conflict, error: rpcErr } = await adminClient.rpc('booking_has_schedule_conflict', {
+        p_pro_id: proId,
+        p_start_utc: windowUtc.startUtcIso,
+        p_end_utc: windowUtc.endUtcIso,
+        p_exclude_booking_id: null,
       });
-      return { success: false, error: 'Unable to verify availability. Please try again shortly.' };
-    }
-    if (!ctxAvail) {
-      return { success: false, error: 'Unable to verify availability. Please try again.' };
-    }
-    const firstCheck = assertSlotBookable(date, time, durationMinutes, ctxAvail);
-    if (!firstCheck.ok) {
-      return { success: false, error: firstCheck.reason };
-    }
-    const ctxAvail2 = await loadComputeContextForProRange(adminClient, proId, date, date);
-    if (!ctxAvail2) {
-      return { success: false, error: 'Unable to verify availability. Please try again.' };
-    }
-    const secondCheck = assertSlotBookable(date, time, durationMinutes, ctxAvail2);
-    if (!secondCheck.ok) {
-      return { success: false, error: 'That time was just taken. Please pick another slot.' };
-    }
-
-    const bookingTimezone = ctxAvail.zone;
-    const windowUtc = proposedBookingUtcWindow(date, time, bookingTimezone, durationMinutes);
-    if (!windowUtc) {
+      if (rpcErr) {
+        void recordServerErrorEvent({
+          message: 'Booking create: schedule conflict RPC failed',
+          severity: 'error',
+          route: 'action:createBookingWithPayment',
+          userId: user.id,
+          meta: { proId, rpcErr: (rpcErr as { message?: string }).message },
+        });
+        return { success: false, error: 'Unable to confirm schedule. Please try again.' };
+      }
+      if (conflict === true) {
+        return {
+          success: false,
+          error: 'That time conflicts with an active booking. Please pick another slot.',
+        };
+      }
+    } else if (!windowUtc) {
       return { success: false, error: 'Invalid date or time for booking.' };
-    }
-
-    const { data: conflict, error: rpcErr } = await adminClient.rpc('booking_has_schedule_conflict', {
-      p_pro_id: proId,
-      p_start_utc: windowUtc.startUtcIso,
-      p_end_utc: windowUtc.endUtcIso,
-      p_exclude_booking_id: null,
-    });
-    if (rpcErr) {
-      void recordServerErrorEvent({
-        message: 'Booking create: schedule conflict RPC failed',
-        severity: 'error',
-        route: 'action:createBookingWithPayment',
-        userId: user.id,
-        meta: { proId, rpcErr: (rpcErr as { message?: string }).message },
-      });
-      return { success: false, error: 'Unable to confirm schedule. Please try again.' };
-    }
-    if (conflict === true) {
-      return {
-        success: false,
-        error: 'That time conflicts with an active booking. Please pick another slot.',
-      };
     }
 
     // 5) Create booking
@@ -423,6 +442,8 @@ export async function createBookingWithPayment(
         suggested_price_cents: suggestedPriceCents,
         was_below_suggestion: wasBelowSuggestion,
         was_below_minimum: wasBelowMinimum,
+        // Apple Review Demo Mode (reviewer@flyersup.app only) — migration 141
+        app_review_demo: isAppleReviewDemo,
       })
       .select('id')
       .single();
@@ -494,6 +515,14 @@ export async function createBookingWithPayment(
     // 8) Snapshot selected add-ons (same validated list as pricing/notes)
     if (validatedAddons.length > 0) {
       await supabase.from('booking_addons').insert(bookingAddonsInsertRows(booking.id, validatedAddons));
+    }
+
+    if (isAppleReviewDemo) {
+      await applyAppleReviewDemoPostCreate(adminClient, {
+        bookingId: booking.id as string,
+        proUserId,
+        customerUserId: user.id,
+      });
     }
 
     return {

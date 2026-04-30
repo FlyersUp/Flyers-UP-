@@ -265,6 +265,8 @@ export interface Database {
         Row: {
           id: string;
           customer_id: string | null;
+          /** Apple App Review demo automation (migration 141); always false for normal users. */
+          app_review_demo?: boolean;
           pro_id: string;
           service_date: string;
           service_time: string;
@@ -359,6 +361,7 @@ export interface Database {
         Insert: {
           id?: string;
           customer_id?: string;
+          app_review_demo?: boolean;
           pro_id: string;
           service_date: string;
           service_time: string;

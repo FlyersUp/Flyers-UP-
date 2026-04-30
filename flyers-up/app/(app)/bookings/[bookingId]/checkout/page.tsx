@@ -33,6 +33,10 @@ import { QuickRulesSheet } from '@/components/booking/QuickRulesSheet';
 import { bookingConfirmedPath } from '@/lib/bookings/booking-routes';
 import { CUSTOMER_PAYMENT_PLATFORM_HOLD_SHORT } from '@/lib/bookings/customer-payment-platform-hold-copy';
 import { confirmEmbeddedPayment } from '@/lib/stripe/confirm-embedded-payment';
+import { supabase } from '@/lib/supabaseClient';
+import { isAppleAppReviewAccountEmail } from '@/lib/appleAppReviewAccount';
+import { isStripeTestPublishableKey } from '@/lib/stripe/isStripeTestPublishableKey';
+import { AppReviewTestPaymentBanner } from '@/components/apple-review/AppReviewTestPaymentBanner';
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -235,6 +239,20 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
     message: string;
     code?: string;
   } | null>(null);
+  const [showAppReviewPaymentCopy, setShowAppReviewPaymentCopy] = useState(false);
+
+  useEffect(() => {
+    let m = true;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!m) return;
+      setShowAppReviewPaymentCopy(
+        isAppleAppReviewAccountEmail(data.user?.email) && isStripeTestPublishableKey()
+      );
+    });
+    return () => {
+      m = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -576,6 +594,8 @@ function CheckoutContent({ bookingId }: { bookingId: string }) {
             </svg>
             Back to booking
           </Link>
+
+          {showAppReviewPaymentCopy ? <AppReviewTestPaymentBanner /> : null}
 
           <h1 className="mb-6 text-[1.625rem] font-bold leading-tight tracking-tight text-[#2d3436] dark:text-white">
             {isFinalPayment ? 'Pay remaining balance' : 'Review & pay deposit'}

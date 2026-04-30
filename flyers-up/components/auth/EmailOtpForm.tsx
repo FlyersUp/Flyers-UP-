@@ -15,6 +15,7 @@ import { OTPInput } from '@/components/auth/OTPInput';
 import { getOrCreateProfile, routeAfterAuth, upsertProfile } from '@/lib/onboarding';
 import { trackGaEvent } from '@/lib/analytics/trackGa';
 import { supabase } from '@/lib/supabaseClient';
+import { isAppleAppReviewAccountEmail } from '@/lib/appleAppReviewAccount';
 
 const TERMS_VERSION = '2026-01-27';
 const RESEND_COOLDOWN_SEC = 60;
@@ -85,6 +86,14 @@ export function EmailOtpForm({ nextPath, createAccountRole }: EmailOtpFormProps)
       return;
     }
 
+    // Apple App Review: reviewer account uses password on /signin — never send OTP to this inbox.
+    if (isAppleAppReviewAccountEmail(trimmedEmail)) {
+      setError(
+        'This is the Apple App Review test account. Open /signin and sign in with email and password instead of requesting a code here.'
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       const { error: otpError } = await supabase.auth.signInWithOtp({
@@ -110,6 +119,12 @@ export function EmailOtpForm({ nextPath, createAccountRole }: EmailOtpFormProps)
 
   const handleResend = async () => {
     if (resendCooldown > 0 || loading || !trimmedEmail) return;
+    if (isAppleAppReviewAccountEmail(trimmedEmail)) {
+      setError(
+        'This is the Apple App Review test account. Use /signin with email and password instead of an email code.'
+      );
+      return;
+    }
     setError(null);
     setLoading(true);
     try {

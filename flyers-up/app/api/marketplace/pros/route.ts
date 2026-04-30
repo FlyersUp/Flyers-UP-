@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabaseServer';
 import { getMarketplacePros } from '@/lib/db/services';
+import { isAppleAppReviewAccountEmail } from '@/lib/appleAppReviewAccount';
+import { mergeMarketplaceProsForAppleReview } from '@/lib/appReviewDemoSupply';
 
 export const runtime = 'nodejs';
 export const preferredRegion = ['cle1'];
@@ -21,11 +23,21 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = await createServerSupabaseClient();
-  const pros = await getMarketplacePros(supabase, {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const appleReviewDemoPros = Boolean(user?.email && isAppleAppReviewAccountEmail(user.email));
+
+  let pros = await getMarketplacePros(supabase, {
     serviceSlug,
     subcategorySlug,
     limit,
   });
+
+  if (appleReviewDemoPros) {
+    const admin = createAdminSupabaseClient();
+    pros = await mergeMarketplaceProsForAppleReview(admin, serviceSlug, pros);
+  }
 
   return Response.json({
     ok: true,

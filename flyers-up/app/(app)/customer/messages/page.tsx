@@ -8,12 +8,15 @@ import { useEffect, useState } from 'react';
 import { ConversationCard, type ConversationCardItem } from '@/components/messages/ConversationCard';
 import { EmptyState } from '@/components/messages/EmptyState';
 import { localCalendarDateToYmd } from '@/lib/datetime';
+import { isAppleAppReviewAccountEmail } from '@/lib/appleAppReviewAccount';
 
 type ThreadRow = ConversationCardItem;
 
 export default function CustomerMessagesPage() {
   const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [loading, setLoading] = useState(true);
+  /** Apple Review Demo Mode (reviewer@flyersup.app only) */
+  const [appReviewReviewer, setAppReviewReviewer] = useState(false);
   const { clearMessagesAlert, clearNotificationsAlert } = useNavAlerts();
 
   useEffect(() => {
@@ -28,9 +31,12 @@ export default function CustomerMessagesPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setThreads([]);
+        setAppReviewReviewer(false);
         setLoading(false);
         return;
       }
+
+      setAppReviewReviewer(isAppleAppReviewAccountEmail(user.email ?? undefined));
 
       const rows: ThreadRow[] = [];
 
@@ -187,14 +193,30 @@ export default function CustomerMessagesPage() {
           {loading ? (
             <p className="text-sm text-[#6B7280] dark:text-[#A1A8B3]">Loading…</p>
           ) : threads.length === 0 ? (
-            <EmptyState
-            variant="list"
-              title="Start the conversation"
-              subtitle="When you send a request or inquiry, your thread will appear here."
-              ctaLabel="Send a message"
-              ctaDisabled
-              ctaTooltip="Select a booking to message"
-            />
+            appReviewReviewer ? (
+              <div className="rounded-2xl border border-amber-200/80 bg-amber-50/90 dark:border-amber-900/50 dark:bg-amber-950/25 px-4 py-5 text-sm text-amber-950 dark:text-amber-100">
+                <p className="font-semibold">App Store review — messaging</p>
+                <p className="mt-1 text-xs opacity-90">
+                  Create any booking as this account: the pro auto-accepts and sends a demo reply. Then open Messages again
+                  or go to the booking&apos;s chat from its detail screen.
+                </p>
+                <a
+                  href="/occupations"
+                  className="mt-3 inline-flex items-center gap-1 font-medium text-amber-900 underline-offset-2 hover:underline dark:text-amber-50"
+                >
+                  Browse services
+                </a>
+              </div>
+            ) : (
+              <EmptyState
+                variant="list"
+                title="Start the conversation"
+                subtitle="When you send a request or inquiry, your thread will appear here."
+                ctaLabel="Send a message"
+                ctaDisabled
+                ctaTooltip="Select a booking to message"
+              />
+            )
           ) : (
             <div className="space-y-3">
               {threads.map((t) => (

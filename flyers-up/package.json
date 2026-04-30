@@ -14,6 +14,7 @@
     "generate-maskable": "node scripts/generate-maskable-icon.js",
     "test": "npx tsx --test \"lib/**/__tests__/**/*.test.ts\" \"lib/calendar/__tests__/*.test.ts\"",
     "audit:payment-intent-reads": "npx tsx scripts/audit-payment-intent-reads.ts",
+    "seed:apple-review": "npx tsx scripts/seed-apple-app-review-account.ts",
     "test:statuses": "npx tsx --test lib/bookings/__tests__/pro-visible-statuses.test.ts",
     "test:integration": "INTEGRATION_TEST=1 npx tsx --test lib/bookings/__tests__/integration.test.ts"
   },

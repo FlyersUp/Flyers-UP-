@@ -10,6 +10,8 @@ import { DashboardCard, DashboardSectionSkeleton } from '@/components/dashboard/
 import { useProPresence } from '@/hooks/useProPresence';
 import { SideMenu } from '@/components/ui/SideMenu';
 import { getCurrentUser } from '@/lib/api';
+import { isAppleAppReviewAccountEmail } from '@/lib/appleAppReviewAccount';
+import { AppReviewProOpenJobsDemoPanel } from '@/components/apple-review/AppReviewProOpenJobsDemoPanel';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -290,6 +292,8 @@ export default function ProJobsPage() {
   const [tab, setTab] = useState<'incoming' | 'open'>('open');
   const [ready, setReady] = useState(false);
   const [userName, setUserName] = useState('Account');
+  /** Apple App Review: show non-blocking Open Jobs preview when the real board is empty. */
+  const [isReviewAccount, setIsReviewAccount] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const [boardServices, setBoardServices] = useState<BoardService[]>([]);
@@ -329,6 +333,7 @@ export default function ProJobsPage() {
         router.replace(`/auth?next=${encodeURIComponent('/pro/jobs')}`);
         return;
       }
+      setIsReviewAccount(isAppleAppReviewAccountEmail(user.email));
       setUserName(user.email?.split('@')[0] ?? 'Account');
       const { data: pro } = await supabase
         .from('service_pros')
@@ -558,7 +563,7 @@ export default function ProJobsPage() {
           {tab === 'open' && (
             <>
               {showOpenJobsUnifiedEmpty ? (
-                <OpenJobsUnifiedEmpty />
+                isReviewAccount ? <AppReviewProOpenJobsDemoPanel /> : <OpenJobsUnifiedEmpty />
               ) : (
                 <>
                   {CUSTOMER_REQUESTS_ENABLED && (

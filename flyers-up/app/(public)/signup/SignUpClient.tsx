@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Logo from '@/components/Logo';
 import { trackGaEvent } from '@/lib/analytics/trackGa';
 import { supabase } from '@/lib/supabaseClient';
+import { isAppleAppReviewAccountEmail } from '@/lib/appleAppReviewAccount';
 import { getOrCreateProfile, routeAfterAuth, upsertProfile } from '@/lib/onboarding';
 
 type UserRole = 'customer' | 'pro';
@@ -61,6 +62,11 @@ export function SignUpClient() {
       setError('Please enter your email.');
       return;
     }
+    // Apple App Review: dedicated account already exists — use /signin with password, not signup OTP.
+    if (isAppleAppReviewAccountEmail(trimmed)) {
+      setError('This email is reserved for Apple App Review. Sign in at /signin with the password from App Store Connect (do not create a new account here).');
+      return;
+    }
     setIsLoading(true);
     try {
       const { error: otpError } = await supabase.auth.signInWithOtp({
@@ -93,6 +99,10 @@ export function SignUpClient() {
     setError(null);
     const trimmed = email.trim();
     if (!trimmed) return;
+    if (isAppleAppReviewAccountEmail(trimmed)) {
+      setError('This email is reserved for Apple App Review. Use /signin with email and password.');
+      return;
+    }
     setIsLoading(true);
     try {
       const { error: otpError } = await supabase.auth.signInWithOtp({
@@ -109,7 +119,7 @@ export function SignUpClient() {
       setOtp('');
       setResendCooldown(RESEND_COOLDOWN_SEC);
       setTimeout(() => otpInputRef.current?.focus(), 100);
-    } catch (err) {
+    } catch {
       setError('Failed to resend. Please try again.');
     } finally {
       setIsLoading(false);

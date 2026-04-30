@@ -47,6 +47,7 @@ import { StayOnPlatformTrustCallout } from '@/components/retention/StayOnPlatfor
 import { BookingRebookCard } from '@/components/bookings/customer/booking-detail/BookingRebookCard';
 import { BookingSafetyLinks } from '@/components/bookings/customer/booking-detail/BookingSafetyLinks';
 import { BookingDetailActionBar } from '@/components/bookings/customer/booking-detail/BookingDetailActionBar';
+import { AppleReviewDemoBookingPanel } from '@/components/apple-review/AppleReviewDemoBookingPanel';
 import { cn } from '@/lib/cn';
 import type { ReceiptSubtotalExplanationInput } from '@/lib/bookings/receipt-subtotal-explanation';
 
@@ -122,6 +123,8 @@ export interface BookingDetailData {
   adminHold?: boolean | null;
   /** Coalesced final / remaining Stripe PaymentIntent id for accurate payment-card normalization. */
   finalPaymentIntentId?: string | null;
+  /** Apple Review Demo Mode (reviewer@flyersup.app only) — from migration 141 + booking create. */
+  appReviewDemo?: boolean;
   finalPaymentIntentStatus?: string | null;
   finalPaymentIntentStripeStatus?: string | null;
   finalPaymentIntentStripeLiveChecked?: boolean;
@@ -401,6 +404,14 @@ export function BookingDetailContent({
             data-role="customer"
           >
             <BookingDetailHeader />
+
+            {fullBooking.appReviewDemo ? (
+              <AppleReviewDemoBookingPanel
+                bookingId={bookingId}
+                status={fullBooking.status ?? booking.status}
+                onProgressed={() => router.refresh()}
+              />
+            ) : null}
 
             <section className="mb-4">
               <BookingStepTracker
