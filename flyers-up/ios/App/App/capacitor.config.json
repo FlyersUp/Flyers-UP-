@@ -1,0 +1,10 @@
+{
+	"appId": "com.flyersup.app",
+	"appName": "Flyers Up",
+	"webDir": "www",
+	"server": {
+		"url": "https://www.flyersup.app",
+		"cleartext": false
+	},
+	"packageClassList": []
+}
