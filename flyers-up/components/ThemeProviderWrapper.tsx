@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ViewportOverflowDebug } from '@/components/dev/ViewportOverflowDebug';
 import { StandaloneModeSync } from '@/components/StandaloneModeSync';
+import { BrowserCompatibilityGate } from '@/components/BrowserCompatibilityGate';
 
 function getStaticModeFromPath(pathname: string | null): 'customer' | 'pro' | null {
   if (!pathname) return null;
@@ -47,9 +48,11 @@ export function ThemeProviderWrapper({ children }: { children: React.ReactNode }
 
   return (
     <ThemeProvider mode={mode}>
-      <ViewportOverflowDebug />
-      <StandaloneModeSync />
-      {children}
+      <BrowserCompatibilityGate>
+        <ViewportOverflowDebug />
+        <StandaloneModeSync />
+        {children}
+      </BrowserCompatibilityGate>
     </ThemeProvider>
   );
 }
